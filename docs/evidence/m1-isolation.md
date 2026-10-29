@@ -48,3 +48,11 @@ The receipt records `"isolation": "weakened"`.
 A run at `isolation: full` has not been witnessed yet. The CI workflow lifts the restriction on
 its disposable runner and lets the preflight confirm full isolation. That remains unverified until
 a hosted run exists (spec A2, M8).
+
+## M1 exit evidence (T022)
+
+| Claim | Revision | Result | Layer |
+| --- | --- | --- | --- |
+| Fresh clone (empty HOME, path with a space, no credentials) passes `//:verify`, all 11 checks | `e953809929b19bdcc6d90353cbb6efc116c011d7` | PASSED, `isolation: weakened` | local |
+| Budgets (cold n=3, warm n=5, no-network n=1) | `e98c55e4e6902ca2029bdaceef940c807e46c416` | `docs/budgets/linux-x86_64-20c.json` | local |
+| Full isolation in hosted CI | — | not yet run (no remote; M8) | hosted-ci |

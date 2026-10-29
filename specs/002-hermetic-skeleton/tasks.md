@@ -96,7 +96,7 @@
 ## Phase 7: Polish
 
 - [x] T021 Update the README quickstart for M1, and add `quality/README.md` and `tools/README.md`.
-- [ ] T022 Run `bazel run //:verify -- --weak-isolation` at the final revision and commit the
+- [x] T022 Run `bazel run //:verify -- --weak-isolation` at the final revision and commit the
   evidence record.
 
 ## Dependencies
