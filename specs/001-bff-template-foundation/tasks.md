@@ -25,9 +25,9 @@ before US1 because the browser→BFF slice consumes the generated contract. Both
 - [ ] T002 [P] Add `REPO.bazel`, `.gitignore`, `.bazelignore` and `.editorconfig`
 - [ ] T003 [P] Pin native tools with digests in `multitool.lock.json` (gitleaks, typos, shellcheck, actionlint, zizmor, prek, buildifier) via rules_multitool
 - [ ] T004 Register Go SDK via rules_go and gazelle in `MODULE.bazel`; add `go.mod`/`go.sum`
-- [ ] T005 Register Node, pnpm, aspect_rules_js/rules_ts in `MODULE.bazel`; add `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`
+- [ ] T005 Register Node, pnpm, aspect_rules_js/rules_ts in `MODULE.bazel`; add `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — **moved to M2 (with T023)**: it needs a real consumer (spec 002 A4)
 - [ ] T006 [P] Add lockfile/Bzlmod policy test rejecting WORKSPACE files and unlocked changes in `tools/policy/bzlmod_test.sh`
-- [ ] T007 [P] Port `tools/speckit/bootstrap.sh verify` to an offline Bazel test with a hash-pinned Spec Kit archive in `tools/speckit/BUILD.bazel` and `tools/speckit/upstream.json`
+- [ ] T007 [P] Port `tools/speckit/bootstrap.sh verify` to an offline Bazel test with a hash-pinned Spec Kit archive in `tools/speckit/BUILD.bazel` and `tools/speckit/upstream.json` — **revised in spec 002 R4**: an offline hash-manifest test plus a networked provenance check required in CI; a fully offline regeneration would need rules_python
 - [ ] T008 Add `//:verify` (initially T006, T007 and T012 checks) in `BUILD.bazel`
 - [ ] T009 [P] Add measurement harness `tools/bench/measure.sh` (cold/warm, N runs, p50/p95, peak RSS, host profile JSON)
 - [ ] T010 [P] Add host capability preflight (user namespaces, disk, Bazelisk) with actionable messages in `tools/bootstrap/preflight.sh`
