@@ -49,5 +49,5 @@
    - Added the cookie/CSRF session boundary, push and malformed-config fixtures, and CI-as-shards
      parity.
 3. Three potential clarifications were resolved from evidence instead of asking (recorded as
-   assumptions A2, A4, A5); A5 (repository name/visibility/license) remains an owner decision and
-   blocks only M8, not this package.
+   assumptions A2, A4, A5); A5 was approved on 2026-10-29 as the target; publication itself remains an
+   M8 operator gate.

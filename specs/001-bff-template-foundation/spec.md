@@ -400,12 +400,12 @@ honest (pins, schema checks, suppression ban, single CI aggregate).
 - **A3 (material)**: Bazelisk (plus Git and a POSIX shell) is the only host prerequisite; Go, Node,
   pnpm, protoc, buf and browsers come through the build graph. The reference's hermetic toolchain shows this is
   feasible in principle. M1 must prove it on a clean host.
-- **A4 (material, recommendation)**: The shared checks are distributed as a versioned dependency
+- **A4 (material, approved 2026-10-29)**: The shared checks are distributed as a versioned dependency
   (a Bazel module plus a prek hook repository at the same version tag) and the reference app as a
   copyable template; no generator. See research R-07.
-- **A5 (material, owner decision)**: Proposed repository `selamy-labs/bazel-protobuf-bff-template`,
+- **A5 (material, approved 2026-10-29 as target)**: Repository `selamy-labs/bazel-protobuf-bff-template`,
   public, GitHub template repository, MIT license (matching the Relentless CI templates). Stays
-  local until the owner approves.
+  local until the M8 publication gate.
 - **A6**: Supported host profile for budgets and CI: Linux x86_64 with unprivileged user
   namespaces; macOS arm64 is a secondary profile measured separately in M1.
 - **A7**: The Relentless CI templates are copy-only today (no packages, tags or reusable

@@ -399,9 +399,11 @@ proprietary — only architectural observations (no code, schema, fixture, confi
 identifier or incident text) inform this repository. Relentless CI and Spec Kit are MIT; any adapted
 file records source, revision and license.
 
-## Open questions for the reviewer
+## Owner decisions (approved 2026-10-29)
 
-1. Approve R-07 hybrid distribution (shared checks in-repo as a Bazel module first, extracted later)?
-2. Approve repository name/visibility/license proposal (R-14 / A5)?
-3. Accept connect-go v2 as the starting line subject to the M2 spike (R-04)?
-4. Accept React (vs framework-free TypeScript) for the opinionated browser client (R-05)?
+| # | Decision | Outcome |
+| --- | --- | --- |
+| 1 | R-07 hybrid distribution: shared checks start in this repo as a Bazel module and are extracted later | **Approved** |
+| 2 | R-14 / A5: `selamy-labs/bazel-protobuf-bff-template`, public, MIT | **Approved as the target.** Creating and publishing the repository is still an operator gate at M8; until then the repo stays local. |
+| 3 | R-04: connect-go v2 as the starting line, subject to spike T020 | **Approved** |
+| 4 | R-05: React for the browser client | **Approved** |
