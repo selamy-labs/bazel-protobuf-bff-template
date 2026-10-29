@@ -1,0 +1,14 @@
+"""Shared quality checks for the BFF template (spec 001 R-07, R-08)."""
+
+module(
+    name = "bff_template_quality",
+    version = "0.1.0",
+)
+
+bazel_dep(name = "rules_go", version = "0.64.2")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "rules_multitool", version = "1.11.1")
+
+multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
+multitool.hub(lockfile = "//:multitool.lock.json")
+use_repo(multitool, "multitool")

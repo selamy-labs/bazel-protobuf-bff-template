@@ -1,0 +1,29 @@
+"""Generic Bazel/Protobuf BFF template: root module."""
+
+module(
+    name = "bff_template",
+    version = "0.0.0",
+)
+
+bazel_dep(name = "rules_go", version = "0.64.2")
+bazel_dep(name = "rules_shell", version = "0.8.0")
+bazel_dep(name = "buildifier_prebuilt", version = "10.1.0")
+
+# Shared, separately versioned quality checks (spec 001 R-07). Consumers outside this repository
+# pin it with git_override at an immutable tag commit instead.
+bazel_dep(name = "bff_template_quality", version = "0.1.0")
+local_path_override(
+    module_name = "bff_template_quality",
+    path = "quality",
+)
+
+# Go SDK pinned by version and per-platform sha256 (spec 002 research R1).
+go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
+go_sdk.download(
+    sdks = {
+        "darwin_arm64": ("go1.27.2.darwin-arm64.tar.gz", "76812b213b1b2302c978d28fa52fa92d541704b9e7d9d5db8002c50e4018c4c5"),
+        "linux_amd64": ("go1.27.2.linux-amd64.tar.gz", "ecbadb99091a3f46e31f5f934b068b1864eafa7995211b39eaddf76996045fe5"),
+        "linux_arm64": ("go1.27.2.linux-arm64.tar.gz", "94f3e30b8e374bc285e7dadc11e0865726b9bc6e85b841ccceaabc0214c6b7c8"),
+    },
+    version = "1.27.2",
+)

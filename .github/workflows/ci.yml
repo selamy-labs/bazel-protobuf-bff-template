@@ -1,0 +1,67 @@
+# Required CI (specs/002-hermetic-skeleton US4). The only policy step is the canonical verifier;
+# the `gate` job is the single required check. This file is local until a remote exists (M8).
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  merge_group:
+
+permissions:
+  contents: read
+
+concurrency:
+  # One group per commit: pull-request runs for a newer head do not cancel evidence for this one.
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out the exact revision
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Allow unprivileged user namespaces on this disposable runner
+        # Ubuntu 24.04 restricts them via AppArmor, which disables Bazel's linux-sandbox
+        # (specs/002-hermetic-skeleton research R2). Full isolation is then verified by preflight.
+        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Set up Bazelisk
+        uses: bazel-contrib/setup-bazel@104e3eea9447cdaa4b00d0fb46191a3985d26ab3 # 0.19.1
+        with:
+          bazelisk-cache: true
+          repository-cache: true
+      - name: Verify
+        run: bazel run //:verify
+      - name: Upload receipt
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: verify-receipt
+          path: .verify/receipt.json
+          if-no-files-found: error
+          retention-days: 14
+
+  gate:
+    name: gate
+    if: always()
+    needs: [verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Require every job to succeed
+        env:
+          RESULTS: ${{ join(needs.*.result, ' ') }}
+        run: |
+          for result in $RESULTS; do
+            if [ "$result" != "success" ]; then
+              echo "gate: a required job finished as '$result'" >&2
+              exit 1
+            fi
+          done

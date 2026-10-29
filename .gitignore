@@ -1,0 +1,3 @@
+bazel-*
+/.verify/
+/.private/

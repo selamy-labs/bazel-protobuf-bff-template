@@ -1,0 +1,15 @@
+# Lockfile drift is an error, never a silent rewrite (spec 002 FR-001).
+common --lockfile_mode=error
+common --enable_platform_specific_config
+
+# Namespace-isolated sandboxing by default. If linux-sandbox is unavailable the build fails
+# instead of falling back to the non-isolating processwrapper-sandbox (spec 002 research R2).
+build:linux --spawn_strategy=linux-sandbox
+build:macos --spawn_strategy=darwin-sandbox
+build --sandbox_default_allow_network=false
+build --incompatible_strict_action_env
+test --test_output=errors
+
+# Explicit, labeled opt-in for hosts that cannot provide namespaces. Run it through
+# `tools/verify.sh --weak-isolation`, which records `isolation: weakened` in the receipt.
+build:weak-isolation --spawn_strategy=processwrapper-sandbox

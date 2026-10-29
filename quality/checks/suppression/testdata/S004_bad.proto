@@ -1,0 +1,2 @@
+syntax = "proto3";
+// buf:lint:ignore FIELD_LOWER_SNAKE_CASE

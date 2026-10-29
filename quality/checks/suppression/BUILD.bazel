@@ -1,0 +1,25 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "suppression",
+    srcs = [
+        "rules.go",
+        "scan.go",
+    ],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/suppression",
+)
+
+go_test(
+    name = "suppression_test",
+    size = "small",
+    srcs = ["suppression_test.go"],
+    data = glob(["testdata/**"]),
+    embed = [":suppression"],
+)
+
+go_binary(
+    name = "suppression-ban",
+    srcs = ["main.go"],
+    visibility = ["//visibility:public"],
+    deps = [":suppression"],
+)

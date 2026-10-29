@@ -1,0 +1,15 @@
+# Pinned native tools, exposed so consumers depend on this module rather than on the hub name.
+[
+    alias(
+        name = tool,
+        actual = "@multitool//tools/" + tool,
+        visibility = ["//visibility:public"],
+    )
+    for tool in [
+        "actionlint",
+        "gitleaks",
+        "shellcheck",
+        "typos",
+        "zizmor",
+    ]
+]

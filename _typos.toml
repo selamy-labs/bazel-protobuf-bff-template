@@ -1,0 +1,9 @@
+[files]
+# The vendored Spec Kit scaffold is pinned by hash manifest (specs/002-hermetic-skeleton R4) and is
+# not edited here; generated lockfiles are not prose.
+extend-exclude = [
+  ".specify/",
+  ".claude/skills/speckit-*/",
+  "MODULE.bazel.lock",
+  "*.sha256",
+]

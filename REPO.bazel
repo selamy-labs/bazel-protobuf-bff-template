@@ -1,0 +1,6 @@
+# quality/ is a separate module, reached only as @bff_template_quality.
+ignore_directories([
+    "quality",
+    ".private",
+    ".verify",
+])
