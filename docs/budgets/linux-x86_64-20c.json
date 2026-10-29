@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "revision": "e98c55e4e6902ca2029bdaceef940c807e46c416",
+  "measured_at": "2026-10-29T02:10:30Z",
+  "isolation": "weakened",
+  "host_profile": {"os": "ubuntu-24.04", "kernel": "6.8.0-142-generic", "arch": "x86_64", "cpus": 20, "memory_gb": 62},
+  "scenario": "bazel run //:verify (full canonical verifier)",
+  "cold": {"n": 3, "p50_s": 45.6, "p95_s": 48.3, "peak_rss_mb": 1760, "failed_runs": 0},
+  "warm": {"n": 5, "p50_s": 5.0, "p95_s": 5.1, "peak_rss_mb": 1196, "failed_runs": 0},
+  "warm_no_network": {"n": 1, "p50_s": 4.8, "p95_s": 4.8, "peak_rss_mb": 947, "failed_runs": 0},
+  "limits": "peak RSS is sampled every 0.5 s over the Bazel server process tree and may miss short spikes; cold includes downloading Bazel, the Go SDK and all tools; network fetch time depends on the link"
+}

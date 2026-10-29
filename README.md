@@ -7,8 +7,33 @@ backend-for-frontend that talk only through generated Protocol Buffer/Connect cl
 the toolchains, code generation and tests. The quality checks are shared and versioned, and they
 run identically in Git hooks, in the local verifier and in CI.
 
-**Status: design review (M0).** This repository currently holds only a Spec Kit package; there is
-no application code yet. It is local-only and unpublished.
+**Status: M1 (hermetic skeleton).** The pinned toolchain, the shared quality module and the
+canonical verifier exist. There is no application code yet; that starts in M2. The repository is
+local-only and unpublished.
+
+## How to use and test
+
+Prerequisites: [Bazelisk](https://github.com/bazelbuild/bazelisk), Git, bash and coreutils. Bazel,
+the Go SDK and every check tool are fetched at pinned, checksummed versions.
+
+```sh
+bazel run //:verify
+```
+
+The command fails closed if the host cannot provide namespace sandboxing, for example on
+Ubuntu 24.04 with the default AppArmor policy. The preflight prints the fixes. If you can't apply
+them, opt in to reduced isolation explicitly; the result is labeled `isolation: weakened`:
+
+```sh
+bazel run --config=weak-isolation //:verify -- --weak-isolation
+```
+
+Other entry points:
+
+| Command | What it does |
+| --- | --- |
+| `tools/bootstrap/fresh_clone.sh` | Fresh-clone witness |
+| `tools/bench/measure.sh` | Feedback-cost measurement; results go to `docs/budgets/` |
 
 ## What to read first
 
