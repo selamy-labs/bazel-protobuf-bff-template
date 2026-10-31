@@ -34,7 +34,9 @@ tools/bootstrap/bazel.sh test //web/...
 ```
 
 The browser and every library it loads are pinned by sha256, for Linux x86_64 with glibc 2.36 or
-newer. Other platforms fail with a message saying so. `tools/verify.sh` runs all of these tests.
+newer. `tools/verify.sh` runs all of these tests, and its preflight stops early on Linux below that
+floor or when it can't confirm glibc. A direct `bazel test` has no preflight. On a host below the
+floor, the browser fails at start. Other platforms fail with a message saying so.
 
 ## Identity
 

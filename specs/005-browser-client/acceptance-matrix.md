@@ -15,6 +15,7 @@ local verifier, **ci** hosted CI (not run), **hum** human.
 | FR-008 | `bundle_test` | test identity in the production bundle → fails | G | off |
 | FR-009 | `dev_test` | the runner serves the page and the server, and stops both | G | off |
 | FR-010 | `required_tests.txt`, `fresh_clone.sh` | a missing test fails the inventory | G | loc |
+| FR-011 | `preflight_test` | glibc below 2.36, or an unknown libc → fails before Bazel starts, also with weak isolation; 2.36 and newer pass; macOS skips it | G | off |
 
 | SC | Witness | Status |
 | --- | --- | --- |
@@ -23,7 +24,8 @@ local verifier, **ci** hosted CI (not run), **hum** human.
 | SC-003 | `defect_e2e_test` | Local, passing |
 | SC-004 | `bundle_test` | Local, passing |
 
-Limits: the pinned browser exists for Linux x86_64 only, and needs glibc 2.36 or newer. Chromium runs
+Limits: the pinned browser exists for Linux x86_64 only, and needs glibc 2.36 or newer. The preflight enforces that floor only for the verifier, not for a
+direct `bazel test`. Chromium runs
 with `--no-sandbox`, in tests only. The production web build has no credential source, so it cannot
 complete a call until an adopter adds one.
 
@@ -31,3 +33,8 @@ Hand-run on 2026-10-31: making the client send credentials fails the omitted-coo
 fails most other scenarios, because the browser's CORS check blocks every credentialed call. So this
 shows the scenario can fail, but it does not isolate it. The scenario's own same-origin control is
 the witness that a cookie would be seen.
+
+Hand-run on 2026-10-31 against `preflight_test`: each mutant failed on its intended case. They were
+the floor at 2.35 and at 2.37, an off-by-one comparison, an ignored major version, the check removed,
+unknown libc passing, the check run on macOS, no early exit, weak isolation bypassing the check, and
+a changed floor in `README.md`.

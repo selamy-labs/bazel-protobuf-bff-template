@@ -19,6 +19,7 @@ tasks. Boxes are ticked only when the named witness passes in the verifier.
 | [x] T009 | T006–T008 | Inventories, docs, provenance, parent ledger | FR-010 | T025, T042 | `test-inventory`, `fresh_clone.sh` |
 | [x] T010 | T006 | Review regression: the omitted-cookie scenario gets a same-origin control and requires a successful POST | FR-005 | T032, FR-008 | `the client omits a cookie the browser would send` in `notes_e2e_test` |
 | [x] T011 | T009 | Quote tool paths, because Bazel resolves some inside the checkout | FR-010 | T042, FR-025 | `//:verify_body_test`, `fresh_clone.sh` |
+| [x] T012 | T001 | Enforce the Linux glibc floor in the preflight; a below-floor or unknown libc fails early | FR-011 | T030, FR-025 | `//:preflight_test` |
 
 ## Execution record
 
@@ -36,5 +37,11 @@ findings changed the plan:
   and a path with parentheses broke the sourced tool list. A test in the verifier now covers this.
 - Independent review found that the original no-cookie scenario never seeded a cookie, so it could
   not fail. T010 replaced it. That test earned no credit before then.
+- An independent run at `c334119` on a host with glibc 2.35 failed all three browser targets with
+  `GLIBC_2.36' not found`, loading the pinned `libexpat`. The other 28 targets passed. The host was
+  unsupported, so this is neither a product failure nor a sandbox result. The verifier had let an
+  unsupported host run for minutes before failing. T012 makes it stop first. Reading the version
+  needs of all 67 pinned ELF files confirmed the floor: `libexpat` and `libstdc++` need 2.36, and
+  nothing needs newer. The pins and isolation did not change.
 
 Credit for the browser scenarios rests on `defect_e2e_test`, which is re-run on every verification.

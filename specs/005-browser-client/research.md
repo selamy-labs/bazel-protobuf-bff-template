@@ -12,7 +12,8 @@ fails at start with `libnspr4.so: cannot open shared object file`; `libnss3`, `l
 **Decision**: pin the browser archive and its full shared-library closure by sha256.
 
 - The libraries are Debian 12 packages. Bookworm's glibc 2.36 sets the floor, and hosts need only
-  glibc at that version or newer. Ubuntu 24.04 has 2.39.
+  glibc at that version or newer. Ubuntu 24.04 has 2.39. The verifier's preflight enforces this
+  floor on Linux, and fails when it can't confirm glibc.
 - `tools/pins/gen_browser_libs.py` resolves the closure from Debian's package index and writes
   `tools/browser/debs.bzl`. A repository rule fetches and flattens them.
 - Tests point Playwright at the pinned executable with `LD_LIBRARY_PATH` set only for the browser.

@@ -10,7 +10,7 @@ This directory holds repository orchestration scripts. The checks they run live 
 | --- | --- |
 | `verify.sh` | The canonical verifier. CI runs exactly this. It scrubs the environment and runs `checks/verify_body.sh`. |
 | `bootstrap/bazel.sh` | The pinned Bazel: sha256 checked on every call, host and user rc files disabled. |
-| `bootstrap/preflight.sh` | Host capability preflight: prerequisites, disk, and namespace isolation. |
+| `bootstrap/preflight.sh` | Host capability preflight: prerequisites, disk, the Linux glibc floor, and namespace isolation. |
 | `bootstrap/fresh_clone.sh` | Fresh-clone witness: an empty `HOME`, `PATH=/usr/bin:/bin`, and a path with spaces and regex characters. `--hostile` plants hostile settings and a real defect. |
 | `bench/measure.sh` | Measures bootstrap, first verify, warm and edited-code cost and writes the result to `docs/budgets/`. |
 | `policy/` | The WORKSPACE ban, the implicit-configuration ban, the exact `.bazelrc` allowlist, and the lockfile, checksum and ambient-rc witnesses. |

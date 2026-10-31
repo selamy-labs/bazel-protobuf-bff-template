@@ -116,6 +116,10 @@ A developer runs one command and gets the app locally, with test identity clearl
 - **FR-010**: These tests MUST join the verifier's required inventory, and the fresh-clone witness
   MUST cover the browser path.
 
+- **FR-011**: On Linux, the verifier's preflight MUST stop before any build when glibc is below the
+  documented floor, or when it cannot confirm glibc, and MUST say how to get a supported host. The
+  weak-isolation opt-in MUST NOT bypass this. macOS is out of this check.
+
 ### Key Entities
 
 - **Outcome**: what the page shows for a call: a note, field messages, or one failure kind.
