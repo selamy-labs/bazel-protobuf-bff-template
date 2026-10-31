@@ -1,5 +1,20 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+exports_files(
+    ["tools/checks/native.sh"],
+    visibility = ["//api:__pkg__"],
+)
+
+npm_link_all_packages(name = "node_modules")
+
+ts_config(
+    name = "tsconfig",
+    src = "tsconfig.json",
+    visibility = ["//visibility:public"],
+)
 
 sh_binary(
     name = "workspace_policy",
@@ -48,12 +63,16 @@ sh_test(
 
 TOOLS = {
     "ACTIONLINT": "@bff_template_quality//tools:actionlint",
+    "BASELINE": "@bff_template_quality//proto/cmd:baseline",
+    "BUF": "@bff_template_quality//tools:buf",
+    "BUF_CONFIG_FILE": "@bff_template_quality//proto:buf.yaml",
     "BUILDIFIER": "@bff_template_quality//tools:buildifier",
     "GITLEAKS": "@bff_template_quality//tools:gitleaks",
     "SHELLCHECK": "@bff_template_quality//tools:shellcheck",
     "SUPPRESSION": "@bff_template_quality//checks/suppression:suppression-ban",
     "TYPOS": "@bff_template_quality//tools:typos",
     "UV": "@bff_template_quality//tools:uv",
+    "VALIDATE_PROTO_FILE": "@protovalidate_proto//file",
     "YQ": "@bff_template_quality//tools:yq",
     "ZIZMOR": "@bff_template_quality//tools:zizmor",
 }

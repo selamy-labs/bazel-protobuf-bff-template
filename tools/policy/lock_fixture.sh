@@ -13,7 +13,8 @@ trap '(cd "$work/ws" 2>/dev/null && "$bazel" --output_user_root="$work/out" shut
 cache="$(cd "$root" && "$bazel" info repository_cache)"
 
 mkdir -p "$work/ws"
-cp "$root"/{.bazelversion,.bazelrc,MODULE.bazel,MODULE.bazel.lock,REPO.bazel} "$work/ws/"
+cp "$root"/{.bazelversion,.bazelrc,MODULE.bazel,MODULE.bazel.lock,REPO.bazel,go.mod,go.sum} "$work/ws/"
+cp "$root"/{package.json,pnpm-lock.yaml,pnpm-workspace.yaml} "$work/ws/"
 cp -r "$root/quality" "$work/ws/quality"
 touch "$work/ws/BUILD.bazel"
 

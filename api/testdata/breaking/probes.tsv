@@ -1,0 +1,10 @@
+# check	name	sed expression applied to notes.proto	string the failure must contain ("-" means the probe must pass)
+proto-breaking	field number changed	s/string body = 3/string body = 9/	FIELD_NO_DELETE
+proto-breaking	field type changed	s/string body = 3/bytes body = 3/	FIELD_SAME_TYPE
+proto-breaking	field renamed	s/string body = 3/string text = 3/	FIELD_SAME_NAME
+proto-breaking	json name changed	s/string body = 3 \[/string body = 3 [json_name = "text", /	FIELD_SAME_JSON_NAME
+proto-breaking	field removed without a reservation	/create_time = 4;/d	FIELD_NO_DELETE
+proto-breaking	rpc removed	/rpc GetNote/d	RPC_NO_DELETE
+proto-breaking	compatible field added	s/^  google.protobuf.Timestamp create_time = 4;/&\n\n  string summary = 5;/	-
+proto-format	badly indented field	s/^  string body = 3/string body = 3/	string body = 3
+proto-lint	service without the Service suffix	s/service NoteService/service Notes/	SERVICE_SUFFIX

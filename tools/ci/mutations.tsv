@@ -15,6 +15,7 @@ step_working_directory	(.jobs.verify.steps[] | select(.name == "Verify"))["worki
 workflow_env_bash_env	.env.BASH_ENV = "/tmp/evil"	env
 step_env_injection	(.jobs.verify.steps[] | select(.name == "Verify")).env.BAZELISK_BASE_URL = "https://example.invalid"	env
 checkout_wrong_ref	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/checkout@"))).with.ref = "main"	exact ref
+checkout_shallow	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/checkout@"))).with["fetch-depth"] = 1	with inputs
 checkout_persist_credentials	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/checkout@"))).with["persist-credentials"] = true	persist-credentials
 unpinned_action	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/checkout@"))).uses = "actions/checkout@v7"	uses
 unlisted_action	.jobs.verify.steps += [{"name": "Cache", "uses": "example/cache@0123456789abcdef0123456789abcdef01234567"}]	uses

@@ -39,6 +39,11 @@ T = [
         ("linux", "arm64", f"{G}/astral-sh/uv/releases/download/0.13.1/uv-aarch64-unknown-linux-gnu.tar.gz", "9041c73c99fdc5892cf128140beb354eca9231d502068cc36e6cb53a8e59ad14"),
         ("macos", "arm64", f"{G}/astral-sh/uv/releases/download/0.13.1/uv-aarch64-apple-darwin.tar.gz", "cfe454573412ff7380d15fc7dae5997ab53ffce72fce0a78e91ddbc84001acd2"),
     ]),
+    ("buf", None, [
+        ("linux", "x86_64", f"{G}/bufbuild/buf/releases/download/v1.74.0/buf-Linux-x86_64", "92326d957d613712669fb55f9e4340946a8142a92120e09008459118778273d2"),
+        ("linux", "arm64", f"{G}/bufbuild/buf/releases/download/v1.74.0/buf-Linux-aarch64", "d42b471501a85dbadb40062960492dd81ce5ca4e413f4133d514d3ae3c0af4df"),
+        ("macos", "arm64", f"{G}/bufbuild/buf/releases/download/v1.74.0/buf-Darwin-arm64", "602d73e39a8835efd29a02ba6db6060ae86e4a0df19b8ac4403032b5deae3569"),
+    ]),
     ("buildifier", None, [
         ("linux", "x86_64", f"{G}/bazelbuild/buildtools/releases/download/v10.1.0/buildifier-linux-amd64", "31b6a8aa1e5c746696788f428729701770ad91925873d8256cb885c60e12c77e"),
         ("linux", "arm64", f"{G}/bazelbuild/buildtools/releases/download/v10.1.0/buildifier-linux-arm64", "38d2ed845f560b4a16ddee41de906508a95f8dc85b04e0851b0a71e3a70d3890"),

@@ -23,7 +23,47 @@ on_files() { # on_files <list> <command...>: one invocation over every listed fi
   "$@" "${files[@]}"
 }
 
+# assemble_schema <schema dir> <out>: only .proto files are copied, so a buf configuration next to
+# a schema is never read. The canonical policy and the one schema import are added here.
+assemble_schema() {
+  mkdir -p "$2/buf/validate"
+  (cd "$1" && find . -name '*.proto' -not -path './testdata/*' -print0 | tar -cf - --null -T -) | tar -xf - -C "$2"
+  cp "$VALIDATE_PROTO_FILE" "$2/buf/validate/validate.proto"
+  cp "$BUF_CONFIG_FILE" "$2/buf.yaml"
+  chmod -R u+w "$2"
+}
+
+buf() { # Runs with a scratch HOME, so user configuration and the credential file are not read.
+  HOME="$buf_home" BUF_CACHE_DIR="$buf_home/cache" "$BUF" "$@"
+}
+
 case "$check" in
+  proto-format | proto-lint | proto-breaking) # <schema dir> [<marker>]
+    schema="$1"
+    [[ -d "$schema" ]] || { echo "$check: no schema directory: $schema" >&2; exit 1; }
+    scratch="$(mktemp -d)"
+    trap 'rm -rf "$scratch"' EXIT
+    buf_home="$scratch/home"
+    mkdir -p "$buf_home"
+    assemble_schema "$schema" "$scratch/new"
+    [[ -n "$(find "$scratch/new" -name '*.proto' -not -path '*/buf/validate/*' -print -quit)" ]] ||
+      { echo "$check: no schema files under $schema" >&2; exit 1; }
+    case "$check" in
+      proto-format) buf format "$scratch/new" --exclude-path "$scratch/new/buf" --diff --exit-code ;;
+      proto-lint) buf lint "$scratch/new" --exclude-path "$scratch/new/buf" --error-format=json ;;
+      proto-breaking)
+        status="$("$BASELINE" -repo . -marker "$2" -schema "$schema" -out "$scratch/old")"
+        echo "proto-breaking: $status"
+        if [[ "$status" == bootstrap ]]; then
+          echo "proto-breaking: compared nothing; this is the first schema"
+          exit 0
+        fi
+        assemble_schema "$scratch/old" "$scratch/against"
+        # The pinned import is the same on both sides, so only the schema can differ.
+        buf breaking "$scratch/new" --against "$scratch/against" --error-format=json
+        ;;
+    esac
+    ;;
   secrets) # <NUL list> <gitleaks config>: scans a snapshot of exactly the inventory, so build
     # output and ignored local files are out of scope by construction, and no path is allowlisted.
     list="$1"

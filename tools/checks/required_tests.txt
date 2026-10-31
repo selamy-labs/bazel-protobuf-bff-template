@@ -1,6 +1,10 @@
 //:bazel_pin_test
+//api:compile_gate_test
+//api:schema_probes_test
+//api:validate_test
 @bff_template_quality//checks/ciparity:ciparity_test
 @bff_template_quality//checks/suppression:suppression_test
+@bff_template_quality//proto:proto_test
 //:bzlmod_policy_test
 //:ci_parity_test
 //:config_policy_test

@@ -193,6 +193,31 @@
       }
     ]
   },
+  "buf": {
+    "binaries": [
+      {
+        "kind": "file",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.74.0/buf-Linux-x86_64",
+        "sha256": "92326d957d613712669fb55f9e4340946a8142a92120e09008459118778273d2",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.74.0/buf-Linux-aarch64",
+        "sha256": "d42b471501a85dbadb40062960492dd81ce5ca4e413f4133d514d3ae3c0af4df",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "file",
+        "url": "https://github.com/bufbuild/buf/releases/download/v1.74.0/buf-Darwin-arm64",
+        "sha256": "602d73e39a8835efd29a02ba6db6060ae86e4a0df19b8ac4403032b5deae3569",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
+  },
   "buildifier": {
     "binaries": [
       {

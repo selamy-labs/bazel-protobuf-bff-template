@@ -1,14 +1,14 @@
 # Contract: Example Notes API (`template.notes.v1`)
 
-Design-level contract; the `.proto` is written in M2 (task T021) and is the source of truth from
-then on. Neutral by construction: no product domain, no external identifiers.
+The schema in `api/template/notes/v1/notes.proto` is the source of truth. This page adds behavior a
+schema cannot state. Neutral by construction: no product domain, no external identifiers.
 
 ## Service `NoteService`
 
 | RPC | Request | Response | Browser caller | E2E scenarios |
 | --- | --- | --- | --- | --- |
-| `CreateNote` | `note.title`, `note.body` | `Note` | "New note" form | success; invalid title (empty, >120); body too long; unauthenticated; unavailable |
-| `GetNote` | `name` | `Note` | "Open note" lookup | success; not found; other principal's note → not found; deadline exceeded |
+| `CreateNote` | `note.title`, `note.body` | `note` | "New note" form | success; invalid title (empty, >120); body too long; unauthenticated; unavailable |
+| `GetNote` | `name` | `note` | "Open note" lookup | success; not found; other principal's note → not found; deadline exceeded |
 
 Connect protocol over HTTP/1.1 and HTTP/2; JSON and binary codecs both supported by the server;
 the browser uses the Connect protocol with JSON for debuggability (binary optional).

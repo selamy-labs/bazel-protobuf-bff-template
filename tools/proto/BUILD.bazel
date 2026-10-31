@@ -1,0 +1,4 @@
+exports_files(
+    ["probes_test.sh"],
+    visibility = ["//api:__pkg__"],
+)

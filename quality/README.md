@@ -19,7 +19,8 @@ depends on the application that uses it.
 | --- | --- |
 | `checks/suppression` | The `suppression-ban` Go check. Its stable codes S001–S012 are defined in `rules.go`, and each code has a defect and a corrected fixture. |
 | `checks/ciparity` | Validates a workflow against a closed allowlist policy. Unknown keys fail. |
-| `tools` | Pinned native tools: `actionlint`, `buildifier`, `gitleaks`, `shellcheck`, `typos`, `uv`, `yq`, `zizmor`. They are exposed as `@bff_template_quality//tools:<name>`, and pinned by sha256 in `multitool.lock.json`. |
+| `proto` | The canonical `buf.yaml` and the compatibility baseline reader, which reads a declared commit from Git objects and fails closed. |
+| `tools` | Pinned native tools: `actionlint`, `buf`, `buildifier`, `gitleaks`, `shellcheck`, `typos`, `uv`, `yq`, `zizmor`. They are exposed as `@bff_template_quality//tools:<name>`, and pinned by sha256 in `multitool.lock.json`. |
 
 ## How to use
 

@@ -1,0 +1,131 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("@npm//:@bufbuild/protoc-gen-es/package_json.bzl", protoc_gen_es = "bin")
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/proto:defs.bzl", "buf_generate")
+
+exports_files(["template/notes/v1/notes.proto"])
+
+SCHEMA = "template/notes/v1/notes.proto"
+
+buf_generate(
+    name = "notes_go_gen",
+    outs = ["template/notes/v1/notes.pb.go"],
+    opts = ["paths=source_relative"],
+    plugin = "@org_golang_google_protobuf//cmd/protoc-gen-go",
+    schema = SCHEMA,
+    schema_path = SCHEMA,
+)
+
+go_library(
+    name = "notes_go",
+    srcs = [":notes_go_gen"],
+    importpath = "example.com/bfftemplate/api/template/notes/v1",
+    visibility = ["//bff:__subpackages__"],
+    deps = [
+        "@build_buf_gen_go_bufbuild_protovalidate_protocolbuffers_go//buf/validate",
+        "@org_golang_google_protobuf//reflect/protoreflect",
+        "@org_golang_google_protobuf//runtime/protoimpl",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)
+
+buf_generate(
+    name = "notes_connect_go_gen",
+    outs = ["template/notes/v1/notesv1connect/notes.connect.go"],
+    opts = ["paths=source_relative"],
+    plugin = "@com_connectrpc_connect_v2//cmd/protoc-gen-connect-go",
+    schema = SCHEMA,
+    schema_path = SCHEMA,
+)
+
+go_library(
+    name = "notes_connect_go",
+    srcs = [":notes_connect_go_gen"],
+    importpath = "example.com/bfftemplate/api/template/notes/v1/notesv1connect",
+    visibility = ["//bff:__subpackages__"],
+    deps = [
+        ":notes_go",
+        "@com_connectrpc_connect_v2//:connect",
+    ],
+)
+
+protoc_gen_es.protoc_gen_es_binary(name = "protoc_gen_es")
+
+buf_generate(
+    name = "notes_ts_gen",
+    outs = [
+        "buf/validate/validate_pb.ts",
+        "template/notes/v1/notes_pb.ts",
+    ],
+    include_imports = True,
+    opts = [
+        "import_extension=js",
+        "target=ts",
+    ],
+    plugin = ":protoc_gen_es",
+    schema = SCHEMA,
+    schema_path = SCHEMA,
+)
+
+ts_project(
+    name = "notes_ts",
+    srcs = [
+        "buf/validate/validate_pb.ts",
+        "template/notes/v1/notes_pb.ts",
+    ],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "//:tsconfig",
+    visibility = ["//web:__subpackages__"],
+    deps = ["//:node_modules/@bufbuild/protobuf"],
+)
+
+go_test(
+    name = "validate_test",
+    size = "small",
+    srcs = ["validate_test.go"],
+    deps = [
+        ":notes_go",
+        "@build_buf_go_protovalidate//:protovalidate",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+
+js_test(
+    name = "compile_gate_test",
+    size = "small",
+    data = [
+        "testdata/negative/caller.ts",
+        ":notes_ts_gen",
+        "//:node_modules/@bufbuild/protobuf",
+        "//:node_modules/@connectrpc/connect",
+        "//:node_modules/typescript",
+        "//:tsconfig",
+    ],
+    entry_point = "testdata/negative/compile_gate.mjs",
+)
+
+SCHEMA_TOOLS = {
+    "BASELINE": "@bff_template_quality//proto/cmd:baseline",
+    "BUF": "@bff_template_quality//tools:buf",
+    "BUF_CONFIG_FILE": "@bff_template_quality//proto:buf.yaml",
+    "VALIDATE_PROTO_FILE": "@protovalidate_proto//file",
+}
+
+sh_test(
+    name = "schema_probes_test",
+    size = "small",
+    srcs = ["//tools/proto:probes_test.sh"],
+    args = [
+        "$(rootpath %s)" % SCHEMA,
+        "$(rootpath testdata/breaking/probes.tsv)",
+        "$(rootpath //:tools/checks/native.sh)",
+    ] + ["%s=$(rootpath %s)" % (name, label) for name, label in sorted(SCHEMA_TOOLS.items())],
+    data = sorted(SCHEMA_TOOLS.values()) + [
+        SCHEMA,
+        "testdata/breaking/probes.tsv",
+        "//:tools/checks/native.sh",
+    ],
+)

@@ -1,0 +1,14 @@
+{
+  "name": "bff-template",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "dependencies": {
+    "@bufbuild/protobuf": "2.16.0",
+    "@connectrpc/connect": "2.2.0"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "2.16.0",
+    "typescript": "6.0.3"
+  }
+}

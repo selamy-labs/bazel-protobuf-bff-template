@@ -2,6 +2,10 @@
 common --lockfile_mode=error
 common --enable_platform_specific_config
 
+# rules_js pulls in a usage reporter that runs curl during fetch. A hermetic verifier makes no
+# undeclared call, so it is switched off here (spec 003 research R3).
+common --repo_env=DO_NOT_TRACK=1
+
 # Namespace-isolated sandboxing by default. If linux-sandbox is unavailable the build fails
 # instead of falling back to the non-isolating processwrapper-sandbox (spec 002 research R2).
 build:linux --spawn_strategy=linux-sandbox

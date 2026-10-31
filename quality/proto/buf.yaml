@@ -1,0 +1,10 @@
+# The canonical schema policy. Every check and the code generators use this file; a buf.yaml next
+# to a schema is never read. It has no exclusions, and comment-based exclusions are not honored.
+version: v2
+lint:
+  use:
+    - STANDARD
+  disallow_comment_ignores: true
+breaking:
+  use:
+    - FILE

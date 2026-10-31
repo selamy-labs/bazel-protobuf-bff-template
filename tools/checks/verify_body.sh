@@ -121,7 +121,7 @@ fi
 
 expected=(inventory bazel-test test-inventory sandbox-evidence workspace-policy implicit-config
   bazelrc-policy toolchain-fixtures suppression-ban secrets typos shellcheck buildifier actionlint
-  zizmor speckit-provenance)
+  zizmor proto-format proto-lint proto-breaking speckit-provenance)
 if ! run_check inventory tools/checks/inventory.sh "$root" "$work"; then
   echo "verify: input discovery failed; no file check can be trusted (rerun: $rerun)" >&2
 fi
@@ -144,6 +144,9 @@ if [[ $status -eq 0 ]]; then
   run_check buildifier tools/checks/native.sh buildifier "$work/starlark" || true
   run_check actionlint tools/checks/native.sh actionlint "$work/workflows" || true
   run_check zizmor tools/checks/native.sh zizmor "$work/workflows" || true
+  run_check proto-format tools/checks/native.sh proto-format api || true
+  run_check proto-lint tools/checks/native.sh proto-lint api || true
+  run_check proto-breaking tools/checks/native.sh proto-breaking api api/BASELINE || true
   if $offline; then
     printf 'SKIP %-20s (--offline; not a passing result)\n' speckit-provenance
     record speckit-provenance SKIPPED 0

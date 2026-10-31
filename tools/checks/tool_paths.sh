@@ -1,10 +1,14 @@
 #!/usr/bin/env bash
-# Prints NAME=absolute-path for each pinned tool passed as NAME=runfiles-path. Run with `bazel run`;
+# Prints NAME=absolute-path for each pinned tool or file (NAME ends in _FILE) passed as
+# NAME=runfiles-path. Run with `bazel run`;
 # the verifier then calls the binaries directly from the repository root.
 set -euo pipefail
 for pair in "$@"; do
   name="${pair%%=*}"
   path="${pair#*=}"
-  [[ -x "$path" ]] || { echo "tool-paths: $name is not executable: $path" >&2; exit 1; }
+  case "$name" in
+    *_FILE) [[ -f "$path" ]] || { echo "tool-paths: $name is missing: $path" >&2; exit 1; } ;;
+    *) [[ -x "$path" ]] || { echo "tool-paths: $name is not executable: $path" >&2; exit 1; } ;;
+  esac
   printf '%s=%s\n' "$name" "$(realpath "$path")"
 done

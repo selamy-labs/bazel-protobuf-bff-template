@@ -1,0 +1,68 @@
+syntax = "proto3";
+
+package template.notes.v1;
+
+import "buf/validate/validate.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "example.com/bfftemplate/api/template/notes/v1;notesv1";
+
+// NoteService stores short notes for the calling principal.
+service NoteService {
+  // CreateNote stores a new note and returns it with its server-assigned name.
+  rpc CreateNote(CreateNoteRequest) returns (CreateNoteResponse);
+
+  // GetNote returns one of the caller's notes. A note owned by another principal is reported as
+  // not found.
+  rpc GetNote(GetNoteRequest) returns (GetNoteResponse);
+}
+
+// Note is a short text owned by one principal.
+message Note {
+  // The resource name, `notes/{note_id}`. Output only: the server assigns it.
+  string name = 1;
+
+  // The title. Surrounding whitespace is not counted towards its length.
+  string title = 2 [
+    (buf.validate.field).cel = {
+      id: "note.title.required"
+      message: "title is required"
+      expression: "this.trim().size() > 0"
+    },
+    (buf.validate.field).cel = {
+      id: "note.title.max_len"
+      message: "title must be at most 120 characters"
+      expression: "this.trim().size() <= 120"
+    }
+  ];
+
+  // The text of the note.
+  string body = 3 [(buf.validate.field).string.max_len = 4000];
+
+  // When the note was stored. Output only.
+  google.protobuf.Timestamp create_time = 4;
+}
+
+// CreateNoteRequest carries the title and body of the new note.
+message CreateNoteRequest {
+  // The note to store. Its output-only fields are ignored.
+  Note note = 1 [(buf.validate.field).required = true];
+}
+
+// CreateNoteResponse carries the stored note.
+message CreateNoteResponse {
+  // The stored note, including its name and creation time.
+  Note note = 1;
+}
+
+// GetNoteRequest names the note to read.
+message GetNoteRequest {
+  // The resource name, `notes/{note_id}`.
+  string name = 1 [(buf.validate.field).string.pattern = "^notes/[a-z0-9-]{1,64}$"];
+}
+
+// GetNoteResponse carries the requested note.
+message GetNoteResponse {
+  // The requested note.
+  Note note = 1;
+}

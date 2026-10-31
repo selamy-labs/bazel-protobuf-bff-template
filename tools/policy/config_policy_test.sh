@@ -9,7 +9,7 @@ printf '%s\0' .bazelrc _typos.toml .gitleaks.toml MODULE.bazel docs/typos-notes.
 "$policy" "$work/good" >/dev/null || { echo "FAIL canonical configs rejected" >&2; failures=1; }
 for path in .shellcheckrc sub/.shellcheckrc sub/.typos.toml typos.toml sub/_typos.toml sub/.gitleaks.toml \
   .gitleaksignore sub/.gitleaksignore .gitleaksbaseline .github/zizmor.yml zizmor.yml .zizmor.yaml \
-  .github/actionlint.yaml .buildifier.json sub/.bazelrc .bazeliskrc; do
+  .github/actionlint.yaml .buildifier.json sub/.bazelrc .bazeliskrc api/buf.yaml buf.work.yaml api/buf.gen.yaml buf.lock; do
   printf '%s\0' "$path" >"$work/bad"
   if out="$("$policy" "$work/bad")"; then
     echo "FAIL $path accepted" >&2

@@ -43,7 +43,7 @@ while IFS=$'\t' read -r name expr want; do
     fail "$name: rejected, but not for '$want': $(head -1 "$work/out")"
   fi
 done <tools/ci/mutations.tsv
-[[ $cases -ge 40 ]] || fail "expected at least 40 mutation cases, ran $cases"
+[[ $cases -ge 41 ]] || fail "expected at least 41 mutation cases, ran $cases"
 
 : >"$work/empty.json"
 rc=0

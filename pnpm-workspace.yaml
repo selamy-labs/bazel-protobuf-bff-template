@@ -1,0 +1,8 @@
+packages:
+  - "."
+
+# The pin policy, applied to transitive packages too: nothing younger than 14 days resolves.
+minimumReleaseAge: 20160
+
+# No package may run an install script.
+onlyBuiltDependencies: []

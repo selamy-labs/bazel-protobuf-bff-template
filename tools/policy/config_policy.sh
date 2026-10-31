@@ -7,13 +7,15 @@ status=0
 while IFS= read -r -d '' path; do
   name="${path##*/}"
   case "$path" in
-    .bazelrc | _typos.toml | .gitleaks.toml) continue ;; # the canonical, explicitly named configs
+    # The canonical, explicitly named configs.
+    .bazelrc | _typos.toml | .gitleaks.toml | quality/proto/buf.yaml) continue ;;
   esac
   case "$name" in
     .shellcheckrc | shellcheckrc | .typos.toml | typos.toml | _typos.toml | \
       .gitleaks.toml | gitleaks.toml | .gitleaksignore | .gitleaksbaseline | \
       zizmor.yml | zizmor.yaml | .zizmor.yml | .zizmor.yaml | \
-      actionlint.yml | actionlint.yaml | .buildifier.json | .bazelrc | .bazeliskrc)
+      actionlint.yml | actionlint.yaml | .buildifier.json | .bazelrc | .bazeliskrc | \
+      buf.yaml | buf.yml | buf.work.yaml | buf.gen.yaml | buf.lock)
       echo "implicit-config $path:1: tool configuration outside the canonical set can silently disable a check; delete it (rerun: tools/verify.sh)"
       status=1
       ;;

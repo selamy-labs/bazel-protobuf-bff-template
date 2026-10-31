@@ -13,3 +13,13 @@ if out="$("$policy" "$work/bad")"; then
 fi
 grep -q '^bzlmod-policy third_party/WORKSPACE.bazel:1: ' <<<"$out" || { echo "FAIL: diagnostic: $out" >&2; exit 1; }
 echo "ok   bzlmod-policy defect and corrected"
+
+for path in api/notes.pb.go api/v1connect/notes.connect.go web/gen/notes_pb.ts; do
+  printf 'MODULE.bazel\0%s\0' "$path" >"$work/bad"
+  if out="$("$policy" "$work/bad")"; then
+    echo "FAIL: generated file accepted: $path" >&2
+    exit 1
+  fi
+  grep -q "^generated-code $path:1: " <<<"$out" || { echo "FAIL: diagnostic: $out" >&2; exit 1; }
+done
+echo "ok   generated-code defect and corrected"

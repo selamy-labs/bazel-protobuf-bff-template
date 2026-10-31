@@ -5,7 +5,11 @@ module(
     version = "0.0.0",
 )
 
+bazel_dep(name = "aspect_rules_js", version = "3.5.1")
+bazel_dep(name = "aspect_rules_ts", version = "3.10.1")
+bazel_dep(name = "gazelle", version = "0.54.0")
 bazel_dep(name = "rules_go", version = "0.64.2")
+bazel_dep(name = "rules_nodejs", version = "6.7.6")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 
 # Shared, separately versioned quality checks (spec 001 R-07). Consumers outside this repository
@@ -25,4 +29,56 @@ go_sdk.download(
         "linux_arm64": ("go1.27.2.linux-arm64.tar.gz", "94f3e30b8e374bc285e7dadc11e0865726b9bc6e85b841ccceaabc0214c6b7c8"),
     },
     version = "1.27.2",
+)
+
+# Go dependencies come from go.mod and go.sum (spec 003 research R3).
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//:go.mod")
+
+# cel-go ships BUILD files that use a different naming convention from its importers.
+go_deps.gazelle_override(
+    build_file_generation = "clean",
+    path = "cel.dev/cel-go",
+)
+use_repo(
+    go_deps,
+    "build_buf_gen_go_bufbuild_protovalidate_protocolbuffers_go",
+    "build_buf_go_protovalidate",
+    "com_connectrpc_connect_v2",
+    "org_golang_google_protobuf",
+)
+
+# Node pinned by version and per-platform sha256.
+node = use_extension("@rules_nodejs//nodejs:extensions.bzl", "node")
+node.toolchain(
+    node_repositories = {
+        "24.22.0-darwin_arm64": ("node-v24.22.0-darwin-arm64.tar.xz", "node-v24.22.0-darwin-arm64", "75ddfb875bbd868ebe57536f4442225f54dd10f6d2178dd439de869a5c648dc3"),
+        "24.22.0-linux_amd64": ("node-v24.22.0-linux-x64.tar.xz", "node-v24.22.0-linux-x64", "cc2f601cee82d9a5a233302fe307abc600727035fd7d2c3a3571755989e95008"),
+        "24.22.0-linux_arm64": ("node-v24.22.0-linux-arm64.tar.xz", "node-v24.22.0-linux-arm64", "fef00bb4d36e1c50104a9775a10359beee98f162b4104dd12472c75065c6a143"),
+    },
+    node_version = "24.22.0",
+)
+
+npm = use_extension("@aspect_rules_js//npm:extensions.bzl", "npm")
+npm.npm_translate_lock(
+    name = "npm",
+    pnpm_lock = "//:pnpm-lock.yaml",
+)
+use_repo(npm, "npm")
+
+pnpm = use_extension("@aspect_rules_js//npm:extensions.bzl", "pnpm")
+use_repo(pnpm, "pnpm")
+
+typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
+typescript.deps(version_from = "//:package.json")
+use_repo(typescript, "npm_typescript")
+
+# The one schema import the contract needs, at release v1.2.2 (spec 003 research R2).
+http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
+
+http_file(
+    name = "protovalidate_proto",
+    downloaded_file_path = "validate.proto",
+    sha256 = "a1dc1163ebac930b3b070655b91f2bc78df8b4aea940021661fe5ec7904a7b88",
+    urls = ["https://raw.githubusercontent.com/bufbuild/protovalidate/4baed765070e580226a0a30bf2a357cc027dc1f7/proto/protovalidate/buf/validate/validate.proto"],
 )

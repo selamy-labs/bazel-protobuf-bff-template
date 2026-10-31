@@ -44,9 +44,28 @@ These are fetched at build time by version and sha256 and are not vendored or re
 | CPython (managed by uv) | 3.12.15 | PSF-2.0 | `tools/speckit/bootstrap.sh` |
 | actions/checkout, actions/upload-artifact | v7.0.1, v7.0.2 (pinned by commit) | MIT | `.github/workflows/ci.yml` |
 
+## Contract toolchain (M2)
+
+These are fetched by version and checksum and are not vendored.
+
+| Item | Version | License | Where pinned |
+| --- | --- | --- | --- |
+| buf | 1.74.0 | Apache-2.0 | `quality/multitool.lock.json` |
+| `buf/validate/validate.proto` | protovalidate v1.2.2 | Apache-2.0 | `MODULE.bazel` (sha256), fetched and used at build time |
+| gazelle | 0.54.0 | Apache-2.0 | `MODULE.bazel` |
+| rules_nodejs, aspect_rules_js, aspect_rules_ts | 6.7.6, 3.5.1, 3.10.1 | Apache-2.0 | `MODULE.bazel` |
+| Node.js | 24.22.0 | MIT | `MODULE.bazel` (sha256) |
+| pnpm | 10.34.6 | MIT | pinned by rules_js |
+| connect-go | 2.0.1 | Apache-2.0 | `go.mod`, `go.sum` |
+| protobuf-go | 1.36.12 | BSD-3-Clause | same |
+| protovalidate-go | 1.4.0 | Apache-2.0 | same |
+| Other Go modules | see `go.sum` | to be enumerated by T077 | same |
+| @bufbuild/protobuf, @bufbuild/protoc-gen-es | 2.16.0 | Apache-2.0 AND BSD-3-Clause | `pnpm-lock.yaml` |
+| @connectrpc/connect | 2.2.0 | Apache-2.0 | same |
+| TypeScript | 6.0.3 | Apache-2.0 | same |
+
 ## Planned dependencies (pinned when their first consumer arrives)
 
 These dependencies are not vendored, so they are fetched by pinned version or digest. Their
-licenses are recorded when they are pinned (task T077 automates the check): gazelle, aspect_rules_js,
-rules_ts, protobuf, rules_buf/buf, protovalidate, connect-go, protobuf-es, connect-es, React, Vite,
-Playwright, Node, pnpm, prek.
+licenses are recorded when they are pinned (task T077 automates the check): connect-web, React, Vite,
+Playwright, prek.

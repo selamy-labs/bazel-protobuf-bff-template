@@ -9,7 +9,9 @@ each with a defect case and its corrected counterpart. Test tasks come first in 
 
 **Organization**: Phases follow milestones (spec Milestone Map). US2 (contracts) is scheduled
 before US1 because the browser→BFF slice consumes the generated contract. Both are P1.
-**Status at M0**: every task below is open. This package stops before T001.
+**Status**: task boxes record progress. M2 revised T018 and T022: generation uses the pinned buf
+through `tools/proto/defs.bzl`, and the schema lives at `api/template/notes/v1/`
+(spec 003 research R1, R4).
 
 ## Format: `[ID] [P?] [Story] Description`
 
@@ -25,7 +27,7 @@ before US1 because the browser→BFF slice consumes the generated contract. Both
 - [x] T002 [P] Add `REPO.bazel`, `.gitignore`, `.bazelignore` and `.editorconfig`
 - [x] T003 [P] Pin native tools with digests in `multitool.lock.json` (gitleaks, typos, shellcheck, actionlint, zizmor, prek, buildifier) via rules_multitool
 - [x] T004 Register Go SDK via rules_go and gazelle in `MODULE.bazel`; add `go.mod`/`go.sum`
-- [ ] T005 Register Node, pnpm, aspect_rules_js/rules_ts in `MODULE.bazel`; add `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — **moved to M2 (with T023)**: it needs a real consumer (spec 002 A4)
+- [x] T005 Register Node, pnpm, aspect_rules_js/rules_ts in `MODULE.bazel`; add `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — **moved to M2 (with T023)**: it needs a real consumer (spec 002 A4)
 - [x] T006 [P] Add lockfile/Bzlmod policy test rejecting WORKSPACE files and unlocked changes in `tools/policy/bzlmod_test.sh`
 - [x] T007 [P] Port `tools/speckit/bootstrap.sh verify` to an offline Bazel test with a hash-pinned Spec Kit archive in `tools/speckit/BUILD.bazel` and `tools/speckit/upstream.json` — **revised in spec 002 R4**: an offline hash-manifest test plus a networked provenance check required in CI; a fully offline regeneration would need rules_python
 - [x] T008 Add `tools/verify.sh` (initially T006, T007 and T012 checks) in `BUILD.bazel`
@@ -56,20 +58,20 @@ before US1 because the browser→BFF slice consumes the generated contract. Both
 
 ### Tests for User Story 2 ⚠️ write first, observe failing
 
-- [ ] T016 [P] [US2] Breaking-probe fixtures (field number, type, rename, json_name, removed field without reserve) and compatible-addition fixture in `api/testdata/breaking/`
-- [ ] T017 [P] [US2] Baseline-reader tests: immutable SHA via git objects, missing baseline fails closed (exit 4), shallow clone message, explicit bootstrap marker in `quality/proto/baseline_test.go`
+- [x] T016 [P] [US2] Breaking-probe fixtures (field number, type, rename, json_name, removed field without reserve) and compatible-addition fixture in `api/testdata/breaking/`
+- [x] T017 [P] [US2] Baseline-reader tests: immutable SHA via git objects, missing baseline fails closed (exit 4), shallow clone message, explicit bootstrap marker in `quality/proto/baseline_test.go`
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] buf configuration (`api/buf.yaml`, STANDARD lint, FILE breaking) via rules_buf targets in `api/BUILD.bazel`
-- [ ] T019 [P] [US2] API-style ledger with applicable AIP rules and justified exceptions in `docs/api-style.md`
-- [ ] T020 [US2] Spike: connect-go newest v2.x (≥14 days old) with rules_go/gazelle; fall back to v1.21.x only on documented failure; record outcome in `research.md` R-04
-- [ ] T021 [US2] Write `api/notes/v1/notes.proto` per `contracts/notes-api.md` with protovalidate rules
-- [ ] T022 [US2] Go codegen: `go_proto_library` with connect compiler in `api/notes/v1/BUILD.bazel`
-- [ ] T023 [US2] TS codegen with protoc-gen-es v2 rule in `api/notes/v1/BUILD.bazel` and `tools/proto/defs.bzl`
-- [ ] T024 [US2] Negative compile gate: TS caller using wrong request type must fail to compile, in `api/testdata/negative/`
+- [x] T018 [US2] buf configuration (`api/buf.yaml`, STANDARD lint, FILE breaking) via rules_buf targets in `api/BUILD.bazel`
+- [x] T019 [P] [US2] API-style ledger with applicable AIP rules and justified exceptions in `docs/api-style.md`
+- [x] T020 [US2] Spike: connect-go newest v2.x (≥14 days old) with rules_go/gazelle; fall back to v1.21.x only on documented failure; record outcome in `research.md` R-04
+- [x] T021 [US2] Write `api/notes/v1/notes.proto` per `contracts/notes-api.md` with protovalidate rules
+- [x] T022 [US2] Go codegen: `go_proto_library` with connect compiler in `api/notes/v1/BUILD.bazel`
+- [x] T023 [US2] TS codegen with protoc-gen-es v2 rule in `api/notes/v1/BUILD.bazel` and `tools/proto/defs.bzl`
+- [x] T024 [US2] Negative compile gate: TS caller using wrong request type must fail to compile, in `api/testdata/negative/`
 - [ ] T025 [US2] Contract-consumer evidence without building the #28 analyzer: each RPC has a production browser caller exercised by e2e (guarantee, via T032) plus a review checklist in `docs/api-style.md`; **adopt the py#28 profile when released** and contribute this repo's Protobuf/Bazel case as its witness (consumer, fake, generated-only, unsupported path)
-- [ ] T026 [US2] Implement baseline reader to pass T017 in `quality/proto/baseline.go`; wire `proto-breaking` into `tools/verify.sh`
+- [x] T026 [US2] Implement baseline reader to pass T017 in `quality/proto/baseline.go`; wire `proto-breaking` into `tools/verify.sh`
 
 **Checkpoint**: SC-003 fixtures pass at exact revision; evidence recorded.
 

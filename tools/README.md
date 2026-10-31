@@ -17,6 +17,7 @@ This directory holds repository orchestration scripts. The checks they run live 
 | `checks/` | `verify_body.sh`, `inventory.sh` (input discovery), `native.sh` (the one definition of each tool invocation), `test_evidence.sh` (judges the test log), `required_tests.txt`, and their witnesses. |
 | `ci/` | `policy.json`, the closed workflow allowlist; `parity_test.sh` and `mutations.tsv`, its adversarial witnesses. |
 | `speckit/` | The pinned Spec Kit bootstrap, its hash manifest and locked dependencies, and the offline manifest test. |
+| `proto/` | `buf_generate`, the build-time code generation rule, and the schema probes. |
 | `pins/` | Generator for `quality/multitool.lock.json`. |
 
 ## Owner
