@@ -35,7 +35,9 @@ echo "ok   lock-fixture defect and corrected"
 printf 'not the pinned tool\n' >"$work/tampered.tar.gz"
 wrong="$(printf 'something else' | sha256sum | cut -d' ' -f1)"
 "$YQ" -i -o=json "(.shellcheck.binaries[]) |= (.url = \"file://$work/tampered.tar.gz\" | .sha256 = \"$wrong\")" "$work/ws/quality/multitool.lock.json"
-if in_ws build --config=weak-isolation --nobuild --lockfile_mode=off @bff_template_quality//tools:shellcheck; then
+# update mode keeps the lock's registry hashes, so this needs no registry access; the tampered tool
+# is fetched from file://, and only its checksum can fail.
+if in_ws build --config=weak-isolation --nobuild --lockfile_mode=update @bff_template_quality//tools:shellcheck; then
   echo "checksum-fixture: a tool with the wrong checksum was accepted" >&2
   exit 1
 fi
