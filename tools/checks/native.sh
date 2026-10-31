@@ -85,6 +85,14 @@ case "$check" in
   buildifier) # <NUL list>
     on_files "$1" "$BUILDIFIER" --config=off --mode=check --lint=warn
     ;;
+  format-go) # <NUL list>
+    found="$(on_files "$1" "$GOFMT" -l)"
+    if [[ -n "$found" ]]; then
+      echo "format-go: run gofmt -w on:" >&2
+      echo "$found" >&2
+      exit 1
+    fi
+    ;;
   actionlint) # <NUL list>
     on_files "$1" "$ACTIONLINT" -no-color -config-file /dev/null -shellcheck="$SHELLCHECK" -pyflakes=
     ;;

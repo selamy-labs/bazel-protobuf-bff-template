@@ -141,7 +141,9 @@ the response headers.
 - **FR-005**: Failures MUST map to `invalid_argument`, `not_found`, `unauthenticated`, `unavailable`,
   `deadline_exceeded` or `internal`.
 - **FR-006**: `internal` responses MUST contain only a generic message and a correlation ID, and the
-  detail MUST reach the server log under that ID. A panic MUST be handled the same way.
+  detail MUST reach the server log under that ID. A panic MUST be handled the same way. A store or
+  authenticator MUST NOT be able to label its own failure as public, whatever error type or code it
+  returns, wrapped or not.
 - **FR-007**: Every RPC MUST have a default deadline of 2 seconds and a maximum of 10, and the context
   MUST reach the port.
 - **FR-008**: Identity MUST come from an `Authenticator` boundary reading only the `Authorization`
@@ -155,7 +157,8 @@ the response headers.
 - **FR-012**: CORS MUST allow only an exact configured origin and MUST NOT allow credentials.
 - **FR-013**: The binary MUST print one ready event on stdout, MUST NOT read stdin, and MUST shut down
   gracefully within a bound.
-- **FR-014**: Go code MUST pass the pinned format check and vet analyzers in the verifier.
+- **FR-014**: Go code MUST pass the pinned format check in the verifier. The vet analyzers join in M5
+  (research R7).
 - **FR-015**: These tests MUST join the verifier's required inventory.
 
 ### Key Entities

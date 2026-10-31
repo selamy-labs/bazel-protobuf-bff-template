@@ -1,0 +1,9 @@
+# Each row: graph<TAB>a regular expression for labels that must not appear in that graph's deps.
+production	^//bff/testing|^//web
+api	^//bff|^//web
+ports	^//bff/(adapters|app|cmd|identity|server|testing|transport)|^//api|^@@?[^/]*connect
+identity	^//bff/(adapters|app|cmd|ports|server|testing|transport)|^//api
+memory	^//bff/(app|cmd|server|testing|transport)|^//api
+app	^//bff/(adapters|cmd|server|testing|transport)|^//api|connect
+transport	^//bff/(adapters|cmd|server|testing)
+server	^//bff/(cmd|testing)

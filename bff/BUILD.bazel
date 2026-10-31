@@ -1,0 +1,46 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+GRAPHS = {
+    "api": "//api:notes_connect_go",
+    "app": "//bff/app",
+    "identity": "//bff/identity",
+    "memory": "//bff/adapters/memory",
+    "ports": "//bff/ports",
+    "production": "//bff/cmd/bff",
+    "server": "//bff/server",
+    "transport": "//bff/transport",
+}
+
+[
+    genquery(
+        name = name + "_graph",
+        expression = "deps(%s)" % target,
+        opts = ["--noimplicit_deps"],
+        scope = [target],
+    )
+    for name, target in sorted(GRAPHS.items())
+]
+
+[
+    genrule(
+        name = name + "_graph_file",
+        srcs = [":%s_graph" % name],
+        outs = ["graphs/%s.txt" % name],
+        cmd = "cp $< $@",
+    )
+    for name in sorted(GRAPHS)
+]
+
+sh_test(
+    name = "dependency_rules_test",
+    size = "small",
+    srcs = ["//:tools/checks/dependency_rules_test.sh"],
+    args = [
+        "$(rootpath //:tools/checks/dependency_rules.sh)",
+        "$(rootpath dependency_rules.tsv)",
+    ] + ["$(rootpath graphs/%s.txt)" % name for name in sorted(GRAPHS)],
+    data = [
+        "dependency_rules.tsv",
+        "//:tools/checks/dependency_rules.sh",
+    ] + ["graphs/%s.txt" % name for name in sorted(GRAPHS)],
+)

@@ -50,7 +50,7 @@ STUB
 cat >"$tree/tools/checks/inventory.sh" <<STUB
 #!/usr/bin/env bash
 [[ "\$(cat "$work/fail" 2>/dev/null)" == inventory ]] && exit 1
-for f in all authored shell starlark workflows; do printf 'x\0' >"\$2/\$f"; done
+for f in all authored shell starlark workflows go; do printf 'x\0' >"\$2/\$f"; done
 echo x >"\$2/authored.nl"
 echo all=1 >"\$2/counts"
 git -C "\$1" rev-parse 'HEAD^{tree}' >"\$2/tested_tree"

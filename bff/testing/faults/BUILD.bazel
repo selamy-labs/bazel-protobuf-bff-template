@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "faults",
+    testonly = True,
+    srcs = ["store.go"],
+    importpath = "example.com/bfftemplate/bff/testing/faults",
+    visibility = [
+        "//bff/cmd/bff-dev:__pkg__",
+        "//bff/transport:__pkg__",
+    ],
+    deps = ["//bff/ports"],
+)

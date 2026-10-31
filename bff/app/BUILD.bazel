@@ -1,0 +1,23 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "app",
+    srcs = ["notes.go"],
+    importpath = "example.com/bfftemplate/bff/app",
+    visibility = [
+        "//bff/server:__pkg__",
+        "//bff/transport:__pkg__",
+    ],
+    deps = ["//bff/ports"],
+)
+
+go_test(
+    name = "app_test",
+    size = "small",
+    srcs = ["notes_test.go"],
+    embed = [":app"],
+    deps = [
+        "//bff/adapters/memory",
+        "//bff/ports",
+    ],
+)

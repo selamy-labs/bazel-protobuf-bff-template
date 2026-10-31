@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "memory",
+    srcs = ["store.go"],
+    importpath = "example.com/bfftemplate/bff/adapters/memory",
+    visibility = [
+        "//bff/app:__pkg__",
+        "//bff/cmd:__subpackages__",
+        "//bff/server:__pkg__",
+        "//bff/transport:__pkg__",
+    ],
+    deps = ["//bff/ports"],
+)
+
+go_test(
+    name = "memory_test",
+    size = "small",
+    srcs = ["store_test.go"],
+    embed = [":memory"],
+    deps = ["//bff/ports"],
+)

@@ -1,0 +1,14 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "identity",
+    testonly = True,
+    srcs = ["identity.go"],
+    importpath = "example.com/bfftemplate/bff/testing/identity",
+    visibility = [
+        "//bff/cmd/bff-dev:__pkg__",
+        "//bff/server:__pkg__",
+        "//bff/transport:__pkg__",
+    ],
+    deps = ["//bff/identity"],
+)

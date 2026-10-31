@@ -87,21 +87,21 @@ scenarios; the deliberately broken variant fails.
 
 ### Tests for User Story 1 ⚠️ write first, observe failing
 
-- [ ] T027 [P] [US1] BFF handler tests over in-process Connect server (success, invalid, not found, cross-principal not found, unauthenticated, deadline, unavailable) in `bff/transport/handlers_test.go`
-- [ ] T028 [P] [US1] Property tests for title/body validation and name parsing in `bff/app/validate_test.go`
-- [ ] T029 [P] [US1] Startup tests: test identity refused in production mode; production without verifier fails closed in `bff/cmd/bff/config_test.go`
+- [x] T027 [P] [US1] BFF handler tests over in-process Connect server (success, invalid, not found, cross-principal not found, unauthenticated, deadline, unavailable) in `bff/transport/handlers_test.go`
+- [x] T028 [P] [US1] Property tests for title/body validation and name parsing in `bff/app/validate_test.go`
+- [x] T029 [P] [US1] Startup tests: test identity refused in production mode; production without verifier fails closed in `bff/cmd/bff/config_test.go`
 - [ ] T030 [US1] Spike: pinned Playwright browser under Bazel sandbox (rules_playwright vs pinned archive), offline after fetch; record in `research.md` R-05
 - [ ] T031 [P] [US1] Client unit tests: Connect error → UI outcome mapping in `web/client/errors.test.ts`
 - [ ] T032 [P] [US1] E2E specs for every scenario in `contracts/notes-api.md` (success, invalid title, body too long, not found, cross-principal not found, unauthenticated, cookie-only request rejected, unavailable, deadline exceeded) in `web/e2e/notes.spec.ts`
 
 ### Implementation for User Story 1
 
-- [ ] T033 [US1] Storage port and in-memory adapter in `bff/ports/store.go`, `bff/adapters/memory/store.go`
-- [ ] T034 [US1] Use cases, protovalidate enforcement and error mapping in `bff/app/notes.go`
-- [ ] T035 [US1] Connect handlers, exact-origin CORS, default/max deadlines in `bff/transport/`
-- [ ] T036 [US1] `Authenticator` boundary; `testonly` test identity in `bff/testing/identity.go`
-- [ ] T037 [US1] `bff/cmd/bff/main.go`: mode config, ready event on stdout, graceful shutdown, no stdin
-- [ ] T038 [US1] Dependency-rules test (directions, testonly fencing, no `web` import from `bff`) in `quality/checks/dependency_rules_test.sh`
+- [x] T033 [US1] Storage port and in-memory adapter in `bff/ports/store.go`, `bff/adapters/memory/store.go`
+- [x] T034 [US1] Use cases, protovalidate enforcement and error mapping in `bff/app/notes.go`
+- [x] T035 [US1] Connect handlers, exact-origin CORS, default/max deadlines in `bff/transport/`
+- [x] T036 [US1] `Authenticator` boundary; `testonly` test identity in `bff/testing/identity.go`
+- [x] T037 [US1] `bff/cmd/bff/main.go`: mode config, ready event on stdout, graceful shutdown, no stdin
+- [x] T038 [US1] Dependency-rules test (directions, testonly fencing, no `web` import from `bff`) in `quality/checks/dependency_rules_test.sh`
 - [ ] T039 [US1] Client wrapper and transport in `web/client/`; React form + lookup in `web/app/`; Vite build/serve via rules_js
 - [ ] T040 [US1] `//:dev` runner starting BFF and web together in `tools/dev/`
 - [ ] T041 [US1] Deliberate-defect witness: mutate error mapping (e.g. not_found→internal) in a fixture build; e2e must fail naming the scenario; restore passes. In `web/e2e/defect_test.sh`

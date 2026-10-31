@@ -1,0 +1,15 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+sh_test(
+    name = "binaries_test",
+    size = "small",
+    srcs = ["binaries_test.sh"],
+    args = [
+        "$(rootpath //bff/cmd/bff)",
+        "$(rootpath //bff/cmd/bff-dev)",
+    ],
+    data = [
+        "//bff/cmd/bff",
+        "//bff/cmd/bff-dev",
+    ],
+)

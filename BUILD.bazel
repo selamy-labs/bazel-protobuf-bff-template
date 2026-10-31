@@ -4,8 +4,15 @@ load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 exports_files(
-    ["tools/checks/native.sh"],
-    visibility = ["//api:__pkg__"],
+    [
+        "tools/checks/dependency_rules.sh",
+        "tools/checks/dependency_rules_test.sh",
+        "tools/checks/native.sh",
+    ],
+    visibility = [
+        "//api:__pkg__",
+        "//bff:__pkg__",
+    ],
 )
 
 npm_link_all_packages(name = "node_modules")
@@ -68,6 +75,7 @@ TOOLS = {
     "BUF_CONFIG_FILE": "@bff_template_quality//proto:buf.yaml",
     "BUILDIFIER": "@bff_template_quality//tools:buildifier",
     "GITLEAKS": "@bff_template_quality//tools:gitleaks",
+    "GOFMT": "@go_sdk//:bin/gofmt",
     "SHELLCHECK": "@bff_template_quality//tools:shellcheck",
     "SUPPRESSION": "@bff_template_quality//checks/suppression:suppression-ban",
     "TYPOS": "@bff_template_quality//tools:typos",

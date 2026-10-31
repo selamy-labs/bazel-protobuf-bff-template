@@ -2,6 +2,14 @@
 //api:compile_gate_test
 //api:schema_probes_test
 //api:validate_test
+//bff/adapters/memory:memory_test
+//bff/app:app_test
+//bff/cmd/bff:config_test
+//bff/cmd:binaries_test
+//bff/identity:identity_test
+//bff/server:server_test
+//bff/transport:transport_test
+//bff:dependency_rules_test
 @bff_template_quality//checks/ciparity:ciparity_test
 @bff_template_quality//checks/suppression:suppression_test
 @bff_template_quality//proto:proto_test

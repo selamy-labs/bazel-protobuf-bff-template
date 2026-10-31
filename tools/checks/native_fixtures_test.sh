@@ -108,6 +108,17 @@ rm "$HOME/.shellcheckrc"
 expect fail "SC2086" "shellcheck: SHELLCHECK_OPTS cannot disable" env SHELLCHECK_OPTS=--exclude=SC2086 "$native" shellcheck "$work/c-bad.list"
 expect fail "empty input list" "shellcheck: an empty list is not a pass" "$native" shellcheck "$work/none.list"
 
+# --- format-go (spec 004 T001)
+g="$work/gofmt"
+mkdir -p "$g"
+printf 'package a\n\nfunc  f() {}\n' >"$g/bad.go"
+printf 'package a\n\nfunc f() {}\n' >"$g/good.go"
+printf 'bad.go\0' >"$work/g-bad.list"
+printf 'good.go\0' >"$work/g-good.list"
+dir="$g"
+expect fail "bad.go" "format-go defect" "$native" format-go "$work/g-bad.list"
+expect pass - "format-go corrected" "$native" format-go "$work/g-good.list"
+
 # --- buildifier (T026)
 b="$work/b" && mkdir -p "$b"
 printf 'glob(["a"])\n' >"$b/BUILD.bazel"

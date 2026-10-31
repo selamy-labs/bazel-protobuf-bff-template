@@ -10,8 +10,8 @@ schema cannot state. Neutral by construction: no product domain, no external ide
 | `CreateNote` | `note.title`, `note.body` | `note` | "New note" form | success; invalid title (empty, >120); body too long; unauthenticated; unavailable |
 | `GetNote` | `name` | `note` | "Open note" lookup | success; not found; other principal's note → not found; deadline exceeded |
 
-Connect protocol over HTTP/1.1 and HTTP/2; JSON and binary codecs both supported by the server;
-the browser uses the Connect protocol with JSON for debuggability (binary optional).
+Connect protocol over HTTP/1.1, with JSON and binary codecs; the browser uses JSON for
+debuggability. TLS and HTTP/2 belong to whatever fronts the server in a deployment.
 
 ## Validation (protovalidate annotations, enforced by BFF)
 
@@ -29,7 +29,7 @@ the browser uses the Connect protocol with JSON for debuggability (binary option
 | test identity in production mode | `unauthenticated` | none; startup also refuses this configuration |
 | storage port unavailable | `unavailable` | retryable hint |
 | request deadline exceeded | `deadline_exceeded` | none |
-| anything else | `internal` | generic message + correlation id; details only in server log |
+| anything else, including any other failure from storage or an authenticator | `internal` | generic message + correlation id; details only in server log |
 
 ## Deadlines
 

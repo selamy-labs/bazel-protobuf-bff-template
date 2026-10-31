@@ -61,9 +61,10 @@ while IFS= read -r -d '' path; do
 done <"$out/authored"
 select_lines -zE '(^|/)(BUILD|BUILD\.bazel|MODULE\.bazel|REPO\.bazel)$|\.bzl$' "$out/authored" >"$out/starlark"
 select_lines -zE '^\.github/workflows/[^/]+\.ya?ml$' "$out/authored" >"$out/workflows"
+select_lines -zE '\.go$' "$out/authored" | select_lines -zvFxf "$out/fixtures.nl" >"$out/go"
 
 count() { tr -cd '\0' <"$1" | wc -c | tr -d ' '; }
-for category in all authored shell starlark workflows; do
+for category in all authored shell starlark workflows go; do
   [[ "$(count "$out/$category")" -gt 0 ]] || die "no files in category '$category'; discovery is broken or enrollment was narrowed"
 done
 # A vendored entry that is absent would silently shrink the scanned set.
@@ -71,7 +72,7 @@ while IFS= read -r path; do
   [[ -f "$path" ]] || die "manifest entry is missing from the tree: $path"
 done <"$out/vendored.nl"
 
-for category in all authored deleted shell starlark workflows; do
+for category in all authored deleted shell starlark workflows go; do
   echo "$category=$(count "$out/$category")"
 done >"$out/counts"
 

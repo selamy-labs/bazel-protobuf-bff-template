@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_binary")
+
+# testonly: Bazel refuses a production target that depends on this binary or its test identity.
+go_binary(
+    name = "bff-dev",
+    testonly = True,
+    srcs = ["main.go"],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//bff/adapters/memory",
+        "//bff/server",
+        "//bff/testing/faults",
+        "//bff/testing/identity",
+    ],
+)

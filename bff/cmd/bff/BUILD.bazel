@@ -1,0 +1,34 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "bff_lib",
+    srcs = [
+        "config.go",
+        "main.go",
+        "verifier.go",
+    ],
+    importpath = "example.com/bfftemplate/bff/cmd/bff",
+    deps = [
+        "//bff/adapters/memory",
+        "//bff/identity",
+        "//bff/server",
+    ],
+)
+
+go_binary(
+    name = "bff",
+    embed = [":bff_lib"],
+    visibility = ["//bff:__subpackages__"],
+)
+
+go_test(
+    name = "config_test",
+    size = "small",
+    srcs = ["config_test.go"],
+    embed = [":bff_lib"],
+    deps = [
+        "//bff/adapters/memory",
+        "//bff/identity",
+        "//bff/server",
+    ],
+)

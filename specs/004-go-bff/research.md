@@ -50,8 +50,24 @@ synthetic graphs, so the test proves it can fail.
 
 ## R7 Go quality checks
 
-`gofmt` from the pinned SDK joins the verifier as `format-go`. `nogo` runs the vet analyzers during
-the Go build, as `lint-go`. staticcheck stays in M5 with the rest of the registry.
+`gofmt` from the pinned SDK joins the verifier as `format-go`.
+
+`nogo` is deferred to M5. Under rules_go 0.64.2 and Go 1.27.2 its analyzers fail with "cannot decode"
+on the standard library's export data, before they reach this repository's code. rules_go 0.65.0 was
+released on 2026-10-22, so it is under the 14-day pin rule on this date. **Vet does not run yet.**
+M5 takes this with staticcheck, starting by rechecking 0.65.0.
+
+## R9 Trust at the error boundary
+
+Review of the first version found that `contractError` passed any `*connect.Error` with a
+non-internal code, so a store or verifier could return private text under a public-looking code.
+A regression over a real server confirmed it: 48 of 48 cases across both boundaries, direct, wrapped
+and joined, leaked the planted secret in the message and in a detail.
+
+The error's type cannot show who built it, so trust follows the boundary. Errors from `app` and the
+authenticator are wrapped in `downstream` where they cross into transport. A downstream error can
+map only through a sentinel, to constant text. Otherwise it is internal. Errors from transport and
+the framework stay public, because they describe only what the caller sent.
 
 ## R8 Bounds
 

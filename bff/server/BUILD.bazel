@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "server",
+    srcs = ["server.go"],
+    importpath = "example.com/bfftemplate/bff/server",
+    visibility = ["//bff/cmd:__subpackages__"],
+    deps = [
+        "//bff/app",
+        "//bff/identity",
+        "//bff/ports",
+        "//bff/transport",
+    ],
+)
+
+go_test(
+    name = "server_test",
+    size = "small",
+    srcs = ["server_test.go"],
+    embed = [":server"],
+    deps = [
+        "//bff/adapters/memory",
+        "//bff/identity",
+        "//bff/testing/identity",
+    ],
+)
