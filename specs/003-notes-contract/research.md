@@ -74,5 +74,10 @@ an ancestor of HEAD and contain a schema, and reads blobs with `git cat-file`. `
 only in the commit that introduces the schema: if any parent has a schema, even a since-deleted one,
 it is refused. A shallow clone fails closed, so CI uses `fetch-depth: 0`.
 
+**Copies**: a copy with new history inherits a hash it does not contain, so it fails closed. If its
+first commit already has the schema, the second commit declares the first commit's hash. If it adds
+its schema later, it uses `bootstrap` in that commit. `api/README.md` lists every route, and
+`TestFreshHistoryCopy` witnesses them. M7's second consumer is the first real use.
+
 **Limits**: rewriting history invalidates the hash, which fails closed and needs a reviewed update.
 A proposal can edit `api/BASELINE` to a later ancestor; catching that belongs to M6 and #26.

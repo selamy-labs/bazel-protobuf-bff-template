@@ -69,12 +69,22 @@ while IFS=$'\t' read -r check name expression expected; do
   cp "$original" "$target"
 done <"$probes"
 
+# A setup failure earns nothing: buf reports a schema that does not compile as COMPILE, which no
+# probe expects, and never as a compatibility rule.
+sed -e 's/string body = 3/string body = /' "$original" >"$target"
+rc=0
+"$native" proto-breaking api api/BASELINE >"$work/out" 2>&1 || rc=$?
+if [[ $rc -eq 0 ]]; then fail "a schema that does not compile passed"; fi
+grep -qF '"type":"COMPILE"' "$work/out" || fail "a compile failure was not reported as COMPILE"
+if grep -qE '"type":"(FIELD|RPC)_' "$work/out"; then fail "a compile failure was reported as a rule"; fi
+cp "$original" "$target"
+
 # A buf configuration beside the schema must not excuse anything.
 sed -e 's/service NoteService/service Notes/' "$original" >"$target"
 printf 'version: v2\nlint:\n  except: [SERVICE_SUFFIX]\n' >api/buf.yaml
 rc=0
 "$native" proto-lint api >"$work/out" 2>&1 || rc=$?
-if [[ $rc -eq 0 ]] || ! grep -q SERVICE_SUFFIX "$work/out"; then fail "a local buf.yaml weakened lint"; fi
+if [[ $rc -eq 0 ]] || ! grep -qF '"type":"SERVICE_SUFFIX"' "$work/out"; then fail "a local buf.yaml weakened lint"; fi
 rm api/buf.yaml
 
 # Nor must a comment. The directive is split so that the suppression ban does not match this file.
@@ -82,7 +92,7 @@ directive="buf:lint:"'ignore SERVICE_SUFFIX'
 sed -e "s/^service NoteService/\/\/ $directive\nservice Notes/" "$original" >"$target"
 rc=0
 "$native" proto-lint api >"$work/out" 2>&1 || rc=$?
-if [[ $rc -eq 0 ]] || ! grep -q SERVICE_SUFFIX "$work/out"; then fail "a comment excused lint"; fi
+if [[ $rc -eq 0 ]] || ! grep -qF '"type":"SERVICE_SUFFIX"' "$work/out"; then fail "a comment excused lint"; fi
 cp "$original" "$target"
 
 # The breaking check fails closed, and a moved marker is not silently accepted.

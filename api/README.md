@@ -22,13 +22,22 @@ a new package version, such as `template.notes.v2`.
 
 ## The baseline
 
-`BASELINE` holds a full commit hash, and the working schema is compared with the schema in that
-commit. A missing commit, a shallow clone or a commit outside the current history fails the check.
+`BASELINE` holds a full commit hash. The working schema is compared with the schema in that commit.
+The commit must exist in this clone, be an ancestor of HEAD and contain a schema. Anything else fails
+the check, including a shallow clone.
 
 To accept a released schema as the new baseline, put its commit hash in `BASELINE` and have that
-change reviewed. A copy of this template with fresh history puts `bootstrap` in `BASELINE` in the
-commit that adds its first schema, then replaces it with that hash in the next commit. The marker is
-refused once an earlier commit has a schema.
+change reviewed.
+
+| Situation | What to do |
+| --- | --- |
+| First schema in a repository | Put `bootstrap` in `BASELINE` in the commit that adds the schema, then its hash in the next commit. |
+| Copy with the full history (`git clone`) | Nothing: the inherited hash is still valid. |
+| Copy with new history, schema in the first commit | `proto-breaking` fails until the second commit, which puts the first commit's hash in `BASELINE`. `bootstrap` is refused here. |
+| Copy with new history, example schema removed first | Put `bootstrap` in `BASELINE` in the commit that adds your schema, then its hash in the next commit. |
+
+`bootstrap` is refused once any earlier commit has a schema, even a deleted one. A bootstrap run says
+that it compared nothing.
 
 ## Update dependencies
 

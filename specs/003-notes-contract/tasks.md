@@ -1,19 +1,44 @@
 # Tasks: Neutral Notes Contract and Build-Time Generation (M2)
 
-**Input**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md)
+**Input**: [spec.md](spec.md), [plan.md](plan.md), [research.md](research.md),
+[acceptance-matrix.md](acceptance-matrix.md)
 
-Parent task ids are in brackets.
+## Execution record
 
-- [x] T001 [T005] Pin Node, pnpm, rules_js, rules_ts and gazelle; add `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `go.mod` and `go.sum`
-- [x] T002 [T020] Spike: connect-go v2 builds through the generation rule (research R3)
-- [x] T003 [T021] Write `api/template/notes/v1/notes.proto`
-- [x] T004 [T022, T023] `buf_generate` rule; Go and TypeScript targets in `api/BUILD.bazel`
-- [x] T005 [T018] Pin buf; canonical `quality/proto/buf.yaml`; `proto-format` and `proto-lint` in `tools/checks/native.sh`
-- [x] T006 [T017, T026] Baseline reader tests and implementation in `quality/proto/`; `proto-breaking`
-- [x] T007 [T016] Probes in `api/testdata/breaking/probes.tsv` and `tools/proto/probes_test.sh`
-- [x] T008 [T024] Compile gate in `api/testdata/negative/`
-- [x] T009 Boundary tests in `api/validate_test.go`
-- [x] T010 Ban committed generated code and stray buf configuration; require a full clone in CI
-- [x] T011 [T019] API-style ledger in `docs/api-style.md`
-- [x] T012 Add the checks and tests to the verifier's inventories; update provenance
-- [x] T013 Replace the bootstrap marker with the commit that introduces the schema
+This ledger does not describe the order the work happened in. M2 started with a toolchain spike and
+it grew into the schema, generation and checks, committed in `bb57298`. The spec came first; this
+plan, ledger and matrix were written after that code, and the boxes below were first ticked then.
+T101 onward were planned first.
+
+- Test-first was not followed for T005 to T009. Each test was written with its code or after it.
+  Nothing here claims a red-then-green order, except where the matrix names an observed failure.
+- `bb57298` and `4dfdc0e` carry no task-by-task mapping. The table below is that mapping, added later.
+
+Credit therefore rests on each witness's own control, mutation and named reason, re-run at the
+reviewed revision, not on the order of work.
+
+## Order and traceability
+
+Each task lists its dependencies, its spec 003 requirement, its parent task and requirement, and its
+named witness.
+
+| Task | Needs | Work | Spec | Parent | Witness |
+| --- | --- | --- | --- | --- | --- |
+| [x] T001 | — | Pin Node, pnpm, rules_js, rules_ts, gazelle; add JS and Go lockfiles | FR-012 | T005, FR-025 | `lock_fixture.sh`, `toolchain-fixtures` |
+| [x] T002 | T001 | Spike: connect-go v2 through the generation rule | FR-003, FR-004 | T020, FR-010 | `//api:notes_connect_go` builds; research R3 |
+| [x] T003 | — | Write the schema | FR-001, FR-002 | T021, FR-002 | `//api:validate_test` |
+| [x] T004 | T001, T003 | `buf_generate`; Go and TypeScript targets | FR-003, FR-004 | T022, T023, FR-010 | `//api:compile_gate_test` |
+| [x] T005 | T003 | Pin buf; canonical `buf.yaml`; `proto-format`, `proto-lint` | FR-005 | T018, FR-009 | `//api:schema_probes_test` |
+| [x] T006 | T005 | Baseline reader and `proto-breaking` | FR-006, FR-007 | T017, T026, FR-009 | `@bff_template_quality//proto:proto_test` |
+| [x] T007 | T006 | Breaking probes on the real schema | FR-008 | T016, FR-009 | `//api:schema_probes_test` |
+| [x] T008 | T004 | Compile gate | FR-009 | T024, FR-010 | `//api:compile_gate_test` |
+| [x] T009 | T003 | Boundary tests | FR-002 | T021, FR-003 | `//api:validate_test` |
+| [x] T010 | T004 | Ban generated files and stray buf config; full clone in CI | FR-003, FR-005 | FR-010 | `//:bzlmod_policy_test`, `//:config_policy_test`, `//:ci_parity_test` |
+| [x] T011 | T003 | API-style ledger | FR-010 | T019, FR-012 | human review of `docs/api-style.md` |
+| [x] T012 | T005–T009 | Verifier inventories, provenance | FR-011 | FR-021 | `test-inventory`, receipt `expected_checks` |
+| [x] T013 | T012 | Replace the bootstrap marker | FR-007 | T026 | `proto-breaking` compares with `bb57298` |
+| [x] T101 | T006 | Witness and document every fresh-history route | FR-006, FR-007 | T072, FR-027 | `TestFreshHistoryCopy`, `api/README.md` |
+| [x] T102 | T007 | Match rules as JSON types; show that a compile failure names no rule | FR-008 | T016 | `//api:schema_probes_test` |
+| [x] T103 | — | Record this execution order honestly | — | constitution VI | this file, reviewed |
+
+T025 in the parent stays open until M4 gives each RPC a production browser caller.

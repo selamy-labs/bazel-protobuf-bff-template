@@ -229,3 +229,59 @@ func TestBootstrapMarker(t *testing.T) {
 		requireUnavailable(t, err, "already has a schema")
 	})
 }
+
+// A copy of a template has new history, so the hash it inherited names no commit in it. These are
+// the two routes an adopter has; api/README.md documents them.
+func TestFreshHistoryCopy(t *testing.T) {
+	upstream := newRepo(t)
+	upstream.write(schemaFile, "first\n")
+	inherited := upstream.commit("schema in the template")
+
+	t.Run("the inherited hash fails closed", func(t *testing.T) {
+		r := newRepo(t)
+		r.write(schemaFile, "first\n")
+		r.write("api/BASELINE", inherited+"\n")
+		r.commit("copy of the template")
+		_, _, err := r.read(t)
+		requireUnavailable(t, err, "not in this clone")
+	})
+	t.Run("a copy with a schema in its first commit declares that commit", func(t *testing.T) {
+		r := newRepo(t)
+		r.write(schemaFile, "first\n")
+		r.write("api/BASELINE", inherited+"\n")
+		first := r.commit("copy of the template")
+
+		r.write("api/BASELINE", "bootstrap\n")
+		r.commit("try the marker")
+		_, _, err := r.read(t)
+		requireUnavailable(t, err, "already has a schema")
+
+		r.write("api/BASELINE", first+"\n")
+		r.commit("declare the baseline")
+		result, out, err := r.read(t)
+		if err != nil || result.Revision != first {
+			t.Fatalf("want a comparison with %s, got %+v, %v", first, result, err)
+		}
+		if _, err := os.Stat(filepath.Join(out, "template/v1/a.proto")); err != nil {
+			t.Fatal(err)
+		}
+	})
+	t.Run("a copy that adds its schema later bootstraps in that commit", func(t *testing.T) {
+		r := newRepo(t)
+		r.write("README", "a copy with the example removed\n")
+		r.commit("copy of the template")
+		r.write(schemaFile, "our first schema\n")
+		r.write("api/BASELINE", "bootstrap\n")
+		schema := r.commit("add our schema")
+		result, _, err := r.read(t)
+		if err != nil || !result.Bootstrap {
+			t.Fatalf("want a bootstrap result, got %+v, %v", result, err)
+		}
+		r.write("api/BASELINE", schema+"\n")
+		r.commit("declare the baseline")
+		result, _, err = r.read(t)
+		if err != nil || result.Revision != schema {
+			t.Fatalf("want a comparison with %s, got %+v, %v", schema, result, err)
+		}
+	})
+}
