@@ -19,5 +19,27 @@ for path in .shellcheckrc sub/.shellcheckrc sub/.typos.toml typos.toml sub/_typo
     failures=$((failures + 1))
   fi
 done
-[[ $failures -eq 0 ]] && echo "ok   implicit-config"
+rc_policy=tools/policy/bazelrc_policy.sh
+allow=tools/policy/bazelrc.allow
+"$rc_policy" .bazelrc "$allow" 2>/dev/null || { echo "FAIL the real .bazelrc was rejected" >&2; failures=$((failures + 1)); }
+rejects_rc() { # rejects_rc <label> <sed expression or appended line>
+  cp .bazelrc "$work/rc"
+  sed -i "$2" "$work/rc"
+  if cmp -s .bazelrc "$work/rc"; then
+    echo "FAIL $1: mutation changed nothing" >&2
+    failures=$((failures + 1))
+  elif "$rc_policy" "$work/rc" "$allow" 2>/dev/null; then
+    echo "FAIL $1: accepted" >&2
+    failures=$((failures + 1))
+  fi
+}
+rejects_rc "network flag removed" '/sandbox_default_allow_network/d'
+rejects_rc "strict env removed" '/incompatible_strict_action_env/d'
+rejects_rc "sandbox weakened" 's/--spawn_strategy=linux-sandbox/--spawn_strategy=local/'
+rejects_rc "tag filter added" "\$a test --test_tag_filters=-slow"
+rejects_rc "flaky retries added" "\$a test --flaky_test_attempts=5"
+rejects_rc "lockfile relaxed" 's/--lockfile_mode=error/--lockfile_mode=update/'
+rejects_rc "import added" "\$a try-import /etc/hostile.bazelrc"
+
+[[ $failures -eq 0 ]] && echo "ok   implicit-config, bazelrc-policy"
 exit "$failures"

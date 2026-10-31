@@ -2,12 +2,3 @@ title = "bff-template"
 
 [extend]
 useDefault = true
-
-[allowlist]
-description = "Build outputs and local-only records are never published."
-paths = [
-  '''^bazel-''',
-  '''^\.git/''',
-  '''^\.private/''',
-  '''^\.verify/''',
-]

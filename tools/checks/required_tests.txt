@@ -1,0 +1,12 @@
+//:bazel_pin_test
+@bff_template_quality//checks/ciparity:ciparity_test
+@bff_template_quality//checks/suppression:suppression_test
+//:bzlmod_policy_test
+//:ci_parity_test
+//:config_policy_test
+//:inventory_test
+//:native_fixtures_test
+//:normalize_json_test
+//:speckit_scaffold_test
+//:verify_body_test
+//:verify_deadline_test

@@ -6,7 +6,8 @@
 # Scenarios, all from a clone of HEAD. The source tree must be clean so the record names exactly
 # what was measured.
 #   bootstrap:     empty HOME; fetch and verify the pinned toolchain (--bootstrap-only).
-#   first_verify:  the full verifier right after bootstrap; nothing is built yet.
+#   first_verify:  the full verifier right after bootstrap, which built only the tools; tests are
+#                  built and run for the first time.
 #   warm_nochange: the full verifier again. Test results are never cached, build outputs are.
 #   warm_edited:   the full verifier after a source edit that forces a rebuild and retest.
 #   no_download:   --offline: Bazel's --repository_disable_download plus a dead proxy. The
@@ -71,12 +72,14 @@ timed() { # timed <home> <clone> <env assignments...> -- <verify args...>; print
   shift
   local start end rc=0 peak=0 now server roots
   start="$(date +%s.%N)"
-  (cd "$clone" && exec env -i HOME="$home" PATH=/usr/bin:/bin USER="${USER:-$(id -un)}" TERM=dumb "${envs[@]}" \
+  mkdir -p "$home/tmp"
+  (cd "$clone" && exec env -i HOME="$home" TMPDIR="$home/tmp" PATH=/usr/bin:/bin USER="${USER:-$(id -un)}" TERM=dumb "${envs[@]}" \
     tools/verify.sh "$@" </dev/null >"$work/run.log" 2>&1) &
   local verifier=$!
   while kill -0 "$verifier" 2>/dev/null; do
     roots="$verifier"
-    server="$(find "$home/.cache/bazel" -maxdepth 4 -name server.pid.txt -exec cat {} + 2>/dev/null | tr '\n' ' ' || true)"
+    # The toolchain fixtures start their own server under TMPDIR, which is inside HOME here.
+    server="$(find "$home" -maxdepth 7 -name server.pid.txt -exec cat {} + 2>/dev/null | tr '\n' ' ' || true)"
     roots+=" $server"
     now="$(tree_pss_kb "$roots")"
     if ((now > peak)); then peak=$now; fi

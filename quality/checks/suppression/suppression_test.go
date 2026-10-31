@@ -26,6 +26,9 @@ func TestSupportedSpellingsAreCaught(t *testing.T) {
 		{"S002_bad_config.ts", "S002"},
 		{"S006_bad_nul.txt", "S006"},
 		{"S006_bad_utf16.txt", "S006"},
+		{"S006_bad_combined.txt", "S006"},
+		{"S006_bad_shell.txt", "S006"},
+		{"S006_bad_enable.txt", "S006"},
 		{"S007_bad_flake8.py", "S007"},
 		{"S007_bad_mypy.py", "S007"},
 		{"S007_bad_pylint.py", "S007"},
@@ -74,9 +77,11 @@ func TestDirectivesSpanningLinesAreReportedAtTheirStart(t *testing.T) {
 	}
 }
 
-func TestProseAboutConfigurationIsNotADirective(t *testing.T) {
-	if got := scanFixture(t, "S002_good_prose.ts"); len(got) != 0 {
-		t.Fatalf("got %+v, want no findings", got)
+func TestLegitimateTextIsNotADirective(t *testing.T) {
+	for _, fixture := range []string{"S002_good_prose.ts", "S006_good_source.txt", "S007_good_field.yml"} {
+		if got := scanFixture(t, fixture); len(got) != 0 {
+			t.Errorf("%s: got %+v, want no findings", fixture, got)
+		}
 	}
 }
 

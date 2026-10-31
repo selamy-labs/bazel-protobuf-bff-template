@@ -29,6 +29,8 @@ type Policy struct {
 	Runs []RunRule `json:"runs"`
 	// RequiredRun must appear exactly once in every job except the gate.
 	RequiredRun string `json:"required_run"`
+	// JobSteps is each job's exact ordered step list: "uses:<owner/repo>" or "run:<body>".
+	JobSteps map[string][]string `json:"job_steps"`
 	// RequiredJobs must exist (besides the gate).
 	RequiredJobs []string `json:"required_jobs"`
 	// Gate is the aggregate job's name.
@@ -169,6 +171,7 @@ func (v *validator) job(name string, job map[string]any, isGate bool) {
 		v.fail("%s: has no steps", where)
 	}
 	required := 0
+	var order []string
 	for i, raw := range steps {
 		step, ok := raw.(map[string]any)
 		if !ok {
@@ -178,6 +181,12 @@ func (v *validator) job(name string, job map[string]any, isGate bool) {
 		if v.step(fmt.Sprintf("%s step %d", where, i), step, isGate) {
 			required++
 		}
+		order = append(order, signature(step))
+	}
+	if want, ok := v.p.JobSteps[name]; !ok {
+		v.fail("%s: has no permitted step order", where)
+	} else if !reflect.DeepEqual(order, want) {
+		v.fail("%s: step order %q is not the permitted step order %q", where, order, want)
 	}
 	if !isGate && required != 1 {
 		v.fail("%s: must run %q exactly once, found %d", where, v.p.RequiredRun, required)
@@ -198,9 +207,26 @@ func (v *validator) runner(where string, job map[string]any) {
 	}
 }
 
+// signature identifies a step for the ordered comparison.
+func signature(step map[string]any) string {
+	if uses, ok := step["uses"].(string); ok {
+		repo, _, _ := strings.Cut(uses, "@")
+		return "uses:" + repo
+	}
+	run, _ := step["run"].(string)
+	return "run:" + strings.TrimSpace(run)
+}
+
 // step validates one step and reports whether it is the required verifier run.
 func (v *validator) step(where string, step map[string]any, isGate bool) bool {
 	v.unknownKeys(where, step, stepKeys)
+	for _, key := range []string{"env", "with"} {
+		if value, ok := step[key]; ok {
+			if _, isMap := value.(map[string]any); !isMap {
+				v.fail("%s: %s must be a literal mapping, not %v", where, key, value)
+			}
+		}
+	}
 	uses, hasUses := step["uses"].(string)
 	run, hasRun := step["run"].(string)
 	if hasUses == hasRun {

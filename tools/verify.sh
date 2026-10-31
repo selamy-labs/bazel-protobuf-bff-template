@@ -29,7 +29,7 @@ keep=(
   "GIT_TERMINAL_PROMPT=0"
 )
 for name in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy SSL_CERT_FILE SSL_CERT_DIR \
-  XDG_CACHE_HOME GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_WORKFLOW GITHUB_JOB; do
+  GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_WORKFLOW GITHUB_JOB; do
   if [[ -n "${!name:-}" ]]; then keep+=("$name=${!name}"); fi
 done
 rc=0

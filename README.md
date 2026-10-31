@@ -18,8 +18,9 @@ local-only and unpublished.
 
 Prerequisites: Git, bash, curl and coreutils (GNU `timeout`, `sha256sum`, `tar`). Bazel itself, the Go SDK, Python
 and every check tool are fetched at pinned, checksummed versions; `tools/bootstrap/bazel.sh` verifies
-the Bazel binary on every call. Nothing else on the host is used: the verifier discards the caller's
-environment, so rc files, tool options and PATH helpers cannot change a verdict.
+the Bazel binary on every call. The verifier discards the caller's environment, so rc files, tool options and PATH helpers cannot
+change a verdict. It does trust its own caches under `$HOME/.cache`: Bazel does not re-hash an
+extracted install base.
 
 ```sh
 tools/verify.sh
@@ -56,7 +57,7 @@ isolation, use `tools/bootstrap/bazel.sh`.
 
 ## Spec Kit
 
-Spec Kit is pinned to `github/spec-kit` v1.2.3 (commit `5ea8b1cf`) and run through `uvx`. To check
+Spec Kit is pinned to `github/spec-kit` v1.2.3 (commit `5ea8b1cf`) and run through a pinned uv with hash-locked dependencies. To check
 that the vendored scaffold matches that release:
 
 ```sh

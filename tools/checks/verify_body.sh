@@ -4,6 +4,8 @@ set -euo pipefail
 root="$1"
 shift
 cd "$root"
+# A receipt on disk always describes the run that just finished, never an earlier one.
+rm -f .verify/receipt.json
 
 weak=false
 offline=false
@@ -35,6 +37,21 @@ fi
 
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
+
+# Every long step runs through bounded(). timeout gives its command a process group, so the
+# wrapper's overall deadline reaches it only through this handler, which passes the signal on.
+active=""
+trap 'if [[ -n "$active" ]]; then kill -TERM "$active" 2>/dev/null || true; fi; exit 143' TERM
+
+bounded() { # bounded <seconds> <command...>: stdin is closed; returns the command's exit code
+  local seconds="$1" rc=0
+  shift
+  timeout --kill-after=10 "$seconds" "$@" </dev/null &
+  active=$!
+  wait "$active" || rc=$?
+  active=""
+  return "$rc"
+}
 started_at="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 results=()
 status=0
@@ -48,7 +65,7 @@ run_check() { # run_check <id> <command...>: bounded, non-interactive, never abo
   local id="$1" started rc=0
   shift
   started="$(date +%s)"
-  timeout --kill-after=10 "$check_timeout" "$@" </dev/null >"$work/$id.log" 2>&1 || rc=$?
+  bounded "$check_timeout" "$@" >"$work/$id.log" 2>&1 || rc=$?
   local elapsed=$(($(date +%s) - started))
   if [[ $rc -eq 0 ]]; then
     printf 'PASS %-20s %4ss\n' "$id" "$elapsed"
@@ -65,14 +82,14 @@ run_check() { # run_check <id> <command...>: bounded, non-interactive, never abo
   return 1
 }
 
-if ! timeout --kill-after=10 600 tools/bootstrap/preflight.sh "${preflight_args[@]}" </dev/null >"$work/preflight.log" 2>&1; then
+if ! bounded 600 tools/bootstrap/preflight.sh "${preflight_args[@]}" >"$work/preflight.log" 2>&1; then
   cat "$work/preflight.log" >&2
   echo "verify: preflight failed; nothing was verified" >&2
   exit 1
 fi
 
-if ! timeout --kill-after=10 1200 "${bazel[@]}" run "${bazel_flags[@]}" --noshow_progress --ui_event_filters=-info,-stdout,-stderr \
-  //:tool_paths </dev/null >"$work/tools.env" 2>"$work/tools.log"; then
+if ! bounded 1200 "${bazel[@]}" run "${bazel_flags[@]}" --noshow_progress --ui_event_filters=-info,-stdout,-stderr \
+  //:tool_paths >"$work/tools.env" 2>"$work/tools.log"; then
   tail -n 30 "$work/tools.log" >&2
   echo "verify: could not fetch the pinned tools; nothing was verified (rerun: $rerun)" >&2
   exit 1
@@ -102,18 +119,22 @@ if $bootstrap_only; then
   exit 0
 fi
 
-expected=(inventory bazel-test workspace-policy implicit-config toolchain-fixtures suppression-ban
-  secrets typos shellcheck buildifier actionlint zizmor speckit-provenance)
+expected=(inventory bazel-test test-inventory sandbox-evidence workspace-policy implicit-config
+  bazelrc-policy toolchain-fixtures suppression-ban secrets typos shellcheck buildifier actionlint
+  zizmor speckit-provenance)
 if ! run_check inventory tools/checks/inventory.sh "$root" "$work"; then
   echo "verify: input discovery failed; no file check can be trusted (rerun: $rerun)" >&2
 fi
 
 test_targets=0
 if [[ $status -eq 0 ]]; then
-  test_targets="$(timeout --kill-after=10 300 "${bazel[@]}" query --noshow_progress 'tests(//... + @bff_template_quality//...)' 2>/dev/null </dev/null | wc -l | tr -d ' ')" || true
   run_check bazel-test "${bazel[@]}" test "${bazel_flags[@]}" --nocache_test_results --noshow_progress //... @bff_template_quality//... || true
+  run_check test-inventory tools/checks/test_evidence.sh inventory "$work/bazel-test.log" tools/checks/required_tests.txt || true
+  test_targets="$(awk '$2 == "PASSED"' "$work/bazel-test.log" | wc -l | tr -d ' ')"
+  run_check sandbox-evidence tools/checks/test_evidence.sh sandbox "$work/bazel-test.log" "$isolation" || true
   run_check workspace-policy tools/policy/workspace_policy.sh "$work/all" || true
   run_check implicit-config tools/policy/config_policy.sh "$work/all" || true
+  run_check bazelrc-policy tools/policy/bazelrc_policy.sh .bazelrc tools/policy/bazelrc.allow || true
   run_check toolchain-fixtures tools/policy/lock_fixture.sh || true
   run_check suppression-ban "$SUPPRESSION" -root "$root" -paths "$work/all" \
     -exempt tools/speckit/scaffold.sha256 -exempt quality/checks/suppression/testdata/fixtures.sha256 || true
@@ -148,39 +169,42 @@ joined="$(IFS=,; echo "${results[*]}")"
 
 revision="$(git rev-parse HEAD)"
 tree="$(git rev-parse 'HEAD^{tree}')"
-dirty=false
-if [[ -n "$(git status --porcelain)" ]]; then dirty=true; fi
-digest_of() { xargs -0 sha256sum | LC_ALL=C sort -k2 | sha256sum | cut -d' ' -f1; }
-if [[ -s "$work/all" ]]; then
-  source_digest="$(digest_of <"$work/all")"
-else
-  source_digest=none
+tested_tree=unknown
+policy_digest=unknown
+dirty=true
+if [[ -s "$work/tested_tree" ]]; then
+  tested_tree="$(<"$work/tested_tree")"
+  policy_digest="$(<"$work/policy_digest")"
+  if [[ "$tested_tree" == "$tree" ]]; then dirty=false; fi
 fi
-touch "$work/counts" "$work/all"
-grep -zE '^(\.bazelrc|\.bazelversion|MODULE\.bazel(\.lock)?|\.gitleaks\.toml|_typos\.toml|(quality|tools|\.github)/.*)$' \
-  "$work/all" >"$work/policy"
-policy_digest="$(digest_of <"$work/policy")"
 producer=local
 if [[ -n "${GITHUB_RUN_ID:-}" ]]; then
   producer="github-actions/${GITHUB_WORKFLOW:-}/${GITHUB_JOB:-}/${GITHUB_RUN_ID}/${GITHUB_RUN_ATTEMPT:-}"
 fi
 result=FAILED
-if [[ $status -eq 0 ]]; then result=PASSED; fi
+if [[ $status -eq 0 ]]; then
+  result=PASSED
+  # A run that skipped a required check did not verify the full policy.
+  if $offline; then result=INCOMPLETE; fi
+fi
 bazel_sha="$(sha256sum "$bazel_binary" | cut -d' ' -f1)"
+touch "$work/counts"
 counts="$(sed -E 's/^([a-z]+)=([0-9]+)$/"\1":\2,/' "$work/counts" | tr -d '\n')"
+sandbox_summary="$(grep -E '^INFO: [0-9]+ process' "$work/bazel-test.log" 2>/dev/null | tail -1 | tr -cd 'A-Za-z0-9., :-' || true)"
 
 mkdir -p .verify
 receipt="$work/receipt.json"
 cat >"$receipt" <<JSON
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "revision": "$revision",
   "tree": "$tree",
+  "tested_tree": "$tested_tree",
   "worktree_dirty": $dirty,
-  "source_digest": "$source_digest",
   "policy_digest": "$policy_digest",
   "producer": "$producer",
   "isolation": "$isolation",
+  "sandbox_summary": "$sandbox_summary",
   "offline": $offline,
   "test_results_cached": false,
   "result": "$result",
@@ -199,10 +223,9 @@ if ! "$YQ" -p=json -o=json '.' "$receipt" >/dev/null; then
   status=1
 fi
 cp "$receipt" .verify/receipt.json
-state="$result"
-if [[ $status -ne 0 ]]; then state=FAILED; fi
+if [[ $status -ne 0 ]]; then result=FAILED; fi
 note=""
-if $dirty; then note=", worktree dirty"; fi
+if $dirty; then note=", tested tree differs from HEAD"; fi
 if $offline; then note+=", offline: provenance skipped"; fi
-echo "verify: $state at $revision (isolation: $isolation$note)"
+echo "verify: $result at $revision (isolation: $isolation$note)"
 exit "$status"

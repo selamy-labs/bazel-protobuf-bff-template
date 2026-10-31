@@ -17,23 +17,52 @@
       }
     }
   },
-  "on": { "merge_group": null, "pull_request": null, "push": { "branches": ["main"] } },
+  "on": {
+    "merge_group": null,
+    "pull_request": null,
+    "push": {
+      "branches": [
+        "main"
+      ]
+    }
+  },
   "concurrency": {
     "cancel-in-progress": false,
     "group": "${{ github.workflow }}-${{ github.event_name }}-${{ github.sha }}"
   },
-  "runs_on": ["ubuntu-24.04"],
+  "runs_on": [
+    "ubuntu-24.04"
+  ],
   "max_timeout_minutes": 45,
-  "required_jobs": ["verify"],
+  "required_jobs": [
+    "verify"
+  ],
   "gate": "gate",
   "required_run": "tools/verify.sh",
   "runs": [
-    { "body": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0" },
-    { "body": "tools/verify.sh" },
+    {
+      "body": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
+    },
+    {
+      "body": "tools/verify.sh"
+    },
     {
       "body": "for result in $RESULTS; do\n  if [ \"$result\" != \"success\" ]; then\n    echo \"gate: a required job finished as '$result'\" >&2\n    exit 1\n  fi\ndone",
-      "env": { "RESULTS": "${{ join(needs.*.result, ' ') }}" },
+      "env": {
+        "RESULTS": "${{ join(needs.*.result, ' ') }}"
+      },
       "gate_only": true
     }
-  ]
+  ],
+  "job_steps": {
+    "verify": [
+      "uses:actions/checkout",
+      "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+      "run:tools/verify.sh",
+      "uses:actions/upload-artifact"
+    ],
+    "gate": [
+      "run:for result in $RESULTS; do\n  if [ \"$result\" != \"success\" ]; then\n    echo \"gate: a required job finished as '$result'\" >&2\n    exit 1\n  fi\ndone"
+    ]
+  }
 }

@@ -18,6 +18,10 @@ func policy() Policy {
 			{Body: "tools/verify.sh"},
 			{Body: "gate body", GateOnly: true},
 		},
+		JobSteps: map[string][]string{
+			"verify": {"uses:actions/checkout", "run:tools/verify.sh"},
+			"gate":   {"run:gate body"},
+		},
 		RequiredRun:  "tools/verify.sh",
 		RequiredJobs: []string{"verify"},
 		Gate:         "gate",
@@ -66,8 +70,7 @@ func TestVerifierMustRunExactlyOnce(t *testing.T) {
 	wf := workflow()
 	job := wf["jobs"].(map[string]any)["verify"].(map[string]any)
 	job["steps"] = append(job["steps"].([]any), map[string]any{"run": "tools/verify.sh"})
-	errs := Validate(wf, policy())
-	if len(errs) != 1 || !strings.Contains(errs[0], "exactly once") {
+	if errs := Validate(wf, policy()); !strings.Contains(strings.Join(errs, "\n"), "exactly once") {
 		t.Fatalf("got %v", errs)
 	}
 }
@@ -87,5 +90,27 @@ func TestNonBooleanStyleUsesAndRunTogetherFail(t *testing.T) {
 	job["steps"].([]any)[1].(map[string]any)["uses"] = "actions/checkout@" + sha
 	if errs := Validate(wf, policy()); len(errs) == 0 {
 		t.Fatal("a step with both uses and run was accepted")
+	}
+}
+
+func TestScalarEnvAndWithAreRejected(t *testing.T) {
+	for _, key := range []string{"env", "with"} {
+		wf := workflow()
+		job := wf["jobs"].(map[string]any)["verify"].(map[string]any)
+		job["steps"].([]any)[1].(map[string]any)[key] = "${{ fromJSON(vars.X) }}"
+		if errs := Validate(wf, policy()); len(errs) == 0 {
+			t.Errorf("a scalar %s was accepted", key)
+		}
+	}
+}
+
+func TestStepOrderIsExact(t *testing.T) {
+	wf := workflow()
+	job := wf["jobs"].(map[string]any)["verify"].(map[string]any)
+	steps := job["steps"].([]any)
+	steps[0], steps[1] = steps[1], steps[0]
+	errs := Validate(wf, policy())
+	if len(errs) != 1 || !strings.Contains(errs[0], "step order") {
+		t.Fatalf("got %v", errs)
 	}
 }

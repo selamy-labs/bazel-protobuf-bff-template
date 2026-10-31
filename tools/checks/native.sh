@@ -25,7 +25,7 @@ on_files() { # on_files <list> <command...>: one invocation over every listed fi
 
 case "$check" in
   secrets) # <NUL list> <gitleaks config>: scans a snapshot of exactly the inventory, so build
-    # output and ignored local files are out of scope by construction, with no path allowlist.
+    # output and ignored local files are out of scope by construction, and no path is allowlisted.
     list="$1"
     config="$(realpath "$2")"
     [[ -s "$list" ]] || { echo "secrets: empty input list" >&2; exit 1; }

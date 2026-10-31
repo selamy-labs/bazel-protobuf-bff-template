@@ -33,3 +33,11 @@ runner_changed	.jobs.verify["runs-on"] = "self-hosted"	runs-on
 timeout_removed	del(.jobs.verify["timeout-minutes"])	timeout-minutes
 verifier_flag_added	(.jobs.verify.steps[] | select(.name == "Verify")).run = "tools/verify.sh --offline"	run body
 gate_permission_write	.jobs.gate.permissions = {"contents": "write"}	permissions
+step_env_scalar	(.jobs.verify.steps[] | select(.run // "" | test("sysctl"))).env = "${{ fromJSON(vars.VERIFY_ENV) }}"	env
+verify_env_scalar	(.jobs.verify.steps[] | select(.name == "Verify")).env = "${{ fromJSON(vars.VERIFY_ENV) }}"	env
+checkout_with_scalar	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/checkout@"))).with = "${{ fromJSON(vars.X) }}"	with
+upload_with_removed	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/upload-artifact@"))) |= del(.with)	with inputs
+steps_reversed	.jobs.verify.steps |= reverse	step order
+upload_step_removed	.jobs.verify.steps |= map(select((.uses // "") | test("upload-artifact") | not))	step order
+sysctl_step_removed	.jobs.verify.steps |= map(select((.run // "") | test("sysctl") | not))	step order
+gate_action_only	.jobs.gate.steps = [{"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"persist-credentials": false, "ref": "${{ github.event.pull_request.head.sha || github.sha }}"}}]	step order

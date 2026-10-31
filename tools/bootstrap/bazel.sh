@@ -7,7 +7,12 @@
 # --path prints the verified binary instead of running it.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+releases="https://github.com/bazelbuild/bazel/releases/download"
 version="$(<"$root/.bazelversion")"
+if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  echo "bazel-pin: .bazelversion '$version' is not a release version" >&2
+  exit 2
+fi
 
 case "$(uname -s)-$(uname -m)" in
   Linux-x86_64) platform=linux-x86_64 ;;
@@ -16,12 +21,9 @@ case "$(uname -s)-$(uname -m)" in
   *) echo "bazel-pin: no pinned Bazel for $(uname -s)-$(uname -m); see tools/bootstrap/bazel.pins" >&2; exit 2 ;;
 esac
 
-read -r _ sha256 url < <(grep -E "^$platform " "$root/tools/bootstrap/bazel.pins") ||
+read -r _ sha256 < <(grep -E "^$platform " "$root/tools/bootstrap/bazel.pins") ||
   { echo "bazel-pin: no entry for $platform in tools/bootstrap/bazel.pins" >&2; exit 2; }
-case "$url" in
-  *"/$version/"*|file://*) ;;
-  *) echo "bazel-pin: pinned URL does not match .bazelversion $version: $url" >&2; exit 2 ;;
-esac
+url="$releases/$version/bazel-$version-$platform"
 
 cache="${XDG_CACHE_HOME:-$HOME/.cache}/bff-template/bazel/$version-$platform-$sha256"
 bin="$cache/bazel"
@@ -30,7 +32,7 @@ matches() { [[ "$(sha256sum "$1" | cut -d' ' -f1)" == "$sha256" ]]; }
 if [[ ! -f "$bin" ]]; then
   mkdir -p "$cache"
   tmp="$(mktemp "$cache/download.XXXXXX")"
-  if ! curl --fail --silent --show-error --location --retry 3 --connect-timeout 30 --max-time 600 \
+  if ! curl -q --fail --silent --show-error --location --retry 3 --connect-timeout 30 --max-time 600 \
     --output "$tmp" "$url" </dev/null; then
     rm -f "$tmp"
     echo "bazel-pin: download failed: $url" >&2
