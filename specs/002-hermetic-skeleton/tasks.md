@@ -105,3 +105,30 @@
 - T005–T008 are tests and come before T009–T012.
 - T012 comes before T013–T014, T016–T018 and T020.
 - T019 comes before T020.
+
+
+## Phase 8: Independent-review remediation (2026-10-31)
+
+**Status: REVISE; M1 is not accepted.** Earlier checkboxes record implementation, not closure
+of the later independent review. The task-to-finding-to-witness map is
+[review-remediation.md](review-remediation.md); the cross-project principles and upstream
+ownership are in [the quality framework synthesis](../../docs/quality-framework.md).
+
+- [x] T023 Integrate the public quality-framework synthesis, source/ownership references and
+  remediation map; keep private provenance in ignored `.private/`. Documentation only.
+- [ ] T024 Fix H1: structured, fail-closed CI parity with adversarial workflow fixtures.
+- [ ] T025 Fix H2: NUL-safe relative input discovery, error propagation and empty-input rejection.
+- [ ] T026 Fix H3: isolate tool configs and reject undeclared disabling configuration.
+- [ ] T027 Fix H4: pin actionlint's ShellCheck/helper environment.
+- [ ] T028 Fix H5: controlled prerequisite bootstrap, including Spec Kit's uv/uvx dependency.
+- [ ] T029 Fix M1: suppression spellings, executable NUL cases and exact exemptions.
+- [ ] T030 Fix M2: isolate ambient Bazel configuration and verify Bazel download identity.
+- [ ] T031 Fix M3: make the canonical preflight entry point and documented remediation agree.
+- [ ] T032 Fix M4: correct and complete revision-bound evidence and measurements.
+- [ ] T033 Fix L1: report an accurate, precisely defined peak-memory metric.
+- [ ] T034 Fix L2: normalize and witness gitleaks allowlist paths.
+- [ ] T035 Complete final canonical/fresh-clone verification and independent re-review at the
+  exact source revision; retain explicit unverified isolation/platform/hosted-CI limits.
+
+T024–T034 may be closed only with the negative and corrected witnesses in the remediation map.
+T035 follows them. This phase adds no publication, cloud, identity or paid-run authority.
