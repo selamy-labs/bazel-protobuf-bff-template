@@ -20,6 +20,7 @@ tasks. Boxes are ticked only when the named witness passes in the verifier.
 | [x] T010 | T006 | Review regression: the omitted-cookie scenario gets a same-origin control and requires a successful POST | FR-005 | T032, FR-008 | `the client omits a cookie the browser would send` in `notes_e2e_test` |
 | [x] T011 | T009 | Quote tool paths, because Bazel resolves some inside the checkout | FR-010 | T042, FR-025 | `//:verify_body_test`, `fresh_clone.sh` |
 | [x] T012 | T001 | Enforce the Linux glibc floor in the preflight; a below-floor or unknown libc fails early | FR-011 | T030, FR-025 | `//:preflight_test` |
+| [x] T013 | T001 | Stop detecting a host C compiler; Go builds with cgo off | FR-012 | FR-025 | `compiler-fixture` in `toolchain-fixtures`, `bazelrc-policy` |
 
 ## Execution record
 
@@ -43,5 +44,12 @@ findings changed the plan:
   unsupported host run for minutes before failing. T012 makes it stop first. Reading the version
   needs of all 67 pinned ELF files confirmed the floor: `libexpat` and `libstdc++` need 2.36, and
   nothing needs newer. The pins and isolation did not change.
+- A qualified run at `902aaf6`, on Debian 12 with glibc 2.36 and no C compiler, stopped in 24 s with
+  `Cannot find gcc or CC`, before any test or receipt. This was a real defect, against the documented
+  prerequisites. rules_go asks for an optional C++ toolchain on every Go target, which runs Bazel's
+  host detection, and `pure` does not stop that. Hosts with `gcc` had hidden it: there the Go binaries
+  were built with `CGO_ENABLED=1` and linked to the host's libc, so the result depended on the host.
+  T013 turns detection off. They are now static with `CGO_ENABLED=0`. With compilers hidden from
+  repository rules, actions and tests, all 32 required tests passed locally.
 
 Credit for the browser scenarios rests on `defect_e2e_test`, which is re-run on every verification.

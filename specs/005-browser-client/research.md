@@ -14,6 +14,10 @@ fails at start with `libnspr4.so: cannot open shared object file`; `libnss3`, `l
 - The libraries are Debian 12 packages. Bookworm's glibc 2.36 sets the floor, and hosts need only
   glibc at that version or newer. Ubuntu 24.04 has 2.39. The verifier's preflight enforces this
   floor on Linux, and fails when it can't confirm glibc.
+- The Go code has no C consumer, so `.bazelrc` turns off host C++ toolchain detection, and Go builds
+  with cgo off. rules_go resolves an optional C++ toolchain for every Go target even with `pure` on,
+  so `pure` alone does not remove the compiler requirement. A future C consumer needs a pinned,
+  declared toolchain, and fails on every host until it has one.
 - `tools/pins/gen_browser_libs.py` resolves the closure from Debian's package index and writes
   `tools/browser/debs.bzl`. A repository rule fetches and flattens them.
 - Tests point Playwright at the pinned executable with `LD_LIBRARY_PATH` set only for the browser.

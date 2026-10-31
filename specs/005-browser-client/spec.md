@@ -119,6 +119,8 @@ A developer runs one command and gets the app locally, with test identity clearl
 - **FR-011**: On Linux, the verifier's preflight MUST stop before any build when glibc is below the
   documented floor, or when it cannot confirm glibc, and MUST say how to get a supported host. The
   weak-isolation opt-in MUST NOT bypass this. macOS is out of this check.
+- **FR-012**: The build MUST NOT detect or use a host C compiler. Every target MUST analyze with no
+  compiler on `PATH`, and a C consumer MUST fail on every host until it declares a pinned toolchain.
 
 ### Key Entities
 

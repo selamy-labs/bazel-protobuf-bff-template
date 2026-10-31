@@ -18,7 +18,7 @@ start until you add one ([bff/README.md](bff/README.md)).
 ## How to use and test
 
 Prerequisites: Git, bash, curl and coreutils (GNU `timeout`, `sha256sum`, `tar`), on a Linux x86_64
-host with glibc 2.36 or newer, which the verifier's preflight checks first. Bazel itself, the Go SDK, Node, Python, a browser
+host with glibc 2.36 or newer, which the verifier's preflight checks first. No C compiler is needed. Bazel itself, the Go SDK, Node, Python, a browser
 and every check tool are fetched at pinned, checksummed versions; `tools/bootstrap/bazel.sh` verifies
 the Bazel binary on every call. The verifier discards the caller's environment, so rc files, tool options and PATH helpers cannot
 change a verdict. It does trust its own caches under `$HOME/.cache`: Bazel does not re-hash an

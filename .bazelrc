@@ -6,6 +6,12 @@ common --enable_platform_specific_config
 # undeclared call, so it is switched off here (spec 003 research R3).
 common --repo_env=DO_NOT_TRACK=1
 
+# Nothing here is C or C++, so no host compiler is detected. Bazel resolves the optional C++ toolchain
+# for every Go target even with pure Go on, and detection fails on a host without a compiler. With it
+# off, Go builds with cgo off, and a real C consumer fails on every host until it declares a pinned
+# toolchain (spec 005 FR-012).
+common --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=1
+
 # Namespace-isolated sandboxing by default. If linux-sandbox is unavailable the build fails
 # instead of falling back to the non-isolating processwrapper-sandbox (spec 002 research R2).
 build:linux --spawn_strategy=linux-sandbox

@@ -16,6 +16,7 @@ local verifier, **ci** hosted CI (not run), **hum** human.
 | FR-009 | `dev_test` | the runner serves the page and the server, and stops both | G | off |
 | FR-010 | `required_tests.txt`, `fresh_clone.sh` | a missing test fails the inventory | G | loc |
 | FR-011 | `preflight_test` | glibc below 2.36, or an unknown libc → fails before Bazel starts, also with weak isolation; 2.36 and newer pass; macOS skips it | G | off |
+| FR-012 | `compiler-fixture` in `toolchain-fixtures`, `bazelrc-policy` | detection on with compilers hidden → `Cannot find gcc or CC` (control); detection off → every target analyzes; a C toolchain consumer fails on a host that has a compiler | G | loc |
 
 | SC | Witness | Status |
 | --- | --- | --- |
@@ -38,3 +39,7 @@ Hand-run on 2026-10-31 against `preflight_test`: each mutant failed on its inten
 the floor at 2.35 and at 2.37, an off-by-one comparison, an ignored major version, the check removed,
 unknown libc passing, the check run on macOS, no early exit, weak isolation bypassing the check, and
 a changed floor in `README.md`.
+
+Hand-run on 2026-11-01 against `compiler-fixture`: the setting removed, a C consumer added to the
+checkout, and compilers left on the fixture's `PATH` each failed on their intended step. A separate
+cgo probe failed at link, so a cgo target can't silently lose its C sources.

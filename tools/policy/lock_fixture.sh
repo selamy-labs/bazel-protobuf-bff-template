@@ -3,13 +3,17 @@
 #   1. an unlocked MODULE.bazel edit fails under the repository's .bazelrc, and the unmodified copy
 #      passes;
 #   2. a native tool whose checksum does not match its pin is rejected, not used;
-#   3. a hostile HOME rc breaks raw Bazel (control) but cannot reach the pinned wrapper.
-# Runs in a throwaway copy with its own output root, sharing only the download cache.
+#   3. a hostile HOME rc breaks raw Bazel (control) but cannot reach the pinned wrapper;
+#   4. every target analyzes with no C compiler on PATH, and a real C consumer fails even when the
+#      host has a compiler (specs/005-browser-client FR-012).
+# Runs in a throwaway copy with its own output root, sharing only the download cache. The fourth
+# reads the real checkout, with its own output root and no convenience links, because it must see
+# every target.
 set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
 bazel="$root/tools/bootstrap/bazel.sh"
 work="$(mktemp -d)"
-trap '(cd "$work/ws" 2>/dev/null && "$bazel" --output_user_root="$work/out" shutdown) >/dev/null 2>&1; chmod -R u+w "$work" 2>/dev/null; rm -rf "$work"' EXIT
+trap '(cd "$work/ws" 2>/dev/null && "$bazel" --output_user_root="$work/out" shutdown) >/dev/null 2>&1; (cd "$root" && "$bazel" --output_user_root="$work/out3" shutdown) >/dev/null 2>&1; chmod -R u+w "$work" 2>/dev/null; rm -rf "$work"' EXIT
 cache="$(cd "$root" && "$bazel" info repository_cache)"
 
 mkdir -p "$work/ws"
@@ -61,3 +65,40 @@ for hostile_env in "HOME=$work/hostile" "BAZELRC=$work/hostile/.bazelrc"; do
     { echo "ambient-fixture: $hostile_env reached the pinned wrapper:" >&2; tail -3 "$work/log" >&2; exit 1; }
 done
 echo "ok   ambient-fixture control and corrected"
+
+# The compilers Bazel's C++ detection and rules_go could reach through PATH.
+mkdir -p "$work/no-compiler"
+for tool in /usr/bin/* /bin/*; do
+  name="${tool##*/}"
+  case "$name" in
+    cc | c++ | c89* | c99* | cpp | cpp-* | gcc | gcc-* | g++ | g++-* | clang | clang++ | clang-* | tcc) continue ;;
+    *-gcc | *-gcc-* | *-g++ | *-g++-* | *-cpp | *-cpp-*) continue ;;
+  esac
+  [[ -e "$work/no-compiler/$name" ]] || ln -s "$tool" "$work/no-compiler/$name"
+done
+no_compiler() {
+  (cd "$root" && env -u CC PATH="$work/no-compiler" "$bazel" --output_user_root="$work/out3" build --config=weak-isolation \
+    --nobuild --symlink_prefix=/ "$@" --repository_cache="$cache" </dev/null >"$work/log" 2>&1)
+}
+if no_compiler --repo_env=BAZEL_DO_NOT_DETECT_CPP_TOOLCHAIN=0 @bff_template_quality//checks/suppression:suppression-ban; then
+  echo "compiler-fixture: control failed; analysis passed with detection on, so this proves nothing" >&2
+  exit 1
+fi
+grep -qF 'Cannot find gcc or CC' "$work/log" || { echo "compiler-fixture: control failed for another reason:" >&2; tail -5 "$work/log" >&2; exit 1; }
+no_compiler //... @bff_template_quality//... || { echo "compiler-fixture: a target needs a host C compiler:" >&2; tail -8 "$work/log" >&2; exit 1; }
+
+mkdir -p "$work/ws/c_consumer"
+cat >"$work/ws/c_consumer/BUILD.bazel" <<'FIXTURE'
+genrule(
+    name = "main",
+    outs = ["main.txt"],
+    cmd = "echo $(CC) >$@",
+    toolchains = ["@bazel_tools//tools/cpp:current_cc_toolchain"],
+)
+FIXTURE
+if in_ws build --config=weak-isolation --nobuild //c_consumer:main; then
+  echo "compiler-fixture: a C consumer used the host compiler" >&2
+  exit 1
+fi
+grep -qF 'Unable to find a CC toolchain' "$work/log" || { echo "compiler-fixture: failure did not name the C toolchain:" >&2; tail -8 "$work/log" >&2; exit 1; }
+echo "ok   compiler-fixture control and corrected"
