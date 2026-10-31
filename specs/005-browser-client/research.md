@@ -18,6 +18,11 @@ fails at start with `libnspr4.so: cannot open shared object file`; `libnss3`, `l
   with cgo off. rules_go resolves an optional C++ toolchain for every Go target even with `pure` on,
   so `pure` alone does not remove the compiler requirement. A future C consumer needs a pinned,
   declared toolchain, and fails on every host until it has one.
+- The browser links fontconfig into its own binary, so its font data never appears as a library
+  dependency. `fontconfig-root/` in the browser tree holds `tools/browser/fonts.conf` and the
+  `fonts-dejavu-core` fonts, and `FONTCONFIG_SYSROOT` roots every fontconfig path there.
+  `FONTCONFIG_FILE` is not enough: the browser's fallback configuration still reads host
+  `/etc/fonts`. Text in tests renders in DejaVu Sans on every host.
 - `tools/pins/gen_browser_libs.py` resolves the closure from Debian's package index and writes
   `tools/browser/debs.bzl`. A repository rule fetches and flattens them.
 - Tests point Playwright at the pinned executable with `LD_LIBRARY_PATH` set only for the browser.

@@ -2,8 +2,9 @@
 
   python3 -I tools/pins/gen_browser_libs.py tools/browser/debs.bzl
 
-Resolves the dependency closure of the libraries chrome-headless-shell links, from the bookworm
-package indexes. libc6 is left out: the C library comes from the host.
+Resolves the dependency closure of the libraries chrome-headless-shell links, plus the fonts it
+needs to paint text, from the bookworm package indexes. libc6 is left out: the C library comes from
+the host.
 """
 import hashlib
 import lzma
@@ -23,7 +24,7 @@ ROOTS = [
     "libasound2", "libatk-bridge2.0-0", "libatk1.0-0", "libatspi2.0-0", "libdbus-1-3", "libexpat1",
     "libgbm1", "libglib2.0-0", "libnspr4", "libnss3", "libudev1", "libx11-6", "libxcb1",
     "libxcomposite1", "libxdamage1", "libxext6", "libxfixes3", "libxkbcommon0", "libxrandr2",
-    "zlib1g", "libgcc-s1", "libstdc++6",
+    "zlib1g", "libgcc-s1", "libstdc++6", "fonts-dejavu-core",
 ]
 SKIP = {"libc6", "debconf", "debconf-2.0", "dpkg", "install-info", "shared-mime-info", "gcc-12-base",
         "libasound2-data", "xkb-data", "libatk1.0-data", "libglib2.0-data", "x11-common", "cdebconf"}

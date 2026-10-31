@@ -5,6 +5,8 @@ browser_tree(
     testonly = True,
     browser = "@chrome_headless_shell//:files",
     executable = "@chrome_headless_shell//:chrome-headless-shell",
+    font_config = "fonts.conf",
+    fonts = "@browser_libs//:fonts",
     libs = "@browser_libs//:libs",
     visibility = ["//web/e2e:__pkg__"],
 )

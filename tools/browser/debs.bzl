@@ -2,6 +2,7 @@
 
 DEBS = {
     "at-spi2-common": (["https://deb.debian.org/debian/pool/main/a/at-spi2-core/at-spi2-common_2.46.0-5_all.deb", "https://snapshot.debian.org/archive/debian/20261030T000000Z/pool/main/a/at-spi2-core/at-spi2-common_2.46.0-5_all.deb"], "441bc1c6cefdc01f519310abf55823deb868898480dee09a05aa44e8c83cabc2"),
+    "fonts-dejavu-core": (["https://deb.debian.org/debian/pool/main/f/fonts-dejavu/fonts-dejavu-core_2.37-6_all.deb", "https://snapshot.debian.org/archive/debian/20261030T000000Z/pool/main/f/fonts-dejavu/fonts-dejavu-core_2.37-6_all.deb"], "8892669e51aab4dc56682c8e39d8ddb7d70fad83c369344e1e240bf3ca22bb76"),
     "libasound2": (["https://deb.debian.org/debian/pool/main/a/alsa-lib/libasound2_1.2.8-1+b1_amd64.deb", "https://snapshot.debian.org/archive/debian/20261030T000000Z/pool/main/a/alsa-lib/libasound2_1.2.8-1+b1_amd64.deb"], "44c77b076a7b11ae99712439022d822245b1994c435da564ebd320bb676faf4c"),
     "libatk-bridge2.0-0": (["https://deb.debian.org/debian/pool/main/a/at-spi2-core/libatk-bridge2.0-0_2.46.0-5_amd64.deb", "https://snapshot.debian.org/archive/debian/20261030T000000Z/pool/main/a/at-spi2-core/libatk-bridge2.0-0_2.46.0-5_amd64.deb"], "fbb07714fdd3fdee7b63fd8595053f4fa8021d8e350a5de6281c6ce7cd4f158f"),
     "libatk1.0-0": (["https://deb.debian.org/debian/pool/main/a/at-spi2-core/libatk1.0-0_2.46.0-5_amd64.deb", "https://snapshot.debian.org/archive/debian/20261030T000000Z/pool/main/a/at-spi2-core/libatk1.0-0_2.46.0-5_amd64.deb"], "909dd661e03760a9ba1529bfc772f259cec8431999ee38b7c5521186237cdd98"),

@@ -21,6 +21,7 @@ tasks. Boxes are ticked only when the named witness passes in the verifier.
 | [x] T011 | T009 | Quote tool paths, because Bazel resolves some inside the checkout | FR-010 | T042, FR-025 | `//:verify_body_test`, `fresh_clone.sh` |
 | [x] T012 | T001 | Enforce the Linux glibc floor in the preflight; a below-floor or unknown libc fails early | FR-011 | T030, FR-025 | `//:preflight_test` |
 | [x] T013 | T001 | Stop detecting a host C compiler; Go builds with cgo off | FR-012 | FR-025 | `compiler-fixture` in `toolchain-fixtures`, `bazelrc-policy` |
+| [x] T014 | T001 | Pin the browser's fonts and font configuration in its tree; the smoke paints text | FR-006, FR-013 | T030, FR-025 | `//web/e2e:browser_smoke_test` |
 
 ## Execution record
 
@@ -51,5 +52,13 @@ findings changed the plan:
   were built with `CGO_ENABLED=1` and linked to the host's libc, so the result depended on the host.
   T013 turns detection off. They are now static with `CGO_ENABLED=0`. With compilers hidden from
   repository rules, actions and tests, all 32 required tests passed locally.
+- A qualified run at `8f602bf` on the same compiler-free image passed 28 of 32 targets. Two failures
+  came from that image having no passwd record for its user, which is a test-environment matter. The
+  other two were real: `notes_e2e_test` and `defect_e2e_test` crashed in Skia on pages with form
+  controls, because the host had no font data. The pinned browser carries its own fontconfig, so no
+  shared-library closure could show this. The old smoke only ran JavaScript, and authoring hosts had
+  `/etc/fonts`, so nothing caught it. T014 gives the browser a fontconfig sysroot in its own tree.
+  `FONTCONFIG_FILE` was not enough: a trace showed the browser still reading host `/etc/fonts`. With
+  the sysroot, the same trace touches no host font path.
 
 Credit for the browser scenarios rests on `defect_e2e_test`, which is re-run on every verification.

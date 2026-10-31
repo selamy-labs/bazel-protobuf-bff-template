@@ -78,6 +78,7 @@ and connect-web are bundled into the built page, so a deployed bundle carries th
 | @types/node, @types/react, @types/react-dom | see `package.json` | MIT | same |
 | chrome-headless-shell | 156.0.8078.4 | BSD-3-Clause and bundled third-party licenses | `MODULE.bazel` (sha256) |
 | Debian 12 shared libraries for the browser | see `tools/browser/debs.bzl` | as published by each Debian package (for example MPL-2.0 for NSS, LGPL for GLib); to be enumerated by T077 | `tools/browser/debs.bzl` (sha256) |
+| fonts-dejavu-core (Debian 12), DejaVu fonts for the browser | 2.37-6 | Bitstream Vera license for the fonts, with DejaVu changes in the public domain; Debian packaging files are GPL-2+ and are not used | `tools/browser/debs.bzl` (sha256) |
 
 ## Planned dependencies (pinned when their first consumer arrives)
 

@@ -121,6 +121,9 @@ A developer runs one command and gets the app locally, with test identity clearl
   weak-isolation opt-in MUST NOT bypass this. macOS is out of this check.
 - **FR-012**: The build MUST NOT detect or use a host C compiler. Every target MUST analyze with no
   compiler on `PATH`, and a C consumer MUST fail on every host until it declares a pinned toolchain.
+- **FR-013**: Fonts and font configuration MUST come from the pinned browser tree, never from the
+  host. The smoke MUST lay out and paint text with them, and MUST show that the same render fails
+  by name without them.
 
 ### Key Entities
 

@@ -23,6 +23,8 @@ export function browserLaunchOptions() {
     env: {
       ...process.env,
       LD_LIBRARY_PATH: path.join(browser, "lib"),
+      // Every fontconfig path resolves inside the pinned tree, so host fonts and /etc/fonts are out of reach.
+      FONTCONFIG_SYSROOT: path.join(browser, "fontconfig-root"),
       HOME: process.env.TEST_TMPDIR ?? process.env.HOME,
     },
   };

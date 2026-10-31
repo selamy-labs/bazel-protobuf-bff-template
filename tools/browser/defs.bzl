@@ -1,10 +1,13 @@
-"""Fetches the pinned browser's shared libraries into one directory (spec 005 research R1)."""
+"""Fetches the pinned browser's shared libraries and fonts (spec 005 research R1)."""
 
 load(":debs.bzl", "DEBS")
 
 def _browser_libs_impl(rctx):
     if rctx.os.name != "linux" or rctx.os.arch != "amd64":
-        rctx.file("BUILD.bazel", 'filegroup(name = "libs", srcs = [], visibility = ["//visibility:public"])\n')
+        rctx.file("BUILD.bazel", """
+filegroup(name = "fonts", srcs = [], visibility = ["//visibility:public"])
+filegroup(name = "libs", srcs = [], visibility = ["//visibility:public"])
+""")
         return
     for name, (urls, sha256) in sorted(DEBS.items()):
         # A .deb is an ar archive that holds a compressed tar of its files.
@@ -22,30 +25,40 @@ def _browser_libs_impl(rctx):
                     directories.append(entry)
                 elif ".so" in entry.basename and entry.exists:
                     rctx.symlink(entry.realpath, "lib/" + entry.basename)
+                elif entry.basename.endswith(".ttf"):
+                    rctx.symlink(entry.realpath, "fonts/" + entry.basename)
         level = directories
-    rctx.file("BUILD.bazel", 'filegroup(name = "libs", srcs = glob(["lib/**"]), visibility = ["//visibility:public"])\n')
+    rctx.file("BUILD.bazel", """
+filegroup(name = "fonts", srcs = glob(["fonts/**"], allow_empty = False), visibility = ["//visibility:public"])
+filegroup(name = "libs", srcs = glob(["lib/**"]), visibility = ["//visibility:public"])
+""")
 
 browser_libs = repository_rule(
     implementation = _browser_libs_impl,
-    doc = "Downloads each package by sha256 and flattens its shared libraries into lib/.",
+    doc = "Downloads each package by sha256 and flattens its libraries into lib/ and fonts into fonts/.",
 )
 
 def _browser_tree_impl(ctx):
     tree = ctx.actions.declare_directory(ctx.label.name)
     ctx.actions.run_shell(
-        inputs = ctx.files.browser + ctx.files.libs,
+        inputs = ctx.files.browser + ctx.files.libs + ctx.files.fonts + [ctx.file.font_config],
         outputs = [tree],
-        arguments = [tree.path, ctx.file.executable.dirname],
+        arguments = [tree.path, ctx.file.executable.dirname, ctx.file.font_config.path],
         command = """set -eu
 tree="$1"
 source="$2"
-shift 2
-mkdir -p "$tree/lib"
+font_config="$3"
+fontconfig_root="$tree/fontconfig-root"
+mkdir -p "$tree/lib" "$fontconfig_root/etc/fonts" "$fontconfig_root/usr/share/fonts"
 cp -RL "$source/." "$tree/"
+cp -L "$font_config" "$fontconfig_root/etc/fonts/fonts.conf"
 while IFS= read -r library; do cp -L "$library" "$tree/lib/"; done <<LIBRARIES
 %s
 LIBRARIES
-""" % "\n".join([f.path for f in ctx.files.libs]),
+while IFS= read -r font; do cp -L "$font" "$fontconfig_root/usr/share/fonts/"; done <<FONTS
+%s
+FONTS
+""" % ("\n".join([f.path for f in ctx.files.libs]), "\n".join([f.path for f in ctx.files.fonts])),
         mnemonic = "BrowserTree",
         progress_message = "Assembling the pinned browser",
     )
@@ -53,10 +66,12 @@ LIBRARIES
 
 browser_tree = rule(
     implementation = _browser_tree_impl,
-    doc = "One directory holding the browser and, in lib/, every library it loads.",
+    doc = "One directory holding the browser, in lib/ every library it loads, and in fontconfig-root/ its fonts and their configuration.",
     attrs = {
         "browser": attr.label(allow_files = True, mandatory = True),
         "executable": attr.label(allow_single_file = True, mandatory = True),
+        "font_config": attr.label(allow_single_file = True, mandatory = True),
+        "fonts": attr.label(allow_files = True, mandatory = True),
         "libs": attr.label(allow_files = True, mandatory = True),
     },
 )
