@@ -1,12 +1,14 @@
 {
-  "schema_version": 1,
-  "revision": "e98c55e4e6902ca2029bdaceef940c807e46c416",
-  "measured_at": "2026-10-29T02:10:30Z",
+  "schema_version": 2,
+  "revision": "58b0f3891088a566dd43c1aa62e0ffc77fc78224",
+  "tree": "eb7ea7caa580ac7f398e48d7ea4b1e300b9b918c",
+  "measured_at": "2026-10-31T21:36:58Z",
   "isolation": "weakened",
-  "host_profile": {"os": "ubuntu-24.04", "kernel": "6.8.0-142-generic", "arch": "x86_64", "cpus": 20, "memory_gb": 62},
-  "scenario": "bazel run //:verify (full canonical verifier)",
-  "cold": {"n": 3, "p50_s": 45.6, "p95_s": 48.3, "peak_rss_mb": 1760, "failed_runs": 0},
-  "warm": {"n": 5, "p50_s": 5.0, "p95_s": 5.1, "peak_rss_mb": 1196, "failed_runs": 0},
-  "warm_no_network": {"n": 1, "p50_s": 4.8, "p95_s": 4.8, "peak_rss_mb": 947, "failed_runs": 0},
-  "limits": "peak RSS is sampled every 0.5 s over the Bazel server process tree and may miss short spikes; cold includes downloading Bazel, the Go SDK and all tools; network fetch time depends on the link"
+  "host_profile": {"os": "ubuntu-24.04", "kernel": "6.8.0-142-generic", "arch": "x86_64", "cpus": 20, "memory_gb": 62, "disk_free_gb": 221},
+  "bootstrap": {"n": 3, "p50_s": 36.6, "p95_s": 36.8, "peak_pss_mb": 1604, "failed_runs": 0},
+  "first_verify": {"n": 3, "p50_s": 24.1, "p95_s": 24.4, "peak_pss_mb": 1207, "failed_runs": 0},
+  "warm_nochange": {"n": 5, "p50_s": 20.1, "p95_s": 20.2, "peak_pss_mb": 1062, "failed_runs": 0},
+  "warm_edited": {"n": 5, "p50_s": 19.4, "p95_s": 19.8, "peak_pss_mb": 1149, "failed_runs": 0},
+  "no_download": {"n": 1, "p50_s": 18.3, "p95_s": 18.3, "peak_pss_mb": 1166, "failed_runs": 0},
+  "limits": "bootstrap includes downloads, so its time depends on the link. warm_nochange reruns every test but reuses build outputs; warm_edited rebuilds one Go package and its dependents. no_download skips networked provenance and proves only that Bazel fetched nothing and proxy-honoring tools reached no network; it is not a network-isolation claim. Peak memory is sampled PSS of the verifier and Bazel server process trees every 0.5 s and can miss short spikes."
 }

@@ -117,19 +117,20 @@ ownership are in [the quality framework synthesis](../../docs/quality-framework.
 
 - [x] T023 Integrate the public quality-framework synthesis, source/ownership references and
   remediation map; keep private provenance in ignored `.private/`. Documentation only.
-- [ ] T024 Fix H1: structured, fail-closed CI parity with adversarial workflow fixtures.
-- [ ] T025 Fix H2: NUL-safe relative input discovery, error propagation and empty-input rejection.
-- [ ] T026 Fix H3: isolate tool configs and reject undeclared disabling configuration.
-- [ ] T027 Fix H4: pin actionlint's ShellCheck/helper environment.
-- [ ] T028 Fix H5: controlled prerequisite bootstrap, including Spec Kit's uv/uvx dependency.
-- [ ] T029 Fix M1: suppression spellings, executable NUL cases and exact exemptions.
-- [ ] T030 Fix M2: isolate ambient Bazel configuration and verify Bazel download identity.
-- [ ] T031 Fix M3: make the canonical preflight entry point and documented remediation agree.
-- [ ] T032 Fix M4: correct and complete revision-bound evidence and measurements.
-- [ ] T033 Fix L1: report an accurate, precisely defined peak-memory metric.
-- [ ] T034 Fix L2: normalize and witness gitleaks allowlist paths.
+- [x] T024 Fix H1: structured, fail-closed CI parity with adversarial workflow fixtures.
+- [x] T025 Fix H2: NUL-safe relative input discovery, error propagation and empty-input rejection.
+- [x] T026 Fix H3: isolate tool configs and reject undeclared disabling configuration.
+- [x] T027 Fix H4: pin actionlint's ShellCheck/helper environment.
+- [x] T028 Fix H5: controlled prerequisite bootstrap, including Spec Kit's uv/uvx dependency.
+- [x] T029 Fix M1: suppression spellings, executable NUL cases and exact exemptions.
+- [x] T030 Fix M2: isolate ambient Bazel configuration and verify Bazel download identity.
+- [x] T031 Fix M3: make the canonical preflight entry point and documented remediation agree.
+- [x] T032 Fix M4: correct and complete revision-bound evidence and measurements.
+- [x] T033 Fix L1: report an accurate, precisely defined peak-memory metric.
+- [x] T034 Fix L2: normalize and witness gitleaks allowlist paths.
 - [ ] T035 Complete final canonical/fresh-clone verification and independent re-review at the
   exact source revision; retain explicit unverified isolation/platform/hosted-CI limits.
 
-T024–T034 may be closed only with the negative and corrected witnesses in the remediation map.
-T035 follows them. This phase adds no publication, cloud, identity or paid-run authority.
+T024–T034 closed at `58b0f38`, with witnesses recorded in
+[m1-remediation.md](../../docs/evidence/m1-remediation.md). T035 remains open until the independent
+review of the frozen revision is terminal; M1 is not accepted before that. This phase adds no publication, cloud, identity or paid-run authority.

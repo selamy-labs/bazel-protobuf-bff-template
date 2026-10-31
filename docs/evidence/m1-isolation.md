@@ -37,5 +37,5 @@ The receipt records `"isolation": "weakened"`.
 
 ## Not yet witnessed
 
-A run at `isolation: full` has not been witnessed on any host. See
-[m1-remediation.md](m1-remediation.md) for the exact-revision evidence and its limits.
+No passing run at `isolation: full` exists. An independent run reached full isolation at earlier
+revisions but did not pass every check. See [m1-remediation.md](m1-remediation.md).
