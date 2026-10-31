@@ -1,12 +1,6 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
-# The one entry point: `bazel run //:verify` (specs/002-hermetic-skeleton FR-004).
-sh_binary(
-    name = "verify",
-    srcs = ["tools/verify.sh"],
-)
-
 sh_binary(
     name = "workspace_policy",
     srcs = ["tools/policy/workspace_policy.sh"],
@@ -52,25 +46,76 @@ sh_test(
     env = {"SCAFFOLD_LIST": "$(rootpath :scaffold_list)"},
 )
 
+TOOLS = {
+    "ACTIONLINT": "@bff_template_quality//tools:actionlint",
+    "BUILDIFIER": "@bff_template_quality//tools:buildifier",
+    "GITLEAKS": "@bff_template_quality//tools:gitleaks",
+    "SHELLCHECK": "@bff_template_quality//tools:shellcheck",
+    "SUPPRESSION": "@bff_template_quality//checks/suppression:suppression-ban",
+    "TYPOS": "@bff_template_quality//tools:typos",
+    "UV": "@bff_template_quality//tools:uv",
+    "YQ": "@bff_template_quality//tools:yq",
+    "ZIZMOR": "@bff_template_quality//tools:zizmor",
+}
+
+# Resolves the pinned tools once; the verifier then runs them from the repository root.
+sh_binary(
+    name = "tool_paths",
+    srcs = ["tools/checks/tool_paths.sh"],
+    args = ["%s=$(rootpath %s)" % (name, label) for name, label in sorted(TOOLS.items())],
+    data = sorted(TOOLS.values()),
+)
+
 sh_test(
     name = "native_fixtures_test",
     size = "small",
     srcs = ["tools/checks/native_fixtures_test.sh"],
-    args = [
-        "$(rootpath @bff_template_quality//tools:gitleaks)",
-        "$(rootpath @bff_template_quality//tools:typos)",
-        "$(rootpath @bff_template_quality//checks/suppression:suppression-ban)",
+    args = ["%s=$(rootpath %s)" % (name, label) for name, label in sorted(TOOLS.items())],
+    data = sorted(TOOLS.values()) + [
+        ".gitleaks.toml",
+        "tools/checks/native.sh",
     ],
-    data = [
-        "@bff_template_quality//checks/suppression:suppression-ban",
-        "@bff_template_quality//tools:gitleaks",
-        "@bff_template_quality//tools:typos",
-    ],
+)
+
+sh_test(
+    name = "bazel_pin_test",
+    size = "small",
+    srcs = ["tools/bootstrap/bazel_pin_test.sh"],
+    data = ["tools/bootstrap/bazel.sh"],
+)
+
+sh_test(
+    name = "inventory_test",
+    size = "small",
+    srcs = ["tools/checks/inventory_test.sh"],
+    data = ["tools/checks/inventory.sh"],
+)
+
+sh_binary(
+    name = "config_policy",
+    srcs = ["tools/policy/config_policy.sh"],
+)
+
+sh_test(
+    name = "config_policy_test",
+    size = "small",
+    srcs = ["tools/policy/config_policy_test.sh"],
+    args = ["$(rootpath :config_policy)"],
+    data = [":config_policy"],
 )
 
 sh_test(
     name = "ci_parity_test",
     size = "small",
     srcs = ["tools/ci/parity_test.sh"],
-    data = [".github/workflows/ci.yml"],
+    args = [
+        "$(rootpath @bff_template_quality//tools:yq)",
+        "$(rootpath @bff_template_quality//checks/ciparity:ciparity_bin)",
+    ],
+    data = glob([".github/workflows/**"]) + [
+        "tools/ci/mutations.tsv",
+        "tools/ci/policy.json",
+        "@bff_template_quality//checks/ciparity:ciparity_bin",
+        "@bff_template_quality//tools:yq",
+    ],
 )

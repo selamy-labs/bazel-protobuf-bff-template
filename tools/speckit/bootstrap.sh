@@ -4,17 +4,41 @@
 #   tools/speckit/bootstrap.sh verify    # re-init from the pin (network); diff scaffold and manifest
 #   tools/speckit/bootstrap.sh manifest  # rewrite tools/speckit/scaffold.sha256 from the working tree
 #   tools/speckit/bootstrap.sh init      # (re)initialize in place; review the diff before committing
+#   tools/speckit/bootstrap.sh lock      # regenerate the hash-locked dependencies
+#
+# It uses the pinned uv from the quality module and a pinned managed Python, so no Python or uv
+# installation is needed on the host. `verify` needs network access.
 #
 # The pin is an immutable commit of the official github/spec-kit repository (MIT).
 set -euo pipefail
 
+PYTHON_VERSION="3.12.15"
 SPECKIT_REPO="https://github.com/github/spec-kit.git"
 SPECKIT_TAG="v1.2.3"
 SPECKIT_COMMIT="5ea8b1cf0a38699340a38e00d02770308997d8c0"
 INIT_ARGS=(--non-interactive --integration claude --script sh --ignore-agent-tools)
 
-root="$(git rev-parse --show-toplevel)"
-specify=(uvx --from "git+${SPECKIT_REPO}@${SPECKIT_COMMIT}" specify)
+root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+lock="$root/tools/speckit/requirements.lock"
+source_spec="specify-cli @ git+${SPECKIT_REPO}@${SPECKIT_COMMIT}"
+
+# verify.sh exports the pinned uv as UV. Run directly, resolve the same pin through Bazel; fetching
+# one pinned file executes nothing, so the weak-isolation config cannot affect the result.
+if [[ -n "${UV:-}" ]]; then
+  uv=("$UV")
+else
+  uv=("$root/tools/bootstrap/bazel.sh" run --config=weak-isolation --noshow_progress
+    "--ui_event_filters=-info,-stdout,-stderr" @bff_template_quality//tools:uv --)
+fi
+
+specify_in() { # specify_in <empty directory>: installs the pinned CLI there; prints its path
+  local dir="$1"
+  "${uv[@]}" venv --no-config --quiet --python-preference only-managed --python "$PYTHON_VERSION" "$dir/venv" >&2
+  "${uv[@]}" pip install --no-config --quiet --python "$dir/venv/bin/python" --require-hashes -r "$lock" >&2
+  "${uv[@]}" pip install --no-config --quiet --python "$dir/venv/bin/python" --no-deps \
+    --build-constraints "$root/tools/speckit/build-constraints.txt" "$source_spec" >&2
+  echo "$dir/venv/bin/specify"
+}
 
 # Files owned by Spec Kit. Project-authored content (constitution, specs/) is excluded.
 scaffold_paths=(
@@ -38,8 +62,9 @@ write_manifest() { # $1 = tree root; prints the manifest for its scaffold files
 case "${1:-verify}" in
   verify)
     tmp="$(mktemp -d)"
-    trap 'rm -rf "$tmp"' EXIT
-    (cd "$tmp" && git init -q && "${specify[@]}" init --here --force "${INIT_ARGS[@]}" >/dev/null)
+    trap 'rm -rf "$tmp" "$tmp".tool.*' EXIT
+    specify="$(specify_in "$(mktemp -d "$tmp.tool.XXXX")")"
+    (cd "$tmp" && git init -q && "$specify" init --here --force "${INIT_ARGS[@]}" >/dev/null)
     status=0
     for p in "${scaffold_paths[@]}"; do
       if ! diff -r -I '"\(installed\|updated\)_at"' "$tmp/$p" "$root/$p" >/dev/null 2>&1; then
@@ -55,7 +80,7 @@ case "${1:-verify}" in
       echo "speckit-scaffold: $manifest does not match the pinned scaffold (rerun: tools/speckit/bootstrap.sh manifest)" >&2
       status=1
     fi
-    [[ $status -eq 0 ]] && echo "speckit-scaffold: OK (${SPECKIT_TAG} ${SPECKIT_COMMIT})"
+    if [[ $status -eq 0 ]]; then echo "speckit-scaffold: OK (${SPECKIT_TAG} ${SPECKIT_COMMIT})"; fi
     exit $status
     ;;
   manifest)
@@ -63,12 +88,24 @@ case "${1:-verify}" in
     echo "wrote $manifest ($(wc -l < "$root/$manifest") files)"
     ;;
   init)
+    tool="$(mktemp -d)"
+    trap 'rm -rf "$tool"' EXIT
+    specify="$(specify_in "$tool")"
     cd "$root"
-    "${specify[@]}" init --here --force "${INIT_ARGS[@]}"
+    "$specify" init --here --force "${INIT_ARGS[@]}"
     echo "Review: git diff -- .specify/memory/constitution.md must not lose project content." >&2
     ;;
+  lock)
+    tool="$(mktemp -d)"
+    trap 'rm -rf "$tool"' EXIT
+    echo "$source_spec" >"$tool/in.txt"
+    "${uv[@]}" pip compile --no-config --universal --python-version 3.12 --generate-hashes --no-header \
+      --no-annotate --quiet "$tool/in.txt" -o "$tool/out.txt"
+    { echo "# Hash-locked dependencies of specify-cli at the pinned commit (tools/speckit/bootstrap.sh lock)."
+      grep -v '^specify-cli @' "$tool/out.txt"; } >"$lock"
+    ;;
   *)
-    echo "usage: $0 [verify|manifest|init]" >&2
+    echo "usage: $0 [verify|manifest|init|lock]" >&2
     exit 2
     ;;
 esac

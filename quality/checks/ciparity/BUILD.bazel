@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "ciparity",
+    srcs = ["parity.go"],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/ciparity",
+)
+
+go_test(
+    name = "ciparity_test",
+    size = "small",
+    srcs = ["parity_test.go"],
+    embed = [":ciparity"],
+)
+
+go_binary(
+    name = "ciparity_bin",
+    srcs = ["cmd/main.go"],
+    out = "ciparity",
+    visibility = ["//visibility:public"],
+    deps = [":ciparity"],
+)

@@ -6,7 +6,7 @@
 ## Phase 1: Setup
 
 - [x] T001 Root module: `.bazelversion` (9.3.0), `MODULE.bazel` (rules_go 0.64.2 with the Go SDK
-  1.27.2 sha256 map, rules_shell 0.8.0, rules_multitool 1.11.1, buildifier_prebuilt 10.1.0),
+  1.27.2 sha256 map, rules_shell 0.8.0, rules_multitool 1.11.1; `buildifier_prebuilt` was later replaced by a multitool pin, T026),
   `REPO.bazel`, `BUILD.bazel`, `.gitignore`, `.bazelignore`. Parent T001, T002, T004.
 - [x] T002 `.bazelrc` with:
   - `common --lockfile_mode=error`
@@ -31,20 +31,21 @@
   expected to pass. Files: `tools/checks/native_fixtures_test.sh`, `tools/checks/testdata/`.
 - [x] T007 [P] [US1] Bzlmod policy test: a WORKSPACE file is rejected, and an unlocked
   `MODULE.bazel` edit fails in a temp workspace that shares the repository cache. File:
-  `tools/policy/bzlmod_test.sh`.
+  `tools/policy/bzlmod_test.sh` (the WORKSPACE ban) and `tools/policy/lock_fixture.sh` (the lock
+  witness, in a temp workspace).
 - [x] T008 [P] [US1] Spec Kit manifest test: it fails on a modified, extra or missing scaffold
   file. Files: `tools/speckit/scaffold_test.sh`, `tools/speckit/scaffold.sha256`.
 
 ## Phase 3: Implementation (US1, US2)
 
 - [x] T009 [US2] Suppression-ban binary: `quality/checks/suppression/main.go` and `rules.go`. It
-  reads a NUL-delimited path list on stdin (a file, not a TTY) and prints diagnostics of the form
+  reads a NUL-delimited path list from the file named by `-paths` and prints diagnostics of the form
   `suppression-ban path:line: [S00n] … (rerun: …)`.
 - [x] T010 [US2] Tool configuration: `_typos.toml` and `.gitleaks.toml`, with the vendored-path
   exemption justified in comments.
 - [x] T011 [US1] `bootstrap.sh manifest` subcommand. The `verify` subcommand also checks the
   manifest.
-- [x] T012 [US1] `tools/verify.sh` and the `//:verify` target. Steps:
+- [x] T012 [US1] `tools/verify.sh`, the one entry point. Steps:
   1. preflight
   2. `bazel test //...`
   3. native checks over `git ls-files -co --exclude-standard -z`, each under `timeout` with
@@ -74,12 +75,12 @@
   - checkout pinned by SHA with `persist-credentials: false`
   - `permissions: contents: read`
   - a sysctl step that lifts the AppArmor restriction on the disposable runner
-  - `bazel run //:verify` as the only policy step
+  - `tools/verify.sh` as the only policy step
   - a per-SHA concurrency group
   - an aggregate `gate` job with `if: always()`
 
   Parent T013.
-- [x] T016 [US4] CI parity and gate fixture test: the only policy run step is `//:verify`, and
+- [x] T016 [US4] CI parity and gate fixture test: the only policy run step is `tools/verify.sh`, and
   every job is listed in `gate.needs`. File: `tools/ci/parity_test.sh`.
 - [x] T017 [US4] Run actionlint, zizmor and shellcheck on the workflow and the scripts; these run
   inside verify's native checks.
@@ -90,13 +91,13 @@
   with a fresh `--output_user_root` and repository cache, runs verify, and records the revision,
   outcome and isolation mode. Parent T014.
 - [x] T019 [US5] `tools/bench/measure.sh` (R6). Parent T009.
-- [x] T020 [US5] Measure and record `docs/budgets/linux-amd64-20c.json`: 3 cold runs, 5 warm runs,
+- [x] T020 [US5] Measure and record `docs/budgets/linux-x86_64-20c.json`: 3 cold runs, 5 warm runs,
   plus the network-free second run (SC-005). Parent T015.
 
 ## Phase 7: Polish
 
 - [x] T021 Update the README quickstart for M1, and add `quality/README.md` and `tools/README.md`.
-- [x] T022 Run `bazel run //:verify -- --weak-isolation` at the final revision and commit the
+- [x] T022 Run `tools/verify.sh -- --weak-isolation` at the final revision and commit the
   evidence record.
 
 ## Dependencies

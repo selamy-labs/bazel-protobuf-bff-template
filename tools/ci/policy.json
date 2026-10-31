@@ -1,0 +1,39 @@
+{
+  "actions": {
+    "actions/checkout": {
+      "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "with": {
+        "persist-credentials": false,
+        "ref": "${{ github.event.pull_request.head.sha || github.sha }}"
+      }
+    },
+    "actions/upload-artifact": {
+      "sha": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      "with": {
+        "if-no-files-found": "error",
+        "name": "verify-receipt",
+        "path": ".verify/receipt.json",
+        "retention-days": 14
+      }
+    }
+  },
+  "on": { "merge_group": null, "pull_request": null, "push": { "branches": ["main"] } },
+  "concurrency": {
+    "cancel-in-progress": false,
+    "group": "${{ github.workflow }}-${{ github.event_name }}-${{ github.sha }}"
+  },
+  "runs_on": ["ubuntu-24.04"],
+  "max_timeout_minutes": 45,
+  "required_jobs": ["verify"],
+  "gate": "gate",
+  "required_run": "tools/verify.sh",
+  "runs": [
+    { "body": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0" },
+    { "body": "tools/verify.sh" },
+    {
+      "body": "for result in $RESULTS; do\n  if [ \"$result\" != \"success\" ]; then\n    echo \"gate: a required job finished as '$result'\" >&2\n    exit 1\n  fi\ndone",
+      "env": { "RESULTS": "${{ join(needs.*.result, ' ') }}" },
+      "gate_only": true
+    }
+  ]
+}

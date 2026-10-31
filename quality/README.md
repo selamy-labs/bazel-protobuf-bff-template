@@ -17,8 +17,9 @@ depends on the application that uses it.
 
 | Path | What it is |
 | --- | --- |
-| `checks/suppression` | The `suppression-ban` Go check. Its stable codes S001–S010 are defined in `rules.go`, and each code has a defect and a corrected fixture. |
-| `tools` | Pinned native tools: `gitleaks`, `typos`, `shellcheck`, `actionlint`, `zizmor`. They are exposed as `@bff_template_quality//tools:<name>`, and pinned by sha256 in `multitool.lock.json`. |
+| `checks/suppression` | The `suppression-ban` Go check. Its stable codes S001–S012 are defined in `rules.go`, and each code has a defect and a corrected fixture. |
+| `checks/ciparity` | Validates a workflow against a closed allowlist policy. Unknown keys fail. |
+| `tools` | Pinned native tools: `actionlint`, `buildifier`, `gitleaks`, `shellcheck`, `typos`, `uv`, `yq`, `zizmor`. They are exposed as `@bff_template_quality//tools:<name>`, and pinned by sha256 in `multitool.lock.json`. |
 
 ## How to use
 

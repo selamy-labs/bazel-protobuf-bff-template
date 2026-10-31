@@ -5,7 +5,7 @@ set -euo pipefail
 found="$(tr '\0' '\n' <"$1" | grep -E '(^|/)WORKSPACE(\.bazel|\.bzlmod)?$' || true)"
 if [[ -n "$found" ]]; then
   while IFS= read -r path; do
-    echo "bzlmod-policy $path:1: legacy WORKSPACE file; declare dependencies in MODULE.bazel (rerun: bazel run //:verify)"
+    echo "bzlmod-policy $path:1: legacy WORKSPACE file; declare dependencies in MODULE.bazel (rerun: tools/verify.sh)"
   done <<<"$found"
   exit 1
 fi

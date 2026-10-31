@@ -1,132 +1,154 @@
 #!/usr/bin/env bash
-# Feedback-cost measurement (specs/002-hermetic-skeleton FR-012, research R6).
+# Feedback-cost measurement (specs/002-hermetic-skeleton FR-012, T032, T033).
 #
 #   tools/bench/measure.sh [--cold N] [--warm N] [--weak-isolation] [--out FILE]
 #
-# cold: a fresh clone with an empty HOME per run (no Bazel, Bazelisk or uv caches).
-# warm: repeated runs in one clone with its caches kept.
-# no-network: one warm run with all HTTP(S) egress sent to a dead proxy and --offline (SC-005).
-# Peak memory sums RSS over the Bazel server's process tree, sampled every 0.5 s; short spikes can
-# be missed and the record says so.
+# Scenarios, all from a clone of HEAD. The source tree must be clean so the record names exactly
+# what was measured.
+#   bootstrap:     empty HOME; fetch and verify the pinned toolchain (--bootstrap-only).
+#   first_verify:  the full verifier right after bootstrap; nothing is built yet.
+#   warm_nochange: the full verifier again. Test results are never cached, build outputs are.
+#   warm_edited:   the full verifier after a source edit that forces a rebuild and retest.
+#   no_download:   --offline: Bazel's --repository_disable_download plus a dead proxy. The
+#                  networked provenance check is skipped, so this is not a passing full run, and it
+#                  proves only that Bazel and proxy-honoring tools fetched nothing.
+#
+# Peak memory is the highest sampled sum of proportional set size (PSS) over the verifier's process
+# tree and the Bazel server's tree, every 0.5 s. PSS divides shared pages among their sharers, so
+# they are not double-counted. The sampler is outside both trees. Sampling can miss short spikes.
 set -euo pipefail
 root="$(git rev-parse --show-toplevel)"
 cold=3
 warm=5
-weak=false
 out=""
+verify_args=()
+isolation=full
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cold) cold="$2"; shift 2 ;;
     --warm) warm="$2"; shift 2 ;;
-    --weak-isolation) weak=true; shift ;;
+    --weak-isolation) verify_args=(--weak-isolation); isolation=weakened; shift ;;
     --out) out="$2"; shift 2 ;;
     *) echo "measure: unknown argument '$1'" >&2; exit 2 ;;
   esac
 done
-config=()
-verify_args=()
-isolation=full
-if $weak; then
-  config=(--config=weak-isolation)
-  verify_args=(--weak-isolation)
-  isolation=weakened
+if [[ -n "$(git -C "$root" status --porcelain)" ]]; then
+  echo "measure: the working tree is dirty; commit first so the record names the measured source" >&2
+  exit 1
 fi
 revision="$(git -C "$root" rev-parse HEAD)"
+tree="$(git -C "$root" rev-parse 'HEAD^{tree}')"
 ncpu="$(nproc)"
 mem_gb="$(awk '/MemTotal/ {printf "%d", $2/1024/1024}' /proc/meminfo)"
 os="$(awk -F= '/^ID=/{id=$2} /^VERSION_ID=/{v=$2} END{gsub(/"/,"",id); gsub(/"/,"",v); print id "-" v}' /etc/os-release)"
 out="${out:-$root/docs/budgets/$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)-${ncpu}c.json}"
+disk_free_gb="$(df -Pk "$root" | awk 'NR==2 {printf "%d", $4/1024/1024}')"
 work="$(mktemp -d)"
+trap 'chmod -R u+w "$work" 2>/dev/null; rm -rf "$work"' EXIT
 
-tree_rss_kb() { # sum RSS of every process whose ancestry includes a process mentioning $1
-  local marker="$1"
-  ps -eo pid=,ppid=,rss=,args= | awk -v m="$marker" '
-    { pid[NR]=$1; ppid[$1]=$2; rss[$1]=$3; if (index($0, m)) root[$1]=1 }
+tree_pss_kb() { # tree_pss_kb <root pid>...: PSS sum over those processes and their descendants
+  local pid total=0 kb
+  for pid in $(ps -eo pid=,ppid= | awk -v roots="$*" '
+    BEGIN { n = split(roots, r, " "); for (i = 1; i <= n; i++) keep[r[i]] = 1 }
+    { pid[NR] = $1; parent[$1] = $2 }
     END {
-      total=0
-      for (i in pid) { p=pid[i]; q=p; while (q > 1) { if (q in root) { total+=rss[p]; break } q=ppid[q] } }
-      print total
-    }'
+      for (i = 1; i <= NR; i++) {
+        p = pid[i]
+        while (p > 1) { if (p in keep) { print pid[i]; break } p = parent[p] }
+      }
+    }'); do
+    kb="$(awk '/^Pss:/ {print $2; exit}' "/proc/$pid/smaps_rollup" 2>/dev/null || true)"
+    total=$((total + ${kb:-0}))
+  done
+  echo "$total"
 }
 
-run_measured() { # run_measured <home> <clone> <extra env...> -- <verify args...>; prints "seconds peak_kb rc"
+timed() { # timed <home> <clone> <env assignments...> -- <verify args...>; prints "seconds peak_kb rc"
   local home="$1" clone="$2"
   shift 2
   local envs=()
   while [[ "$1" != "--" ]]; do envs+=("$1"); shift; done
   shift
-  local peak=0 sampler start end rc=0
-  (while true; do
-    tree_rss_kb "$home" >>"$work/samples"
-    sleep 0.5
-  done) &
-  sampler=$!
-  : >"$work/samples"
+  local start end rc=0 peak=0 now server roots
   start="$(date +%s.%N)"
-  (cd "$clone" && env -i HOME="$home" PATH="$PATH" TERM=dumb USER="${USER:-}" GIT_CONFIG_NOSYSTEM=1 "${envs[@]}" \
-    bazel run "${config[@]}" //:verify -- "$@" </dev/null >"$work/run.log" 2>&1) || rc=$?
+  (cd "$clone" && exec env -i HOME="$home" PATH=/usr/bin:/bin USER="${USER:-$(id -un)}" TERM=dumb "${envs[@]}" \
+    tools/verify.sh "$@" </dev/null >"$work/run.log" 2>&1) &
+  local verifier=$!
+  while kill -0 "$verifier" 2>/dev/null; do
+    roots="$verifier"
+    server="$(find "$home/.cache/bazel" -maxdepth 4 -name server.pid.txt -exec cat {} + 2>/dev/null | tr '\n' ' ' || true)"
+    roots+=" $server"
+    now="$(tree_pss_kb "$roots")"
+    if ((now > peak)); then peak=$now; fi
+    sleep 0.5
+  done
+  wait "$verifier" || rc=$?
   end="$(date +%s.%N)"
-  kill "$sampler" 2>/dev/null || true
-  wait "$sampler" 2>/dev/null || true
-  peak="$(sort -n "$work/samples" | tail -1)"
-  printf '%s %s %s\n' "$(awk -v a="$start" -v b="$end" 'BEGIN {printf "%.1f", b-a}')" "${peak:-0}" "$rc"
+  printf '%s %s %s\n' "$(awk -v a="$start" -v b="$end" 'BEGIN {printf "%.1f", b-a}')" "$peak" "$rc"
 }
 
-new_clone() { # new_clone <dir>
-  git clone --quiet --no-local "file://$root" "$1"
-  git -C "$1" checkout --quiet "$revision"
-}
+new_clone() { git clone --quiet --no-local "file://$root" "$1" && git -C "$1" checkout --quiet "$revision"; }
+stop_server() { (cd "$2" && env -i HOME="$1" PATH=/usr/bin:/bin tools/bootstrap/bazel.sh shutdown) >/dev/null 2>&1 || true; }
 
-shutdown_in() { (cd "$2" && HOME="$1" bazel shutdown) >/dev/null 2>&1 || true; }
-
-stats() { # stats <file of "seconds peak rc" lines> -> JSON fragment
+stats() { # stats <file of "seconds peak rc"> -> JSON
   sort -n -k1,1 "$1" | awk '
-    { s[NR]=$1; if ($2>p) p=$2; if ($3!=0) bad++ }
+    { s[NR] = $1; if ($2 > p) p = $2; if ($3 != 0) bad++ }
     END {
-      n=NR; i50=int((n+1)/2); i95=int(n*0.95+0.999); if (i95<1) i95=1; if (i95>n) i95=n
-      printf "{\"n\": %d, \"p50_s\": %s, \"p95_s\": %s, \"peak_rss_mb\": %d, \"failed_runs\": %d}", n, s[i50], s[i95], p/1024, bad+0
+      n = NR; i50 = int((n + 1) / 2); i95 = int(n * 0.95 + 0.999)
+      if (i95 < 1) i95 = 1; if (i95 > n) i95 = n
+      printf "{\"n\": %d, \"p50_s\": %s, \"p95_s\": %s, \"peak_pss_mb\": %d, \"failed_runs\": %d}", n, s[i50], s[i95], p / 1024, bad + 0
     }'
 }
 
-: >"$work/cold"
+: >"$work/bootstrap"
+: >"$work/first"
 for i in $(seq 1 "$cold"); do
   mkdir -p "$work/cold$i/home"
   new_clone "$work/cold$i/clone"
-  run_measured "$work/cold$i/home" "$work/cold$i/clone" -- "${verify_args[@]}" >>"$work/cold"
-  shutdown_in "$work/cold$i/home" "$work/cold$i/clone"
-  echo "cold $i: $(tail -1 "$work/cold")" >&2
-  chmod -R u+w "$work/cold$i" && rm -rf "$work/cold$i"
+  timed "$work/cold$i/home" "$work/cold$i/clone" -- "${verify_args[@]}" --bootstrap-only >>"$work/bootstrap"
+  timed "$work/cold$i/home" "$work/cold$i/clone" -- "${verify_args[@]}" >>"$work/first"
+  stop_server "$work/cold$i/home" "$work/cold$i/clone"
+  echo "cold $i: bootstrap $(tail -1 "$work/bootstrap"); first verify $(tail -1 "$work/first")" >&2
+  chmod -R u+w "$work/cold$i"
+  rm -rf "$work/cold$i"
 done
 
 mkdir -p "$work/warm/home"
 new_clone "$work/warm/clone"
-run_measured "$work/warm/home" "$work/warm/clone" -- "${verify_args[@]}" >/dev/null # prime caches
-: >"$work/warm.txt"
+timed "$work/warm/home" "$work/warm/clone" -- "${verify_args[@]}" >/dev/null
+: >"$work/nochange"
+: >"$work/edited"
 for i in $(seq 1 "$warm"); do
-  run_measured "$work/warm/home" "$work/warm/clone" -- "${verify_args[@]}" >>"$work/warm.txt"
-  echo "warm $i: $(tail -1 "$work/warm.txt")" >&2
+  timed "$work/warm/home" "$work/warm/clone" -- "${verify_args[@]}" >>"$work/nochange"
+  echo "warm unchanged $i: $(tail -1 "$work/nochange")" >&2
 done
-dead=(HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 http_proxy=http://127.0.0.1:9 https_proxy=http://127.0.0.1:9)
-run_measured "$work/warm/home" "$work/warm/clone" "${dead[@]}" -- "${verify_args[@]}" --offline >"$work/nonet"
-echo "no-network: $(cat "$work/nonet")" >&2
-shutdown_in "$work/warm/home" "$work/warm/clone"
-chmod -R u+w "$work" && rm -rf "$work/warm"
+for i in $(seq 1 "$warm"); do
+  echo "// Edit $i forces a rebuild and a retest of this package." >>"$work/warm/clone/quality/checks/suppression/scan.go"
+  timed "$work/warm/home" "$work/warm/clone" -- "${verify_args[@]}" >>"$work/edited"
+  echo "warm edited $i: $(tail -1 "$work/edited")" >&2
+done
+git -C "$work/warm/clone" checkout --quiet -- .
+timed "$work/warm/home" "$work/warm/clone" HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 \
+  -- "${verify_args[@]}" --offline >"$work/nodownload"
+echo "no download: $(cat "$work/nodownload")" >&2
+stop_server "$work/warm/home" "$work/warm/clone"
 
 mkdir -p "$(dirname "$out")"
-cat >"$out" <<EOF
+cat >"$out" <<JSON
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "revision": "$revision",
+  "tree": "$tree",
   "measured_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "isolation": "$isolation",
-  "host_profile": {"os": "$os", "kernel": "$(uname -r)", "arch": "$(uname -m)", "cpus": $ncpu, "memory_gb": $mem_gb},
-  "scenario": "bazel run //:verify (full canonical verifier)",
-  "cold": $(stats "$work/cold"),
-  "warm": $(stats "$work/warm.txt"),
-  "warm_no_network": $(stats "$work/nonet"),
-  "limits": "peak RSS is sampled every 0.5 s over the Bazel server process tree and may miss short spikes; cold includes downloading Bazel, the Go SDK and all tools; network fetch time depends on the link"
+  "host_profile": {"os": "$os", "kernel": "$(uname -r)", "arch": "$(uname -m)", "cpus": $ncpu, "memory_gb": $mem_gb, "disk_free_gb": $disk_free_gb},
+  "bootstrap": $(stats "$work/bootstrap"),
+  "first_verify": $(stats "$work/first"),
+  "warm_nochange": $(stats "$work/nochange"),
+  "warm_edited": $(stats "$work/edited"),
+  "no_download": $(stats "$work/nodownload"),
+  "limits": "bootstrap includes downloads, so its time depends on the link. warm_nochange reruns every test but reuses build outputs; warm_edited rebuilds one Go package and its dependents. no_download skips networked provenance and proves only that Bazel fetched nothing and proxy-honoring tools reached no network; it is not a network-isolation claim. Peak memory is sampled PSS of the verifier and Bazel server process trees every 0.5 s and can miss short spikes."
 }
-EOF
-rm -rf "$work"
+JSON
 echo "measure: wrote $out" >&2
 cat "$out"

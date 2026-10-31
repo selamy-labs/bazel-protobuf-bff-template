@@ -397,7 +397,7 @@ honest (pins, schema checks, suppression ban, single CI aggregate).
   gates. Its production BFF, browser frontend and browser end-to-end path are planned only.
   M3 and M4 therefore design these from public specifications rather than generalizing existing
   code.
-- **A3 (material)**: Bazelisk (plus Git and a POSIX shell) is the only host prerequisite; Go, Node,
+- **A3 (material)**: Git, bash, curl and coreutils are the only host prerequisites; Go, Node,
   pnpm, protoc, buf and browsers come through the build graph. The reference's hermetic toolchain shows this is
   feasible in principle. M1 must prove it on a clean host.
 - **A4 (material, approved 2026-10-29)**: The shared checks are distributed as a versioned dependency

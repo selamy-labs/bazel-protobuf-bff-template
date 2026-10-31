@@ -1,0 +1,8 @@
+# Version pins for building specify-cli (its build backend and that backend's dependencies).
+# uv does not support hashes for build constraints, so these are version-only.
+hatchling==1.33.0
+packaging==26.3
+pathspec==1.1.1
+pluggy==1.7.0
+tomlkit==0.15.2
+trove-classifiers==2026.9.21.13

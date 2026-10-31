@@ -19,7 +19,7 @@ before US1 because the browser→BFF slice consumes the generated contract. Both
 
 ## Phase 1: Setup — M1 hermetic skeleton
 
-**Purpose**: Bazelisk-only bootstrap with every verdict-affecting tool pinned.
+**Purpose**: Bootstrap from Git, bash, curl and coreutils with every verdict-affecting tool pinned.
 
 - [x] T001 Create `MODULE.bazel`, `.bazelversion` (9.x), `.bazelrc` (`--lockfile_mode=error`, strict action env, sandbox network off, disk cache path neutral) and root `BUILD.bazel`; commit `MODULE.bazel.lock`
 - [x] T002 [P] Add `REPO.bazel`, `.gitignore`, `.bazelignore` and `.editorconfig`
@@ -28,9 +28,9 @@ before US1 because the browser→BFF slice consumes the generated contract. Both
 - [ ] T005 Register Node, pnpm, aspect_rules_js/rules_ts in `MODULE.bazel`; add `package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml` — **moved to M2 (with T023)**: it needs a real consumer (spec 002 A4)
 - [x] T006 [P] Add lockfile/Bzlmod policy test rejecting WORKSPACE files and unlocked changes in `tools/policy/bzlmod_test.sh`
 - [x] T007 [P] Port `tools/speckit/bootstrap.sh verify` to an offline Bazel test with a hash-pinned Spec Kit archive in `tools/speckit/BUILD.bazel` and `tools/speckit/upstream.json` — **revised in spec 002 R4**: an offline hash-manifest test plus a networked provenance check required in CI; a fully offline regeneration would need rules_python
-- [x] T008 Add `//:verify` (initially T006, T007 and T012 checks) in `BUILD.bazel`
+- [x] T008 Add `tools/verify.sh` (initially T006, T007 and T012 checks) in `BUILD.bazel`
 - [x] T009 [P] Add measurement harness `tools/bench/measure.sh` (cold/warm, N runs, p50/p95, peak RSS, host profile JSON)
-- [x] T010 [P] Add host capability preflight (user namespaces, disk, Bazelisk) with actionable messages in `tools/bootstrap/preflight.sh`
+- [x] T010 [P] Add host capability preflight (user namespaces, disk, prerequisites) with actionable messages in `tools/bootstrap/preflight.sh`
 
 ---
 
@@ -40,9 +40,9 @@ before US1 because the browser→BFF slice consumes the generated contract. Both
 
 - [x] T011 Create the separate shared module `quality/MODULE.bazel` (`bff_template_quality`, version 0.1.0) and consume it with `local_path_override` in root `MODULE.bazel`
 - [x] T012 [P] Minimal guarantees `secrets` (gitleaks), `suppression-ban` and `typos` as Bazel test targets in `quality/checks/` with defect + corrected fixtures (replaced by the registry in T055)
-- [x] T013 Local CI workflow `.github/workflows/ci.yml`: checkout exact head SHA with `persist-credentials: false`, `bazel run //:verify` as the only policy step (no extra inline commands), aggregate `gate` job (`if: always()`); actions SHA-pinned; per-SHA concurrency. Not pushed.
-- [x] T014 Fresh-clone witness `tools/bootstrap/fresh_clone_test.sh`: clone into temp dir with empty Bazel output base/caches and no credentials, run `//:verify`, record revision and outcome. **Witness** SC-001
-- [x] T015 Record first cold/warm measurements for bootstrap and `//:verify` in `docs/budgets/linux-x86_64.json`. **Witness** FR-026
+- [x] T013 Local CI workflow `.github/workflows/ci.yml`: checkout exact head SHA with `persist-credentials: false`, `tools/verify.sh` as the only policy step (no extra inline commands), aggregate `gate` job (`if: always()`); actions SHA-pinned; per-SHA concurrency. Not pushed.
+- [x] T014 Fresh-clone witness `tools/bootstrap/fresh_clone_test.sh`: clone into temp dir with empty Bazel output base/caches and no credentials, run `tools/verify.sh`, record revision and outcome. **Witness** SC-001
+- [x] T015 Record first cold/warm measurements for bootstrap and `tools/verify.sh` in `docs/budgets/linux-x86_64.json`. **Witness** FR-026
 
 **Checkpoint**: fresh clone verifies with zero credentials; CI file lints with actionlint/zizmor.
 
@@ -69,7 +69,7 @@ before US1 because the browser→BFF slice consumes the generated contract. Both
 - [ ] T023 [US2] TS codegen with protoc-gen-es v2 rule in `api/notes/v1/BUILD.bazel` and `tools/proto/defs.bzl`
 - [ ] T024 [US2] Negative compile gate: TS caller using wrong request type must fail to compile, in `api/testdata/negative/`
 - [ ] T025 [US2] Contract-consumer evidence without building the #28 analyzer: each RPC has a production browser caller exercised by e2e (guarantee, via T032) plus a review checklist in `docs/api-style.md`; **adopt the py#28 profile when released** and contribute this repo's Protobuf/Bazel case as its witness (consumer, fake, generated-only, unsupported path)
-- [ ] T026 [US2] Implement baseline reader to pass T017 in `quality/proto/baseline.go`; wire `proto-breaking` into `//:verify`
+- [ ] T026 [US2] Implement baseline reader to pass T017 in `quality/proto/baseline.go`; wire `proto-breaking` into `tools/verify.sh`
 
 **Checkpoint**: SC-003 fixtures pass at exact revision; evidence recorded.
 
@@ -119,7 +119,7 @@ scenarios; the deliberately broken variant fails.
 - [ ] T044 [P] [US3] Runner tests: exit codes and Bazel-code translation, diagnostic format, 50-line bound, deadline handling (Bazel client SIGINT/shutdown, native process group, `setsid` child reaped via subreaper), closed stdin, zero-input GUARANTEE at `full` → exit 12 in `quality/runner/runner_test.go`
 - [ ] T045 [P] [US3] Registry validation tests (duplicate id, missing `full`, SIGNAL with failing threshold, GUARANTEE without fixtures, missing classification) in `quality/registry/validate_test.go`
 - [ ] T046 [P] [US3] Defect + corrected fixture per GUARANTEE check in `quality/fixtures/<check-id>/`
-- [ ] T047 [P] [US3] Suppression pattern fixtures per language (Go, TS, proto, Starlark, shell) in `quality/fixtures/suppression-ban/`
+- [ ] T047 [P] [US3] Suppression pattern fixtures per language (Go, TS, proto, Starlark, shell) in `quality/fixtures/suppression-ban/`; re-witness every S002 and S005 spelling, including multi-line and quoted forms, with the pinned ESLint and coverage tool once they exist
 
 ### Implementation for User Story 3
 

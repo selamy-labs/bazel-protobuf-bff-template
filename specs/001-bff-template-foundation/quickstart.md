@@ -3,11 +3,11 @@
 This is the flow M1–M5 must make true; it is validated by T014 (fresh clone), T042 (browser),
 T059 (hooks). None of these commands work at M0.
 
-Prerequisites: Bazelisk, Git, a POSIX shell. Linux needs unprivileged user namespaces.
+Prerequisites: Git, bash, curl and coreutils (GNU `timeout`, `sha256sum`, `tar`). Linux needs unprivileged user namespaces.
 
 ```sh
 git clone <your copy> my-app && cd my-app
-bazel run //:verify            # full canonical verifier (identical to CI)
+tools/verify.sh            # full canonical verifier (identical to CI)
 bazel run //:dev               # BFF on 127.0.0.1:8080 (dev mode, test identity) + web on :5173
 bazel test //web/e2e:all       # browser success/failure scenarios against the real BFF
 bazel run //tools/hooks:install  # prek pre-commit + pre-push hooks
@@ -29,4 +29,4 @@ bazel run //quality:run -- --stage=pre-push
 ```
 
 Upgrade shared checks (M7): change the `bff_template_quality` commit in `MODULE.bazel`, read the
-release notes' rule-change table, run `bazel run //:verify`.
+release notes' rule-change table, run `tools/verify.sh`.

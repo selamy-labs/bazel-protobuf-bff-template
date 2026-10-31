@@ -8,16 +8,20 @@ the toolchains, code generation and tests. The quality checks are shared and ver
 run identically in Git hooks, in the local verifier and in CI.
 
 **Status: M1 (hermetic skeleton).** The pinned toolchain, the shared quality module and the
-canonical verifier exist. There is no application code yet; that starts in M2. The repository is
+canonical verifier exist, and an independent review of them is being remediated (see
+[review-remediation.md](specs/002-hermetic-skeleton/review-remediation.md)). There is no application
+code yet; that starts in M2. The repository is
 local-only and unpublished.
 
 ## How to use and test
 
-Prerequisites: [Bazelisk](https://github.com/bazelbuild/bazelisk), Git, bash and coreutils. Bazel,
-the Go SDK and every check tool are fetched at pinned, checksummed versions.
+Prerequisites: Git, bash, curl and coreutils (GNU `timeout`, `sha256sum`, `tar`). Bazel itself, the Go SDK, Python
+and every check tool are fetched at pinned, checksummed versions; `tools/bootstrap/bazel.sh` verifies
+the Bazel binary on every call. Nothing else on the host is used: the verifier discards the caller's
+environment, so rc files, tool options and PATH helpers cannot change a verdict.
 
 ```sh
-bazel run //:verify
+tools/verify.sh
 ```
 
 The command fails closed if the host cannot provide namespace sandboxing, for example on
@@ -25,15 +29,18 @@ Ubuntu 24.04 with the default AppArmor policy. The preflight prints the fixes. I
 them, opt in to reduced isolation explicitly; the result is labeled `isolation: weakened`:
 
 ```sh
-bazel run --config=weak-isolation //:verify -- --weak-isolation
+tools/verify.sh --weak-isolation
 ```
 
 Other entry points:
 
 | Command | What it does |
 | --- | --- |
-| `tools/bootstrap/fresh_clone.sh` | Fresh-clone witness |
-| `tools/bench/measure.sh` | Feedback-cost measurement; results go to `docs/budgets/` |
+| `tools/bootstrap/fresh_clone.sh` | Fresh-clone witness; `--hostile` also plants rc files and a real defect |
+| `tools/bench/measure.sh` | Feedback-cost measurement of bootstrap, first verify, warm and edited runs; results go to `docs/budgets/` |
+
+`bazel` on your PATH is not used by the verifier. To run Bazel yourself with the same pin and rc
+isolation, use `tools/bootstrap/bazel.sh`.
 
 ## What to read first
 

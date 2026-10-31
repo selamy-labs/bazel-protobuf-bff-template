@@ -1,0 +1,4 @@
+
+
+/*globals foo:writable */
+foo();

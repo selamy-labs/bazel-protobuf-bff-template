@@ -30,15 +30,20 @@ These are fetched at build time by version and sha256 and are not vendored or re
 
 | Tool | Version | License | Where pinned |
 | --- | --- | --- | --- |
-| Bazel | 9.3.0 | Apache-2.0 | `.bazelversion` |
+| Bazel | 9.3.0 | Apache-2.0 | `.bazelversion`, `tools/bootstrap/bazel.pins` |
 | rules_go / Go SDK | 0.64.2 / 1.27.2 | Apache-2.0 / BSD-3-Clause | `MODULE.bazel`, `MODULE.bazel.lock` |
-| rules_shell, rules_multitool, buildifier_prebuilt | 0.8.0, 1.11.1, 10.1.0 | Apache-2.0 | `MODULE.bazel`, `quality/MODULE.bazel` |
+| rules_shell, rules_multitool | 0.8.0, 1.11.1 | Apache-2.0 | `MODULE.bazel`, `quality/MODULE.bazel` |
 | gitleaks | 8.30.1 | MIT | `quality/multitool.lock.json` |
 | typos | 1.51.1 | MIT OR Apache-2.0 | same |
 | shellcheck | 0.11.0 | GPL-3.0 (run as a tool only; not linked or redistributed) | same |
 | actionlint | 1.7.12 | MIT | same |
 | zizmor | 1.30.1 | MIT | same |
-| actions/checkout, actions/upload-artifact, bazel-contrib/setup-bazel | v7.0.1, v7.0.2, 0.19.1 (pinned by commit) | MIT | `.github/workflows/ci.yml` |
+| buildifier | 10.1.0 | Apache-2.0 | same |
+| yq | 4.54.1 | MIT | same |
+| uv | 0.13.1 | MIT OR Apache-2.0 | same |
+| Spec Kit Python dependencies | see the lock | as published by each package; to be enumerated by T077 | `tools/speckit/requirements.lock` (hashes) |
+| CPython (managed by uv) | 3.12.15 | PSF-2.0 | `tools/speckit/bootstrap.sh` |
+| actions/checkout, actions/upload-artifact | v7.0.1, v7.0.2 (pinned by commit) | MIT | `.github/workflows/ci.yml` |
 
 ## Planned dependencies (pinned when their first consumer arrives)
 

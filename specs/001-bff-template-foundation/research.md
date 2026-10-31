@@ -225,14 +225,14 @@ Only releases at least 14 days old at pin time are used.
 
 **Stages and prek mapping**
 
-`full` is not a prek stage. It is `//:verify`, and is also exposed as prek's `manual` stage.
+`full` is not a prek stage. It is `tools/verify.sh`, and is also exposed as prek's `manual` stage.
 
 | Stage | Hook | What it checks | Notes |
 | --- | --- | --- | --- |
 | `pre-commit` | `pre-commit` | **staged blob content** (`git diff --cached --name-only -z`, then `git show :path`) | Content checks only: secrets, suppression ban, typos, format-check. No Bazel-glob builds, so untracked files cannot leak in. |
 | `commit-msg` | `commit-msg` | the commit message | Off by default; must be explicitly adopted. |
 | `pre-push` | `pre-push` | the commit at `PRE_COMMIT_TO_REF`, checked out in a reusable detached worktree under `$(git rev-parse --git-common-dir)/bff-template/push-worktree` with its own warm output base | Changed-package build, lint and affected tests. prek runs once for the first pushed ref; other refs in a multi-ref push are not checked locally (documented limit; CI covers them). |
-| `full` | `manual` | everything | `//:verify` = the union of CI shards. |
+| `full` | `manual` | everything | `tools/verify.sh` = the union of CI shards. |
 
 **Hook rules**
 
@@ -339,7 +339,7 @@ consumer exists. No placeholder service is added.
 
 ## R-13 Optional GCP deployment profile (design only, M9)
 
-The profile is optional and lives in `deploy/gcp/`. `//:verify` never requires it.
+The profile is optional and lives in `deploy/gcp/`. `tools/verify.sh` never requires it.
 
 **OpenTofu scope**:
 

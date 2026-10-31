@@ -19,7 +19,7 @@ flowchart LR
     run --> ad["adapters: go · ts · proto · docs · shell"]
   end
   prek["prek hooks (1 per stage)"] --> run
-  verify["bazel run //:verify"] --> run
+  verify["tools/verify.sh"] --> run
   ci["CI: exact SHA → full-stage shards → aggregate gate"] --> run
   base["CI policy shard: evaluator built from base SHA"] --> run
   app -- depends on --> q
@@ -35,7 +35,7 @@ flowchart LR
 | D4 | Shared checks as a versioned Bazel module plus a prek revision; app as a template copy; no generator | Smallest route with an update story (R-07) | Copy-only (no updates); generator (cost) |
 | D5 | One declarative registry and one runner; one prek hook per stage; one Bazel invocation per stage; pre-commit reads staged blobs, pre-push checks the pushed commit in a detached worktree | One definition per rule; Bazel's output-base lock; prek stashes only unstaged (not untracked) changes and checks only the working tree (R-08) | Imperative shell dispatcher; per-tool prek hooks; Bazel builds over the working tree in hooks |
 | D6 | Only bans and base-built floors locally; #26 policy-diff, #27 evidence validator and #28 analyzer adopted on release | No duplicate of active issue work (issue-map.md); evaluator built from base cannot be replaced by the proposal | Re-implementing the shared contracts here |
-| D7 | Bazelisk-only host; network off in the sandbox; pinned browsers | Constitution III; SC-001 | Host Node/Go installs |
+| D7 | Git, bash, curl and coreutils on the host, with Bazel itself fetched by verified pin; network off in the sandbox; pinned browsers | Constitution III; SC-001 | Host Node/Go installs |
 | D8 | Deployment is an optional GCP profile with operator gates; design only until M9 | RFC #30: keep the provider optional (R-13) | Deploy in the core path |
 
 ## 3. Boundaries and dependency rules (deterministic, T038)
@@ -66,7 +66,7 @@ flowchart LR
 | --- | --- | --- | --- |
 | pre-commit | `git commit` | staged blobs | cheap hygiene (fast feedback only) |
 | pre-push | `git push` | changed packages and affected tests | changed-code checks (fast feedback only) |
-| full | `//:verify` (prek `manual`), CI shards | everything | the canonical policy |
+| full | `tools/verify.sh` (prek `manual`), CI shards | everything | the canonical policy |
 | CI aggregate | PR or main | exact SHA, all jobs | the single required verdict and receipts |
 
 Only `full` in CI counts as evidence. Local stages are bypassable by design (`--no-verify`), and CI
@@ -107,7 +107,7 @@ does not trust them.
 table generated from the registry; weakening entries are marked.
 
 A consumer upgrades by changing the `archive_override` or `git_override` commit in `MODULE.bazel`
-together with the matching prek revision, then runs `//:verify`. The diff to review is that pin
+together with the matching prek revision, then runs `tools/verify.sh`. The diff to review is that pin
 change plus any consumer edits the new rules require.
 
 The interface is declared stable (1.0.0) only after a second neutral consumer has completed one

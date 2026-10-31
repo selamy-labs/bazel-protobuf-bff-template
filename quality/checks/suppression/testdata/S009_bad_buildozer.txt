@@ -1,0 +1,2 @@
+# buildozer: disable=load
+X = 1

@@ -16,7 +16,7 @@ upstream revision it follows. This repository implements only the Bazel adapter.
 | pre-commit | `pre-commit` | `git diff --cached --name-only -z --diff-filter=ACMRD`; content read from the index with `git cat-file`/`git show :<path>` | registry entries with `pre-commit`, which are content checks only | warm p95 ≤ 5 s |
 | commit-msg | `commit-msg` | the message file | none by default; adopted explicitly | — |
 | pre-push | `pre-push` | the commit at `PRE_COMMIT_TO_REF`, compared with `PRE_COMMIT_FROM_REF` (or the merge-base with the remote default branch for new refs) | `pre-push` entries plus affected tests, run in a reusable detached worktree checked out at that commit | warm p95 ≤ 90 s |
-| full | `manual` (`prek run --hook-stage manual`) | the whole repository | all entries (`bazel run //:verify`), the same as the union of CI shards | measured |
+| full | `manual` (`prek run --hook-stage manual`) | the whole repository | all entries (`tools/verify.sh`), the same as the union of CI shards | measured |
 
 ## Safety rules
 

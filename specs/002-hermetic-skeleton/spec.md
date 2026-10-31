@@ -160,9 +160,9 @@ memory for each scenario, with host details, revision and isolation mode.
 - **FR-001**: The repository MUST declare one build tool version, and every dependency through a
   module system with a committed lock record. A lock mismatch MUST fail.
 - **FR-002**: Legacy, non-module dependency declarations MUST be rejected.
-- **FR-003**: The Go toolchain and the native tools (secret
-  scanner, spell checker, shell linter, workflow linter, workflow security linter,
-  build-file formatter) MUST be fetched at exact versions with recorded checksums. Each tool
+- **FR-003**: Bazel, the Go toolchain and the native tools (secret scanner, spell checker, shell
+  linter, workflow linter, workflow security linter, build-file formatter, YAML processor, Python
+  runner) MUST be fetched at exact versions with recorded checksums. Each tool
   arrives with its first real consumer: the JavaScript toolchain and package manager are pinned
   in M2 with TypeScript code generation, and the hook manager in M5 with the hooks.
 - **FR-004**: One documented command MUST bootstrap and verify a fresh clone, with no prompts, no
@@ -175,7 +175,7 @@ memory for each scenario, with host details, revision and isolation mode.
 - **FR-007**: The verifier MUST use namespace-isolated sandboxing by default and MUST fail when it
   is unavailable. Reduced isolation MUST require an explicit, named opt-in and MUST be recorded in
   every receipt and summary it produces.
-- **FR-008**: A preflight MUST detect the missing prerequisites (build launcher, Git, shell),
+- **FR-008**: A preflight MUST detect the missing prerequisites (Git, bash, curl, coreutils),
   unavailable isolation and insufficient disk space. For each it MUST print the cause and the
   remediation, and state which remediations need administrator rights.
 - **FR-009**: Shared quality checks MUST live in a separately versioned module (the
@@ -187,13 +187,14 @@ memory for each scenario, with host details, revision and isolation mode.
 - **FR-011**: A fresh-clone witness MUST clone the current revision into an empty location, with
   empty caches and no credentials, run verify, and record the revision, the outcome and the
   isolation mode.
-- **FR-012**: A measurement harness MUST record cold and warm p50/p95 wall time and peak memory for
-  bootstrap and verify. Each record MUST carry the host profile, the revision and the isolation
-  mode.
+- **FR-012**: A measurement harness MUST record p50/p95 wall time and peak memory separately for
+  bootstrap, the first verify after bootstrap, an unchanged warm verify and a verify after a source
+  edit. Each record MUST carry the host profile, the exact revision and the isolation mode.
 - **FR-013**: The Spec Kit scaffold MUST be checked in two ways. Offline, every vendored file is
   compared against a committed hash manifest. With network access, the scaffold and the manifest
-  are regenerated from the pinned release, and that provenance check is required in CI. See
-  research R4 for the stated limit of the offline check.
+  are regenerated from the pinned release using a pinned runner, a pinned Python and hash-locked
+  dependencies, and that provenance check is required in CI. See research R4 for the stated limit
+  of the offline check.
 - **FR-014**: No application code, remote cache configuration or remote-service credentials are
   introduced in M1.
 
@@ -218,8 +219,9 @@ memory for each scenario, with host details, revision and isolation mode.
   diagnostic, and 0% silently pass in a weaker mode.
 - **SC-004**: Cold and warm figures for bootstrap and verify are recorded for at least one host
   profile, with N ≥ 5 warm runs.
-- **SC-005**: A second consecutive verify run after a success needs no network access and
-  completes in under half the cold time on the same host.
+- **SC-005**: A verify run with downloads disabled succeeds after a first success, without Bazel
+  fetching anything, and completes in under half the cold time on the same host. This run skips the
+  networked provenance check and is not a claim of network isolation.
 
 ## Assumptions
 

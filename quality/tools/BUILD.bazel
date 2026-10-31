@@ -7,9 +7,12 @@
     )
     for tool in [
         "actionlint",
+        "buildifier",
         "gitleaks",
         "shellcheck",
         "typos",
+        "uv",
+        "yq",
         "zizmor",
     ]
 ]

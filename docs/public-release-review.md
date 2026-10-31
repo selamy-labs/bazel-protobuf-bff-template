@@ -24,7 +24,7 @@ and is not something this repository automates.
       required account.
 - [ ] Docs make no claim of live enforcement (branch protection, billing, deployment) without
       platform readback.
-- [ ] A fresh clone on a clean host passes `//:verify` with no credentials (T014).
+- [ ] A fresh clone on a clean host passes `tools/verify.sh` with no credentials (T014).
 - [ ] The review result is recorded below with the revision and the reviewer.
 
 ## Hard rule for private references

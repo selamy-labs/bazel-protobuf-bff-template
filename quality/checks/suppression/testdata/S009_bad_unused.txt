@@ -1,0 +1,2 @@
+def _f(x):  # @unused
+    return 1

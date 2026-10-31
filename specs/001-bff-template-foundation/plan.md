@@ -41,7 +41,7 @@ quality module.
 **Performance Goals**: Example BFF responds in well under its 2 s default deadline locally; template
 budgets are feedback-time budgets (R-11), measured not asserted.
 
-**Constraints**: Only Bazelisk, Git and a POSIX shell on the host; no credentials or network
+**Constraints**: Only Git, bash, curl and coreutils on the host (Bazel is fetched by verified pin); no credentials or network
 services needed for verification beyond fetching pinned artifacts; no remote cache/RBE; sandboxed
 actions with network disabled by default; all hooks bounded and non-interactive.
 
@@ -56,8 +56,8 @@ actions with network disabled by default; all hooks bounded and non-interactive.
 | --- | --- | --- | --- |
 | I. Real slice, no vacuous surface | PASS | PASS | Two RPCs, both with browser callers and e2e scenarios; no backend service until a consumer exists (R-06); Python profile documented, not stubbed (R-12). |
 | II. Contracts first, compatibility-checked | PASS | PASS | buf lint/format/breaking vs immutable SHA, fail closed, build-time codegen (R-04). |
-| III. Hermetic, pinned, reproducible | PASS | PASS | Bazelisk-only host; Bzlmod lock in error mode; multitool digests; Spec Kit commit pin verified (R-03, R-15). |
-| IV. One policy, thin adapters, parity | PASS | PASS | Single registry; one runner used by prek, `//:verify` and CI (R-08). |
+| III. Hermetic, pinned, reproducible | PASS | PASS | Bazel fetched by verified pin, nothing else needed from the host beyond Git, bash, curl and coreutils; Bzlmod lock in error mode; multitool digests; Spec Kit commit pin verified (R-03, R-15). |
+| IV. One policy, thin adapters, parity | PASS | PASS | Single registry; one runner used by prek, `tools/verify.sh` and CI (R-08). |
 | V. Policy cannot weaken itself | PASS | PASS (detect-and-report, as worded) | Floors and suppression bans judged by an evaluator built from the base revision; #26 owns the general contract; enforcement against removing the CI job needs a platform required check (owner) — stated, not claimed (R-09). No issuers, Apps or protection changes. |
 | VI. Exact-revision terminal evidence | PASS | PASS w/ tracked gap | Aggregate gate on latest attempts + receipts bound to revision and base policy digest; validator and readiness owned by #27 (R-10, T068). |
 | VII. Guarantees vs signals | PASS | PASS | Registry `classification` field; acceptance matrix labels each witness. |
