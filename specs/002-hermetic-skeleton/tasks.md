@@ -128,9 +128,11 @@ ownership are in [the quality framework synthesis](../../docs/quality-framework.
 - [x] T032 Fix M4: correct and complete revision-bound evidence and measurements.
 - [x] T033 Fix L1: report an accurate, precisely defined peak-memory metric.
 - [x] T034 Fix L2: normalize and witness gitleaks allowlist paths.
-- [ ] T035 Complete final canonical/fresh-clone verification and independent re-review at the
+- [x] T035 Complete final canonical/fresh-clone verification and independent re-review at the
   exact source revision; retain explicit unverified isolation/platform/hosted-CI limits.
 
 T024–T034 closed at `58b0f38`, with witnesses recorded in
-[m1-remediation.md](../../docs/evidence/m1-remediation.md). T035 remains open until the independent
-review of the frozen revision is terminal; M1 is not accepted before that. This phase adds no publication, cloud, identity or paid-run authority.
+[m1-remediation.md](../../docs/evidence/m1-remediation.md). T035 closed on 2026-10-31 with the
+independent local Linux review of `2ef8e2f66d03d9214dbfcb8b737943a87f486f37`. That outcome covers
+local Linux only: macOS, hosted CI and full-isolation p95 budgets remain unverified. This phase adds
+no publication, cloud, identity or paid-run authority.

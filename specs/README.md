@@ -6,7 +6,7 @@ umbrella spec (the "spec of specs") and holds the milestone map that the later s
 | Spec | Milestone | Status |
 | --- | --- | --- |
 | [001-bff-template-foundation](001-bff-template-foundation/) | M0: review package (constitution, spec, research, plan, tasks, acceptance matrix, design) | Approved 2026-10-29 |
-| [002-hermetic-skeleton](002-hermetic-skeleton/) | M1: hermetic skeleton and bootstrap | Repairs complete; final independent gate pending (T035). Not accepted yet. |
+| [002-hermetic-skeleton](002-hermetic-skeleton/) | M1: hermetic skeleton and bootstrap | Local Linux review passed at `2ef8e2f` (2026-10-31). macOS and hosted CI remain unverified. |
 | 003+ | M2–M10 | Each is created with `/speckit-specify` when its milestone starts |
 
 Start with [design.md](001-bff-template-foundation/design.md) to review the package, then read

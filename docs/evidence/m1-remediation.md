@@ -100,5 +100,16 @@ the repository, so the source it verified does not contain its own result.
   A proposal editing them together passes locally; catching that is the base-built evaluation in M6
   and the upstream policy-diff contract.
 - `sandbox-evidence` reads a log line. It shows where actions ran, not that the sandbox held.
-- Advisory: an external gocyclo run found maximum complexity 13 in `validator.job`. No threshold is
-  enforced yet; this is a signal, not a guarantee.
+- Advisory: an external gocyclo run found maximum complexity 13 at an earlier revision, and 15 at
+  `2ef8e2f` after the step-order checks were added. No threshold is enforced yet; this is a signal,
+  not a guarantee.
+
+## Independent review outcome
+
+An independent review of `2ef8e2f66d03d9214dbfcb8b737943a87f486f37` (tree
+`934bb8fb44faa34a778ce91c2b39858d7bbb7588`) passed the local Linux gate on 2026-10-31. A native
+verifier run in a fresh `HOME`, on a clean tree, with Bazel's Linux sandbox observed, exited 0 with
+all 16 checks and all 12 required targets, in 103.76 s on two cores.
+
+This clears local Linux only. macOS, hosted CI and full-isolation p95 budgets remain unverified, and
+the limits above still apply. It grants no publication, merge, access, apply or paid-run authority.
