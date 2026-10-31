@@ -136,6 +136,7 @@ scenarios; the deliberately broken variant fails.
 - [ ] T056 [US3] `prek.toml` with one hook per stage (`full` as prek `manual`), prek pinned via multitool; cite the py#25/ts#20 contract revision followed
 - [ ] T057 [US3] `//tools/hooks:install` thin wrapper over pinned `prek install` (legacy-hook handling verified by fixture, `core.hooksPath`, worktrees); no custom chaining
 - [ ] T058 [US3] Policy-change escalation to `full` at pre-push only in `quality/runner/select.go`
+- [ ] T091 [US3] Go analyzers (`lint-go`): `nogo` under rules_go 0.64.2 cannot read Go 1.27 export data (spec 004 research R7). Move to a rules_go release that can, once it meets the 14-day pin rule, and enable vet then staticcheck. **Witness**: a vet finding in a fixture fails the Go build, and its corrected counterpart passes
 - [ ] T059 [US3] Checkpoint: fixtures pass; measure stage budgets cold/warm (1, 50, 500 files) into `docs/budgets/`. **Witness** SC-005, SC-006
 
 ---

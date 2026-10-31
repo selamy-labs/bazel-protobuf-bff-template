@@ -9,8 +9,8 @@ way in Git hooks, in the local verifier and in CI. Hooks and shared-check distri
 yet.
 
 **Status: M1 to M4 exist locally.** The app works: `CreateNote` and `GetNote` run from a React page
-through a Go server, tested in a pinned browser. M1 and M2 passed independent local Linux
-verification. M3 and M4 await independent review, and [the evidence page](docs/evidence/m2-m4.md)
+through a Go server, tested in a pinned browser. M1 to M3 passed independent local Linux
+verification. M4 awaits independent review, and [the evidence page](docs/evidence/m2-m4.md)
 lists what has and has not been observed. macOS and hosted CI are unverified. The repository is
 local-only and unpublished, and it ships no identity provider, so the production server refuses to
 start until you add one ([bff/README.md](bff/README.md)).

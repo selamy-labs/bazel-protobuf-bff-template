@@ -10,5 +10,6 @@ for pair in "$@"; do
     *_FILE) [[ -f "$path" ]] || { echo "tool-paths: $name is missing: $path" >&2; exit 1; } ;;
     *) [[ -x "$path" ]] || { echo "tool-paths: $name is not executable: $path" >&2; exit 1; } ;;
   esac
-  printf '%s=%s\n' "$name" "$(realpath "$path")"
+  # The verifier sources this output, and a checkout path can hold any character.
+  printf '%s=%q\n' "$name" "$(realpath "$path")"
 done

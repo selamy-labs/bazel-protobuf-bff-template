@@ -26,5 +26,6 @@
 //:native_fixtures_test
 //:normalize_json_test
 //:speckit_scaffold_test
+//:tool_paths_test
 //:verify_body_test
 //:verify_deadline_test

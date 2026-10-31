@@ -176,13 +176,28 @@ test("a cookie gives no access in the browser or outside it", async ({ notes, st
   expect((await direct.json()).code).toBe("unauthenticated");
 });
 
-test("cross-origin calls send no credentials", async ({ notes }) => {
+test("the client omits a cookie the browser would send", async ({ notes, stack, context }) => {
   await identify(notes, "ana");
-  const [request] = await Promise.all([
-    notes.waitForRequest((candidate) => candidate.url().endsWith("/CreateNote")),
-    createNote(notes, "a"),
+  // Cookies are not scoped by port, so this one matches both the page and the server.
+  await context.addCookies([{ name: "session", value: "cookie-value", url: stack.origin }]);
+
+  // Control: a same-origin request in this context does carry it, and the check can see that.
+  const [same] = await Promise.all([
+    notes.waitForRequest((candidate) => candidate.url() === `${stack.origin}/config.json`),
+    notes.evaluate(() => fetch("/config.json")),
   ]);
-  const headers = await request.allHeaders();
+  expect((await same.allHeaders()).cookie).toBe("session=cookie-value");
+
+  // The real client call to the same host: the POST happened, succeeded, and carried no cookie.
+  const [response] = await Promise.all([
+    notes.waitForResponse(
+      (candidate) => candidate.url().endsWith("/CreateNote") && candidate.request().method() === "POST",
+    ),
+    createNote(notes, "sent without a cookie"),
+  ]);
+  expect(response.status()).toBe(200);
+  await expect(notes.getByRole("heading", { name: "sent without a cookie" })).toBeVisible();
+  const headers = await response.request().allHeaders();
   expect(headers.authorization).toBe("Bearer test-identity.ana");
   expect(headers.cookie).toBeUndefined();
 });

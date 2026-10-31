@@ -17,6 +17,8 @@ tasks. Boxes are ticked only when the named witness passes in the verifier.
 | [x] T007 | T006 | Broken-mapping witness | FR-007 | T041, SC-002 | `//web/e2e:defect_e2e_test` |
 | [x] T008 | T005 | `//:dev` runner | FR-009 | T040 | `//tools/dev:dev_test` |
 | [x] T009 | T006–T008 | Inventories, docs, provenance, parent ledger | FR-010 | T025, T042 | `test-inventory`, `fresh_clone.sh` |
+| [x] T010 | T006 | Review regression: the omitted-cookie scenario gets a same-origin control and requires a successful POST | FR-005 | T032, FR-008 | `the client omits a cookie the browser would send` in `notes_e2e_test` |
+| [x] T011 | T009 | Quote tool paths, because Bazel resolves some inside the checkout | FR-010 | T042, FR-025 | `//:verify_body_test`, `fresh_clone.sh` |
 
 ## Execution record
 
@@ -29,5 +31,10 @@ findings changed the plan:
   Debian pool drops superseded versions.
 - `bundle_test`'s first version read nothing: `grep -r` skips symlinked files. Its positive control
   caught that, and it now uses `grep -R`.
+
+- The fresh-clone witness failed at `25d67de`: `quality/proto/buf.yaml` resolves inside the checkout,
+  and a path with parentheses broke the sourced tool list. A test in the verifier now covers this.
+- Independent review found that the original no-cookie scenario never seeded a cookie, so it could
+  not fail. T010 replaced it. That test earned no credit before then.
 
 Credit for the browser scenarios rests on `defect_e2e_test`, which is re-run on every verification.

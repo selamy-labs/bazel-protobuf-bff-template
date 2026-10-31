@@ -9,7 +9,7 @@ local verifier, **ci** hosted CI (not run), **hum** human.
 | FR-002 | `notes_e2e_test` | each RPC: a success and typed failures in a browser | G | off |
 | FR-003 | `errors_test` | each code → one distinct outcome; an unknown code → a general failure | G | off |
 | FR-004 | `errors_test`, `notes_e2e_test` | a violation lands on its field; an unknown field stays visible | G | off |
-| FR-005 | `notes_e2e_test` | pinned browser, real binary, two origins | G | off |
+| FR-005 | `notes_e2e_test` | pinned browser, real binary, two origins; a cookie the same-origin control sees is absent from the successful generated-client POST | G | off |
 | FR-006 | `browser_smoke_test` | the browser starts with only pinned libraries | G | off |
 | FR-007 | `defect_e2e_test` | broken mapping → exactly the not-found scenarios fail | G | off |
 | FR-008 | `bundle_test` | test identity in the production bundle → fails | G | off |
@@ -26,3 +26,8 @@ local verifier, **ci** hosted CI (not run), **hum** human.
 Limits: the pinned browser exists for Linux x86_64 only, and needs glibc 2.36 or newer. Chromium runs
 with `--no-sandbox`, in tests only. The production web build has no credential source, so it cannot
 complete a call until an adopter adds one.
+
+Hand-run on 2026-10-31: making the client send credentials fails the omitted-cookie scenario. It also
+fails most other scenarios, because the browser's CORS check blocks every credentialed call. So this
+shows the scenario can fail, but it does not isolate it. The scenario's own same-origin control is
+the witness that a cookie would be seen.

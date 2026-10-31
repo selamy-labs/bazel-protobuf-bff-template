@@ -25,7 +25,7 @@ in-memory adapter. Interceptors authenticate, bound and mask each call. A produc
 | I. No vacuous surface | PASS | Both RPCs are served. The `Verifier` interface has one real consumer, `NewBearer`, and no shipped success stub. |
 | II. Contracts first | PASS | Handlers are generated. |
 | III. Hermetic, pinned | PASS | No new external dependency. |
-| IV. One policy | PASS | `format-go` and `lint-go` have one definition each. |
+| IV. One policy | PASS | `format-go` has one definition. `lint-go` moved to M5 (research R7). |
 | V. Cannot weaken itself | PASS (scoped) | Dependency rules are repository files, so M6 limits still apply. |
 | VI. Exact-revision evidence | PASS | New tests join the required inventory. |
 | VII. Guarantees vs signals | PASS | All M3 checks are guarantees. The layer design beyond the listed edges is review. |

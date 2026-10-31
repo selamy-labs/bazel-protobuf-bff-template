@@ -14,7 +14,7 @@ The registry is the only place a quality rule is defined (constitution IV). Sche
 | `format-ts` | prettier (pnpm lock) | pre-commit, full | GUARANTEE | check mode only |
 | `format-proto` / `lint-proto` | buf | pre-commit, full | GUARANTEE | |
 | `format-starlark` | buildifier | pre-commit, full | GUARANTEE | |
-| `lint-go` | nogo analyzers (vet + staticcheck) | every stage that builds Go (pre-push, full) | GUARANTEE | runs as part of the Go build, not as a separate step |
+| `lint-go` | nogo analyzers (vet + staticcheck) | every stage that builds Go (pre-push, full) | GUARANTEE | runs as part of the Go build, not as a separate step. Not enforced until T091 |
 | `lint-ts` / `typecheck-ts` | eslint `--max-warnings 0`, tsc | pre-push, full | GUARANTEE | |
 | `proto-breaking` | buf breaking vs immutable base SHA | pre-push, full | GUARANTEE | fails closed without baseline |
 | `generated-fresh` | build-graph diff | pre-push, full | GUARANTEE | only for committed generated docs |
