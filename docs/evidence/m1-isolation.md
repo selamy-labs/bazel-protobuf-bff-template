@@ -35,7 +35,7 @@ verify: PASSED at <revision> (isolation: weakened)
 
 The receipt records `"isolation": "weakened"`.
 
-## Not yet witnessed
+## Full isolation
 
-No passing run at `isolation: full` exists. An independent run reached full isolation at earlier
-revisions but did not pass every check. See [m1-remediation.md](m1-remediation.md).
+This host has not passed at `isolation: full`, because it cannot. An independent Linux host passed at
+full isolation at source `58b0f38`. See [m1-remediation.md](m1-remediation.md).

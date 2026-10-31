@@ -34,5 +34,5 @@ readback. Layers: **off** offline test, **loc** local verifier, **ci** hosted CI
 | SC-004 | `docs/budgets/linux-x86_64-20c.json` | recorded at weakened isolation |
 | SC-005 | `measure.sh` no_download scenario | a downloads-disabled run, not a network-isolation claim |
 
-Full-isolation, hosted-CI and macOS results are not claimed here. They exist only where
-`m1-remediation.md` records them.
+The primary Linux x86_64 profile has one independent full-isolation pass, recorded with its source
+revision in `m1-remediation.md`. Hosted CI and macOS are unverified.

@@ -61,21 +61,23 @@ the network, which a dead proxy exposed.
 ## Independent full-isolation runs
 
 An independent Linux x86_64 run from an empty HOME, under an external time cap and CPU limit, did
-reach `isolation: full`, at earlier revisions only:
+reach `isolation: full`:
 
-| Revision | Result |
+| Source revision | Result |
 | --- | --- |
 | `f9a40b2` | 12 of 13 checks; provenance failed on key order, fixed since |
 | `1965a20` | 12 of 13 checks; buildifier failed on an unformatted `BUILD.bazel`, fixed since |
+| `58b0f38` | **PASSED**: exit 0, clean tree, 16 of 16 checks, 12 of 12 required tests, `tested_tree` equal to the source tree, `39 linux-sandbox` actions, 99.62 s on two cores |
 
-Neither is a pass, and neither covers `58b0f38`.
+The `58b0f38` run is one verification on one clean Linux x86_64 host, not a budget measurement, and it
+covers that source revision only. Each later commit needs its own run. Its raw receipt is kept outside
+the repository, so the source it verified does not contain its own result.
 
 ## Not witnessed
 
-- **A passing full-isolation run.** None exists at any revision. The independent run at the frozen
-  revision has not happened yet.
-- **`sandbox-evidence` at full isolation.** The check is new since the runs above, and its
-  `linux-sandbox` branch has run only against a stub.
+- **Full isolation on the authoring host.** It cannot provide namespaces, so its own results stay
+  `weakened`. The budget record is from this host and is weakened too.
+- **Full-isolation budgets.** The independent pass above is a single run, not a p95 figure.
 - **Hosted CI.** The workflow has never run. There is no remote.
 - **Other platforms.** linux-arm64 and darwin-arm64 pins are recorded but unexercised, and macOS
   lacks the GNU tools the verifier uses.
