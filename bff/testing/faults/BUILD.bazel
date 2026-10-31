@@ -8,6 +8,7 @@ go_library(
     visibility = [
         "//bff/cmd/bff-dev:__pkg__",
         "//bff/transport:__pkg__",
+        "//web/e2e:__pkg__",
     ],
     deps = ["//bff/ports"],
 )

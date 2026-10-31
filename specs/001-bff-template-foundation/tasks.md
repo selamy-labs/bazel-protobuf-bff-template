@@ -70,7 +70,7 @@ through `tools/proto/defs.bzl`, and the schema lives at `api/template/notes/v1/`
 - [x] T022 [US2] Go codegen: `go_proto_library` with connect compiler in `api/notes/v1/BUILD.bazel`
 - [x] T023 [US2] TS codegen with protoc-gen-es v2 rule in `api/notes/v1/BUILD.bazel` and `tools/proto/defs.bzl`
 - [x] T024 [US2] Negative compile gate: TS caller using wrong request type must fail to compile, in `api/testdata/negative/`
-- [ ] T025 [US2] Contract-consumer evidence without building the #28 analyzer: each RPC has a production browser caller exercised by e2e (guarantee, via T032) plus a review checklist in `docs/api-style.md`; **adopt the py#28 profile when released** and contribute this repo's Protobuf/Bazel case as its witness (consumer, fake, generated-only, unsupported path)
+- [x] T025 [US2] Contract-consumer evidence without building the #28 analyzer: each RPC has a production browser caller exercised by e2e (guarantee, via T032) plus a review checklist in `docs/api-style.md`; **adopt the py#28 profile when released** (still open upstream) and contribute this repo's Protobuf/Bazel case as its witness (consumer, fake, generated-only, unsupported path)
 - [x] T026 [US2] Implement baseline reader to pass T017 in `quality/proto/baseline.go`; wire `proto-breaking` into `tools/verify.sh`
 
 **Checkpoint**: SC-003 fixtures pass at exact revision; evidence recorded.
@@ -90,9 +90,9 @@ scenarios; the deliberately broken variant fails.
 - [x] T027 [P] [US1] BFF handler tests over in-process Connect server (success, invalid, not found, cross-principal not found, unauthenticated, deadline, unavailable) in `bff/transport/handlers_test.go`
 - [x] T028 [P] [US1] Property tests for title/body validation and name parsing in `bff/app/validate_test.go`
 - [x] T029 [P] [US1] Startup tests: test identity refused in production mode; production without verifier fails closed in `bff/cmd/bff/config_test.go`
-- [ ] T030 [US1] Spike: pinned Playwright browser under Bazel sandbox (rules_playwright vs pinned archive), offline after fetch; record in `research.md` R-05
-- [ ] T031 [P] [US1] Client unit tests: Connect error → UI outcome mapping in `web/client/errors.test.ts`
-- [ ] T032 [P] [US1] E2E specs for every scenario in `contracts/notes-api.md` (success, invalid title, body too long, not found, cross-principal not found, unauthenticated, cookie-only request rejected, unavailable, deadline exceeded) in `web/e2e/notes.spec.ts`
+- [x] T030 [US1] Spike: pinned Playwright browser under Bazel sandbox (rules_playwright vs pinned archive), offline after fetch; record in `research.md` R-05
+- [x] T031 [P] [US1] Client unit tests: Connect error → UI outcome mapping in `web/client/errors.test.ts`
+- [x] T032 [P] [US1] E2E specs for every scenario in `contracts/notes-api.md` (success, invalid title, body too long, not found, cross-principal not found, unauthenticated, cookie-only request rejected, unavailable, deadline exceeded) in `web/e2e/notes.spec.ts`
 
 ### Implementation for User Story 1
 
@@ -102,10 +102,10 @@ scenarios; the deliberately broken variant fails.
 - [x] T036 [US1] `Authenticator` boundary; `testonly` test identity in `bff/testing/identity.go`
 - [x] T037 [US1] `bff/cmd/bff/main.go`: mode config, ready event on stdout, graceful shutdown, no stdin
 - [x] T038 [US1] Dependency-rules test (directions, testonly fencing, no `web` import from `bff`) in `quality/checks/dependency_rules_test.sh`
-- [ ] T039 [US1] Client wrapper and transport in `web/client/`; React form + lookup in `web/app/`; Vite build/serve via rules_js
-- [ ] T040 [US1] `//:dev` runner starting BFF and web together in `tools/dev/`
-- [ ] T041 [US1] Deliberate-defect witness: mutate error mapping (e.g. not_found→internal) in a fixture build; e2e must fail naming the scenario; restore passes. In `web/e2e/defect_test.sh`
-- [ ] T042 [US1] Checkpoint: fresh-clone browser path (T014 extended) + evidence at exact revision. **Witness** SC-001, SC-002
+- [x] T039 [US1] Client wrapper and transport in `web/client/`; React form + lookup in `web/app/`; Vite build/serve via rules_js
+- [x] T040 [US1] `//:dev` runner starting BFF and web together in `tools/dev/`
+- [x] T041 [US1] Deliberate-defect witness: mutate error mapping (e.g. not_found→internal) in a fixture build; e2e must fail naming the scenario; restore passes. In `web/e2e/defect_test.sh`
+- [x] T042 [US1] Checkpoint: fresh-clone browser path (T014 extended) + evidence at exact revision. **Witness** SC-001, SC-002
 
 ---
 

@@ -4,7 +4,10 @@ go_library(
     name = "identity",
     srcs = ["identity.go"],
     importpath = "example.com/bfftemplate/bff/identity",
-    visibility = ["//bff:__subpackages__"],
+    visibility = [
+        "//bff:__subpackages__",
+        "//web/e2e:__pkg__",
+    ],
 )
 
 go_test(

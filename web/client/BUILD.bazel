@@ -1,0 +1,43 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+
+ts_project(
+    name = "client",
+    srcs = [
+        "errors.ts",
+        "transport.ts",
+    ],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "//:tsconfig",
+    visibility = ["//web:__subpackages__"],
+    deps = [
+        "//:node_modules/@bufbuild/protobuf",
+        "//:node_modules/@connectrpc/connect",
+        "//:node_modules/@connectrpc/connect-web",
+        "//api:notes_ts",
+    ],
+)
+
+ts_project(
+    name = "client_test",
+    testonly = True,
+    srcs = ["errors.test.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "//:tsconfig",
+    deps = [
+        ":client",
+        "//:node_modules/@bufbuild/protobuf",
+        "//:node_modules/@connectrpc/connect",
+        "//:node_modules/@types/node",
+        "//api:notes_ts",
+    ],
+)
+
+js_test(
+    name = "errors_test",
+    size = "small",
+    data = [":client_test"],
+    entry_point = "errors.test.js",
+)

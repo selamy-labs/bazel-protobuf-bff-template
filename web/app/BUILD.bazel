@@ -1,0 +1,81 @@
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+load("@npm//:vite/package_json.bzl", vite = "bin")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+ts_project(
+    name = "app",
+    srcs = [
+        "App.tsx",
+        "main.tsx",
+        "test-identity.tsx",
+    ],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "//:tsconfig",
+    deps = [
+        "//:node_modules/@types/react",
+        "//:node_modules/@types/react-dom",
+        "//:node_modules/react",
+        "//:node_modules/react-dom",
+        "//api:notes_ts",
+        "//web/client",
+    ],
+)
+
+SRCS = [
+    "public/index.html",
+    "vite.config.mjs",
+    ":app",
+    "//:node_modules/react",
+    "//:node_modules/react-dom",
+    "//:node_modules/vite",
+]
+
+vite.vite(
+    name = "dist",
+    srcs = SRCS,
+    args = [
+        "build",
+        "--config",
+        "vite.config.mjs",
+        "--mode",
+        "production",
+    ],
+    chdir = package_name(),
+    out_dirs = ["dist"],
+    visibility = ["//web:__subpackages__"],
+)
+
+vite.vite(
+    name = "dist_dev",
+    testonly = True,
+    srcs = SRCS,
+    args = [
+        "build",
+        "--config",
+        "vite.config.mjs",
+        "--mode",
+        "test-identity",
+    ],
+    chdir = package_name(),
+    out_dirs = ["dist_dev"],
+    visibility = [
+        "//:__pkg__",
+        "//tools/dev:__pkg__",
+        "//web:__subpackages__",
+    ],
+)
+
+sh_test(
+    name = "bundle_test",
+    size = "small",
+    srcs = ["bundle_test.sh"],
+    args = [
+        "$(rootpath :dist)",
+        "$(rootpath :dist_dev)",
+    ],
+    data = [
+        ":dist",
+        ":dist_dev",
+    ],
+)

@@ -1,5 +1,14 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
 
+exports_files(
+    [
+        "cors.go",
+        "handlers.go",
+        "interceptors.go",
+    ],
+    visibility = ["//web/e2e:__pkg__"],
+)
+
 go_library(
     name = "transport",
     srcs = [
@@ -8,7 +17,10 @@ go_library(
         "interceptors.go",
     ],
     importpath = "example.com/bfftemplate/bff/transport",
-    visibility = ["//bff/server:__pkg__"],
+    visibility = [
+        "//bff/server:__pkg__",
+        "//web/e2e:__pkg__",
+    ],
     deps = [
         "//api:notes_connect_go",
         "//api:notes_go",

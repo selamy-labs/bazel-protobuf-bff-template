@@ -18,7 +18,9 @@ This directory holds repository orchestration scripts. The checks they run live 
 | `ci/` | `policy.json`, the closed workflow allowlist; `parity_test.sh` and `mutations.tsv`, its adversarial witnesses. |
 | `speckit/` | The pinned Spec Kit bootstrap, its hash manifest and locked dependencies, and the offline manifest test. |
 | `proto/` | `buf_generate`, the build-time code generation rule, and the schema probes. |
-| `pins/` | Generator for `quality/multitool.lock.json`. |
+| `browser/` | The pinned browser and its shared libraries. |
+| `dev/` | `//tools/dev`, which runs the app locally. |
+| `pins/` | Generators for `quality/multitool.lock.json` and `browser/debs.bzl`. |
 
 ## Owner
 

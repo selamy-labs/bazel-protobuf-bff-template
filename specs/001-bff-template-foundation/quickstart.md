@@ -1,15 +1,16 @@
 # Quickstart (target adopter flow)
 
-This is the flow M1–M5 must make true; it is validated by T014 (fresh clone), T042 (browser),
-T059 (hooks). None of these commands work at M0.
+The verifier, `//tools/dev` and browser tests work from M4 on. Hook and `//quality:run` commands
+arrive in M5. T014 (fresh clone), T042 (browser) and T059 (hooks) witness this flow. `bazel` here means
+`tools/bootstrap/bazel.sh`, the pinned Bazel.
 
 Prerequisites: Git, bash, curl and coreutils (GNU `timeout`, `sha256sum`, `tar`). Linux needs unprivileged user namespaces.
 
 ```sh
 git clone <your copy> my-app && cd my-app
 tools/verify.sh            # full canonical verifier (identical to CI)
-bazel run //:dev               # BFF on 127.0.0.1:8080 (dev mode, test identity) + web on :5173
-bazel test //web/e2e:all       # browser success/failure scenarios against the real BFF
+bazel run //tools/dev          # BFF on 127.0.0.1:8080 (dev mode, test identity) + web on :5173
+bazel test //web/e2e:notes_e2e_test   # browser scenarios against the real BFF
 bazel run //tools/hooks:install  # prek pre-commit + pre-push hooks
 ```
 

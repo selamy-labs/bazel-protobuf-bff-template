@@ -10,6 +10,12 @@
 //bff/server:server_test
 //bff/transport:transport_test
 //bff:dependency_rules_test
+//tools/dev:dev_test
+//web/app:bundle_test
+//web/client:errors_test
+//web/e2e:browser_smoke_test
+//web/e2e:defect_e2e_test
+//web/e2e:notes_e2e_test
 @bff_template_quality//checks/ciparity:ciparity_test
 @bff_template_quality//checks/suppression:suppression_test
 @bff_template_quality//proto:proto_test

@@ -1,0 +1,188 @@
+// Every scenario in specs/001 contracts/notes-api.md, in a real browser against the real server.
+// Titles are stable: the defect witness names them.
+import { test as base, expect } from "@playwright/test";
+
+import { serve } from "../serve/serve.mjs";
+import { startStack } from "./stack.mjs";
+
+const test = base.extend({
+  // Each worker has its own server, so tests share nothing with other runs.
+  stack: [
+    async ({}, use) => {
+      const stack = await startStack();
+      await use(stack);
+      await stack.stop();
+    },
+    { scope: "worker" },
+  ],
+  notes: async ({ page, stack }, use) => {
+    await page.goto(stack.origin);
+    await expect(page.getByTestId("test-identity")).toBeVisible();
+    await use(page);
+  },
+});
+
+const identify = (page, subject) => page.getByLabel("Test identity").fill(subject);
+
+async function createNote(page, title, body = "") {
+  await page.getByLabel("Title").fill(title);
+  await page.getByLabel("Body").fill(body);
+  await page.getByRole("button", { name: "Create note" }).click();
+}
+
+async function openNote(page, name) {
+  await page.getByLabel("Name").fill(name);
+  await page.getByRole("button", { name: "Open note" }).click();
+}
+
+test("creates a note and opens it by name", async ({ notes }) => {
+  await identify(notes, "ana");
+  await createNote(notes, "  Shopping  ", "milk");
+  await expect(notes.getByRole("heading", { name: "Shopping" })).toBeVisible();
+  const name = await notes.getByTestId("note-name").textContent();
+  expect(name).toMatch(/^notes\/[a-z0-9-]+$/);
+  await notes.reload();
+  await identify(notes, "ana");
+  await openNote(notes, name);
+  await expect(notes.getByTestId("note-body")).toHaveText("milk");
+});
+
+test("empty title shows on the title field", async ({ notes }) => {
+  await createNote(notes, "   ");
+  await expect(notes.getByTestId("title-error")).toHaveText("title is required");
+  await expect(notes.getByTestId("note")).toHaveCount(0);
+});
+
+test("title too long shows on the title field", async ({ notes }) => {
+  await createNote(notes, "a".repeat(121));
+  await expect(notes.getByTestId("title-error")).toHaveText("title must be at most 120 characters");
+});
+
+test("body too long shows on the body field", async ({ notes }) => {
+  await createNote(notes, "a", "b".repeat(4001));
+  await expect(notes.getByTestId("body-error")).toContainText("4000");
+  await expect(notes.getByTestId("title-error")).toHaveCount(0);
+});
+
+test("invalid name shows on the name field", async ({ notes }) => {
+  await openNote(notes, "tasks/1");
+  await expect(notes.getByTestId("name-error")).toBeVisible();
+});
+
+test("a field message clears when the input changes", async ({ notes }) => {
+  await createNote(notes, " ");
+  await expect(notes.getByTestId("title-error")).toBeVisible();
+  await notes.getByLabel("Title").fill("fixed");
+  await expect(notes.getByTestId("title-error")).toHaveCount(0);
+});
+
+test("not found", async ({ notes }) => {
+  await openNote(notes, "notes/does-not-exist");
+  await expect(notes.getByTestId("failure")).toHaveText("Not found.");
+});
+
+test("another principal's note reads as not found", async ({ notes }) => {
+  await identify(notes, "ana");
+  await createNote(notes, "private");
+  await expect(notes.getByTestId("note")).toBeVisible();
+  const name = await notes.getByTestId("note-name").textContent();
+  await identify(notes, "bob");
+  await openNote(notes, name);
+  await expect(notes.getByTestId("failure")).toHaveText("Not found.");
+  await expect(notes.getByTestId("note")).toHaveCount(0);
+});
+
+test("no identity is unauthenticated", async ({ notes }) => {
+  await identify(notes, "");
+  await createNote(notes, "a");
+  await expect(notes.getByTestId("failure")).toHaveText("Authentication is required.");
+});
+
+test("storage unavailable on create", async ({ notes }) => {
+  await identify(notes, "fault-unavailable");
+  await createNote(notes, "a");
+  await expect(notes.getByTestId("failure")).toHaveText("The service is unavailable. Try again.");
+});
+
+test("deadline exceeded on open", async ({ notes }) => {
+  await identify(notes, "fault-hang");
+  await openNote(notes, "notes/a");
+  await expect(notes.getByTestId("failure")).toHaveText("The request took too long. Try again.", { timeout: 5000 });
+});
+
+for (const subject of ["fault-secret", "fault-panic"]) {
+  test(`internal failure shows only a correlation id: ${subject}`, async ({ notes }) => {
+    await identify(notes, subject);
+    await openNote(notes, "notes/a");
+    await expect(notes.getByTestId("failure")).toHaveText(/^Something went wrong\. Reference: [0-9a-f]+$/);
+    await expect(notes.locator("body")).not.toContainText("planted");
+  });
+}
+
+test("a stopped server is unavailable and a restart is not assumed", async ({ page }) => {
+  const stack = await startStack();
+  await page.goto(stack.origin);
+  await stack.stopServer();
+  await createNote(page, "a");
+  await expect(page.getByTestId("failure")).toHaveText("The service is unavailable. Try again.");
+  await stack.stop();
+});
+
+test("a second submit does not create a second note", async ({ notes }) => {
+  await identify(notes, "ana");
+  let creates = 0;
+  notes.on("request", (request) => {
+    if (request.method() === "POST" && request.url().endsWith("/CreateNote")) {
+      creates += 1;
+    }
+  });
+  await notes.getByLabel("Title").fill("once");
+  await notes.getByRole("button", { name: "Create note" }).dblclick();
+  await expect(notes.getByTestId("note")).toBeVisible();
+  expect(creates).toBe(1);
+});
+
+test("the browser blocks a disallowed origin", async ({ page, stack }) => {
+  const other = await serve(process.env.WEB_DIST);
+  other.setBffUrl(stack.bffUrl);
+  await page.goto(other.origin);
+  await createNote(page, "a");
+  await expect(page.getByTestId("failure")).toHaveText("The service is unavailable. Try again.");
+  await other.close();
+});
+
+test("a cookie gives no access in the browser or outside it", async ({ notes, stack, context, request }) => {
+  const credential = "Bearer test-identity.ana";
+  await context.addCookies([{ name: "session", value: "cookie-value", url: stack.bffUrl }]);
+  const blocked = await notes.evaluate(
+    async (url) =>
+      fetch(`${url}/template.notes.v1.NoteService/GetNote`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: "notes/a" }),
+      }).then(
+        () => "allowed",
+        (reason) => reason.name,
+      ),
+    stack.bffUrl,
+  );
+  expect(blocked).toBe("TypeError");
+  const direct = await request.post(`${stack.bffUrl}/template.notes.v1.NoteService/GetNote`, {
+    data: { name: "notes/a" },
+    headers: { Cookie: `session=${credential}`, "Content-Type": "application/json" },
+  });
+  expect(direct.status()).toBe(401);
+  expect((await direct.json()).code).toBe("unauthenticated");
+});
+
+test("cross-origin calls send no credentials", async ({ notes }) => {
+  await identify(notes, "ana");
+  const [request] = await Promise.all([
+    notes.waitForRequest((candidate) => candidate.url().endsWith("/CreateNote")),
+    createNote(notes, "a"),
+  ]);
+  const headers = await request.allHeaders();
+  expect(headers.authorization).toBe("Bearer test-identity.ana");
+  expect(headers.cookie).toBeUndefined();
+});

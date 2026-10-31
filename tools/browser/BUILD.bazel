@@ -1,0 +1,10 @@
+load(":defs.bzl", "browser_tree")
+
+browser_tree(
+    name = "browser",
+    testonly = True,
+    browser = "@chrome_headless_shell//:files",
+    executable = "@chrome_headless_shell//:chrome-headless-shell",
+    libs = "@browser_libs//:libs",
+    visibility = ["//web/e2e:__pkg__"],
+)

@@ -16,6 +16,8 @@ mkdir -p "$work/ws"
 cp "$root"/{.bazelversion,.bazelrc,MODULE.bazel,MODULE.bazel.lock,REPO.bazel,go.mod,go.sum} "$work/ws/"
 cp "$root"/{package.json,pnpm-lock.yaml,pnpm-workspace.yaml} "$work/ws/"
 cp -r "$root/quality" "$work/ws/quality"
+mkdir -p "$work/ws/tools"
+cp -r "$root/tools/browser" "$work/ws/tools/browser"
 touch "$work/ws/BUILD.bazel"
 
 in_ws() { (cd "$work/ws" && "$bazel" --output_user_root="$work/out" "$@" --repository_cache="$cache" </dev/null >"$work/log" 2>&1); }

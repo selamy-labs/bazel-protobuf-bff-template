@@ -1,0 +1,33 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+ARGS = [
+    "$(rootpath //bff/cmd/bff-dev)",
+    "$(rootpath //web/serve)",
+    "$(rootpath //web/app:dist_dev)",
+]
+
+DATA = [
+    "//bff/cmd/bff-dev",
+    "//web/app:dist_dev",
+    "//web/serve",
+]
+
+# testonly because it runs the dev server. `bazel run` accepts that; a deployable target cannot.
+sh_binary(
+    name = "dev",
+    testonly = True,
+    srcs = ["dev.sh"],
+    args = ARGS,
+    data = DATA,
+    env = {"BAZEL_BINDIR": "."},
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "dev_test",
+    size = "small",
+    srcs = ["dev_test.sh"],
+    args = ["$(rootpath dev.sh)"] + ARGS,
+    data = DATA + ["dev.sh"],
+)

@@ -84,3 +84,21 @@ http_file(
     sha256 = "a1dc1163ebac930b3b070655b91f2bc78df8b4aea940021661fe5ec7904a7b88",
     urls = ["https://raw.githubusercontent.com/bufbuild/protovalidate/4baed765070e580226a0a30bf2a357cc027dc1f7/proto/protovalidate/buf/validate/validate.proto"],
 )
+
+# The browser and every library it links, for Linux x86_64 (spec 005 research R1).
+http_archive = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_archive")
+
+http_archive(
+    name = "chrome_headless_shell",
+    build_file_content = """exports_files(["chrome-headless-shell"])
+
+filegroup(name = "files", srcs = glob(["**"]), visibility = ["//visibility:public"])
+""",
+    sha256 = "c3e50596aef52c58f8fda3c6b3411c33d34c88b177b3ed1c2243359fd3b8ba20",
+    strip_prefix = "chrome-headless-shell-linux64",
+    urls = ["https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-headless-shell-linux64.zip"],
+)
+
+browser_libs = use_repo_rule("//tools/browser:defs.bzl", "browser_libs")
+
+browser_libs(name = "browser_libs")

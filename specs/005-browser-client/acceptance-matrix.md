@@ -13,12 +13,16 @@ local verifier, **ci** hosted CI (not run), **hum** human.
 | FR-006 | `browser_smoke_test` | the browser starts with only pinned libraries | G | off |
 | FR-007 | `defect_e2e_test` | broken mapping → exactly the not-found scenarios fail | G | off |
 | FR-008 | `bundle_test` | test identity in the production bundle → fails | G | off |
-| FR-009 | `dev_test` | the runner serves the page and the server | G | off |
+| FR-009 | `dev_test` | the runner serves the page and the server, and stops both | G | off |
 | FR-010 | `required_tests.txt`, `fresh_clone.sh` | a missing test fails the inventory | G | loc |
 
 | SC | Witness | Status |
 | --- | --- | --- |
-| SC-001 | `fresh_clone.sh` | Planned |
-| SC-002 | `notes_e2e_test` | Planned |
-| SC-003 | `defect_e2e_test` | Planned |
-| SC-004 | `bundle_test` | Planned |
+| SC-001 | `fresh_clone.sh` | See [evidence](../../docs/evidence/m2-m4.md) |
+| SC-002 | `notes_e2e_test` | Local, passing |
+| SC-003 | `defect_e2e_test` | Local, passing |
+| SC-004 | `bundle_test` | Local, passing |
+
+Limits: the pinned browser exists for Linux x86_64 only, and needs glibc 2.36 or newer. Chromium runs
+with `--no-sandbox`, in tests only. The production web build has no credential source, so it cannot
+complete a call until an adopter adds one.

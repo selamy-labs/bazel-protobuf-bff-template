@@ -2,21 +2,23 @@
 
 ## Purpose
 
-This project is building a neutral starter for contract-first web applications. The goal is a
-browser client and a backend-for-frontend that talk only through generated Protocol Buffer/Connect
-clients, with Bazel owning the toolchains, code generation and tests, and with shared, versioned
-quality checks that run identically in Git hooks, in the local verifier and in CI. Today only the
-toolchain and verifier parts exist; the status below says exactly what does.
+This is a neutral starter for contract-first web applications. A browser client and a
+backend-for-frontend talk only through generated Protocol Buffer/Connect clients, and Bazel owns the
+toolchains, code generation and tests. The aim is shared, versioned quality checks that run the same
+way in Git hooks, in the local verifier and in CI. Hooks and shared-check distribution are not built
+yet.
 
-**Status: M1 (hermetic skeleton).** The pinned toolchain, the shared quality module and the
-canonical verifier exist, and an independent review of them is being remediated (see
-[review-remediation.md](specs/002-hermetic-skeleton/review-remediation.md)). There is no application
-code yet; that starts in M2. The repository is
-local-only and unpublished.
+**Status: M1 to M4 exist locally.** The app works: `CreateNote` and `GetNote` run from a React page
+through a Go server, tested in a pinned browser. M1 and M2 passed independent local Linux
+verification. M3 and M4 await independent review, and [the evidence page](docs/evidence/m2-m4.md)
+lists what has and has not been observed. macOS and hosted CI are unverified. The repository is
+local-only and unpublished, and it ships no identity provider, so the production server refuses to
+start until you add one ([bff/README.md](bff/README.md)).
 
 ## How to use and test
 
-Prerequisites: Git, bash, curl and coreutils (GNU `timeout`, `sha256sum`, `tar`). Bazel itself, the Go SDK, Python
+Prerequisites: Git, bash, curl and coreutils (GNU `timeout`, `sha256sum`, `tar`), on a Linux x86_64
+host with glibc 2.36 or newer for the browser tests. Bazel itself, the Go SDK, Node, Python, a browser
 and every check tool are fetched at pinned, checksummed versions; `tools/bootstrap/bazel.sh` verifies
 the Bazel binary on every call. The verifier discards the caller's environment, so rc files, tool options and PATH helpers cannot
 change a verdict. It does trust its own caches under `$HOME/.cache`: Bazel does not re-hash an
@@ -33,6 +35,15 @@ them, opt in to reduced isolation explicitly; the result is labeled `isolation: 
 ```sh
 tools/verify.sh --weak-isolation
 ```
+
+To run the app, then open <http://127.0.0.1:5173>:
+
+```sh
+tools/bootstrap/bazel.sh run //tools/dev
+```
+
+On a host that needs reduced isolation, add `--config=weak-isolation` after `run`. This command uses
+the development server, which accepts any test identity and listens only on loopback.
 
 Other entry points:
 

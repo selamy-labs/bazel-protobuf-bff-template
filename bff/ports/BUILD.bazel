@@ -4,5 +4,8 @@ go_library(
     name = "ports",
     srcs = ["store.go"],
     importpath = "example.com/bfftemplate/bff/ports",
-    visibility = ["//bff:__subpackages__"],
+    visibility = [
+        "//bff:__subpackages__",
+        "//web/e2e:__pkg__",
+    ],
 )

@@ -64,8 +64,22 @@ These are fetched by version and checksum and are not vendored.
 | @connectrpc/connect | 2.2.0 | Apache-2.0 | same |
 | TypeScript | 6.0.3 | Apache-2.0 | same |
 
+## Browser and web toolchain (M4)
+
+These are fetched by version and checksum, used at build or test time, and not redistributed. React
+and connect-web are bundled into the built page, so a deployed bundle carries their licenses.
+
+| Item | Version | License | Where pinned |
+| --- | --- | --- | --- |
+| React, React DOM | 19.3.1 | MIT | `pnpm-lock.yaml` |
+| @connectrpc/connect-web | 2.2.0 | Apache-2.0 | same |
+| Vite | 8.3.4 | MIT | same |
+| @playwright/test | 1.64.1 | Apache-2.0 | same |
+| @types/node, @types/react, @types/react-dom | see `package.json` | MIT | same |
+| chrome-headless-shell | 156.0.8078.4 | BSD-3-Clause and bundled third-party licenses | `MODULE.bazel` (sha256) |
+| Debian 12 shared libraries for the browser | see `tools/browser/debs.bzl` | as published by each Debian package (for example MPL-2.0 for NSS, LGPL for GLib); to be enumerated by T077 | `tools/browser/debs.bzl` (sha256) |
+
 ## Planned dependencies (pinned when their first consumer arrives)
 
 These dependencies are not vendored, so they are fetched by pinned version or digest. Their
-licenses are recorded when they are pinned (task T077 automates the check): connect-web, React, Vite,
-Playwright, prek.
+licenses are recorded when they are pinned (task T077 automates the check): prek.

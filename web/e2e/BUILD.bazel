@@ -1,0 +1,114 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@npm//:@playwright/test/package_json.bzl", playwright = "bin")
+load("@rules_go//go:def.bzl", "go_binary", "go_library")
+
+BROWSER_DATA = ["//tools/browser:browser"]
+
+BROWSER_ENV = {"BROWSER_DIR": "$(rootpath //tools/browser:browser)"}
+
+js_test(
+    name = "browser_smoke_test",
+    size = "small",
+    data = BROWSER_DATA + [
+        "stack.mjs",
+        "//:node_modules/@playwright/test",
+        "//web/serve:serve_lib",
+    ],
+    entry_point = "smoke.mjs",
+    env = BROWSER_ENV,
+)
+
+E2E_DATA = BROWSER_DATA + [
+    "notes.spec.mjs",
+    "playwright.config.mjs",
+    "stack.mjs",
+    "//:node_modules/@playwright/test",
+    "//web/app:dist_dev",
+    "//web/serve:serve_lib",
+]
+
+playwright.playwright_test(
+    name = "notes_e2e_test",
+    size = "medium",
+    args = [
+        "test",
+        "--config",
+        "web/e2e/playwright.config.mjs",
+    ],
+    data = E2E_DATA + ["//bff/cmd/bff-dev"],
+    env = BROWSER_ENV | {
+        "BFF_BIN": "$(rootpath //bff/cmd/bff-dev)",
+        "WEB_DIST": "$(rootpath //web/app:dist_dev)",
+    },
+)
+
+# The defect witness (spec 005 research R5): the same specs against a server whose error mapping is
+# broken in one place. The chain repeats only what must be rebuilt around the edited file.
+genrule(
+    name = "defect_interceptors",
+    testonly = True,
+    srcs = ["//bff/transport:interceptors.go"],
+    outs = ["defect/interceptors.go"],
+    cmd = """sed 's/return connect.NewError(connect.CodeNotFound, "note not found")/return internal(ctx, logger, spec, err)/' $< >$@
+if cmp -s $< $@; then echo 'the defect changed nothing' >&2; exit 1; fi""",
+)
+
+go_library(
+    name = "defect_transport",
+    testonly = True,
+    srcs = [
+        ":defect_interceptors",
+        "//bff/transport:cors.go",
+        "//bff/transport:handlers.go",
+    ],
+    importpath = "example.com/bfftemplate/bff/transport",
+    deps = [
+        "//api:notes_connect_go",
+        "//api:notes_go",
+        "//bff/app",
+        "//bff/identity",
+        "//bff/ports",
+        "@build_buf_go_protovalidate//:protovalidate",
+        "@com_connectrpc_connect_v2//:connect",
+        "@com_connectrpc_connect_v2//connecthttp",
+        "@com_connectrpc_connect_v2//connectproto",
+        "@org_golang_google_protobuf//proto",
+        "@org_golang_google_protobuf//types/known/timestamppb",
+    ],
+)
+
+go_library(
+    name = "defect_server",
+    testonly = True,
+    srcs = ["//bff/server:server.go"],
+    importpath = "example.com/bfftemplate/bff/server",
+    deps = [
+        ":defect_transport",
+        "//bff/app",
+        "//bff/identity",
+        "//bff/ports",
+    ],
+)
+
+go_binary(
+    name = "defect_bff",
+    testonly = True,
+    srcs = ["//bff/cmd/bff-dev:main.go"],
+    deps = [
+        ":defect_server",
+        "//bff/adapters/memory",
+        "//bff/testing/faults",
+        "//bff/testing/identity",
+    ],
+)
+
+js_test(
+    name = "defect_e2e_test",
+    size = "medium",
+    data = E2E_DATA + [":defect_bff"],
+    entry_point = "defect.mjs",
+    env = BROWSER_ENV | {
+        "BFF_BIN": "$(rootpath :defect_bff)",
+        "WEB_DIST": "$(rootpath //web/app:dist_dev)",
+    },
+)

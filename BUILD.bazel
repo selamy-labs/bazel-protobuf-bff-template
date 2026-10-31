@@ -17,6 +17,13 @@ exports_files(
 
 npm_link_all_packages(name = "node_modules")
 
+# Runs the app locally with test identity. See tools/dev/dev.sh.
+alias(
+    name = "dev",
+    testonly = True,
+    actual = "//tools/dev",
+)
+
 ts_config(
     name = "tsconfig",
     src = "tsconfig.json",
