@@ -16,4 +16,4 @@ Parent task ids are in brackets.
 - [x] T010 Ban committed generated code and stray buf configuration; require a full clone in CI
 - [x] T011 [T019] API-style ledger in `docs/api-style.md`
 - [x] T012 Add the checks and tests to the verifier's inventories; update provenance
-- [ ] T013 Replace the bootstrap marker with the commit that introduces the schema
+- [x] T013 Replace the bootstrap marker with the commit that introduces the schema
