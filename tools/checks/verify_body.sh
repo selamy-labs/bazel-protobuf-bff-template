@@ -65,13 +65,13 @@ run_check() { # run_check <id> <command...>: bounded, non-interactive, never abo
   return 1
 }
 
-if ! tools/bootstrap/preflight.sh "${preflight_args[@]}" >"$work/preflight.log" 2>&1; then
+if ! timeout --kill-after=10 600 tools/bootstrap/preflight.sh "${preflight_args[@]}" </dev/null >"$work/preflight.log" 2>&1; then
   cat "$work/preflight.log" >&2
   echo "verify: preflight failed; nothing was verified" >&2
   exit 1
 fi
 
-if ! "${bazel[@]}" run "${bazel_flags[@]}" --noshow_progress --ui_event_filters=-info,-stdout,-stderr \
+if ! timeout --kill-after=10 1200 "${bazel[@]}" run "${bazel_flags[@]}" --noshow_progress --ui_event_filters=-info,-stdout,-stderr \
   //:tool_paths </dev/null >"$work/tools.env" 2>"$work/tools.log"; then
   tail -n 30 "$work/tools.log" >&2
   echo "verify: could not fetch the pinned tools; nothing was verified (rerun: $rerun)" >&2
@@ -83,7 +83,7 @@ set -a
 set +a
 
 tool_version() { # first line of a tool's version output, restricted to safe characters
-  "$@" </dev/null 2>&1 | head -1 | tr -cd 'A-Za-z0-9._ +-'
+  timeout --kill-after=5 30 "$@" </dev/null 2>&1 | head -1 | tr -cd 'A-Za-z0-9._ +-'
 }
 bazel_binary="$("${bazel[@]}" --path)"
 versions=(
@@ -91,10 +91,10 @@ versions=(
   "\"actionlint\":\"$(tool_version "$ACTIONLINT" --version)\""
   "\"buildifier\":\"$(tool_version "$BUILDIFIER" --version)\""
   "\"gitleaks\":\"$(tool_version "$GITLEAKS" --version)\""
-  "\"shellcheck\":\"$("$SHELLCHECK" --version </dev/null | sed -n 's/^version: //p' | tr -cd 'A-Za-z0-9._+-')\""
+  "\"shellcheck\":\"$(timeout 30 "$SHELLCHECK" --version </dev/null | sed -n 's/^version: //p' | tr -cd 'A-Za-z0-9._+-')\""
   "\"typos\":\"$(tool_version "$TYPOS" --version)\""
   "\"uv\":\"$(tool_version "$UV" --version)\""
-  "\"yq\":\"$("$YQ" --version </dev/null | sed 's/.*version //' | tr -cd 'A-Za-z0-9._+-')\""
+  "\"yq\":\"$(timeout 30 "$YQ" --version </dev/null | sed 's/.*version //' | tr -cd 'A-Za-z0-9._+-')\""
   "\"zizmor\":\"$(tool_version "$ZIZMOR" --version)\""
 )
 if $bootstrap_only; then
@@ -110,7 +110,7 @@ fi
 
 test_targets=0
 if [[ $status -eq 0 ]]; then
-  test_targets="$("${bazel[@]}" query --noshow_progress 'tests(//... + @bff_template_quality//...)' 2>/dev/null </dev/null | wc -l | tr -d ' ')" || true
+  test_targets="$(timeout --kill-after=10 300 "${bazel[@]}" query --noshow_progress 'tests(//... + @bff_template_quality//...)' 2>/dev/null </dev/null | wc -l | tr -d ' ')" || true
   run_check bazel-test "${bazel[@]}" test "${bazel_flags[@]}" --nocache_test_results --noshow_progress //... @bff_template_quality//... || true
   run_check workspace-policy tools/policy/workspace_policy.sh "$work/all" || true
   run_check implicit-config tools/policy/config_policy.sh "$work/all" || true

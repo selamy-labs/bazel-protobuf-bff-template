@@ -35,7 +35,7 @@ fi
 isolation=full
 if [[ "$(uname -s)" == "Linux" ]]; then
   helper="$(cd "$root" && tools/bootstrap/bazel.sh info install_base 2>/dev/null)/linux-sandbox"
-  if [[ ! -x "$helper" ]] || ! "$helper" -- /bin/true </dev/null >/dev/null 2>&1; then
+  if [[ ! -x "$helper" ]] || ! timeout 30 "$helper" -- /bin/true </dev/null >/dev/null 2>&1; then
     isolation=unavailable
     cause="Bazel's linux-sandbox cannot create user/mount namespaces"
     if [[ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2>/dev/null)" == "1" ]]; then

@@ -8,11 +8,14 @@
 #                                     Spec Kit provenance check (CI never passes this)
 #   tools/verify.sh --bootstrap-only  fetch and verify the pinned toolchain, then stop
 #
+# The whole run has one overall deadline, inside CI's job timeout. Each phase also has its own.
+#
 # This wrapper discards the caller's environment, so rc files, tool options and PATH helpers
 # cannot change a verdict. Only what is listed here reaches the verifier. Network proxy settings
 # pass through because they affect how pinned artifacts are fetched, never what they are.
 set -euo pipefail
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+deadline=2400
 
 keep=(
   "HOME=$HOME"
@@ -29,4 +32,9 @@ for name in HTTP_PROXY HTTPS_PROXY NO_PROXY http_proxy https_proxy no_proxy SSL_
   XDG_CACHE_HOME GITHUB_RUN_ID GITHUB_RUN_ATTEMPT GITHUB_WORKFLOW GITHUB_JOB; do
   if [[ -n "${!name:-}" ]]; then keep+=("$name=${!name}"); fi
 done
-exec env -i "${keep[@]}" bash "$root/tools/checks/verify_body.sh" "$root" "$@"
+rc=0
+env -i "${keep[@]}" timeout --kill-after=30 "$deadline" bash "$root/tools/checks/verify_body.sh" "$root" "$@" || rc=$?
+if [[ $rc -eq 124 || $rc -eq 137 ]]; then
+  echo "verify: overall deadline of ${deadline}s exceeded; the verifier was killed and proved nothing" >&2
+fi
+exit "$rc"

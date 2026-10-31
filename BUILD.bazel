@@ -85,6 +85,27 @@ sh_test(
 )
 
 sh_test(
+    name = "verify_deadline_test",
+    size = "small",
+    srcs = ["tools/verify_deadline_test.sh"],
+    data = ["tools/verify.sh"],
+)
+
+sh_test(
+    name = "normalize_json_test",
+    size = "small",
+    srcs = ["tools/speckit/normalize_json_test.sh"],
+    args = ["$(rootpath @bff_template_quality//tools:yq)"],
+    data = [
+        ".specify/integrations/speckit.manifest.json",
+        ".specify/workflows/workflow-registry.json",
+        ".specify/init-options.json",
+        "tools/speckit/normalize_json.sh",
+        "@bff_template_quality//tools:yq",
+    ],
+)
+
+sh_test(
     name = "inventory_test",
     size = "small",
     srcs = ["tools/checks/inventory_test.sh"],

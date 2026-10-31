@@ -2,10 +2,11 @@
 
 ## Purpose
 
-This is a neutral starter for contract-first web applications. It contains a browser client and a
-backend-for-frontend that talk only through generated Protocol Buffer/Connect clients. Bazel owns
-the toolchains, code generation and tests. The quality checks are shared and versioned, and they
-run identically in Git hooks, in the local verifier and in CI.
+This project is building a neutral starter for contract-first web applications. The goal is a
+browser client and a backend-for-frontend that talk only through generated Protocol Buffer/Connect
+clients, with Bazel owning the toolchains, code generation and tests, and with shared, versioned
+quality checks that run identically in Git hooks, in the local verifier and in CI. Today only the
+toolchain and verifier parts exist; the status below says exactly what does.
 
 **Status: M1 (hermetic skeleton).** The pinned toolchain, the shared quality module and the
 canonical verifier exist, and an independent review of them is being remediated (see

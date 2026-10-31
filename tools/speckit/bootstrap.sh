@@ -31,6 +31,24 @@ else
     "--ui_event_filters=-info,-stdout,-stderr" @bff_template_quality//tools:uv --)
 fi
 
+if [[ -z "${YQ:-}" ]]; then
+  # Same reasoning as uv above. normalize_json.sh runs YQ as one command, so give it a real path.
+  YQ="$(mktemp)"
+  trap 'rm -f "$YQ"' EXIT
+  printf '#!/bin/sh\nexec %q run --config=weak-isolation --noshow_progress "--ui_event_filters=-info,-stdout,-stderr" @bff_template_quality//tools:yq -- "$@"\n' \
+    "$root/tools/bootstrap/bazel.sh" >"$YQ"
+  chmod +x "$YQ"
+fi
+export YQ
+
+canonical_tree() { # canonical_tree <root> <empty dir>: copies the scaffold with stamped files normalized
+  (cd "$1" && tar -cf - "${scaffold_paths[@]}") | tar -xf - -C "$2"
+  local path
+  for path in "${stamped[@]}"; do
+    "$root/tools/speckit/normalize_json.sh" "$path" "$1/$path" >"$2/$path"
+  done
+}
+
 specify_in() { # specify_in <empty directory>: installs the pinned CLI there; prints its path
   local dir="$1"
   "${uv[@]}" venv --no-config --quiet --python-preference only-managed --python "$PYTHON_VERSION" "$dir/venv" >&2
@@ -55,6 +73,14 @@ scaffold_paths=(
 
 manifest="tools/speckit/scaffold.sha256"
 
+# Spec Kit writes these with install timestamps and host-dependent key order. They are compared by
+# meaning (normalize_json.sh); everything else is compared byte for byte.
+stamped=(
+  .specify/integrations/speckit.manifest.json
+  .specify/integrations/claude.manifest.json
+  .specify/workflows/workflow-registry.json
+)
+
 write_manifest() { # $1 = tree root; prints the manifest for its scaffold files
   (cd "$1" && find "${scaffold_paths[@]}" -type f -print0 | LC_ALL=C sort -z | xargs -0 sha256sum)
 }
@@ -63,20 +89,21 @@ case "${1:-verify}" in
   verify)
     tmp="$(mktemp -d)"
     trap 'rm -rf "$tmp" "$tmp".tool.*' EXIT
-    specify="$(specify_in "$(mktemp -d "$tmp.tool.XXXX")")"
+    mkdir "$tmp.tool.env" "$tmp.tool.want" "$tmp.tool.have"
+    specify="$(specify_in "$tmp.tool.env")"
     (cd "$tmp" && git init -q && "$specify" init --here --force "${INIT_ARGS[@]}" >/dev/null)
     status=0
-    for p in "${scaffold_paths[@]}"; do
-      if ! diff -r -I '"\(installed\|updated\)_at"' "$tmp/$p" "$root/$p" >/dev/null 2>&1; then
-        echo "speckit-scaffold: drift in $p (expected ${SPECKIT_TAG} ${SPECKIT_COMMIT})" >&2
-        diff -r -I '"\(installed\|updated\)_at"' "$tmp/$p" "$root/$p" | head -20 >&2 || true
-        status=1
-      fi
-    done
-    # The committed manifest must describe a pin-generated scaffold, not a hand-edited one. Files
-    # carrying install timestamps are content-checked by the timestamp-tolerant diff above.
-    stamped=(-e integrations/speckit.manifest.json -e integrations/claude.manifest.json -e workflows/workflow-registry.json)
-    if ! diff <(write_manifest "$tmp" | grep -v "${stamped[@]}") <(grep -v "${stamped[@]}" "$root/$manifest") >/dev/null; then
+    canonical_tree "$tmp" "$tmp.tool.want"
+    canonical_tree "$root" "$tmp.tool.have"
+    if ! diff -r "$tmp.tool.want" "$tmp.tool.have" >"$tmp.tool.diff" 2>&1; then
+      echo "speckit-scaffold: drift from ${SPECKIT_TAG} ${SPECKIT_COMMIT}:" >&2
+      sed "s|$tmp.tool.want|<pinned>|g; s|$tmp.tool.have|<repository>|g" "$tmp.tool.diff" | head -20 >&2
+      status=1
+    fi
+    # The committed manifest must describe a pin-generated scaffold, not a hand-edited one. Stamped
+    # files have host-dependent raw hashes, and the comparison above covers their meaning.
+    unstamped() { grep -vFf <(printf '  %s\n' "${stamped[@]}"); }
+    if ! diff <(write_manifest "$tmp" | unstamped) <(unstamped <"$root/$manifest") >/dev/null; then
       echo "speckit-scaffold: $manifest does not match the pinned scaffold (rerun: tools/speckit/bootstrap.sh manifest)" >&2
       status=1
     fi

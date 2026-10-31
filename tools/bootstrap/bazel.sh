@@ -30,7 +30,8 @@ matches() { [[ "$(sha256sum "$1" | cut -d' ' -f1)" == "$sha256" ]]; }
 if [[ ! -f "$bin" ]]; then
   mkdir -p "$cache"
   tmp="$(mktemp "$cache/download.XXXXXX")"
-  if ! curl --fail --silent --show-error --location --retry 3 --output "$tmp" "$url" </dev/null; then
+  if ! curl --fail --silent --show-error --location --retry 3 --connect-timeout 30 --max-time 600 \
+    --output "$tmp" "$url" </dev/null; then
     rm -f "$tmp"
     echo "bazel-pin: download failed: $url" >&2
     exit 1
