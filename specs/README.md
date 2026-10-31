@@ -9,7 +9,8 @@ umbrella spec (the "spec of specs") and holds the milestone map that the later s
 | [002-hermetic-skeleton](002-hermetic-skeleton/) | M1: hermetic skeleton and bootstrap | Local Linux review passed at `2ef8e2f` (2026-10-31). macOS and hosted CI remain unverified. |
 | [003-notes-contract](003-notes-contract/) | M2: neutral notes contract and build-time generation | Independent local Linux verification passed at `a26b71b` (2026-10-31). |
 | [004-go-bff](004-go-bff/) | M3: Go BFF for notes | Implemented; independent review pending |
-| 005+ | M4–M10 | Each is created with `/speckit-specify` when its milestone starts |
+| [005-browser-client](005-browser-client/) | M4: browser client and end-to-end tests | Implementing |
+| 006+ | M5–M10 | Each is created with `/speckit-specify` when its milestone starts |
 
 Start with [design.md](001-bff-template-foundation/design.md) to review the package, then read
 [issue-map.md](001-bff-template-foundation/issue-map.md) and
