@@ -78,19 +78,26 @@ func deepBody() string {
 	return body
 }
 
-// TestPackageLevelLiteralsAreMeasured is the regression for an independent control that planted the same ten
-// nested ifs in a map callback and saw the file pass with no function measured.
+// TestPackageLevelLiteralsAreMeasured is the regression for two independent controls: the first planted ten
+// nested ifs in a map callback and saw the file pass with no function measured; the second, after a
+// hand-enumerated fix, planted the same literal as an immediately invoked call and as an operand and saw both
+// pass. Every expression shape of a package-level initializer is measured now, by one walk.
 func TestPackageLevelLiteralsAreMeasured(t *testing.T) {
+	deep := "func(x int) int {\n" + deepBody() + "\treturn 0\n}"
 	cases := map[string]struct {
 		source string
 		names  []string
 	}{
-		"a declaration":          {"package p\n\nfunc Deep(x int) int {\n" + deepBody() + "\treturn 0\n}\n", []string{"Deep"}},
-		"a variable":             {"package p\n\nvar Deep = func(x int) int {\n" + deepBody() + "\treturn 0\n}\n", []string{"Deep"}},
-		"a map callback":         {"package p\n\nvar callbacks = map[string]func(int) int{\"deep\": func(x int) int {\n" + deepBody() + "\treturn 0\n}}\n", []string{"callbacks[\"deep\"]"}},
-		"a slice element":        {"package p\n\nvar handlers = []func(int) int{func(x int) int {\n" + deepBody() + "\treturn 0\n}}\n", []string{"handlers[0]"}},
-		"a struct field":         {"package p\n\ntype T struct{ Run func(int) int }\n\nvar cfg = T{Run: func(x int) int {\n" + deepBody() + "\treturn 0\n}}\n", []string{"cfg[Run]"}},
-		"a constructor argument": {"package p\n\nfunc wrap(f func(int) int) func(int) int { return f }\n\nvar wrapped = wrap(func(x int) int {\n" + deepBody() + "\treturn 0\n})\n", []string{"wrap", "wrapped(0)"}},
+		"a declaration":     {"package p\n\nfunc Deep(x int) int {\n" + deepBody() + "\treturn 0\n}\n", []string{"Deep"}},
+		"a variable":        {"package p\n\nvar Deep = " + deep + "\n", []string{"Deep@3:12"}},
+		"a map callback":    {"package p\n\nvar callbacks = map[string]func(int) int{\"deep\": " + deep + "}\n", []string{"callbacks@3:50"}},
+		"a slice element":   {"package p\n\nvar handlers = []func(int) int{" + deep + "}\n", []string{"handlers@3:32"}},
+		"a struct field":    {"package p\n\ntype T struct{ Run func(int) int }\n\nvar cfg = T{Run: " + deep + "}\n", []string{"cfg@5:18"}},
+		"a call argument":   {"package p\n\nfunc wrap(f func(int) int) func(int) int { return f }\n\nvar wrapped = wrap(" + deep + ")\n", []string{"wrap", "wrapped@5:20"}},
+		"an immediate call": {"package p\n\nvar result = (" + deep + ")(1)\n", []string{"result@3:15"}},
+		"an operand":        {"package p\n\nvar sum = (" + deep + ")(1) + 1\n", []string{"sum@3:12"}},
+		"an index base":     {"package p\n\nvar first = []func(int) int{" + deep + "}[0]\n", []string{"first@3:29"}},
+		"a map key":         {"package p\n\nvar keyed = map[string]int{(" + deep + ")(1) == 0: 1}\n", []string{"keyed@3:29"}},
 	}
 	b := budgets(t, `{"measured_at": "test", "ceilings": {"cognitive": 20, "cyclomatic": 10}}`)
 	for name, c := range cases {
@@ -105,12 +112,12 @@ func TestPackageLevelLiteralsAreMeasured(t *testing.T) {
 		if strings.Join(names, ",") != strings.Join(c.names, ",") {
 			t.Errorf("%s: measured %v, want %v", name, names, c.names)
 		}
-		deep := measured[len(measured)-1]
-		if deep.Values[Cognitive] != 55 || deep.Values[Cyclomatic] != 11 {
-			t.Errorf("%s: %s measured %v, want cognitive 55 and cyclomatic 11", name, deep.Name, deep.Values)
+		last := measured[len(measured)-1]
+		if last.Values[Cognitive] != 55 || last.Values[Cyclomatic] != 11 {
+			t.Errorf("%s: %s measured %v, want cognitive 55 and cyclomatic 11", name, last.Name, last.Values)
 		}
 		_, problems, err := b.Check([]string{"a.go"}, sources(map[string]string{"a.go": c.source}))
-		if err != nil || len(problems) != 2 || !strings.Contains(problems[0], deep.Name+": cognitive 55 is over its ceiling 20") {
+		if err != nil || len(problems) != 2 || !strings.Contains(problems[0], last.Name+": cognitive 55 is over its ceiling 20") {
 			t.Errorf("%s: problems %v, err %v", name, problems, err)
 		}
 	}
@@ -118,7 +125,7 @@ func TestPackageLevelLiteralsAreMeasured(t *testing.T) {
 	// function is part of that function's, so neither is listed twice; a file with no function is still a measurement.
 	nestedSource := "package p\n\nvar outer = func() func() int {\n\treturn func() int {\n\t\tif true {\n\t\t\treturn 1\n\t\t}\n\t\treturn 0\n\t}\n}\n\nfunc Decl() func() int { return func() int { return 2 } }\n"
 	measured, err := MeasureFile("a.go", []byte(nestedSource))
-	if err != nil || len(measured) != 2 || measured[0].Name != "Decl" || measured[1].Name != "outer" || measured[1].Values[Cognitive] != 2 {
+	if err != nil || len(measured) != 2 || measured[0].Name != "Decl" || measured[1].Name != "outer@3:13" || measured[1].Values[Cognitive] != 2 {
 		t.Errorf("nested: %+v %v", measured, err)
 	}
 	if measured, err := MeasureFile("a.go", []byte("package p\n\nvar x = 1\n\nvar y = []int{1, 2}\n")); err != nil || len(measured) != 0 {

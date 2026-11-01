@@ -176,8 +176,8 @@ func (b *Budgets) limit(function string, metric Metric) (int, bool) {
 }
 
 // MeasureFile measures every function of one parsed Go file: each declared function and method, and each
-// function literal that lives at package level, in a variable, a map, a slice or a struct literal, named by its
-// site. Both tools read the same syntax tree. A literal inside a function body belongs to that function and is
+// function literal that lives at package level, in any expression of a variable's initializer, named by the
+// variable and the literal's line and column. Both tools read the same syntax tree. A literal inside a function body belongs to that function and is
 // counted inside it by both measures, so it is not listed twice; a literal at package level belongs to no
 // function, and an independent control showed that leaving it out let it pass unmeasured.
 func MeasureFile(path string, source []byte) ([]Measurement, error) {
@@ -190,7 +190,7 @@ func MeasureFile(path string, source []byte) ([]Measurement, error) {
 	if err != nil {
 		return nil, err
 	}
-	return append(result, packageLiterals(path, file)...), nil
+	return append(result, packageLiterals(path, fset, file)...), nil
 }
 
 // declarations pairs each declared function with gocognit's measurement of it, in declaration order, and adds
@@ -217,8 +217,12 @@ func declarations(path string, file *ast.File, stats []gocognit.Stat) ([]Measure
 	return result, nil
 }
 
-// packageLiterals measures the function literals under package-level variables.
-func packageLiterals(path string, file *ast.File) []Measurement {
+// packageLiterals measures every outermost function literal under a package-level variable's initializer,
+// whatever expression holds it: a value, a map or slice element, a struct field, a call's callee or argument, an
+// operand, an index or a key. ast.Inspect visits every node; at a literal the walk records it and does not enter
+// it, so a closure inside stays part of that literal's measure. An independent control had shown that a
+// hand-enumerated walk let an immediately invoked literal pass unmeasured.
+func packageLiterals(path string, fset *token.FileSet, file *ast.File) []Measurement {
 	var result []Measurement
 	for _, decl := range file.Decls {
 		gen, ok := decl.(*ast.GenDecl)
@@ -226,67 +230,38 @@ func packageLiterals(path string, file *ast.File) []Measurement {
 			continue
 		}
 		for _, spec := range gen.Specs {
-			value, ok := spec.(*ast.ValueSpec)
-			if !ok {
-				continue
-			}
-			for i, expr := range value.Values {
-				name := "_"
-				if i < len(value.Names) {
-					name = value.Names[i].Name
-				}
-				result = append(result, literals(path, name, expr)...)
+			if value, ok := spec.(*ast.ValueSpec); ok {
+				result = append(result, initializerLiterals(path, fset, value)...)
 			}
 		}
 	}
 	return result
 }
 
-// literals measures every outermost function literal under a package-level value expression, named by its site:
-// the variable itself, an element by its key or index, or a field by its name. A literal nested inside one of
-// them is part of that literal's measure.
-func literals(path, site string, expr ast.Expr) []Measurement {
-	switch n := expr.(type) {
-	case *ast.FuncLit:
-		decl := &ast.FuncDecl{Name: ast.NewIdent(site), Type: n.Type, Body: n.Body}
-		return []Measurement{{Path: path, Name: site, Values: map[Metric]int{
-			Cognitive:  gocognit.Complexity(decl),
-			Cyclomatic: gocyclo.Complexity(n),
-		}}}
-	case *ast.ParenExpr:
-		return literals(path, site, n.X)
-	case *ast.CompositeLit:
-		var found []Measurement
-		for i, element := range n.Elts {
-			if kv, ok := element.(*ast.KeyValueExpr); ok {
-				found = append(found, literals(path, site+"["+key(kv.Key)+"]", kv.Value)...)
-				continue
+// initializerLiterals measures the outermost literals of one variable specification's initializers.
+func initializerLiterals(path string, fset *token.FileSet, value *ast.ValueSpec) []Measurement {
+	var result []Measurement
+	for i, expr := range value.Values {
+		site := "_"
+		if i < len(value.Names) {
+			site = value.Names[i].Name
+		}
+		ast.Inspect(expr, func(n ast.Node) bool {
+			lit, ok := n.(*ast.FuncLit)
+			if !ok {
+				return true
 			}
-			found = append(found, literals(path, fmt.Sprintf("%s[%d]", site, i), element)...)
-		}
-		return found
-	case *ast.CallExpr:
-		var found []Measurement
-		for i, argument := range n.Args {
-			found = append(found, literals(path, fmt.Sprintf("%s(%d)", site, i), argument)...)
-		}
-		return found
-	case *ast.UnaryExpr:
-		return literals(path, site, n.X)
-	default:
-		return nil
+			position := fset.Position(lit.Pos())
+			name := fmt.Sprintf("%s@%d:%d", site, position.Line, position.Column)
+			decl := &ast.FuncDecl{Name: ast.NewIdent(name), Type: lit.Type, Body: lit.Body}
+			result = append(result, Measurement{Path: path, Name: name, Values: map[Metric]int{
+				Cognitive:  gocognit.Complexity(decl),
+				Cyclomatic: gocyclo.Complexity(lit),
+			}})
+			return false
+		})
 	}
-}
-
-func key(expr ast.Expr) string {
-	switch k := expr.(type) {
-	case *ast.BasicLit:
-		return k.Value
-	case *ast.Ident:
-		return k.Name
-	default:
-		return "?"
-	}
+	return result
 }
 
 // Result is what a check measured.
