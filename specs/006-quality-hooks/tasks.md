@@ -52,4 +52,7 @@ review is pending.
 - T018: this ledger, the contracts and the evidence. A review counterexample on spent contexts landed as
   `a2909a0`, red through its unit test first.
 
+- After review of `405f93a`: the `escalate` list became the one definition of policy inputs, for
+  escalation and for the digest. Red first over the real registry and real Git.
+
 Carried forward: the S005 coverage-marker re-witness in parent T047 moves to M6, so T047 stays open.

@@ -160,6 +160,15 @@ the stage, which keeps browser tests out with no tag and no second list. Bazel's
 decides what reruns, so there is one invocation, no query and no selection that could be wrong. Cost
 is a warm analysis. Bazel exit 4 stays `NOT_APPLICABLE`.
 
+## R9a Policy inputs
+
+The first `escalate` list and the digest's `policyPaths` were two lists, and they drifted. Independent
+review found active policy files outside escalation, and locks and frontend configuration outside the
+digest. The red case over the real registry also found `.gitignore`, which shapes the inventory,
+`api/BASELINE`, and `tools/{browser,proto,speckit}`. The registry's `escalate` list is now the one
+definition, and the digest is computed from it. Package `BUILD.bazel` files stay ordinary: `tests`
+judges them at pre-push. `tools/bench` and `tools/dev` stay ordinary because no verdict reads them.
+
 ## R10 Adapters
 
 `tools/checks/native.sh` is qualified and has fixtures, so it stays one file and moves to

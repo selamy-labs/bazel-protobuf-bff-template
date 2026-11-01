@@ -667,7 +667,7 @@ func TestTestedTree(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		tree, digest, err := TestedTree(context.Background(), git, inputs, t.TempDir())
+		tree, digest, err := TestedTree(context.Background(), git, inputs, []string{"^MODULE"}, t.TempDir())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -831,6 +831,86 @@ func TestEscalation(t *testing.T) {
 		if err != nil || got != test.want {
 			t.Errorf("%s: %v, %v", test.name, got, err)
 		}
+	}
+}
+
+func realRegistry(t *testing.T) *registrypb.Registry {
+	t.Helper()
+	registry, err := LoadRegistry(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("REGISTRY")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return registry
+}
+
+// The real registry over real commits with a known base: each file that shapes a verdict widens the
+// push, and ordinary code and documents do not.
+func TestRealRegistryEscalatesPolicyInputs(t *testing.T) {
+	registry := realRegistry(t)
+	h := committed(newHarness(t))
+	git := Git{Dir: h.dir, Env: gitEnv()}
+	policy := []string{
+		".bazelrc", ".bazelversion", ".github/workflows/ci.yml", ".gitignore", ".gitleaks.toml",
+		"BUILD.bazel", "MODULE.bazel", "MODULE.bazel.lock", "REPO.bazel", "_typos.toml", "api/BASELINE",
+		"go.mod", "go.sum", "package.json", "pnpm-lock.yaml", "pnpm-workspace.yaml", "prek.toml",
+		"quality/registry.textproto", "tools/bootstrap/bazel.sh", "tools/browser/debs.bzl",
+		"tools/checks/verify_body.sh", "tools/ci/policy.json", "tools/hooks/stage.sh",
+		"tools/pins/generate.sh", "tools/policy/bazelrc.allow", "tools/proto/defs.bzl",
+		"tools/speckit/bootstrap.sh", "tools/verify.sh", "tools/verify_deadline_test.sh",
+		"tsconfig.json", "web/app/vite.config.mjs", "web/e2e/playwright.config.mjs",
+		"web/lint/BUILD.bazel", "web/lint/eslint.config.mjs",
+	}
+	ordinary := []string{
+		"README.md", "api/template/notes/v1/notes.proto", "bff/BUILD.bazel", "bff/app/notes.go",
+		"docs/quality/hooks.md", "specs/006-quality-hooks/spec.md", "tools/README.md",
+		"tools/bench/measure.sh", "tools/dev/dev.sh", "web/app/src/App.tsx", "web/e2e/notes.spec.ts",
+	}
+	judge := func(path string, want bool) {
+		from := h.git("rev-parse", "HEAD")
+		h.write(path, "changed "+path+"\n")
+		h.git("add", "-A")
+		h.git("commit", "-q", "-m", path)
+		got, err := Escalates(context.Background(), git, registry.GetEscalate(), from, h.git("rev-parse", "HEAD"))
+		if err != nil || got != want {
+			t.Errorf("%s: escalates %v, want %v (%v)", path, got, want, err)
+		}
+	}
+	for _, path := range policy {
+		judge(path, true)
+	}
+	for _, path := range ordinary {
+		judge(path, false)
+	}
+}
+
+// The digest in a receipt names the same inputs that escalate: a change to one moves it, and an
+// ordinary change does not.
+func TestPolicyDigestCoversTheEscalationInputs(t *testing.T) {
+	h := committed(newHarness(t))
+	git := Git{Dir: h.dir, Env: gitEnv()}
+	paths := []string{"README.md", "go.sum", "package.json", "pnpm-lock.yaml", "tsconfig.json", "tools/verify.sh", "web/lint/eslint.config.mjs"}
+	digest := func() string {
+		_, value, err := TestedTree(context.Background(), git, &Inputs{Root: h.dir, All: paths}, realRegistry(t).GetEscalate(), t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return value
+	}
+	for _, path := range paths {
+		h.write(path, "first\n")
+	}
+	before := digest()
+	h.write("README.md", "second\n")
+	if digest() != before {
+		t.Error("an ordinary file moved the policy digest")
+	}
+	for _, path := range paths[1:] {
+		h.write(path, "second\n")
+		after := digest()
+		if after == before {
+			t.Errorf("%s did not move the policy digest", path)
+		}
+		before = after
 	}
 }
 

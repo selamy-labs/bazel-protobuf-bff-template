@@ -517,7 +517,7 @@ func (e *execution) identify(ctx context.Context, git Git, receipt *Receipt) {
 	inputs, err := Discover(ctx, git, e.options.Registry)
 	if err != nil {
 		missing("tested tree", err)
-	} else if tree, digest, err := TestedTree(ctx, git, inputs, filepath.Join(e.scratch, "tree")); err != nil {
+	} else if tree, digest, err := TestedTree(ctx, git, inputs, e.options.Registry.GetEscalate(), filepath.Join(e.scratch, "tree")); err != nil {
 		missing("tested tree", err)
 	} else {
 		receipt.TestedTree, receipt.PolicyDigest = tree, digest

@@ -206,15 +206,17 @@ func matches(path string, patterns []*regexp.Regexp, shell bool, root string) bo
 	return err == nil && info.Mode().IsRegular() && shebang.MatchString(firstLine(full))
 }
 
-// policyPaths is what the receipt's policy digest covers.
-var policyPaths = []string{
-	".bazelrc", ".bazelversion", "BUILD.bazel", "MODULE.bazel", "MODULE.bazel.lock", "REPO.bazel",
-	".gitleaks.toml", "_typos.toml", "prek.toml", "quality", "tools", ".github",
-}
-
 // TestedTree returns the Git tree of exactly what was found on disk, and the policy digest, written
 // to a scratch object store so measuring writes nothing into the repository.
-func TestedTree(ctx context.Context, git Git, inputs *Inputs, scratch string) (tree, digest string, err error) {
+func TestedTree(ctx context.Context, git Git, inputs *Inputs, policy []string, scratch string) (tree, digest string, err error) {
+	patterns := make([]*regexp.Regexp, 0, len(policy))
+	for _, pattern := range policy {
+		compiled, err := regexp.Compile(pattern)
+		if err != nil {
+			return "", "", err
+		}
+		patterns = append(patterns, compiled)
+	}
 	objects, err := git.Run(ctx, nil, "rev-parse", "--path-format=absolute", "--git-path", "objects")
 	if err != nil {
 		return "", "", err
@@ -237,10 +239,16 @@ func TestedTree(ctx context.Context, git Git, inputs *Inputs, scratch string) (t
 		return "", "", err
 	}
 	tree = strings.TrimSpace(string(written))
-	listing, err := private.Run(ctx, nil, append([]string{"ls-tree", "-r", tree, "--"}, policyPaths...)...)
+	listing, err := private.Run(ctx, nil, "ls-tree", "-r", "-z", tree)
 	if err != nil {
 		return "", "", err
 	}
-	sum := sha256.Sum256(listing)
-	return tree, hex.EncodeToString(sum[:]), nil
+	hash := sha256.New()
+	for _, entry := range Split(listing) {
+		_, path, _ := strings.Cut(entry, "\t")
+		if matchesAny(path, patterns) {
+			_, _ = hash.Write([]byte(entry + "\x00"))
+		}
+	}
+	return tree, hex.EncodeToString(hash.Sum(nil)), nil
 }

@@ -36,9 +36,12 @@ user-facing behavior and limits are in [docs/quality/hooks.md](../../../docs/qua
      every ref.
 4. **Paths are passed NUL-delimited** end to end. This covers renames, deletions and paths that
    contain spaces or newlines.
-5. **Escalation happens at pre-push only.** A change to `quality/**`, `prek.toml`, `.bazelrc`,
-   `.bazelversion`, `MODULE.bazel*` or the tool locks escalates pre-push to `full`. Pre-commit never
-   escalates.
+5. **Escalation happens at pre-push only.** A change to a policy input, which the registry's
+   `escalate` list names, escalates pre-push to `full`. These are the files that shape a verdict:
+   the quality module, build and tool configuration, locks, scan configuration, `api/BASELINE`, the
+   verifier and its scripts, and frontend lint, build and browser-test configuration. Ordinary code
+   and documents do not escalate, and pre-commit never does. A receipt's `policy_digest` covers
+   exactly the same paths. Judging whether a policy change is authorized is upstream #26.
 6. **Installation** uses `bazel run //tools/hooks:install`, which copies the pinned prek beside the
    Git data, because prek's shim records the path it was installed from, and calls that copy's
    `install` for the configured hook types. If the copy is deleted, the shim takes any `prek` on
