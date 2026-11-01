@@ -36,6 +36,8 @@ cleanup() {
   rm -rf "${work:?}"
 }
 trap cleanup EXIT
+# An EXIT trap does not run when bash dies of a signal, and the servers above must not outlive a deadline.
+trap 'exit 143' TERM INT
 
 export HOME="$work/home" XDG_CACHE_HOME="$work/home/.cache" TMPDIR="$work/tmp" PREK_HOME="$work/prek-home"
 export GIT_AUTHOR_NAME=a GIT_AUTHOR_EMAIL=a@example.com GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@example.com

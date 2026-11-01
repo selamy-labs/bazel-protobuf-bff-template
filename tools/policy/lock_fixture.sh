@@ -16,6 +16,7 @@ root="$(git rev-parse --show-toplevel)"
 bazel="$root/tools/bootstrap/bazel.sh"
 work="$(mktemp -d)"
 trap '(cd "$work/ws" 2>/dev/null && "$bazel" --output_user_root="$work/out" shutdown) >/dev/null 2>&1; (cd "$root" && "$bazel" --output_user_root="$work/out3" shutdown) >/dev/null 2>&1; chmod -R u+w "$work" 2>/dev/null; rm -rf "$work"' EXIT
+trap 'exit 143' TERM INT # An EXIT trap does not run when bash dies of a signal.
 cache="$(cd "$root" && "$bazel" info repository_cache)"
 
 mkdir -p "$work/ws"
