@@ -8,6 +8,9 @@
 # in Git configuration, set by //tools/hooks:install, so it cannot arrive from the environment.
 set -euo pipefail
 stage="${1:?usage: stage.sh <stage>}"
+# The runner derives its own inputs. A filename here means the prek configuration is wrong, and prek
+# would split a large commit into batches and judge each alone.
+[[ $# -eq 1 ]] || { echo "stage: takes no filenames; check pass_filenames in prek.toml" >&2; exit 2; }
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 common="$(git rev-parse --path-format=absolute --git-common-dir)"
