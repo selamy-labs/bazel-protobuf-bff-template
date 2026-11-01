@@ -10,6 +10,7 @@ js_test(
     name = "browser_smoke_test",
     size = "small",
     data = BROWSER_DATA + [
+        "issuer.mjs",
         "stack.mjs",
         "//:node_modules/@playwright/test",
         "//web/serve:serve_lib",
@@ -21,6 +22,7 @@ js_test(
 E2E_DATA = BROWSER_DATA + [
     "notes.spec.mjs",
     "playwright.config.mjs",
+    "issuer.mjs",
     "stack.mjs",
     "//:node_modules/@playwright/test",
     "//web/app:dist_dev",
@@ -64,6 +66,7 @@ playwright.playwright_test(
     ],
     data = BROWSER_DATA + [
         "hosted.spec.mjs",
+        "issuer.mjs",
         "playwright.config.mjs",
         "stack.mjs",
         ":example_inputs",
@@ -121,6 +124,7 @@ playwright.playwright_test(
         "local-stack.spec.mjs",
     ],
     data = BROWSER_DATA + [
+        "issuer.mjs",
         "local-stack.spec.mjs",
         "playwright.config.mjs",
         "stack.mjs",
