@@ -30,7 +30,7 @@ validator.
 | TypeScript lint and format | yes | yes | yes | see [m5](../evidence/m5.md) | no | no | `//web:eslint_test`, `format-ts` |
 | Coverage floors, base-built policy, CI legs | yes | yes | locally; the workflow has never run | see [m6](../evidence/m6.md) | no | no | `coverage-floor`, `floors-from-base`, `//:ci_parity_test` |
 | Hosted CI | yes | workflow only | no | no | no | no | Operator gate |
-| Consumer path and quality-pin upgrade | yes | yes | locally, on `file://` | see the evidence record for M7 | no | no | Spec 008 |
+| Consumer path and quality-pin upgrade | yes | yes | locally, on `file://` | see [m7](../evidence/m7.md) | no | no | Spec 008 |
 | Provenance and license inventory | yes | partly | no | no | no | no | M8 |
 | Public release | yes | no | no | no | no | no | Operator gate |
 
