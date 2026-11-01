@@ -1,3 +1,4 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 load("@npm//:vite/package_json.bzl", vite = "bin")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -78,4 +79,10 @@ sh_test(
         ":dist",
         ":dist_dev",
     ],
+)
+
+js_library(
+    name = "lint_srcs",
+    srcs = glob(["*.mjs", "*.tsx"]),
+    visibility = ["//web/lint:__pkg__"],
 )

@@ -59,7 +59,10 @@ export function toFailure(reason: unknown): Failure {
     case Code.DeadlineExceeded:
       return { kind: "deadline" };
     case Code.Internal:
-      return { kind: "internal", correlationId: correlationPattern.exec(error.rawMessage)?.[1] ?? null };
+      return {
+        kind: "internal",
+        correlationId: correlationPattern.exec(error.rawMessage)?.[1] ?? null,
+      };
     default:
       return { kind: "unknown" };
   }

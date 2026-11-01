@@ -71,7 +71,13 @@ test("an internal failure shows only the correlation id", () => {
 
 test("a fetch that never reached a server is unavailable", () => {
   assert.equal(toFailure(new TypeError("Failed to fetch")).kind, "unavailable");
-  const wrapped = new ConnectError("x", Code.Unknown, undefined, undefined, new TypeError("Failed to fetch"));
+  const wrapped = new ConnectError(
+    "x",
+    Code.Unknown,
+    undefined,
+    undefined,
+    new TypeError("Failed to fetch"),
+  );
   assert.equal(toFailure(wrapped).kind, "unavailable");
 });
 

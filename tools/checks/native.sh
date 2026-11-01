@@ -93,6 +93,10 @@ case "$check" in
       exit 1
     fi
     ;;
+  format-ts) # <NUL list>
+    on_files "$1" env BAZEL_BINDIR=. JS_BINARY__NO_CD_BINDIR=1 JS_BINARY__SILENT_ON_SUCCESS=1 RUNFILES="$RUNFILES_ROOT" "$PRETTIER" \
+      --check --no-config --no-editorconfig --print-width 100 --log-level warn
+    ;;
   actionlint) # <NUL list>
     on_files "$1" "$ACTIONLINT" -no-color -config-file /dev/null -shellcheck="$SHELLCHECK" -pyflakes=
     ;;

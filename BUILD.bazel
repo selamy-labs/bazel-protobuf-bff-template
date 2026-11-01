@@ -1,5 +1,6 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
@@ -16,6 +17,8 @@ exports_files(
 )
 
 npm_link_all_packages(name = "node_modules")
+
+prettier_bin.prettier_binary(name = "prettier")
 
 # Runs the app locally with test identity. See tools/dev/dev.sh.
 alias(
@@ -83,6 +86,7 @@ TOOLS = {
     "BUILDIFIER": "@bff_template_quality//tools:buildifier",
     "GITLEAKS": "@bff_template_quality//tools:gitleaks",
     "GOFMT": "@go_sdk//:bin/gofmt",
+    "PRETTIER": "//:prettier",
     "SHELLCHECK": "@bff_template_quality//tools:shellcheck",
     "SUPPRESSION": "@bff_template_quality//checks/suppression:suppression-ban",
     "TYPOS": "@bff_template_quality//tools:typos",

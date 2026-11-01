@@ -12,3 +12,9 @@ js_binary(
     entry_point = "serve.mjs",
     visibility = ["//tools/dev:__pkg__"],
 )
+
+js_library(
+    name = "lint_srcs",
+    srcs = glob(["*.mjs"]),
+    visibility = ["//web/lint:__pkg__"],
+)

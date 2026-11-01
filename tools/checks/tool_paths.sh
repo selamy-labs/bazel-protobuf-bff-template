@@ -13,3 +13,5 @@ for pair in "$@"; do
   # The verifier sources this output, and a checkout path can hold any character.
   printf '%s=%q\n' "$name" "$(realpath "$path")"
 done
+# A js_binary finds its Node and packages through this tree, wherever it is called from.
+printf 'RUNFILES_ROOT=%q\n' "$(realpath ..)"

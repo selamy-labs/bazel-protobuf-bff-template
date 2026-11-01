@@ -15,7 +15,9 @@ const required = (name) => {
 
 export function browserLaunchOptions() {
   if (process.platform !== "linux" || process.arch !== "x64") {
-    throw new Error("the pinned browser exists only for Linux x86_64 (specs/005-browser-client research R1)");
+    throw new Error(
+      "the pinned browser exists only for Linux x86_64 (specs/005-browser-client research R1)",
+    );
   }
   const browser = path.resolve(required("BROWSER_DIR"));
   return {
@@ -50,9 +52,13 @@ function ready(child) {
 
 export async function startStack() {
   const site = await serve(required("WEB_DIST"));
-  const server = spawn(path.resolve(required("BFF_BIN")), ["--addr=127.0.0.1:0", `--allowed-origin=${site.origin}`], {
-    stdio: ["ignore", "pipe", "pipe"],
-  });
+  const server = spawn(
+    path.resolve(required("BFF_BIN")),
+    ["--addr=127.0.0.1:0", `--allowed-origin=${site.origin}`],
+    {
+      stdio: ["ignore", "pipe", "pipe"],
+    },
+  );
   const { addr } = await ready(server);
   const bffUrl = `http://${addr}`;
   site.setBffUrl(bffUrl);

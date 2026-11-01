@@ -26,7 +26,9 @@ export async function serve(root, port = 0) {
     }
     try {
       const body = await readFile(file);
-      response.writeHead(200, { "Content-Type": types[path.extname(file)] ?? "application/octet-stream" }).end(body);
+      response
+        .writeHead(200, { "Content-Type": types[path.extname(file)] ?? "application/octet-stream" })
+        .end(body);
     } catch {
       response.writeHead(404).end();
     }

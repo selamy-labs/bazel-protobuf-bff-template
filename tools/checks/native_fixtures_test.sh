@@ -108,6 +108,19 @@ rm "$HOME/.shellcheckrc"
 expect fail "SC2086" "shellcheck: SHELLCHECK_OPTS cannot disable" env SHELLCHECK_OPTS=--exclude=SC2086 "$native" shellcheck "$work/c-bad.list"
 expect fail "empty input list" "shellcheck: an empty list is not a pass" "$native" shellcheck "$work/none.list"
 
+# --- format-ts (spec 006 T004)
+export RUNFILES_ROOT="${RUNFILES_DIR:-$TEST_SRCDIR}"
+p="$work/prettier"
+mkdir -p "$p"
+printf 'export const a = {b:1}\n' >"$p/bad.ts"
+printf 'export const a = { b: 1 };\n' >"$p/good.ts"
+printf '{"semi": false, "bracketSpacing": false}\n' >"$p/.prettierrc"
+printf 'bad.ts\0' >"$work/p-bad.list"
+printf 'good.ts\0' >"$work/p-good.list"
+dir="$p"
+expect fail "bad.ts" "format-ts defect" "$native" format-ts "$work/p-bad.list"
+expect pass - "format-ts corrected" "$native" format-ts "$work/p-good.list"
+
 # --- format-go (spec 004 T001)
 g="$work/gofmt"
 mkdir -p "$g"

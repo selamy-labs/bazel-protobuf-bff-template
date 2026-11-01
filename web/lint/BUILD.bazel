@@ -1,0 +1,37 @@
+load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@npm//:eslint/package_json.bzl", eslint_bin = "bin")
+
+eslint_bin.eslint_test(
+    name = "eslint_test",
+    size = "small",
+    args = [
+        "--config",
+        "$(rootpath eslint.config.mjs)",
+        "--max-warnings",
+        "0",
+        "--no-warn-ignored",
+        "web",
+    ],
+    data = [
+        "eslint.config.mjs",
+        "//:node_modules/typescript-eslint",
+        "//web/app:lint_srcs",
+        "//web/client:lint_srcs",
+        "//web/e2e:lint_srcs",
+        "//web/serve:lint_srcs",
+    ],
+)
+
+js_test(
+    name = "eslint_witness_test",
+    size = "small",
+    args = ["--test"],
+    data = [
+        "//:node_modules/eslint",
+        "//:node_modules/typescript-eslint",
+        "@bff_template_quality//checks/suppression:spellings",
+    ],
+    entry_point = "spellings.test.mjs",
+    no_copy_to_bin = ["@bff_template_quality//checks/suppression:spellings"],
+    env = {"SPELLINGS": "$(rootpaths @bff_template_quality//checks/suppression:spellings)"},
+)

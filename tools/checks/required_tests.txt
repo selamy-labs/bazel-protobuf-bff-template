@@ -16,6 +16,8 @@
 //web/e2e:browser_smoke_test
 //web/e2e:defect_e2e_test
 //web/e2e:notes_e2e_test
+//web/lint:eslint_test
+//web/lint:eslint_witness_test
 @bff_template_quality//checks/ciparity:ciparity_test
 @bff_template_quality//checks/suppression:suppression_test
 @bff_template_quality//proto:proto_test

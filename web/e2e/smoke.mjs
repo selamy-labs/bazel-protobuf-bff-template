@@ -12,7 +12,8 @@ import { browserLaunchOptions } from "./stack.mjs";
 
 // Form controls matter. Without fonts, a plain paragraph paints nothing and exits 0, and only a
 // control's font lookup reaches the crash.
-const PAGE = '<!doctype html><h1 id="a">before</h1><label>Name <input value="text"></label><button>Save</button>';
+const PAGE =
+  '<!doctype html><h1 id="a">before</h1><label>Name <input value="text"></label><button>Save</button>';
 
 const fontsUsed = async (page, selector) => {
   const session = await page.context().newCDPSession(page);
@@ -67,7 +68,10 @@ assert.doesNotMatch(pinned.stderr, /Fontconfig error|FATAL/);
 const missing = render(mkdtempSync(path.join(scratch, "empty-")));
 assert.notEqual(missing.status, 0, "the page rendered with no font data");
 assert.match(missing.stderr, /Fontconfig error: Cannot load default config file/);
-assert.match(missing.stderr, /FATAL:third_party\/skia\/src\/ports\/SkFontMgr_FontConfigInterface\.cpp:\d+\] Not implemented/);
+assert.match(
+  missing.stderr,
+  /FATAL:third_party\/skia\/src\/ports\/SkFontMgr_FontConfigInterface\.cpp:\d+\] Not implemented/,
+);
 
 const browser = await chromium.launch(options);
 assert.equal(browser.version(), "156.0.8078.4");

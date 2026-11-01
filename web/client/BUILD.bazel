@@ -1,4 +1,4 @@
-load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@aspect_rules_js//js:defs.bzl", "js_library", "js_test")
 load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
 
 ts_project(
@@ -40,4 +40,10 @@ js_test(
     size = "small",
     data = [":client_test"],
     entry_point = "errors.test.js",
+)
+
+js_library(
+    name = "lint_srcs",
+    srcs = glob(["*.ts"]),
+    visibility = ["//web/lint:__pkg__"],
 )

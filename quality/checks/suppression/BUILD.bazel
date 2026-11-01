@@ -23,3 +23,10 @@ go_binary(
     visibility = ["//visibility:public"],
     deps = [":suppression"],
 )
+
+# The ESLint spellings, re-witnessed where the pinned ESLint lives.
+filegroup(
+    name = "spellings",
+    srcs = glob(["testdata/S002_*.ts"]),
+    visibility = ["//visibility:public"],
+)

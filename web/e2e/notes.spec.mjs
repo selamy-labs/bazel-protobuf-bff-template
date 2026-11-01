@@ -107,14 +107,18 @@ test("storage unavailable on create", async ({ notes }) => {
 test("deadline exceeded on open", async ({ notes }) => {
   await identify(notes, "fault-hang");
   await openNote(notes, "notes/a");
-  await expect(notes.getByTestId("failure")).toHaveText("The request took too long. Try again.", { timeout: 5000 });
+  await expect(notes.getByTestId("failure")).toHaveText("The request took too long. Try again.", {
+    timeout: 5000,
+  });
 });
 
 for (const subject of ["fault-secret", "fault-panic"]) {
   test(`internal failure shows only a correlation id: ${subject}`, async ({ notes }) => {
     await identify(notes, subject);
     await openNote(notes, "notes/a");
-    await expect(notes.getByTestId("failure")).toHaveText(/^Something went wrong\. Reference: [0-9a-f]+$/);
+    await expect(notes.getByTestId("failure")).toHaveText(
+      /^Something went wrong\. Reference: [0-9a-f]+$/,
+    );
     await expect(notes.locator("body")).not.toContainText("planted");
   });
 }
@@ -151,7 +155,12 @@ test("the browser blocks a disallowed origin", async ({ page, stack }) => {
   await other.close();
 });
 
-test("a cookie gives no access in the browser or outside it", async ({ notes, stack, context, request }) => {
+test("a cookie gives no access in the browser or outside it", async ({
+  notes,
+  stack,
+  context,
+  request,
+}) => {
   const credential = "Bearer test-identity.ana";
   await context.addCookies([{ name: "session", value: "cookie-value", url: stack.bffUrl }]);
   const blocked = await notes.evaluate(
@@ -191,7 +200,8 @@ test("the client omits a cookie the browser would send", async ({ notes, stack, 
   // The real client call to the same host: the POST happened, succeeded, and carried no cookie.
   const [response] = await Promise.all([
     notes.waitForResponse(
-      (candidate) => candidate.url().endsWith("/CreateNote") && candidate.request().method() === "POST",
+      (candidate) =>
+        candidate.url().endsWith("/CreateNote") && candidate.request().method() === "POST",
     ),
     createNote(notes, "sent without a cookie"),
   ]);

@@ -9,11 +9,15 @@ import path from "node:path";
 
 const report = path.join(process.env.TEST_TMPDIR, "defect-report.json");
 const cli = createRequire(import.meta.url).resolve("@playwright/test/cli");
-const run = spawnSync(process.execPath, [cli, "test", "--config", "web/e2e/playwright.config.mjs"], {
-  env: { ...process.env, E2E_REPORT: report },
-  stdio: ["ignore", "inherit", "inherit"],
-  timeout: 120000,
-});
+const run = spawnSync(
+  process.execPath,
+  [cli, "test", "--config", "web/e2e/playwright.config.mjs"],
+  {
+    env: { ...process.env, E2E_REPORT: report },
+    stdio: ["ignore", "inherit", "inherit"],
+    timeout: 120000,
+  },
+);
 assert.equal(run.status, 1, "the specs must fail against the broken server");
 
 const results = [];
@@ -26,7 +30,10 @@ const visit = (suite) => {
 JSON.parse(readFileSync(report, "utf8")).suites.forEach(visit);
 
 const failed = results.filter((spec) => !spec.ok);
-assert.deepEqual(failed.map((spec) => spec.title).sort(), ["another principal's note reads as not found", "not found"]);
+assert.deepEqual(failed.map((spec) => spec.title).sort(), [
+  "another principal's note reads as not found",
+  "not found",
+]);
 assert.equal(results.length, 18);
 for (const spec of failed) {
   const message = spec.tests[0].results[0].error.message;

@@ -6,7 +6,10 @@ export default {
   forbidOnly: true,
   fullyParallel: true,
   outputDir: `${outputs}/playwright`,
-  reporter: [["list"], ["json", { outputFile: process.env.E2E_REPORT ?? `${outputs}/report.json` }]],
+  reporter: [
+    ["list"],
+    ["json", { outputFile: process.env.E2E_REPORT ?? `${outputs}/report.json` }],
+  ],
   retries: 0,
   testDir: ".",
   testMatch: "*.spec.mjs",

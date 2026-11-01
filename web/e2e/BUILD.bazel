@@ -1,4 +1,4 @@
-load("@aspect_rules_js//js:defs.bzl", "js_test")
+load("@aspect_rules_js//js:defs.bzl", "js_library", "js_test")
 load("@npm//:@playwright/test/package_json.bzl", playwright = "bin")
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
@@ -111,4 +111,10 @@ js_test(
         "BFF_BIN": "$(rootpath :defect_bff)",
         "WEB_DIST": "$(rootpath //web/app:dist_dev)",
     },
+)
+
+js_library(
+    name = "lint_srcs",
+    srcs = glob(["*.mjs"]),
+    visibility = ["//web/lint:__pkg__"],
 )

@@ -23,7 +23,10 @@ function Development({ baseUrl }: { baseUrl: string }): ReactElement {
   const [subject, setSubject] = useState("ana");
   const current = useRef(subject);
   current.current = subject;
-  const client = useMemo(() => createNotesClient(baseUrl, () => testCredential(current.current)), [baseUrl]);
+  const client = useMemo(
+    () => createNotesClient(baseUrl, () => testCredential(current.current)),
+    [baseUrl],
+  );
   return (
     <>
       <TestIdentity subject={subject} onChange={setSubject} />
@@ -40,7 +43,9 @@ async function start(): Promise<void> {
     throw new Error("the page has no root element");
   }
   createRoot(root).render(
-    <StrictMode>{__TEST_IDENTITY__ ? <Development baseUrl={bffUrl} /> : <Production baseUrl={bffUrl} />}</StrictMode>,
+    <StrictMode>
+      {__TEST_IDENTITY__ ? <Development baseUrl={bffUrl} /> : <Production baseUrl={bffUrl} />}
+    </StrictMode>,
   );
 }
 
