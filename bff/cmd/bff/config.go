@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"example.com/bfftemplate/bff/adapters/memory"
 	"example.com/bfftemplate/bff/identity"
 	"example.com/bfftemplate/bff/server"
 )
@@ -21,6 +22,7 @@ type options struct {
 	maxDeadline     time.Duration
 	maxRequestBytes int
 	shutdownBound   time.Duration
+	maxNotes        int
 }
 
 // The composition's defaults (spec 011 FR-016): each is set here once, read by its flag, then its BFF_*
@@ -30,6 +32,9 @@ const (
 	maxDeadline     = 10 * time.Second
 	maxRequestBytes = 64 << 10
 	shutdownBound   = 5 * time.Second
+	maxNotes        = 10000
+	// maxNotesCeiling is an invariant: the memory store is the example's, never a production database.
+	maxNotesCeiling = 1_000_000
 )
 
 // The listener's bounds, set once here and not read from outside: the server requires them.
@@ -72,6 +77,11 @@ func parse(args []string, getenv func(string) string) (options, error) {
 		return options{}, err
 	}
 	flags.IntVar(&parsed.maxRequestBytes, "max-request-bytes", bytes, "largest request body, enforced before decoding")
+	notes, err := envInt(getenv, "BFF_MAX_NOTES", maxNotes)
+	if err != nil {
+		return options{}, err
+	}
+	flags.IntVar(&parsed.maxNotes, "max-notes", notes, "how many notes the memory store holds")
 	if err := flags.Parse(args); err != nil {
 		return options{}, err
 	}
@@ -140,6 +150,9 @@ func configure(parsed options, newVerifier func() (identity.Verifier, error)) (s
 	if err != nil {
 		return server.Config{}, err
 	}
+	if parsed.maxNotes < 1 || parsed.maxNotes > maxNotesCeiling {
+		return server.Config{}, fmt.Errorf("max-notes: %d is outside 1 to %d; the ceiling is an invariant, not a setting", parsed.maxNotes, maxNotesCeiling)
+	}
 	limits := listener
 	limits.ShutdownBound = parsed.shutdownBound
 	return server.Config{
@@ -147,6 +160,7 @@ func configure(parsed options, newVerifier func() (identity.Verifier, error)) (s
 		Addr:          parsed.addr,
 		AllowedOrigin: parsed.allowedOrigin,
 		Authenticator: authenticator,
+		Store:         memory.New(parsed.maxNotes),
 		Calls: server.CallLimits{
 			DefaultDeadline: parsed.defaultDeadline,
 			MaxDeadline:     parsed.maxDeadline,

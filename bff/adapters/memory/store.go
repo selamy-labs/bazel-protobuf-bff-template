@@ -8,9 +8,6 @@ import (
 	"example.com/bfftemplate/bff/ports"
 )
 
-// MaxNotes bounds the store, so the example server cannot grow without limit.
-const MaxNotes = 10000
-
 type key struct{ owner, id string }
 
 // Store keeps notes in a map keyed by owner and ID, so one owner cannot reach another's note.
@@ -20,8 +17,10 @@ type Store struct {
 	limit int
 }
 
-// New returns an empty store.
-func New() *Store { return &Store{notes: make(map[key]ports.Note), limit: MaxNotes} }
+// New returns an empty store that holds at most limit notes, so the example server cannot grow without
+// bound. The limit is the composition's to declare (spec 011 FR-016): this package carries no default, and a
+// limit below one refuses every put as unavailable rather than silently choosing a size.
+func New(limit int) *Store { return &Store{notes: make(map[key]ports.Note), limit: limit} }
 
 // Put stores a note, and reports ports.ErrUnavailable once the store is full.
 func (s *Store) Put(ctx context.Context, note ports.Note) error {

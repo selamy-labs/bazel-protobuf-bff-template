@@ -58,7 +58,7 @@ func main() {
 func openStore(kind, dir string) (ports.Store, error) {
 	switch kind {
 	case "memory":
-		return memory.New(), nil
+		return memory.New(10000), nil // the local demo's bound, declared once here
 	case "local":
 		if dir == "" {
 			return nil, fmt.Errorf("--store=local needs --data-dir")

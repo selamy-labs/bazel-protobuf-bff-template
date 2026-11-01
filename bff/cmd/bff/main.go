@@ -10,7 +10,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"example.com/bfftemplate/bff/adapters/memory"
 	"example.com/bfftemplate/bff/server"
 )
 
@@ -22,7 +21,6 @@ func main() {
 		var config server.Config
 		config, err = configure(options, newVerifier)
 		if err == nil {
-			config.Store = memory.New()
 			config.Logger = slog.New(slog.NewJSONHandler(os.Stderr, nil))
 			config.Stdout = os.Stdout
 			err = server.Run(ctx, config)

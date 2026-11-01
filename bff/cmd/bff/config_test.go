@@ -67,6 +67,9 @@ func TestConfigure(t *testing.T) {
 		{name: "dev mode by flag", args: []string{"--mode=dev"}, verifier: withVerifier, want: "only in production"},
 		{name: "dev mode by environment", env: map[string]string{"BFF_MODE": "dev"}, verifier: withVerifier, want: "only in production"},
 		{name: "with a verifier", verifier: withVerifier},
+		{name: "no notes at all", args: []string{"--max-notes=0"}, verifier: withVerifier, want: "max-notes: 0 is outside"},
+		{name: "notes beyond the ceiling", env: map[string]string{"BFF_MAX_NOTES": "5000000"}, verifier: withVerifier, want: "max-notes: 5000000 is outside"},
+		{name: "notes from the environment", env: map[string]string{"BFF_MAX_NOTES": "50"}, verifier: withVerifier},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -84,7 +87,7 @@ func TestConfigure(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			if config.Mode != server.ModeProduction || config.Authenticator.Kind() != identity.KindVerified {
+			if config.Mode != server.ModeProduction || config.Authenticator.Kind() != identity.KindVerified || config.Store == nil {
 				t.Fatalf("unexpected config %+v", config)
 			}
 		})
@@ -100,7 +103,7 @@ func TestConfiguredProductionPassesTheServerCheck(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	config.Store = memory.New()
+	config.Store = memory.New(100)
 	if err := config.Check(); err != nil {
 		t.Fatal(err)
 	}
@@ -162,7 +165,7 @@ func TestABoundBeyondTheInvariantIsRefused(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		config.Store = memory.New()
+		config.Store = memory.New(100)
 		if err := config.Check(); err == nil || !strings.Contains(err.Error(), "ceiling") && !strings.Contains(err.Error(), "exceeds") {
 			t.Errorf("%s: got %v", name, err)
 		}

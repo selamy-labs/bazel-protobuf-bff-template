@@ -99,7 +99,7 @@ func requireCode(t *testing.T, err error, want connect.Code) *connect.Error {
 }
 
 func TestCreateThenRead(t *testing.T) {
-	h := start(t, memory.New(), true)
+	h := start(t, memory.New(100), true)
 	ctx := context.Background()
 	created, err := h.client.CreateNote(as(ctx, "ana"), &notesv1.CreateNoteRequest{Note: &notesv1.Note{
 		Name:  "notes/chosen-by-the-client",
@@ -211,7 +211,7 @@ func post(t *testing.T, h harness, method string, body string, header http.Heade
 }
 
 func TestForeignAndAbsentNotesAreIndistinguishable(t *testing.T) {
-	h := start(t, memory.New(), true)
+	h := start(t, memory.New(100), true)
 	ctx := context.Background()
 	created, err := h.client.CreateNote(as(ctx, "ana"), &notesv1.CreateNoteRequest{Note: &notesv1.Note{Title: "private"}})
 	if err != nil {
@@ -234,7 +234,7 @@ func TestForeignAndAbsentNotesAreIndistinguishable(t *testing.T) {
 }
 
 func TestStorageFailuresMapToContractCodes(t *testing.T) {
-	h := start(t, faults.Store{Next: memory.New()}, true)
+	h := start(t, faults.Store{Next: memory.New(100)}, true)
 	ctx := context.Background()
 	_, err := h.client.CreateNote(as(ctx, faults.Unavailable), &notesv1.CreateNoteRequest{Note: &notesv1.Note{Title: "a"}})
 	requireCode(t, err, connect.CodeUnavailable)
@@ -245,7 +245,7 @@ func TestStorageFailuresMapToContractCodes(t *testing.T) {
 func TestInternalErrorsLeakOnlyACorrelationID(t *testing.T) {
 	for _, subject := range []string{faults.Secret, faults.Panic} {
 		t.Run(subject, func(t *testing.T) {
-			h := start(t, faults.Store{Next: memory.New()}, true)
+			h := start(t, faults.Store{Next: memory.New(100)}, true)
 			status, body := post(t, h, "GetNote", `{"name":"notes/a"}`, http.Header{"Authorization": {testidentity.Header(subject)}})
 			if status != http.StatusInternalServerError {
 				t.Fatalf("status %d: %s", status, body)
@@ -348,7 +348,7 @@ func TestDownstreamCannotLabelItsOwnErrorPublic(t *testing.T) {
 			return serve(t, failingStore{err}, testidentity.Authenticator{}, true)
 		},
 		"authenticator": func(t *testing.T, err error) harness {
-			return serve(t, memory.New(), failingAuthenticator{err}, false)
+			return serve(t, memory.New(100), failingAuthenticator{err}, false)
 		},
 	}
 	credential := http.Header{"Authorization": {testidentity.Header("ana")}}
@@ -537,7 +537,7 @@ func TestAuthenticationRunsBeforeDecoding(t *testing.T) {
 }
 
 func TestCookieDoesNotOverrideACredential(t *testing.T) {
-	store := memory.New()
+	store := memory.New(100)
 	h := start(t, store, true)
 	created, err := h.client.CreateNote(as(context.Background(), "ana"), &notesv1.CreateNoteRequest{Note: &notesv1.Note{Title: "a"}})
 	if err != nil {
@@ -608,7 +608,7 @@ func preflight(t *testing.T, h harness, from string) *http.Response {
 }
 
 func TestCORS(t *testing.T) {
-	h := start(t, memory.New(), true)
+	h := start(t, memory.New(100), true)
 	allowed := preflight(t, h, origin)
 	if got := allowed.Header.Get("Access-Control-Allow-Origin"); got != origin {
 		t.Fatalf("allow-origin %q", got)
@@ -664,7 +664,7 @@ func TestTheBoundsAreConfiguration(t *testing.T) {
 	}
 	// Under the larger bound the same body is decoded, and then the schema refuses its title: a different
 	// refusal, from the configuration alone.
-	status, response = post(t, start(t, memory.New(), true), "CreateNote", body, http.Header{"Authorization": {testidentity.Header("ana")}})
+	status, response = post(t, start(t, memory.New(100), true), "CreateNote", body, http.Header{"Authorization": {testidentity.Header("ana")}})
 	if status != http.StatusBadRequest || !bytes.Contains(response, []byte(`"invalid_argument"`)) {
 		t.Fatalf("the same body under the larger bound: %d %s", status, response)
 	}

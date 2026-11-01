@@ -52,18 +52,18 @@ inventory: they are not configurable behavior of the product.
 | ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
 | `bff/cmd/bff/config.go` `--default-deadline` (`BFF_DEFAULT_DEADLINE`), formerly `handlers.go` `DefaultDeadline`   | 2 s for a call that sets no deadline                                                                                         | composition (moved at T020; the development composition declares its own copy in `bff-dev/main.go`)              |
 | `bff/cmd/bff/config.go` `--max-deadline` (`BFF_MAX_DEADLINE`), formerly `handlers.go` `MaxDeadline`               | 10 s cap on any client deadline                                                                                              | composition, with the ceiling of one minute an invariant the server's check enforces whatever configuration asks |
-| `bff/cmd/bff/config.go` `--max-request-bytes` (`BFF_MAX_REQUEST_BYTES`), formerly `handlers.go` `MaxRequestBytes` | 64 KiB                                                                                                                       | scattered (a bound). Owner T020                                                                                  |
+| `bff/cmd/bff/config.go` `--max-request-bytes` (`BFF_MAX_REQUEST_BYTES`), formerly `handlers.go` `MaxRequestBytes` | 64 KiB                                                                                                                       | composition, between the floor the schema's largest note needs and a ceiling of 1 MiB, both invariants           |
 | `bff/cmd/bff/config.go` `--shutdown-bound` (`BFF_SHUTDOWN_BOUND`), formerly `server.go` `shutdownBound`           | 5 s drain                                                                                                                    | composition, with a ceiling of thirty seconds an invariant                                                       |
 | `bff/cmd/bff/config.go` `listener`, formerly `server.go` `http.Server`                                            | `ReadHeaderTimeout` 5 s, `ReadTimeout` 15 s, `WriteTimeout` `MaxDeadline` + 5 s, `IdleTimeout` 60 s, `MaxHeaderBytes` 16 KiB | composition: set once in the composition, required by the server, the write timeout derived from the call bounds |
 | `interceptors.go` correlation id                                                                                  | 8 random bytes, hex                                                                                                          | contract (specs/001 contracts/notes-api.md: an internal error carries only a correlation id)                     |
 
 ## Application and adapters, `bff/app`, `bff/adapters`
 
-| Site                                                            | Value                          | Boundary                                                            |
-| --------------------------------------------------------------- | ------------------------------ | ------------------------------------------------------------------- |
-| `app/notes.go` `namePrefix`, `idPattern`, id of 16 random bytes | `notes/` and `[a-z0-9-]{1,64}` | contract (the resource name in the schema's validation rule)        |
-| `adapters/memory/store.go` `MaxNotes`                           | 10000 notes per process        | scattered (a bound). Owner T020                                     |
-| `adapters/store/local/store.go` directory mode                  | `0o700`                        | contract: an invariant of the file-backed store, never configurable |
+| Site                                                                                                    | Value                          | Boundary                                                                                                                                 |
+| ------------------------------------------------------------------------------------------------------- | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/notes.go` `namePrefix`, `idPattern`, id of 16 random bytes                                         | `notes/` and `[a-z0-9-]{1,64}` | contract (the resource name in the schema's validation rule)                                                                             |
+| `bff/cmd/bff/config.go` `--max-notes` (`BFF_MAX_NOTES`), formerly `adapters/memory/store.go` `MaxNotes` | 10000 notes per process        | composition: `memory.New(limit)` requires it, the development composition declares its own, and the ceiling of a million is an invariant |
+| `adapters/store/local/store.go` directory mode                                                          | `0o700`                        | contract: an invariant of the file-backed store, never configurable                                                                      |
 
 ## Browser client, `web/app`, `web/client`, `web/serve`
 
@@ -95,9 +95,9 @@ inventory: they are not configurable behavior of the product.
 
 | Boundary    | Rows |
 | ----------- | ---- |
-| composition | 19   |
+| composition | 20   |
 | input       | 4    |
 | contract    | 8    |
-| scattered   | 7    |
+| scattered   | 6    |
 
 The scattered rows are the open work of T020, each with an owner above; none is waived.

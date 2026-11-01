@@ -30,7 +30,7 @@ func valid() Config {
 		Addr:          "127.0.0.1:0",
 		AllowedOrigin: "https://app.example.com",
 		Authenticator: verified{},
-		Store:         memory.New(),
+		Store:         memory.New(100),
 		Logger:        slog.New(slog.DiscardHandler),
 		Calls:         CallLimits{DefaultDeadline: 2 * time.Second, MaxDeadline: 10 * time.Second, MaxRequestBytes: 64 << 10},
 		Listener:      ListenerLimits{ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ShutdownBound: 5 * time.Second},

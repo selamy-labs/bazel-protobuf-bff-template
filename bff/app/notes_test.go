@@ -13,7 +13,7 @@ import (
 )
 
 func TestCreateThenGet(t *testing.T) {
-	notes := New(memory.New())
+	notes := New(memory.New(100))
 	notes.now = func() time.Time { return time.Date(2026, 10, 31, 1, 2, 3, 0, time.FixedZone("x", 3600)) }
 	ctx := context.Background()
 	created, err := notes.Create(ctx, "a", "  title  ", "body")
@@ -96,7 +96,7 @@ func TestNameProperties(t *testing.T) {
 
 func TestTitleProperty(t *testing.T) {
 	// A stored title is always trimmed, whatever surrounds it.
-	notes := New(memory.New())
+	notes := New(memory.New(100))
 	property := func(prefix, title string) bool {
 		created, err := notes.Create(context.Background(), "a", strings.Repeat(" ", len(prefix)%5)+title, "")
 		return err == nil && created.Title == strings.TrimSpace(created.Title)

@@ -10,11 +10,11 @@ import (
 )
 
 func TestContract(t *testing.T) {
-	porttest.Run(t, func(t *testing.T) ports.Store { return New() })
+	porttest.Run(t, func(t *testing.T) ports.Store { return New(100) })
 }
 
 func TestOwnerScope(t *testing.T) {
-	store := New()
+	store := New(100)
 	ctx := context.Background()
 	note := ports.Note{Owner: "a", ID: "1", Title: "t"}
 	if err := store.Put(ctx, note); err != nil {
@@ -33,7 +33,7 @@ func TestOwnerScope(t *testing.T) {
 }
 
 func TestEndedContextStopsTheCall(t *testing.T) {
-	store := New()
+	store := New(100)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	if err := store.Put(ctx, ports.Note{Owner: "a", ID: "1"}); !errors.Is(err, context.Canceled) {
@@ -48,13 +48,20 @@ func TestEndedContextStopsTheCall(t *testing.T) {
 }
 
 func TestFullStoreIsUnavailable(t *testing.T) {
-	store := New()
-	store.limit = 1
+	store := New(1)
 	ctx := context.Background()
 	if err := store.Put(ctx, ports.Note{Owner: "a", ID: "1"}); err != nil {
 		t.Fatal(err)
 	}
 	if err := store.Put(ctx, ports.Note{Owner: "a", ID: "2"}); !errors.Is(err, ports.ErrUnavailable) {
+		t.Fatalf("want unavailable, got %v", err)
+	}
+}
+
+// Nothing here chooses a size: a limit below one refuses every put, visibly, rather than defaulting.
+func TestNoLimitIsNoDefault(t *testing.T) {
+	store := New(0)
+	if err := store.Put(context.Background(), ports.Note{Owner: "a", ID: "1"}); !errors.Is(err, ports.ErrUnavailable) {
 		t.Fatalf("want unavailable, got %v", err)
 	}
 }
