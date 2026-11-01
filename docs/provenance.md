@@ -11,8 +11,8 @@ identifier or prose was copied.
 ## First-party prose boundary
 
 This repository's own documentation quotes license names and copyright wording. The inventory check does not
-treat these paths as vendored material: `docs/**`, `specs/**`, `README.md`, `AGENTS.md`, `*/README.md`,
-`.specify/memory/constitution.md`. Everything else that carries a copyright or license marker must be under an
+treat these paths as vendored material: `LICENSE`, this repository's own license; `docs/**`, `specs/**`,
+`README.md`, `AGENTS.md`, `*/README.md`, `.specify/memory/constitution.md`. Everything else that carries a copyright or license marker must be under an
 enrolled vendored path below.
 
 ## Vendored or generated files
