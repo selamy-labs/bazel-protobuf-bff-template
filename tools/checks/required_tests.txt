@@ -7,6 +7,7 @@
 //bff/adapters/memory:memory_test build-test
 //bff/app:app_test build-test
 //bff/cmd/bff:config_test build-test
+//bff/cmd/bff:image_test build-test
 //bff/cmd:binaries_test build-test
 //bff/cmd:static_test build-test
 //bff/identity:identity_test build-test
