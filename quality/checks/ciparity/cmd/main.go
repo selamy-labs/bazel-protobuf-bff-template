@@ -7,7 +7,10 @@ import (
 	"fmt"
 	"os"
 
+	"google.golang.org/protobuf/encoding/prototext"
+
 	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/ciparity"
+	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb"
 )
 
 func main() {
@@ -26,8 +29,8 @@ func load(path string, into any) error {
 }
 
 func run() int {
-	if len(os.Args) != 3 {
-		fmt.Fprintln(os.Stderr, "usage: ciparity <workflow.json> <policy.json>")
+	if len(os.Args) != 4 {
+		fmt.Fprintln(os.Stderr, "usage: ciparity <workflow.json> <policy.json> <registry.textproto>")
 		return 2
 	}
 	var workflow map[string]any
@@ -40,7 +43,21 @@ func run() int {
 		fmt.Fprintf(os.Stderr, "ci-parity: %v\n", err)
 		return 2
 	}
-	errs := ciparity.Validate(workflow, policy)
+	data, err := os.ReadFile(os.Args[3])
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "ci-parity: %v\n", err)
+		return 2
+	}
+	registry := &registrypb.Registry{}
+	if err := prototext.Unmarshal(data, registry); err != nil {
+		fmt.Fprintf(os.Stderr, "ci-parity: %v\n", err)
+		return 2
+	}
+	if len(registry.GetShards()) == 0 {
+		fmt.Fprintln(os.Stderr, "ci-parity: the registry declares no legs")
+		return 2
+	}
+	errs := ciparity.Validate(workflow, policy, registry.GetShards())
 	for _, e := range errs {
 		fmt.Printf("ci-parity %s (rerun: tools/verify.sh)\n", e)
 	}

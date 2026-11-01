@@ -9,7 +9,9 @@ import (
 	"fmt"
 	"reflect"
 	"regexp"
+	"slices"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -27,7 +29,7 @@ type Policy struct {
 	MaxTimeoutMinutes float64 `json:"max_timeout_minutes"`
 	// Runs are the only permitted `run:` bodies, compared after trimming surrounding whitespace.
 	Runs []RunRule `json:"runs"`
-	// RequiredRun must appear exactly once in every job except the gate.
+	// RequiredRun must appear exactly once in every job except the gate. {job} expands to the job.
 	RequiredRun string `json:"required_run"`
 	// JobSteps is each job's exact ordered step list: "uses:<owner/repo>" or "run:<body>".
 	JobSteps map[string][]string `json:"job_steps"`
@@ -68,16 +70,18 @@ func set(keys ...string) map[string]bool {
 
 // Validate returns every violation found, sorted for stable output. An empty result means the
 // workflow conforms.
-func Validate(wf map[string]any, p Policy) []string {
-	v := &validator{p: p}
+func Validate(wf map[string]any, p Policy, legs []string) []string {
+	v := &validator{p: p, legs: legs}
 	v.workflow(wf)
 	sort.Strings(v.errs)
 	return v.errs
 }
 
 type validator struct {
-	p    Policy
-	errs []string
+	p       Policy
+	legs    []string
+	current string
+	errs    []string
 }
 
 func (v *validator) fail(format string, args ...any) {
@@ -115,6 +119,14 @@ func (v *validator) workflow(wf map[string]any) {
 			v.fail("workflow: required job %q (the verify job) is missing", name)
 		}
 	}
+	if !sameSet(v.p.RequiredJobs, v.legs) {
+		v.fail("policy: required jobs %v are not the registry's legs %v", v.p.RequiredJobs, v.legs)
+	}
+	for _, rule := range v.p.Runs {
+		if want, ok := rule.Env["EXPECTED_LEGS"]; ok && want != strconv.Itoa(len(v.legs)) {
+			v.fail("policy: the gate expects %s results, and the registry has %d legs", want, len(v.legs))
+		}
+	}
 	var others []string
 	for name, raw := range jobs {
 		job, ok := raw.(map[string]any)
@@ -127,9 +139,17 @@ func (v *validator) workflow(wf map[string]any) {
 		}
 		v.job(name, job, name == v.p.Gate)
 	}
+	if !sameSet(others, v.legs) {
+		v.fail("workflow: jobs %v are not the registry's legs %v", others, v.legs)
+	}
 	if gate != nil {
 		v.gateNeeds(gate, others)
 	}
+}
+
+func sameSet(a, b []string) bool {
+	a, b = slices.Sorted(slices.Values(a)), slices.Sorted(slices.Values(b))
+	return slices.Equal(a, b)
 }
 
 func (v *validator) readOnlyPermissions(where string, raw any, allowEmpty bool) {
@@ -149,6 +169,7 @@ func (v *validator) readOnlyPermissions(where string, raw any, allowEmpty bool) 
 }
 
 func (v *validator) job(name string, job map[string]any, isGate bool) {
+	v.current = name
 	where := "job " + name
 	if _, ok := job["uses"]; ok {
 		v.fail("%s: reusable workflow jobs (uses) are not permitted", where)
@@ -293,7 +314,7 @@ func (v *validator) run(where, body string, step map[string]any, isGate bool) bo
 				v.fail("%s: env %s must be %q", where, k, want)
 			}
 		}
-		return body == strings.TrimSpace(v.p.RequiredRun)
+		return body == strings.TrimSpace(strings.ReplaceAll(v.p.RequiredRun, "{job}", v.current))
 	}
 	first, _, _ := strings.Cut(body, "\n")
 	v.fail("%s: run body is not allowlisted (first line %q)", where, first)

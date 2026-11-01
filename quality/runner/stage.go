@@ -481,10 +481,12 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 		FinishedAt: time.Now().UTC().Format(time.RFC3339),
 		Host:       map[string]string{"os": runtime.GOOS, "arch": runtime.GOARCH},
 		Inventory:  map[string]int{"all": len(e.inputs.All), "deleted": len(e.inputs.Deleted)},
-		Producer:   "local", Tools: map[string]string{},
+		Producer:   "local", ClaimLayer: "local", Tools: map[string]string{},
 	}
 	if run := os.Getenv("GITHUB_RUN_ID"); run != "" {
-		receipt.Producer = fmt.Sprintf("github-actions/%s/%s/%s/%s", os.Getenv("GITHUB_WORKFLOW"), os.Getenv("GITHUB_JOB"), run, os.Getenv("GITHUB_RUN_ATTEMPT"))
+		receipt.Attempt = os.Getenv("GITHUB_RUN_ATTEMPT")
+		receipt.ClaimLayer = "hosted-ci"
+		receipt.Producer = fmt.Sprintf("github-actions/%s/%s/%s/%s", os.Getenv("GITHUB_WORKFLOW"), os.Getenv("GITHUB_JOB"), run, receipt.Attempt)
 	}
 	data, _ := os.ReadFile(e.log)
 	targets := 0

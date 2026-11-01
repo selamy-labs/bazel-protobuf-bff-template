@@ -215,10 +215,12 @@ sh_test(
     args = [
         "$(rootpath @bff_template_quality//tools:yq)",
         "$(rootpath @bff_template_quality//checks/ciparity:ciparity_bin)",
+        "$(rootpath @bff_template_quality//:registry.textproto)",
     ],
     data = glob([".github/workflows/**"]) + [
         "tools/ci/mutations.tsv",
         "tools/ci/policy.json",
+        "@bff_template_quality//:registry.textproto",
         "@bff_template_quality//checks/ciparity:ciparity_bin",
         "@bff_template_quality//tools:yq",
     ],

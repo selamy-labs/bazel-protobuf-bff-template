@@ -5,6 +5,7 @@
 set -euo pipefail
 yq="$(realpath "$1")"
 ciparity="$(realpath "$2")"
+registry="$(realpath "$3")"
 cd "${TEST_SRCDIR}/_main"
 wf=".github/workflows/ci.yml"
 policy="tools/ci/policy.json"
@@ -17,7 +18,7 @@ mapfile -d '' workflows < <(find -L .github/workflows -type f -print0)
 [[ ${#workflows[@]} -eq 1 ]] || fail "exactly one workflow is expected, found: ${workflows[*]}"
 
 "$yq" -o=json 'explode(.)' "$wf" >"$work/base.json"
-"$ciparity" "$work/base.json" "$policy" >"$work/base.out" 2>&1 || {
+"$ciparity" "$work/base.json" "$policy" "$registry" >"$work/base.out" 2>&1 || {
   cat "$work/base.out" >&2
   fail "the real workflow must pass"
 }
@@ -36,27 +37,39 @@ while IFS=$'\t' read -r name expr want; do
     continue
   fi
   rc=0
-  "$ciparity" "$work/m.json" "$policy" >"$work/out" 2>&1 || rc=$?
+  "$ciparity" "$work/m.json" "$policy" "$registry" >"$work/out" 2>&1 || rc=$?
   if [[ $rc -ne 1 ]]; then
     fail "$name: exit $rc, want 1 (accepted or unjudged)"
   elif ! grep -qF -- "$want" "$work/out"; then
     fail "$name: rejected, but not for '$want': $(head -1 "$work/out")"
   fi
 done <tools/ci/mutations.tsv
-[[ $cases -ge 41 ]] || fail "expected at least 41 mutation cases, ran $cases"
+[[ $cases -ge 48 ]] || fail "expected at least 48 mutation cases, ran $cases"
 
 : >"$work/empty.json"
 rc=0
-"$ciparity" "$work/empty.json" "$policy" >/dev/null 2>&1 || rc=$?
+"$ciparity" "$work/empty.json" "$policy" "$registry" >/dev/null 2>&1 || rc=$?
 [[ $rc -eq 2 ]] || fail "empty input must be unjudged (exit 2), got $rc"
 
 "$yq" '.jobs.gate.steps[0].run' "$wf" >"$work/gate.sh"
 [[ -s "$work/gate.sh" ]] || fail "could not extract the gate run block"
-for case in "success:0" "success skipped:1" "skipped:1" "cancelled:1" "failure success:1"; do
-  results="${case%:*}" want="${case##*:}" got=0
-  RESULTS="$results" sh "$work/gate.sh" 2>/dev/null || got=1
-  [[ "$got" == "$want" ]] || fail "gate on '$results' exited $got, want $want"
-done
+# The run block's input is what `needs` reports: the latest result of each leg. So a leg that failed and
+# was rerun to success, beside legs from an earlier attempt, is three successes (spec 007 R4). That
+# GitHub reports it so is unobserved here: no hosted run exists.
+gate() { # gate <results> <want>
+  local got=0
+  RESULTS="$1" EXPECTED_LEGS=3 sh "$work/gate.sh" 2>/dev/null || got=1
+  [[ "$got" == "$2" ]] || fail "gate on '$1' exited $got, want $2"
+}
+gate "success success success" 0
+gate "success failure success" 1
+gate "success skipped success" 1
+gate "cancelled success success" 1
+gate "success success failure" 1
+gate "success success" 1
+gate "success" 1
+gate "" 1
+gate "success success success success" 1
 
 [[ $failures -eq 0 ]] && echo "ok   ci-parity ($cases mutations rejected)"
 exit "$failures"

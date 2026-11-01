@@ -35,7 +35,10 @@ go_library(
     name = "registrypb",
     srcs = [":registry_go_gen"],
     importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb",
-    visibility = ["//runner:__subpackages__"],
+    visibility = [
+        "//checks/ciparity:__pkg__",
+        "//runner:__subpackages__",
+    ],
     deps = [
         "@org_golang_google_protobuf//reflect/protoreflect",
         "@org_golang_google_protobuf//runtime/protoimpl",

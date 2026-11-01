@@ -15,10 +15,10 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [x] T004 | T001 | `shard`, `postcondition`; validator: neither, both, unknown leg, postcondition without `after_bazel` | FR-001 | T064, T066 | `runner_test` |
 | [x] T005 | T004 | `--shard`, derived obligations, receipts list them; no change without the flag | FR-002 | T064 | `runner_test`, fake Bazel |
 | [x] T006 | T005 | Leg column in `required_tests.txt`; leg inventory and sandbox evidence; each required test in one Bazel leg | FR-002, FR-023 | T066 | `verify_body_test` per leg |
-| [ ] T007 | T005 | CI receipt fields; reconcile the evidence-receipt contract | FR-024, FR-015 | T065 | `runner_test` |
-| [ ] T008 | T006 | `ciparity`: legs from the registry equal jobs and `needs`; no inline policy; unique artifact names; read-only; no `pull_request_target` | FR-003, FR-004, FR-024, FR-025 | T066 | `parity_test` mutations |
-| [ ] T009 | T008 | Workflow legs, per-attempt receipts; check the rerun guide against R4 | FR-004, FR-024 | T064, T065 | `parity_test`, `zizmor`, `actionlint` |
-| [ ] T010 | T009 | Gate fixtures by executing its run block: all success, skipped, cancelled, failed, absent, failed then rerun, partial rerun | FR-005 | T061 | `parity_test` |
+| [x] T007 | T005 | CI receipt fields, except the base fields that T015 adds; reconcile the evidence-receipt contract | FR-024, FR-015 | T065 | `runner_test` |
+| [x] T008 | T006 | `ciparity`: legs from the registry equal jobs and `needs`; no inline policy; unique artifact names; read-only; no `pull_request_target` | FR-003, FR-004, FR-024, FR-025 | T066 | `parity_test` mutations |
+| [x] T009 | T008 | Workflow legs, per-attempt receipts; the rerun guide check against R4 stays with T023 | FR-004, FR-024 | T064, T065 | `parity_test`, `zizmor`, `actionlint` |
+| [x] T010 | T009 | Gate fixtures by executing its run block: all success, skipped, cancelled, failed, absent, failed then rerun, partial rerun | FR-005 | T061 | `parity_test` |
 | [ ] T011 | T002, T003 | Merger in the quality module; `.bazelrc`, `bazelrc.allow`; no C++ or JDK | FR-009 | T063 | `bazelrc-policy`, analysis on this no-toolchain template |
 | [ ] T012 | T011 | `PlanBazel` verb rule; one invocation per stage; `coverage-floor` after it | FR-006, FR-007 | T063 | Fake Bazel count; every required test under `coverage` |
 | [ ] T013 | T012 | Reports validated: Go statements from the raw profile; Node test entry and a `transport.ts` test; empty, placeholder, truncated, missing module, missing `.cover`, exit 3 with reports | FR-019–FR-021 | T063 | Named fixtures, real tools |
@@ -30,7 +30,7 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [ ] T019 | T018 | README, parent SC-001, contracts, hook limits | FR-022 | SC-001 | Doc assertions |
 | [ ] T020 | T018 | S005 re-witness against the pinned tools; closes or restates parent T047 | FR-027 | T047 | Suppression fixtures |
 | [ ] T021 | T018 | Bypassed-hook commit fails a CI-equivalent run | FR-027 | T070 | `fixtures_test` |
-| [ ] T022 | T009 | Trigger sentence narrowed | FR-026 | | Doc assertion |
+| [x] T022 | T009 | Trigger sentence narrowed | FR-026 | | Doc assertion |
 | [ ] T023 | T019–T022 | `docs/quality/evidence.md`: separate claims; gaps for T067, T068, FR-023, SC-007 | US5 | T069 | Review |
 | [ ] T024 | T023 | Reconcile capability states, classification, parent ledger; cheap checks | all | T070 | Review |
 | [ ] T025 | T024 | Reproduce R6 flows exactly, with negatives | SC-004 | | Logs |

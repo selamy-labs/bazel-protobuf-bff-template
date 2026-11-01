@@ -12,7 +12,7 @@
       "sha": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
       "with": {
         "if-no-files-found": "error",
-        "name": "verify-receipt",
+        "name": "verify-receipt-${{ github.job }}-${{ github.run_attempt }}",
         "path": ".verify/receipt.json",
         "retention-days": 14
       }
@@ -36,34 +36,55 @@
   ],
   "max_timeout_minutes": 45,
   "required_jobs": [
-    "verify"
+    "build-test",
+    "e2e",
+    "policy"
   ],
   "gate": "gate",
-  "required_run": "tools/verify.sh",
+  "required_run": "tools/verify.sh --shard={job}",
   "runs": [
     {
       "body": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
     },
     {
-      "body": "tools/verify.sh"
+      "body": "tools/verify.sh --shard=build-test"
     },
     {
-      "body": "for result in $RESULTS; do\n  if [ \"$result\" != \"success\" ]; then\n    echo \"gate: a required job finished as '$result'\" >&2\n    exit 1\n  fi\ndone",
+      "body": "tools/verify.sh --shard=e2e"
+    },
+    {
+      "body": "tools/verify.sh --shard=policy"
+    },
+    {
+      "body": "count=0\nfor result in $RESULTS; do\n  if [ \"$result\" != \"success\" ]; then\n    echo \"gate: a required job finished as '$result'\" >&2\n    exit 1\n  fi\n  count=$((count + 1))\ndone\nif [ \"$count\" != \"$EXPECTED_LEGS\" ]; then\n  echo \"gate: $count results, expected $EXPECTED_LEGS\" >&2\n  exit 1\nfi",
       "env": {
-        "RESULTS": "${{ join(needs.*.result, ' ') }}"
+        "RESULTS": "${{ join(needs.*.result, ' ') }}",
+        "EXPECTED_LEGS": "3"
       },
       "gate_only": true
     }
   ],
   "job_steps": {
-    "verify": [
+    "build-test": [
       "uses:actions/checkout",
       "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
-      "run:tools/verify.sh",
+      "run:tools/verify.sh --shard=build-test",
+      "uses:actions/upload-artifact"
+    ],
+    "e2e": [
+      "uses:actions/checkout",
+      "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+      "run:tools/verify.sh --shard=e2e",
+      "uses:actions/upload-artifact"
+    ],
+    "policy": [
+      "uses:actions/checkout",
+      "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+      "run:tools/verify.sh --shard=policy",
       "uses:actions/upload-artifact"
     ],
     "gate": [
-      "run:for result in $RESULTS; do\n  if [ \"$result\" != \"success\" ]; then\n    echo \"gate: a required job finished as '$result'\" >&2\n    exit 1\n  fi\ndone"
+      "run:count=0\nfor result in $RESULTS; do\n  if [ \"$result\" != \"success\" ]; then\n    echo \"gate: a required job finished as '$result'\" >&2\n    exit 1\n  fi\n  count=$((count + 1))\ndone\nif [ \"$count\" != \"$EXPECTED_LEGS\" ]; then\n  echo \"gate: $count results, expected $EXPECTED_LEGS\" >&2\n  exit 1\nfi"
     ]
   }
 }

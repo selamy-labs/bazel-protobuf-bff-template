@@ -125,17 +125,20 @@ func Diagnostics(check, output, rerun, retained string) []string {
 
 // Receipt is the evidence a stage leaves (contracts/evidence-receipt.md).
 type Receipt struct {
-	SchemaVersion  int               `json:"schema_version"`
-	Stage          string            `json:"stage"`
-	Requested      string            `json:"requested_stage"`
-	Shard          string            `json:"shard,omitempty"`
-	Revision       string            `json:"revision"`
-	Tree           string            `json:"tree"`
-	TestedTree     string            `json:"tested_tree"`
-	WorktreeDirty  bool              `json:"worktree_dirty"`
-	PolicyDigest   string            `json:"policy_digest"`
-	RegistryVer    string            `json:"registry_version"`
-	Producer       string            `json:"producer"`
+	SchemaVersion int    `json:"schema_version"`
+	Stage         string `json:"stage"`
+	Requested     string `json:"requested_stage"`
+	Shard         string `json:"shard,omitempty"`
+	Revision      string `json:"revision"`
+	Tree          string `json:"tree"`
+	TestedTree    string `json:"tested_tree"`
+	WorktreeDirty bool   `json:"worktree_dirty"`
+	PolicyDigest  string `json:"policy_digest"`
+	RegistryVer   string `json:"registry_version"`
+	Producer      string `json:"producer"`
+	// Attempt is the hosted run attempt, and ClaimLayer says which kind of evidence this is.
+	Attempt        string            `json:"attempt,omitempty"`
+	ClaimLayer     string            `json:"claim_layer"`
 	Isolation      string            `json:"isolation"`
 	SandboxSummary string            `json:"sandbox_summary"`
 	Offline        bool              `json:"offline"`

@@ -18,5 +18,9 @@ go_binary(
     srcs = ["cmd/main.go"],
     out = "ciparity",
     visibility = ["//visibility:public"],
-    deps = [":ciparity"],
+    deps = [
+        ":ciparity",
+        "//proto:registrypb",
+        "@org_golang_google_protobuf//encoding/prototext",
+    ],
 )
