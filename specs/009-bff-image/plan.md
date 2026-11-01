@@ -30,6 +30,7 @@ One `oci_image` target for the production binary, with no base, a declared mtree
 bff/cmd/bff/BUILD.bazel     image targets
 bff/cmd/bff/image_test.go   witness
 tools/checks/required_tests.txt
+tools/checks/image_release.sh      the plain-configuration gate, bound in quality/registry.textproto
 MODULE.bazel, MODULE.bazel.lock
 docs/provenance.md
 specs/001-bff-template-foundation/   D8, R-13, section 9, T083, FR-034

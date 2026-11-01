@@ -39,8 +39,15 @@ refusal. A transition on the packaged binary resets `collect_code_coverage`, so 
 server under either command. The digest still differs between the two commands, by one cause measured on the
 binaries: the generated `.pb.go` sources are recorded with the output directory of the configuration that made
 them, `bazel-out/k8-fastbuild/bin` in a plain build and a transitioned directory under coverage. Same size, no
-shim, and no other differing string. So identity is the plain build's digest, and the verifier's witness checks
-content and behavior. Coverage of the server's own code is unchanged: it comes from the tests, not the image.
+shim, and no other differing string. A second measurement, after resetting `instrumentation_filter` in the same transition: the two transitioned
+configurations became option-identical, with the same configuration ids under both commands, and the output
+directories still differed. Bazel's `DIFF_AGAINST_DYNAMIC_BASELINE` naming scheme derives a transitioned
+directory's name from its difference to the command's own top-level configuration, which differs between
+`build` and `coverage`. No option normalization closes that, and changing the naming scheme for the whole
+repository is not a packaging decision. So the transition keeps the server uninstrumented under either command,
+identity is the plain build's digest, and the `image-release` check builds and witnesses that plain image after
+the verifier's own invocation and reports its digest. Coverage of the server's own code is unchanged: it comes
+from the tests, not the image.
 
 ## Alternatives rejected
 

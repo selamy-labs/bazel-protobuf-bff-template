@@ -45,7 +45,7 @@ LINUX_AMD64 = [
     "@platforms//os:linux",
 ]
 
-# The same binary a plain build makes, whatever command built the image.
+# The packaged binary, from the plain configuration whatever command built the image. See release.bzl.
 release_binary(
     name = "bff_release",
     binary = ":bff",

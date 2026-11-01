@@ -41,6 +41,14 @@ STUB
 stub "$tree/tools/policy/workspace_policy.sh" workspace-policy
 stub "$tree/tools/policy/config_policy.sh" implicit-config
 stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
+# image-release is a summary check, so its stand-in prints the measurement a real run would.
+cat >"$tree/tools/checks/image_release.sh" <<STUB
+#!/usr/bin/env bash
+[[ "\$(cat "$work/fail" 2>/dev/null)" == image-release ]] && { echo "stub failure: image-release"; exit 1; }
+echo "measurement: image sha256:$(printf '%064d' 0), plain configuration, stub"
+exit 0
+STUB
+chmod +x "$tree/tools/checks/image_release.sh"
 stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
 stub "$tree/tools/hooks/e2e.sh" hook-e2e
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance

@@ -11,7 +11,7 @@
 | Entrypoint | `["/bff"]` |
 | Env, Cmd, ExposedPorts | None. A listen address is the server's own flag |
 | Timestamps | Epoch |
-| Identity | The manifest's content digest, computed from the bytes, of a plain `tools/bootstrap/bazel.sh build`. Under `bazel coverage` the same targets build an image whose binary embeds a different output directory name for its generated sources, so that digest differs and is not the image's identity. The binary is uninstrumented either way |
+| Identity | The manifest's content digest, computed from the bytes, of a plain `tools/bootstrap/bazel.sh build`. The `image-release` check builds that image, runs the witness on it and reports the digest as a measurement in the receipt. A runtime run binds that digest. An image built by the verifier's `bazel coverage` invocation holds the same uninstrumented server but a different digest, because Bazel names its transitioned output directories by their difference from the command's top-level configuration, and the Go binary records those directories in its generated sources' paths. That image witnesses content and behavior, and is never the release artifact |
 | Linking | No `PT_INTERP`, no `DT_NEEDED` |
 
 **Startup.** As shipped, with no verifier assigned, the process exits 1 and writes exactly this to stderr:
