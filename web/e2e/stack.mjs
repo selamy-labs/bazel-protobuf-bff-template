@@ -51,10 +51,10 @@ function ready(child) {
 }
 
 export async function startStack() {
-  const site = await serve(required("WEB_DIST"));
+  const site = await serve(required("WEB_DIST"), 0);
   const server = spawn(
     path.resolve(required("BFF_BIN")),
-    ["--addr=127.0.0.1:0", `--allowed-origin=${site.origin}`],
+    ["--addr=127.0.0.1:0", `--allowed-origin=${site.origin}`, "--store=memory"],
     {
       stdio: ["ignore", "pipe", "pipe"],
     },

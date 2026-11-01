@@ -26,12 +26,12 @@ inventory: they are not configurable behavior of the product.
 
 ## Development server, `bff/cmd/bff-dev`
 
-| Site                         | Value                        | Boundary                                                                                                                                                                    |
-| ---------------------------- | ---------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `main.go` `--addr`           | `127.0.0.1:8080`             | scattered: the local profile is the input boundary for the same value (`bff_port`), and the launcher passes it; the binary carries a second copy for a bare run. Owner T020 |
-| `main.go` `--allowed-origin` | `http://127.0.0.1:5173`      | scattered: the profile's `web_port` is the boundary; same as above. Owner T020                                                                                              |
-| `main.go` `--store`          | `memory`                     | scattered: the profile's `store` is the boundary; same as above. Owner T020                                                                                                 |
-| `main.go` `--data-dir`       | empty, required with `local` | composition                                                                                                                                                                 |
+| Site                         | Value                                  | Boundary                                                |
+| ---------------------------- | -------------------------------------- | ------------------------------------------------------- |
+| `main.go` `--addr`           | required; refused by name when missing | input: the profile's `bff_port`, passed by the launcher |
+| `main.go` `--allowed-origin` | required; refused by name when missing | input: the profile's `web_port`, passed by the launcher |
+| `main.go` `--store`          | required; refused by name when missing | input: the profile's `store`, passed by the launcher    |
+| `main.go` `--data-dir`       | empty, required with `local`           | composition                                             |
 
 ## Local demo profile, `tools/dev/profile.json` and `//tools/dev/profile`
 
@@ -67,13 +67,13 @@ inventory: they are not configurable behavior of the product.
 
 ## Browser client, `web/app`, `web/client`, `web/serve`
 
-| Site                                      | Value                                                                         | Boundary                                                                                |
-| ----------------------------------------- | ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `app/main.tsx` `deadlineMs`               | 2000 ms, passed to every client                                               | composition                                                                             |
-| `app/main.tsx` `/config.json` `bffUrl`    | read at start                                                                 | input: the static server's `--bff-url`                                                  |
-| `client/transport.ts` `deadlineMs`        | required option, no default                                                   | composition (required inner parameter)                                                  |
-| `serve/serve.mjs` `serve(root, port = 0)` | an ephemeral port on `127.0.0.1`; the content types of `.html`, `.js`, `.css` | scattered: the port default is for tests; the launcher passes the profile's. Owner T020 |
-| `app/main.tsx` `plantedRenderError`       | `#planted-render-error`                                                       | contract of the development build's witness, removed from production                    |
+| Site                                   | Value                                                                         | Boundary                                                                                                                   |
+| -------------------------------------- | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `app/main.tsx` `deadlineMs`            | 2000 ms, passed to every client                                               | composition                                                                                                                |
+| `app/main.tsx` `/config.json` `bffUrl` | read at start                                                                 | input: the static server's `--bff-url`                                                                                     |
+| `client/transport.ts` `deadlineMs`     | required option, no default                                                   | composition (required inner parameter)                                                                                     |
+| `serve/serve.mjs` `serve(root, port)`  | an ephemeral port on `127.0.0.1`; the content types of `.html`, `.js`, `.css` | input: the port is required, the profile's `web_port` through the launcher, or 0 for an ephemeral one where a test says so |
+| `app/main.tsx` `plantedRenderError`    | `#planted-render-error`                                                       | contract of the development build's witness, removed from production                                                       |
 
 ## Quality runner and checks, `quality/`, `tools/`
 
@@ -96,8 +96,8 @@ inventory: they are not configurable behavior of the product.
 | Boundary    | Rows |
 | ----------- | ---- |
 | composition | 20   |
-| input       | 4    |
+| input       | 8    |
 | contract    | 8    |
-| scattered   | 6    |
+| scattered   | 2    |
 
 The scattered rows are the open work of T020, each with an owner above; none is waived.

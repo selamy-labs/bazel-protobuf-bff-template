@@ -9,7 +9,10 @@ import { fileURLToPath } from "node:url";
 
 const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
 
-export async function serve(root, port = 0) {
+export async function serve(root, port) {
+  if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    throw new Error(`serve: port must be a whole number from 0 (ephemeral) to 65535, not ${port}`);
+  }
   const config = { bffUrl: "" };
   const base = path.resolve(root);
   const server = createServer(async (request, response) => {

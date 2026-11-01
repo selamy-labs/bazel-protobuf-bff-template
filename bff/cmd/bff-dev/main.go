@@ -21,11 +21,19 @@ import (
 )
 
 func main() {
-	addr := flag.String("addr", "127.0.0.1:8080", "loopback listen address")
-	origin := flag.String("allowed-origin", "http://127.0.0.1:5173", "exact web origin")
-	storeKind := flag.String("store", "memory", "memory, or local with --data-dir")
+	// Nothing here has a default (spec 011 FR-016): the local demo's values are declared once in the typed
+	// profile, and the launcher passes them; a bare run must say each one.
+	addr := flag.String("addr", "", "loopback listen address, required")
+	origin := flag.String("allowed-origin", "", "exact web origin, required")
+	storeKind := flag.String("store", "", "memory, or local with --data-dir; required")
 	dataDir := flag.String("data-dir", "", "the local store's directory")
 	flag.Parse()
+	for name, value := range map[string]string{"--addr": *addr, "--allowed-origin": *origin, "--store": *storeKind} {
+		if value == "" {
+			fmt.Fprintf(os.Stderr, "bff-dev: %s is required; the launcher passes it from tools/dev/profile.json\n", name)
+			os.Exit(2)
+		}
+	}
 	store, err := openStore(*storeKind, *dataDir)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bff-dev: %v\n", err)

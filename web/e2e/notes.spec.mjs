@@ -250,7 +250,7 @@ test("a second submit does not create a second note", async ({ notes }) => {
 });
 
 test("the browser blocks a disallowed origin", async ({ page, stack }) => {
-  const other = await serve(process.env.WEB_DIST);
+  const other = await serve(process.env.WEB_DIST, 0);
   other.setBffUrl(stack.bffUrl);
   await page.goto(other.origin);
   await createNote(page, "a");

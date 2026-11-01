@@ -30,15 +30,27 @@ refused "shipped production binary" "no verifier is configured" env -u BFF_MODE 
 refused "production with a dev mode" "only in production" "$bff" --mode=dev
 refused "production with dev mode from the environment" "only in production" env BFF_MODE=dev "$bff"
 refused "production with test identity" "refuses identity" "$bff" --identity=test-identity
-refused "dev on every interface" "loopback" "$dev" --addr=0.0.0.0:0
-refused "dev on a host name" "loopback" "$dev" --addr=localhost:0
-refused "dev with a wildcard origin" "exact" "$dev" --addr=127.0.0.1:0 --allowed-origin='*'
+refused "dev on every interface" "loopback" "$dev" --addr=0.0.0.0:0 --allowed-origin=http://127.0.0.1:5173 --store=memory
+refused "dev on a host name" "loopback" "$dev" --addr=localhost:0 --allowed-origin=http://127.0.0.1:5173 --store=memory
+refused "dev with a wildcard origin" "exact" "$dev" --addr=127.0.0.1:0 --allowed-origin='*' --store=memory
+# Nothing is defaulted: each value the profile declares must be passed, and its absence is named.
+required() { # <name> <flag> <command...>
+  local name="$1" want="$2" rc=0
+  shift 2
+  timeout 10 "$@" >"$work/out" 2>"$work/err" </dev/null || rc=$?
+  [[ $rc -eq 2 ]] || fail "$name: exit $rc"
+  grep -qF -- "$want is required" "$work/err" || { cat "$work/err" >&2; fail "$name: message"; }
+  if [[ -s "$work/out" ]]; then fail "$name: printed to stdout"; fi
+}
+required "dev without an address" "--addr" "$dev" --allowed-origin=http://127.0.0.1:5173 --store=memory
+required "dev without an origin" "--allowed-origin" "$dev" --addr=127.0.0.1:0 --store=memory
+required "dev without a store" "--store" "$dev" --addr=127.0.0.1:0 --allowed-origin=http://127.0.0.1:5173
 
 # stdin stays open and unread: a server that waited on it would never report ready.
 mkfifo "$work/stdin"
 sleep 60 >"$work/stdin" &
 holder=$!
-"$dev" --addr=127.0.0.1:0 --allowed-origin=http://127.0.0.1:5173 \
+"$dev" --addr=127.0.0.1:0 --allowed-origin=http://127.0.0.1:5173 --store=memory \
   <"$work/stdin" >"$work/stdout" 2>"$work/stderr" &
 pid=$!
 for _ in $(seq 1 500); do
