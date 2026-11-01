@@ -422,9 +422,20 @@ git -C "$p" commit -q --no-verify -m 'changes policy'
 push "$p" -q origin main
 if grep -qF 'escalated to full' "$work/out"; then pass "a policy change escalates the push"; else fail "a policy change did not escalate"; show; fi
 
+# --- The document states what these cases showed. A limit that changes must change the document.
+for statement in "git commit --no-verify" "git push --no-verify" "SKIP=pre-commit" "PREK_SKIP=pre-commit" \
+  "Only the first pushed ref is judged" "A deleted pin falls back to \`PATH\`" "A foreign hook needs a shebang" \
+  "bootstrap ERROR" "at most the newest 5"; do
+  if grep -qF -- "$statement" "$source_root/${HOOKS_DOC:?}"; then
+    pass "the hooks document states: $statement"
+  else
+    fail "the hooks document lost: $statement"
+  fi
+done
+
 echo "cases=$cases failures=$failures"
-if [[ $cases -lt 40 ]]; then
-  echo "FAIL expected at least 40 cases, ran $cases" >&2
+if [[ $cases -lt 50 ]]; then
+  echo "FAIL expected at least 50 cases, ran $cases" >&2
   exit 1
 fi
 exit "$failures"

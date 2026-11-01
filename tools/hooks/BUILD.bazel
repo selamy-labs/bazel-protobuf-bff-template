@@ -23,10 +23,14 @@ sh_test(
         "stage.sh",
         "//:.gitleaks.toml",
         "//:_typos.toml",
+        "//:docs/quality/hooks.md",
         "//:prek.toml",
         "//:quality",
         "@bff_template_quality//:registry.textproto",
         "@bff_template_quality//adapters:native.sh",
     ],
-    env = {"REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)"},
+    env = {
+        "HOOKS_DOC": "$(rootpath //:docs/quality/hooks.md)",
+        "REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)",
+    },
 )

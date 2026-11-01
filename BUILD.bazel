@@ -21,6 +21,7 @@ exports_files(
     [
         ".gitleaks.toml",
         "_typos.toml",
+        "docs/quality/hooks.md",
         "prek.toml",
     ],
     visibility = ["//tools/hooks:__pkg__"],
