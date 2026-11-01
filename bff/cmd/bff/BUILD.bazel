@@ -56,8 +56,8 @@ oci_image(
     architecture = "amd64",
     entrypoint = ["/bff"],
     os = "linux",
-    tars = [":image_layer"],
     target_compatible_with = LINUX_AMD64,
+    tars = [":image_layer"],
     user = "65532:65532",
     visibility = ["//visibility:public"],
 )
