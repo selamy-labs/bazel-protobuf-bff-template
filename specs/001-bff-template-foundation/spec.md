@@ -47,11 +47,13 @@ by one pin.
 
 **Capabilities, and who consumes them.** This template is a shared foundation, and its reusable value is
 the set below. Each row says what is delivered here and what a downstream product still owns. Three
-downstream products are known to its operator and are named only by neutral labels here: a routing
-service, a small team's consumer idea, and a trading platform. Their domain models, business rules,
-identities, permissions, data and deployment approvals are **unknown to this specification**, stay
-with their product owners, and are not invented here. None of them is started by this template, and
-none of them requires NixOS.
+downstream products are known to its operator and are named only by neutral labels here. What is known
+of each is a kind of work, and no more: routing and custody operations for a service; role-based
+recruiting for a small team's idea; continuous operations across several interfaces for a platform.
+Each would reuse typed contracts, and none has chosen this framework. Their domain models, business
+rules, identities, permissions, integrations, data and deployment approvals are **unknown to this
+specification**, stay with their product owners, and are not invented here. None of them is started by
+this template, and none of them requires NixOS.
 
 | Capability | Delivered here | A downstream product still owns |
 | --- | --- | --- |
