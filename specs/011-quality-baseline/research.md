@@ -16,6 +16,7 @@ Each entry is answered by a probe or by an independent measurement at a named re
 ## R3 Dead code (Q2)
 
 - `nogo` runs staticcheck's correctness analyzers and not `U1000`; x/tools `deadcode` is reachability-based from main packages with `-test` for test executables and documented defaults for generated code and marker methods. Entry points to declare: `//bff/cmd/*`, the quality runner and checks, `tools/pins/*.py` generators. Probe at landing.
+- Probed at T005: staticcheck's `unused` analyzer is a `lint.Analyzer` whose result is a list of unused objects that staticcheck's own driver reports; `nogo` has no such driver, so `quality/analysis/u1000` is that step (one diagnostic per unused object at its position) and is bound in `nogo`. Zero findings over the tree; a hand-planted unused function was refused by the build. The analysis test driver (`analysistest`) skips silently under Bazel because the go command is not the one the test binary was built with, so the witness loads and analyzes the planted package itself with the pinned SDK, in the root module that declares it. x/tools `deadcode` needs `golang.org/x/telemetry`, which is not pinned, so building it is a pin (T011); `knip` needs an unpinned install, refused here, so it is a pin too. Exported identifiers are reachable by definition in per-package mode; whole-program reachability is what `deadcode` would add.
 
 ## R4 Coverage (Q5)
 

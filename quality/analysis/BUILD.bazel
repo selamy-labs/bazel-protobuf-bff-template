@@ -105,7 +105,10 @@ nogo(
     config = "config.json",
     vet = True,
     visibility = ["//visibility:public"],
-    deps = ["@co_honnef_go_tools//staticcheck/%s" % a for a in STATICCHECK],
+    deps = ["@co_honnef_go_tools//staticcheck/%s" % a for a in STATICCHECK] + [
+        # Dead code (spec 011 FR-007): staticcheck's unused analyzer, reported through this module's own step.
+        "//analysis/u1000",
+    ],
 )
 
 exports_files(["config.json"])

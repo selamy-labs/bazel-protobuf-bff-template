@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_test")
+
+# The U1000 planted control (spec 011 FR-002, FR-007), run here because this module pins the Go SDK the
+# analyzer's test driver needs; the analyzer and the planted package are the quality module's.
+go_test(
+    name = "u1000_witness_test",
+    size = "small",
+    srcs = ["witness_test.go"],
+    data = [
+        "@bff_template_quality//analysis/u1000:testdata",
+        "@bff_template_quality//analysis/u1000:testdata/src/planted/planted.go",
+        "@go_sdk//:files",
+        "@go_sdk//:host_compatible_root_file",
+    ],
+    env = {
+        "GOROOT_FILE": "$(rlocationpath @go_sdk//:host_compatible_root_file)",
+        "PLANTED": "$(rlocationpath @bff_template_quality//analysis/u1000:testdata/src/planted/planted.go)",
+    },
+    deps = ["@bff_template_quality//analysis/u1000/witness"],
+)

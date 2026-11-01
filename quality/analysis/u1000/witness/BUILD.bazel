@@ -1,0 +1,15 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "witness",
+    testonly = True,
+    srcs = ["witness.go"],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/analysis/u1000/witness",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//analysis/u1000",
+        "@org_golang_x_tools//go/analysis",
+        "@org_golang_x_tools//go/analysis/checker",
+        "@org_golang_x_tools//go/packages",
+    ],
+)

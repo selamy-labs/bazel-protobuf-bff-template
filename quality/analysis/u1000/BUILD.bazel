@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+# U1000 for nogo (spec 011 FR-007): staticcheck's unused analyzer with the reporting step its driver would do.
+go_library(
+    name = "u1000",
+    srcs = ["u1000.go"],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/analysis/u1000",
+    visibility = ["//visibility:public"],
+    deps = [
+        "@co_honnef_go_tools//unused",
+        "@org_golang_x_tools//go/analysis",
+    ],
+)
+
+# The planted package the witness analyzes, with its expected diagnostics written beside the code.
+filegroup(
+    name = "testdata",
+    testonly = True,
+    srcs = glob(["testdata/**"]),
+    visibility = ["//visibility:public"],
+)
+
+exports_files(
+    ["testdata/src/planted/planted.go"],
+    visibility = ["//visibility:public"],
+)
