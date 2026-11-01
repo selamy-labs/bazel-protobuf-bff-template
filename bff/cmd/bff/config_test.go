@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"example.com/bfftemplate/bff/adapters/identity/oidc"
 	"example.com/bfftemplate/bff/adapters/memory"
 	"example.com/bfftemplate/bff/identity"
 	"example.com/bfftemplate/bff/server"
@@ -18,13 +19,44 @@ func (verifier) Verify(context.Context, string) (string, error) {
 	return "", identity.ErrUnauthenticated
 }
 
-func withVerifier() (identity.Verifier, error) { return verifier{}, nil }
+func withVerifier(oidc.Settings) (identity.Verifier, error) { return verifier{}, nil }
 
 func noEnvironment(string) string { return "" }
 
-func TestShippedBinaryHasNoVerifier(t *testing.T) {
-	if newVerifier != nil {
-		t.Fatal("this repository ships no verifier")
+// The shipped binary names no issuer, so it refuses to start: the refusal spec 009's image witnesses.
+func TestShippedBinaryRefusesWithoutAnIssuer(t *testing.T) {
+	parsed, err := parse([]string{"--allowed-origin=https://app.example.com"}, noEnvironment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := configure(parsed, newVerifier); err == nil || !strings.Contains(err.Error(), "no verifier is configured") {
+		t.Fatalf("got %v", err)
+	}
+}
+
+// The issuer's three settings arrive by flag or variable and reach the verifier; a partial set is refused by name.
+func TestTheIssuerIsTheComposition(t *testing.T) {
+	var got oidc.Settings
+	capture := func(s oidc.Settings) (identity.Verifier, error) { got = s; return verifier{}, nil }
+	parsed, err := parse([]string{"--verifier-issuer=https://issuer.example/", "--verifier-audience=bff"}, func(name string) string {
+		return map[string]string{"BFF_VERIFIER_JWKS_URL": "https://issuer.example/jwks"}[name]
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := configure(parsed, capture); err != nil {
+		t.Fatal(err)
+	}
+	want := oidc.Settings{Issuer: "https://issuer.example/", Audience: "bff", JWKSURL: "https://issuer.example/jwks"}
+	if got != want {
+		t.Fatalf("the verifier got %+v, want %+v", got, want)
+	}
+	parsed, err = parse([]string{"--verifier-issuer=https://issuer.example/"}, noEnvironment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := configure(parsed, newVerifier); err == nil || !strings.Contains(err.Error(), "verifier.audience: required") {
+		t.Fatalf("a partial issuer: got %v", err)
 	}
 }
 
@@ -56,12 +88,12 @@ func TestConfigure(t *testing.T) {
 		name     string
 		args     []string
 		env      map[string]string
-		verifier func() (identity.Verifier, error)
+		verifier func(oidc.Settings) (identity.Verifier, error)
 		want     string
 	}{
 		{name: "no verifier", want: "no verifier is configured"},
-		{name: "a failing verifier", verifier: func() (identity.Verifier, error) { return nil, errors.New("no key") }, want: "no key"},
-		{name: "a nil verifier", verifier: func() (identity.Verifier, error) { return nil, nil }, want: "no verifier is configured"},
+		{name: "a failing verifier", verifier: func(oidc.Settings) (identity.Verifier, error) { return nil, errors.New("no key") }, want: "no key"},
+		{name: "a nil verifier", verifier: func(oidc.Settings) (identity.Verifier, error) { return nil, nil }, want: "no verifier is configured"},
 		{name: "test identity by flag", args: []string{"--identity=test-identity"}, verifier: withVerifier, want: "refuses identity"},
 		{name: "test identity by environment", env: map[string]string{"BFF_IDENTITY": "test-identity"}, verifier: withVerifier, want: "refuses identity"},
 		{name: "dev mode by flag", args: []string{"--mode=dev"}, verifier: withVerifier, want: "only in production"},
@@ -73,7 +105,9 @@ func TestConfigure(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			parsed, err := parse(c.args, func(key string) string { return c.env[key] })
+			// Every case names an issuer, so that only the case's own concern decides it.
+			args := append([]string{"--verifier-issuer=https://issuer.example/", "--verifier-audience=bff", "--verifier-jwks-url=https://issuer.example/jwks"}, c.args...)
+			parsed, err := parse(args, func(key string) string { return c.env[key] })
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -95,7 +129,7 @@ func TestConfigure(t *testing.T) {
 }
 
 func TestConfiguredProductionPassesTheServerCheck(t *testing.T) {
-	parsed, err := parse([]string{"--allowed-origin=https://app.example.com"}, noEnvironment)
+	parsed, err := parse([]string{"--allowed-origin=https://app.example.com", "--verifier-issuer=https://issuer.example/", "--verifier-audience=bff", "--verifier-jwks-url=https://issuer.example/jwks"}, noEnvironment)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -157,7 +191,7 @@ func TestABoundBeyondTheInvariantIsRefused(t *testing.T) {
 		"a request bound beyond its ceiling":      {"--max-request-bytes=10485760"},
 		"a drain beyond its ceiling":              {"--shutdown-bound=10m"},
 	} {
-		parsed, err := parse(append([]string{"--allowed-origin=https://app.example.com"}, args...), noEnvironment)
+		parsed, err := parse(append([]string{"--allowed-origin=https://app.example.com", "--verifier-issuer=https://issuer.example/", "--verifier-audience=bff", "--verifier-jwks-url=https://issuer.example/jwks"}, args...), noEnvironment)
 		if err != nil {
 			t.Fatal(err)
 		}

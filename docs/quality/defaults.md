@@ -16,13 +16,14 @@ inventory: they are not configurable behavior of the product.
 
 ## Production server, `bff/cmd/bff`
 
-| Site                           | Value                                                                    | Boundary                 |
-| ------------------------------ | ------------------------------------------------------------------------ | ------------------------ |
-| `config.go` `--addr`           | the flag, then `BFF_ADDR`, then `0.0.0.0:$PORT`, then `:8080`            | composition              |
-| `config.go` `--allowed-origin` | the flag, then `BFF_ALLOWED_ORIGIN`; no default, refused when empty      | composition              |
-| `config.go` `--mode`           | the flag, then `BFF_MODE`, then `production`; only `production` accepted | composition              |
-| `config.go` `--identity`       | the flag, then `BFF_IDENTITY`, then `verifier`; only `verifier` accepted | composition              |
-| `bff/server` `Config.Check`    | mode, authenticator kind, store, exact origin, loopback in dev           | composition (validation) |
+| Site                                                                          | Value                                                                                                                                   | Boundary                 |
+| ----------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------ |
+| `config.go` `--addr`                                                          | the flag, then `BFF_ADDR`, then `0.0.0.0:$PORT`, then `:8080`                                                                           | composition              |
+| `config.go` `--allowed-origin`                                                | the flag, then `BFF_ALLOWED_ORIGIN`; no default, refused when empty                                                                     | composition              |
+| `config.go` `--mode`                                                          | the flag, then `BFF_MODE`, then `production`; only `production` accepted                                                                | composition              |
+| `config.go` `--identity`                                                      | the flag, then `BFF_IDENTITY`, then `verifier`; only `verifier` accepted                                                                | composition              |
+| `config.go` `--verifier-issuer`, `--verifier-audience`, `--verifier-jwks-url` | the flag, then `BFF_VERIFIER_ISSUER`, `BFF_VERIFIER_AUDIENCE`, `BFF_VERIFIER_JWKS_URL`; no default, all three required, refused by name | composition              |
+| `bff/server` `Config.Check`                                                   | mode, authenticator kind, store, exact origin, loopback in dev                                                                          | composition (validation) |
 
 ## Development server, `bff/cmd/bff-dev`
 
@@ -95,7 +96,7 @@ inventory: they are not configurable behavior of the product.
 
 | Boundary    | Rows |
 | ----------- | ---- |
-| composition | 20   |
+| composition | 21   |
 | input       | 8    |
 | contract    | 10   |
 | scattered   | 0    |

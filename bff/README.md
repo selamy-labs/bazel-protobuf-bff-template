@@ -13,29 +13,33 @@ contract, and stores notes behind a port.
 
 ## Layout
 
-| Path | Role |
-| --- | --- |
-| `transport` | Handlers, validation, error mapping, CORS |
-| `app` | Use cases, with no transport or generated types |
-| `ports` | What the application needs from storage |
+| Path              | Role                                              |
+| ----------------- | ------------------------------------------------- |
+| `transport`       | Handlers, validation, error mapping, CORS         |
+| `app`             | Use cases, with no transport or generated types   |
+| `ports`           | What the application needs from storage           |
 | `adapters/memory` | In-memory store. Data does not survive a restart. |
-| `identity` | Authentication boundary |
-| `server` | Wiring, start-up refusal, ready event, shutdown |
-| `cmd/bff` | Production binary |
-| `cmd/bff-dev` | Development binary, `testonly` |
-| `testing` | Test identity and fault injection, `testonly` |
+| `identity`        | Authentication boundary                           |
+| `server`          | Wiring, start-up refusal, ready event, shutdown   |
+| `cmd/bff`         | Production binary                                 |
+| `cmd/bff-dev`     | Development binary, `testonly`                    |
+| `testing`         | Test identity and fault injection, `testonly`     |
 
 `dependency_rules.tsv` lists the dependency directions, and a test enforces them.
 
 ## Identity
 
-This repository ships no identity provider, so the production binary refuses to start as shipped:
+This repository ships no identity provider, only the adapter for one: `bff/adapters/identity/oidc` verifies tokens
+signed by an issuer that publishes its keys as a JSON Web Key Set, which any OpenID Connect provider does. The
+production binary refuses to start until the issuer is named:
 
 ```text
-bff: no verifier is configured; assign newVerifier in bff/cmd/bff/verifier.go
+bff: no verifier is configured: name the issuer with --verifier-issuer, --verifier-audience and --verifier-jwks-url (or BFF_VERIFIER_ISSUER, BFF_VERIFIER_AUDIENCE, BFF_VERIFIER_JWKS_URL); this repository ships no identity provider
 ```
 
-To run in production, implement `identity.Verifier` and assign `newVerifier`. Run the development
+To run in production, name your issuer with `--verifier-issuer`, `--verifier-audience` and `--verifier-jwks-url` (or
+the `BFF_VERIFIER_*` variables): a token is accepted only when its signature checks against the issuer's current
+keys and its issuer, audience and expiry hold, and a rejected token says nothing about why. Run the development
 binary locally. It accepts any subject, listens only on loopback, and is labeled `TEST IDENTITY`.
 
 The browser sends a bearer credential in the `Authorization` header, and cookies never authenticate.

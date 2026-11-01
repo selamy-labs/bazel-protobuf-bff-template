@@ -59,6 +59,9 @@ use_repo(
     "build_buf_gen_go_bufbuild_protovalidate_protocolbuffers_go",
     "build_buf_go_protovalidate",
     "com_connectrpc_connect_v2",
+    "com_github_golang_jwt_jwt_v5",
+    "com_github_micahparks_jwkset",
+    "com_github_micahparks_keyfunc_v3",
     "org_golang_google_protobuf",
 )
 

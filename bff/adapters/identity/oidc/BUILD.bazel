@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# The issuer's verifier (spec 012 FR-015): tokens signed by a JSON Web Key Set the issuer publishes.
+go_library(
+    name = "oidc",
+    srcs = ["verifier.go"],
+    importpath = "example.com/bfftemplate/bff/adapters/identity/oidc",
+    visibility = ["//bff:__subpackages__"],
+    deps = [
+        "//bff/identity",
+        "@com_github_golang_jwt_jwt_v5//:jwt",
+        "@com_github_micahparks_keyfunc_v3//:keyfunc",
+    ],
+)
+
+go_test(
+    name = "oidc_test",
+    size = "small",
+    srcs = ["verifier_test.go"],
+    embed = [":oidc"],
+    deps = [
+        "//bff/identity",
+        "@com_github_golang_jwt_jwt_v5//:jwt",
+        "@com_github_micahparks_jwkset//:jwkset",
+    ],
+)

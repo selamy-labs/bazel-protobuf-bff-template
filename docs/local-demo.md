@@ -17,13 +17,13 @@ start.
 `tools/dev/profile.json` is the one place the demo's values are declared, and the launcher validates it once
 before anything starts:
 
-| Field | Meaning | Override |
-| --- | --- | --- |
-| `bff_port`, `web_port` | loopback ports for the server and the page; distinct, 1 to 65535 | `BFF_PORT`, `WEB_PORT` |
-| `store` | `local`: notes live in `data_dir` until a reset; `memory`: notes live until the demo stops | `BFF_STORE` |
-| `data_dir` | the local store's directory, relative to the repository root or absolute | `BFF_DATA_DIR` |
-| `identity` | `test-identity`, the development identity on loopback: any caller may claim any subject | none |
-| `seed_subject` | the synthetic subject the demo and its recording use | none |
+| Field                  | Meaning                                                                                    | Override               |
+| ---------------------- | ------------------------------------------------------------------------------------------ | ---------------------- |
+| `bff_port`, `web_port` | loopback ports for the server and the page; distinct, 1 to 65535                           | `BFF_PORT`, `WEB_PORT` |
+| `store`                | `local`: notes live in `data_dir` until a reset; `memory`: notes live until the demo stops | `BFF_STORE`            |
+| `data_dir`             | the local store's directory, relative to the repository root or absolute                   | `BFF_DATA_DIR`         |
+| `identity`             | `test-identity`, the development identity on loopback: any caller may claim any subject    | none                   |
+| `seed_subject`         | the synthetic subject the demo and its recording use                                       | none                   |
 
 The launcher prints each effective value with its source (`bff_port="8080" # from profile.json`). A missing,
 unknown or invalid value, a port already in use, or an unknown argument is refused by name, and nothing starts.
@@ -58,8 +58,8 @@ pinned browser is.
 
 ## Limitations
 
-- The development identity is for loopback only; the production server refuses to start without a real
-  verifier, and the test identity is absent from the production bundle. Nothing here weakens that.
+- The development identity is for loopback only; the production server refuses to start without a named
+  issuer for its verifier, and the test identity is absent from the production bundle. Nothing here weakens that.
 - The supported host is the Linux x86_64 profile the verifier qualifies. The launcher needs only bash 3.2 and
   POSIX tools, and an independent run on macOS ARM built the target and reached the launcher at `34e1bbc`; a
   native macOS result is recorded only when that independent run records it.

@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"example.com/bfftemplate/bff/adapters/identity/oidc"
 	"example.com/bfftemplate/bff/adapters/memory"
 	"example.com/bfftemplate/bff/identity"
 	"example.com/bfftemplate/bff/server"
@@ -23,6 +24,7 @@ type options struct {
 	maxRequestBytes int
 	shutdownBound   time.Duration
 	maxNotes        int
+	verifier        oidc.Settings
 }
 
 // The composition's defaults (spec 011 FR-016): each is set here once, read by its flag, then its BFF_*
@@ -54,6 +56,11 @@ func parse(args []string, getenv func(string) string) (options, error) {
 	flags.StringVar(&parsed.allowedOrigin, "allowed-origin", getenv("BFF_ALLOWED_ORIGIN"), "exact web origin")
 	flags.StringVar(&parsed.mode, "mode", fallback(getenv("BFF_MODE"), string(server.ModeProduction)), "only production")
 	flags.StringVar(&parsed.identity, "identity", fallback(getenv("BFF_IDENTITY"), "verifier"), "only verifier")
+	// The issuer whose tokens are accepted (spec 012 FR-015): no default, each required when the identity is the
+	// verifier; the hosted inputs' names, which the service module passes as the same variables.
+	flags.StringVar(&parsed.verifier.Issuer, "verifier-issuer", getenv("BFF_VERIFIER_ISSUER"), "the exact iss claim accepted")
+	flags.StringVar(&parsed.verifier.Audience, "verifier-audience", getenv("BFF_VERIFIER_AUDIENCE"), "the aud claim accepted")
+	flags.StringVar(&parsed.verifier.JWKSURL, "verifier-jwks-url", getenv("BFF_VERIFIER_JWKS_URL"), "where the issuer publishes its signing keys")
 	durations := []struct {
 		target *time.Duration
 		flag   string
@@ -132,17 +139,22 @@ func envInt(getenv func(string) string, name string, otherwise int) (int, error)
 // configure refuses anything but production with a verifier. This binary links no test identity,
 // so asking for it is a mistake to report, not a mode to honor. The bounds go down as required
 // parameters; the server's check refuses a bound outside its invariants, whatever asked for it.
-func configure(parsed options, newVerifier func() (identity.Verifier, error)) (server.Config, error) {
+// Without an issuer named, no verifier is configured and the server refuses to start: this repository
+// ships no identity provider, only the adapter for one.
+func configure(parsed options, newVerifier func(oidc.Settings) (identity.Verifier, error)) (server.Config, error) {
 	if parsed.mode != string(server.ModeProduction) {
 		return server.Config{}, fmt.Errorf("this binary runs only in production mode, not %q", parsed.mode)
 	}
 	if parsed.identity != "verifier" {
 		return server.Config{}, fmt.Errorf("production mode refuses identity %q", parsed.identity)
 	}
+	if parsed.verifier == (oidc.Settings{}) {
+		return server.Config{}, errors.New("no verifier is configured: name the issuer with --verifier-issuer, --verifier-audience and --verifier-jwks-url (or BFF_VERIFIER_ISSUER, BFF_VERIFIER_AUDIENCE, BFF_VERIFIER_JWKS_URL); this repository ships no identity provider")
+	}
 	if newVerifier == nil {
 		return server.Config{}, errors.New("no verifier is configured; assign newVerifier in bff/cmd/bff/verifier.go")
 	}
-	verifier, err := newVerifier()
+	verifier, err := newVerifier(parsed.verifier)
 	if err != nil {
 		return server.Config{}, fmt.Errorf("verifier: %w", err)
 	}

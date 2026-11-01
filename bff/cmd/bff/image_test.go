@@ -24,7 +24,7 @@ import (
 )
 
 const (
-	refusal      = "bff: no verifier is configured; assign newVerifier in bff/cmd/bff/verifier.go\n"
+	refusal      = "bff: no verifier is configured: name the issuer with --verifier-issuer, --verifier-audience and --verifier-jwks-url (or BFF_VERIFIER_ISSUER, BFF_VERIFIER_AUDIENCE, BFF_VERIFIER_JWKS_URL); this repository ships no identity provider\n"
 	manifestType = "application/vnd.oci.image.manifest.v1+json"
 	configType   = "application/vnd.oci.image.config.v1+json"
 	layerType    = "application/vnd.oci.image.layer.v1.tar"

@@ -12,6 +12,7 @@ go_library(
     ],
     importpath = "example.com/bfftemplate/bff/cmd/bff",
     deps = [
+        "//bff/adapters/identity/oidc",
         "//bff/adapters/memory",
         "//bff/identity",
         "//bff/server",
@@ -31,6 +32,7 @@ go_test(
     srcs = ["config_test.go"],
     embed = [":bff_lib"],
     deps = [
+        "//bff/adapters/identity/oidc",
         "//bff/adapters/memory",
         "//bff/identity",
         "//bff/server",
