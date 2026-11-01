@@ -42,8 +42,14 @@ floor, the browser fails at start. Other platforms fail with a message saying so
 
 ## Identity
 
-Only the `testonly` build, `:dist_dev`, contains test identity. The production build, `:dist`, has no
-credential source and says that sign-in is not configured. Connect yours in `app/main.tsx`.
+Only the `testonly` build, `:dist_dev`, contains test identity. The production build, `:dist`, signs in
+with the issuer its `config.json` names (`signIn: { issuer, clientId }`), through the authorization code
+flow with a proof key in `app/signin/`: the browser is sent to the issuer, comes back with a code, and
+the page exchanges it for an identity token, which it sends as the bearer credential. The server
+verifies that token (`bff/adapters/identity/oidc`); the page only keeps it for the tab and shows who is
+signed in. With no issuer configured, the page says so and every call goes without a credential. Sign
+out forgets the tab's session; the issuer's own session is its own. `//web/app:bundle_test` inspects
+both bundles: the sign-in present in production, the test identity absent.
 
 The server validates input, so there is one set of rules.
 

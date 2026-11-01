@@ -31,6 +31,7 @@
 //tools/dev/record:media_test build-test
 //tools/hooks:fixtures_test build-test
 //web/app:bundle_test build-test
+//web/app/signin:signin_unit_test build-test
 //web/client:client_unit_test build-test
 //web/e2e:browser_smoke_test e2e
 //web/e2e:defect_e2e_test e2e

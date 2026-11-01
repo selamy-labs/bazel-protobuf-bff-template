@@ -1,6 +1,7 @@
 // The hosted shape of the page, locally (spec 012 FR-019, T014): the page served under the example's base path
 // with the backend on another origin, as a Pages project site and a Cloud Run service would be. The identity
-// here is the development one; the verified sign-in, logout and the hosted journey itself are T010 and T017.
+// here is the development one; the journey with the sign-in (web/app/signin) against a local issuer is T014's
+// remainder, and the hosted journey itself is T017's.
 import { readFileSync } from "node:fs";
 
 import { test as base, expect } from "@playwright/test";

@@ -1,0 +1,52 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library", "js_test")
+load("@aspect_rules_ts//ts:defs.bzl", "ts_project")
+
+# The production page's sign-in (spec 012 FR-016): the code flow with a proof key against the configured issuer.
+ts_project(
+    name = "signin",
+    srcs = [
+        "SignIn.tsx",
+        "oidc.ts",
+    ],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "//:tsconfig",
+    visibility = ["//web:__subpackages__"],
+    deps = [
+        "//:node_modules/@types/react",
+        "//:node_modules/react",
+    ],
+)
+
+ts_project(
+    name = "signin_test",
+    testonly = True,
+    srcs = ["oidc.test.ts"],
+    declaration = True,
+    transpiler = "tsc",
+    tsconfig = "//:tsconfig",
+    deps = [
+        ":signin",
+        "//:node_modules/@types/node",
+    ],
+)
+
+js_test(
+    name = "signin_unit_test",
+    size = "small",
+    data = [
+        "test_main.mjs",
+        ":signin_test",
+    ],
+    entry_point = "test_main.mjs",
+)
+
+js_library(
+    name = "lint_srcs",
+    srcs = glob([
+        "*.mjs",
+        "*.ts",
+        "*.tsx",
+    ]),
+    visibility = ["//web/lint:__pkg__"],
+)

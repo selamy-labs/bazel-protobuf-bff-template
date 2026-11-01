@@ -74,6 +74,7 @@ inventory: they are not configurable behavior of the product.
 | ----------------------------------------------- | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `app/main.tsx` `deadlineMs`                     | 2000 ms, passed to every client                                               | composition                                                                                                                                                                                      |
 | `app/main.tsx` `/config.json` `bffUrl`          | read at start                                                                 | input: the static server's `--bff-url`                                                                                                                                                           |
+| `app/main.tsx` `/config.json` `signIn`          | read at start; absent means sign-in is not configured and the page says so    | input: the static server's `setSignIn` locally, the published site's configuration when hosted (the issuer and the client id are the verifier's inputs, declared once)                           |
 | `client/transport.ts` `deadlineMs`              | required option, no default                                                   | composition (required inner parameter)                                                                                                                                                           |
 | `serve/serve.mjs` `serve(root, port, basePath)` | an ephemeral port on `127.0.0.1`; the content types of `.html`, `.js`, `.css` | input: the port and the base path are required, the profile's `web_port` and the launcher's `/` for the local demo, or an ephemeral port and the hosted example's base path where a test says so |
 | `app/main.tsx` `plantedRenderError`             | `#planted-render-error`                                                       | contract of the development build's witness, removed from production                                                                                                                             |
@@ -99,7 +100,7 @@ inventory: they are not configurable behavior of the product.
 | Boundary    | Rows |
 | ----------- | ---- |
 | composition | 23   |
-| input       | 8    |
+| input       | 9    |
 | contract    | 10   |
 | scattered   | 0    |
 

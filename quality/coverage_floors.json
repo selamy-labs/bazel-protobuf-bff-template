@@ -27,7 +27,8 @@
     { "pattern": "^web/lint/", "reason": "test-tooling" },
     { "pattern": "^web/app/vite\\.config\\.mjs$", "reason": "test-tooling" },
     { "pattern": "^web/app/test-identity\\.tsx$", "reason": "test-tooling" },
-    { "pattern": "^web/client/test_main\\.mjs$", "reason": "test-tooling" }
+    { "pattern": "^web/client/test_main\\.mjs$", "reason": "test-tooling" },
+    { "pattern": "^web/app/signin/test_main\\.mjs$", "reason": "test-tooling" }
   ],
   "profiles": [
     {
@@ -70,6 +71,13 @@
       "language": "typescript",
       "metric": "compiled-js-lines",
       "include": "^web/client/",
+      "floor": 100
+    },
+    {
+      "name": "ts-signin",
+      "language": "typescript",
+      "metric": "compiled-js-lines",
+      "include": "^web/app/signin/oidc\\.ts$",
       "floor": 100
     },
     {

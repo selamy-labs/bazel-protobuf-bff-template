@@ -18,6 +18,7 @@ eslint_bin.eslint_test(
         "//:node_modules/typescript-eslint",
         "//tools/dev/record:lint_srcs",
         "//web/app:lint_srcs",
+        "//web/app/signin:lint_srcs",
         "//web/client:lint_srcs",
         "//web/e2e:lint_srcs",
         "//web/serve:lint_srcs",

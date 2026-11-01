@@ -57,6 +57,10 @@ export async function serve(root, port, basePath) {
     setBffUrl: (url) => {
       config.bffUrl = url;
     },
+    // The production page signs in with this issuer as this client (spec 012 FR-016); the dev page ignores it.
+    setSignIn: ({ issuer, clientId }) => {
+      config.signIn = { issuer, clientId };
+    },
     close: () =>
       new Promise((resolve) => {
         server.close(resolve);
