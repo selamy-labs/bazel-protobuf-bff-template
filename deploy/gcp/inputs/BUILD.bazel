@@ -1,6 +1,11 @@
-load("@rules_go//go:def.bzl", "go_library", "go_test")
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 # The hosted example's one typed funnel (spec 012 FR-003): every value declared once, validated before any plan.
+exports_files(
+    ["example.inputs.json"],
+    visibility = ["//deploy:__subpackages__"],
+)
+
 go_library(
     name = "inputs",
     srcs = ["inputs.go"],
@@ -21,4 +26,12 @@ go_test(
         "EXAMPLE": "$(rlocationpath example.inputs.json)",
         "SCHEMA": "$(rlocationpath inputs.schema.json)",
     },
+)
+
+# The first step of every plan and of the CD pipeline: the inputs validated, the effective values printed.
+go_binary(
+    name = "validate",
+    srcs = ["cmd/validate/main.go"],
+    visibility = ["//deploy:__subpackages__"],
+    deps = [":inputs"],
 )

@@ -166,6 +166,7 @@ project's own package metadata. Transitive npm packages are enumerated in the ge
 | --- | --- | --- | --- | --- | --- |
 | golang.org/x/tools | `golang.org/x/tools` | 0.52.0 | BSD-3-Clause | tools | `quality/go.mod`, `quality/go.sum` |
 | honnef.co/go/tools (staticcheck) | `honnef.co/go/tools` | 0.8.2 | MIT | tools | same |
+| Google provider for OpenTofu, the hosted example's service plan | `terraform_provider_google` | 8.9.0 | MPL-2.0, read from the zip's LICENSE (IBM Corp. 2014, 2026) | tools (the offline plan test; nothing of it ships) | `MODULE.bazel` (sha256), `deploy/gcp/service/.terraform.lock.hcl` (h1) |
 | gocognit | `github.com/uudashr/gocognit` | 1.3.0 | MIT, read from the module's LICENSE (M9, spec 011) | tools | same |
 | Pillow, the demo recording's encoder | `pillow` | 13.0.0 | MIT-CMU, read from the wheel's License-Expression and its LICENSE (the PIL license) | tools (the recording only; nothing of it ships) | `tools/dev/record/requirements.lock`, by hash |
 | gocyclo | `github.com/fzipp/gocyclo` | 0.6.0 | BSD-3-Clause, read from the module's LICENSE (M9, spec 011) | tools | same |

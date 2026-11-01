@@ -1,0 +1,63 @@
+# Continuous deployment on Cloud Build (spec 012 FR-005, FR-009): promote the exact image by digest and roll the
+# service to it; nothing is built here. The trigger that runs this is connected to the trusted source only and
+# runs as the contract's build identity, which holds no runtime permission. Rollback is the same pipeline with
+# the previous digest in the inputs; cancellation is the platform's, and the previous revision keeps serving.
+#
+# Substitutions come from the validated inputs file through the trigger; none has a default here.
+steps:
+  - id: validate-inputs
+    name: "${_TOOLS_IMAGE}"
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        # The one funnel first: a refusal here ends the deployment before anything is touched.
+        bazel run //deploy/gcp/inputs:validate -- "${_INPUTS_FILE}"
+
+  - id: promote-by-digest
+    name: "${_TOOLS_IMAGE}"
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        # Copy the published image into the contract's registry by digest; crane preserves the digest, and a
+        # digest that does not exist at the source ends the deployment. Nothing is built or rebuilt.
+        crane copy "${_SOURCE_IMAGE}@${_SERVING_DIGEST}" "${_ARTIFACT_REGISTRY}@${_SERVING_DIGEST}"
+        test "$(crane digest "${_ARTIFACT_REGISTRY}@${_SERVING_DIGEST}")" = "${_SERVING_DIGEST}"
+
+  - id: plan
+    name: "${_TOOLS_IMAGE}"
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        cd deploy/gcp/service
+        tofu init -input=false -lockfile=readonly
+        tofu plan -input=false -var "inputs_file=${_INPUTS_FILE}" -out=/workspace/service.tfplan
+        tofu show -no-color /workspace/service.tfplan > /workspace/service.plan.txt
+
+  - id: apply-behind-the-gate
+    name: "${_TOOLS_IMAGE}"
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        # The gate: the trigger's approval setting is the operator's recorded approval; without it this step never
+        # runs. Nothing here applies on its own authority.
+        cd deploy/gcp/service
+        tofu apply -input=false /workspace/service.tfplan
+
+  - id: record
+    name: "${_TOOLS_IMAGE}"
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        # The deployment record: the digest served before and after, the endpoint, the identity, the build id.
+        gcloud run services describe bff --region "${_REGION}" --format=json > /workspace/service.after.json
+        printf '{"build":"%s","serving_digest":"%s","previous_digest":"%s","source_revision":"%s"}\n' \
+          "${BUILD_ID}" "${_SERVING_DIGEST}" "${_PREVIOUS_DIGEST}" "${COMMIT_SHA}" > /workspace/deployment.json
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+timeout: 1200s

@@ -9,7 +9,9 @@ template.
 | Path | What it holds |
 | --- | --- |
 | `inputs/` | the one typed funnel: `inputs.schema.json`, a synthetic `example.inputs.json`, and the validator every plan runs first. Real inputs, state, plans and evidence stay outside the repository |
-| `service/`, `cloudbuild/`, `tests/` | the service module, the CD pipeline and the offline tests, as spec 012 T012 and T013 land |
+| `service/` | one Cloud Run service serving the release's digest from the contract's registry as the contract's runtime identity, with the funnel's port, origin, verifier settings and bounds, and the public invoker binding; the provider is pinned by checksum and bound to the funnel's project and region; `tests/service.tftest.hcl` are its mock tests |
+| `cloudbuild/cloudbuild.yaml` | the deployment pipeline: validate the inputs, promote the exact image by digest into the contract's registry (nothing is built), plan, apply behind the trigger's approval, record the digests before and after. The trigger, its connection to the public repository through the organization's existing Cloud Build application, the tools image it runs and its approval setting are inputs the infrastructure owner and the operator provide; none is declared here |
+| `tests/offline.sh` | the witness `//deploy/gcp:offline_test` runs: the inputs validated first, then format, validate, the pinned graph of exactly two resources, the provider bound to the funnel, and the mock tests, from a mirror of the pinned provider with no network and no credentials; twelve planted defects fail |
 
 The infrastructure owner composes the project, bootstrap, billing, APIs, IAM and state in its own repository and
 publishes a versioned output contract; `inputs.schema.json` names the fields this repository consumes from it.

@@ -1,0 +1,28 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+# The service module as a reviewed plan, offline (spec 012 FR-012): the inputs validated first, then format,
+# validate, the pinned graph and the mock tests from a mirror of the pinned provider; the planted defects fail.
+# The sandbox gives it no network, and the pinned zip gives it no fetch.
+sh_test(
+    name = "offline_test",
+    size = "medium",
+    srcs = ["tests/offline_test.sh"],
+    args = [
+        "$(rootpath tests/offline.sh)",
+        "$(rootpath @opentofu//:tofu)",
+        "$(rootpath @terraform_provider_google//file)",
+        "deploy/gcp/service",
+        "$(rootpath //deploy/gcp/inputs:example.inputs.json)",
+        "$(rootpath //deploy/gcp/inputs:validate)",
+    ],
+    data = [
+        "tests/offline.sh",
+        "//deploy/gcp/inputs:example.inputs.json",
+        "//deploy/gcp/inputs:validate",
+        "@opentofu//:tofu",
+        "@terraform_provider_google//file",
+    ] + glob(
+        ["service/**"],
+        exclude = ["service/.terraform/**"],
+    ),
+)

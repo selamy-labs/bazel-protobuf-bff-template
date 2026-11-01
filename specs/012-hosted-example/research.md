@@ -15,9 +15,28 @@ revision; none by a product's name.
 
 - `ports.Store` has `Put` and `Get` by owner and id with `ErrNotFound` and `ErrUnavailable`; the memory adapter is bounded. The local demo takes a file-backed adapter under the same contract suite with stated persistence, restart and reset semantics; the hosted example takes the simplest managed store with owner-scoped keys, under the same suite, with a read-after-restart test and an owner-isolation test. A one-instance limit is never a durability claim.
 
-## R4 Cloud Run against the server (evaluation at T005)
+## R4 Cloud Run against the server (evaluation, T005)
 
-- Cloud Run's container contract: linux/amd64, listen on `0.0.0.0:$PORT`. The image is linux/amd64 and static; the server defaults to `:8080` and does not read `PORT`, and its dev mode permits loopback only, which stays. The evaluation records, per requirement, what Cloud Run provides and what the example still lacks: the verifier (R2), the exact origin (R5), bounded shutdown (`bff/server`), persistence (R3), scale-to-zero and the cost bounds. Nothing in it rebuilds the image: deployment is by the digest spec 009's verifier recorded.
+From the pinned source and the service's published container contract; nothing was run against the service, and no resource exists.
+
+| Requirement of the server | The server today | Cloud Run's contract | What the example adds | Gap or caveat |
+| --- | --- | --- | --- | --- |
+| Listen address | `BFF_ADDR` defaults to `:8080`; `PORT` is not read; dev mode is loopback only | the container listens on `0.0.0.0:$PORT`, linux/amd64 | FR-018: production reads `PORT`, binds `0.0.0.0`; dev stays loopback; a non-default port tested | none once T009 lands |
+| Image | one static linux/amd64 image, no base, identified by content digest (spec 009) | an image from a registry the service can read | the image promoted by digest into the contract's registry; deployment by that digest only | the digest check in CD (FR-001); nothing rebuilds |
+| Startup | refuses to start without a verifier (`newVerifier` nil) | a container that exits is a failed revision; the previous revision keeps serving | FR-015: a real verifier composed through `newVerifier`; the refusal stays for a missing one | the example's first deployment cannot be green before T007 |
+| Identity | bearer tokens through `identity.Verifier`; no provider shipped | the service can require a platform identity for ingress, or allow unauthenticated ingress and let the application verify | the application verifies the issuer's tokens (issuer, audience, keys as inputs); ingress stays open to the browser | the issuer is an operator input, not a decision made here |
+| Origin | one exact origin, no path, no credentials | nothing; CORS is the application's | `runtime.allowed_origin` is the Pages host origin; the base path is separate (FR-019) | none |
+| Persistence | in-memory store, bounded, per process | instances start, stop and scale; nothing on an instance survives | FR-017: a managed store behind `ports.Store`, under the contract suite, with the persistence statement in the inputs | the store's choice is T004's probe; a one-instance limit is never durability |
+| Shutdown | bounded shutdown on SIGTERM (`bff/server`) | the service sends SIGTERM and allows a bounded grace period | nothing new; the bound is measured in the live record | none |
+| Health | no health endpoint; the ready event on stdout | the service considers a container healthy when it accepts connections on the port | nothing new; process survival is not health (A05) | a request-level check in the journey, not a claim of availability |
+| Logs | JSON logs on stderr; secrets redacted by test | stdout and stderr are collected | nothing new; redaction verified in the journey (FR-019) | none |
+| Scale and cost | n/a | instance bounds, concurrency and request timeout per revision; billing per use | `bounds` inputs enumerated by a test; a budget alert, never a cap (FR-010) | the alert is not a monetary cap, and the evidence says so |
+| Rollback and cancel | n/a | traffic can target a previous revision; a deployment can be cancelled | `release.serving_digest` and `cancel_in_flight` (FR-009) | witnessed only live |
+
+Conclusion for the plan: Cloud Run fits the server's contract once the three application gaps (verifier, store,
+`PORT`) are closed by the adapters the spec already requires; nothing about the service weakens the server's
+refusals or its exact origin. The decision stays provisional until the adapters exist and an authorized live run
+records the endpoint, the identity, the digest and the flow.
 
 ## R5 Pages base path and the browser origin (probe at T006)
 

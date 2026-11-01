@@ -13,7 +13,7 @@
 
 - [ ] T003 [P] Issuer and verification library probe: a maintained library for the chosen issuer, pinned by go.sum after the probe, with synthetic keys for the negative tests; recorded in research R2
 - [ ] T004 [P] Managed store probe: the simplest managed store with owner-scoped keys, run against the `ports.Store` contract suite behind an emulator or a recorded gate; recorded in research R3
-- [ ] T005 [P] Cloud Run evaluation against the server: `PORT`, `0.0.0.0`, the verifier, the exact origin, bounded shutdown, in-memory versus managed persistence; what it provides and what the example still lacks; recorded in research R4
+- [x] T005 [P] (research R4) Cloud Run evaluation against the server: `PORT`, `0.0.0.0`, the verifier, the exact origin, bounded shutdown, in-memory versus managed persistence; what it provides and what the example still lacks; recorded in research R4
 - [ ] T006 [P] Pages base path probe: project-site path versus host origin; recorded in research R5
 
 ## Phase 3: User Story 4 - A real identity, a real store, a real port (Priority: P1)
@@ -26,8 +26,8 @@
 ## Phase 4: User Story 1 - Stand up from a reviewed plan (Priority: P1)
 
 - [ ] T011 [US1] (the schema, the synthetic example and the validator landed; the provenance of effective values and the precedence over an operator's file follow with the service module) The typed input funnel `deploy/gcp/inputs/` with validation, precedence and effective-value provenance, and a synthetic example; inner modules take required parameters only
-- [ ] T012 [US1] The service module `deploy/gcp/service/` (Cloud Run service by digest, runtime identity, config, exact origin) and the CD pipeline `deploy/gcp/cloudbuild/` (promote by digest from the trusted source, rollback by digest, cancel), authenticated through the sanctioned identity or WIF; no GitHub Actions deployment
-- [ ] T013 [US1] Offline tests `deploy/gcp/tests/`: format, validate, mock plan; planted defects fail: a second project, a wildcard origin, a runtime identity with deploy permission, an unenumerated binding, a digest that is not the recorded one; bound as a required Bazel test with the pinned tofu and provider
+- [x] T012 [US1] (the service module and the pipeline landed offline; the Cloud Build trigger, its connection to the public repository and its approval setting are the infrastructure owner's and the operator's gates) The service module `deploy/gcp/service/` (Cloud Run service by digest, runtime identity, config, exact origin) and the CD pipeline `deploy/gcp/cloudbuild/` (promote by digest from the trusted source, rollback by digest, cancel), authenticated through the sanctioned identity or WIF; no GitHub Actions deployment
+- [x] T013 [US1] (twelve cases; a planted identity with deploy permission is not a resource of this module and stays with the infrastructure owner's tests) Offline tests `deploy/gcp/tests/`: format, validate, mock plan; planted defects fail: a second project, a wildcard origin, a runtime identity with deploy permission, an unenumerated binding, a digest that is not the recorded one; bound as a required Bazel test with the pinned tofu and provider
 - [ ] T014 [US1] The frontend inputs: base path and RPC base URL independent; `web/e2e/hosted.spec.*` covers the preflight, a blocked foreign origin, an authenticated call, error and status accessibility, reload and deep link, logout and cancellation, and log redaction
 
 ## Phase 5: User Story 2 and 3 - Rollback, cancellation, bounds (Priority: P1, P2)
