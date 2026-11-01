@@ -7,27 +7,25 @@ This ledger, the plan and the matrix are committed before any production adapter
 research came first and is recorded in the research file. Each commit names its tasks. A box is
 ticked only when the named witness passes in the verifier; a ticked box is a record, not the evidence.
 
-| Task | Needs | Work | Spec | Parent | Witness |
-| --- | --- | --- | --- | --- | --- |
-| [x] T001 | — | Spec, research, plan, tasks, matrix, framework deltas | all | T090 | Review |
-| [x] T002 | T001 | Pin prek through the multitool lock | FR-015 | T003, T056 | `toolchain-fixtures`, T013 |
-| [x] T003 | T001 | nogo vet and staticcheck through x/tools 0.52.0 | FR-016 | T091 | `analysis-fixture` in `toolchain-fixtures` (root and quality module) |
-| [x] T004 | T001 | Pin ESLint and Prettier; `lint-ts`, `format-ts`; re-witness S002 spellings against pinned ESLint | FR-017 | T047, T054 | `//web:eslint_test`, `//quality/checks/suppression:eslint_witness_test` |
-| [x] T005 | T001 | Go binaries are static under the cgo-off configuration | FR-020 | FR-025 | `//bff/cmd:binaries_test`, with a dynamic control |
-| [x] T006 | T001 | Registry schema, instance, validation | FR-001, FR-002, FR-018 | T045, T050 | `@bff_template_quality//runner:runner_test` |
-| [x] T007 | T006 | Results, exit codes, diagnostics, receipts | FR-006, FR-007, FR-008 | T044, T053 | `runner_test` |
-| [x] T008 | T007 | Native pool, supervisor, Bazel invocation and translation, deadlines, slots, custody-gated server stop | FR-004, FR-005, FR-013, FR-014 | T044, T052 | `runner_test` with real processes and a fake Bazel |
-| [x] T009 | T007 | Inventory in Go; selectors; staged snapshot | FR-009, FR-009a, FR-012 | T051 | `runner_test`, cases carried from `inventory_test.sh` |
-| [x] T010 | T009, T008 | Pushed-commit worktree, escalation | FR-010, FR-011 | T051, T058 | `runner_test` with real Git |
-| [x] T011 | T008–T010 | Switch `verify.sh` to the runner; delete the old body, inventory and tool paths | FR-001, FR-003 | T054, T055 | `tools/verify.sh`, `fresh_clone.sh` normal and hostile |
-| [x] T012 | T011, T002 | `prek.toml`, `tools/hooks/stage.sh`, `//tools/hooks:install` | FR-015, FR-021 | T056, T057 | T013 |
-| [x] T013 | T012 | Hook fixtures: every row of the hook contract, real Git and prek, runner without Bazel; bootstrap ERROR scoped apart from verdicts | FR-009–FR-012, FR-015, FR-021 | T043 | `//tools/hooks:fixtures_test` |
-| [x] T014 | T013 | One real-Bazel commit, failing push, corrected push; deadline beside an independent producer; owned server stop | FR-010, FR-004 | T043 | `hook-e2e` in `full` |
-| [x] T015 | T011 | Named defect and corrected case per `GUARANTEE` | FR-018 | T046 | `runner_test` over the registry and fixture labels |
-| [x] T016 | T011, T012 | Classification, hooks and bypass documents | FR-021, FR-022 | T048, T049 | Review; `doc` assertions in fixtures |
-| [x] T017 | T014 | Measure stages cold, warm and edited, with failed attempts | FR-019 | T059, SC-006 | `docs/budgets/` record |
-| [x] T018 | T017 | Capability states, parent ledger, contracts, evidence, independent-review handoff | all | T090 | Review |
-| [x] T019 | T011 | Stale-receipt removal at startup takes the runner's receipt lock; `flock` declared | FR-006, FR-007 | T053 | `//:verify_body_test`, `//:preflight_test` |
+- [x] T001 Spec, research, plan, tasks, matrix, framework deltas. **Spec** all. **Parent** T090. **Witness** Review
+- [x] T002 Pin prek through the multitool lock. **Needs** T001. **Spec** FR-015. **Parent** T003, T056. **Witness** `toolchain-fixtures`, T013
+- [x] T003 nogo vet and staticcheck through x/tools 0.52.0. **Needs** T001. **Spec** FR-016. **Parent** T091. **Witness** `analysis-fixture` in `toolchain-fixtures` (root and quality module)
+- [x] T004 Pin ESLint and Prettier; `lint-ts`, `format-ts`; re-witness S002 spellings against pinned ESLint. **Needs** T001. **Spec** FR-017. **Parent** T047, T054. **Witness** `//web:eslint_test`, `//quality/checks/suppression:eslint_witness_test`
+- [x] T005 Go binaries are static under the cgo-off configuration. **Needs** T001. **Spec** FR-020. **Parent** FR-025. **Witness** `//bff/cmd:binaries_test`, with a dynamic control
+- [x] T006 Registry schema, instance, validation. **Needs** T001. **Spec** FR-001, FR-002, FR-018. **Parent** T045, T050. **Witness** `@bff_template_quality//runner:runner_test`
+- [x] T007 Results, exit codes, diagnostics, receipts. **Needs** T006. **Spec** FR-006, FR-007, FR-008. **Parent** T044, T053. **Witness** `runner_test`
+- [x] T008 Native pool, supervisor, Bazel invocation and translation, deadlines, slots, custody-gated server stop. **Needs** T007. **Spec** FR-004, FR-005, FR-013, FR-014. **Parent** T044, T052. **Witness** `runner_test` with real processes and a fake Bazel
+- [x] T009 Inventory in Go; selectors; staged snapshot. **Needs** T007. **Spec** FR-009, FR-009a, FR-012. **Parent** T051. **Witness** `runner_test`, cases carried from `inventory_test.sh`
+- [x] T010 Pushed-commit worktree, escalation. **Needs** T009, T008. **Spec** FR-010, FR-011. **Parent** T051, T058. **Witness** `runner_test` with real Git
+- [x] T011 Switch `verify.sh` to the runner; delete the old body, inventory and tool paths. **Needs** T008–T010. **Spec** FR-001, FR-003. **Parent** T054, T055. **Witness** `tools/verify.sh`, `fresh_clone.sh` normal and hostile
+- [x] T012 `prek.toml`, `tools/hooks/stage.sh`, `//tools/hooks:install`. **Needs** T011, T002. **Spec** FR-015, FR-021. **Parent** T056, T057. **Witness** T013
+- [x] T013 Hook fixtures: every row of the hook contract, real Git and prek, runner without Bazel; bootstrap ERROR scoped apart from verdicts. **Needs** T012. **Spec** FR-009–FR-012, FR-015, FR-021. **Parent** T043. **Witness** `//tools/hooks:fixtures_test`
+- [x] T014 One real-Bazel commit, failing push, corrected push; deadline beside an independent producer; owned server stop. **Needs** T013. **Spec** FR-010, FR-004. **Parent** T043. **Witness** `hook-e2e` in `full`
+- [x] T015 Named defect and corrected case per `GUARANTEE`. **Needs** T011. **Spec** FR-018. **Parent** T046. **Witness** `runner_test` over the registry and fixture labels
+- [x] T016 Classification, hooks and bypass documents. **Needs** T011, T012. **Spec** FR-021, FR-022. **Parent** T048, T049. **Witness** Review; `doc` assertions in fixtures
+- [x] T017 Measure stages cold, warm and edited, with failed attempts. **Needs** T014. **Spec** FR-019. **Parent** T059, SC-006. **Witness** `docs/budgets/` record
+- [x] T018 Capability states, parent ledger, contracts, evidence, independent-review handoff. **Needs** T017. **Spec** all. **Parent** T090. **Witness** Review
+- [x] T019 Stale-receipt removal at startup takes the runner's receipt lock; `flock` declared. **Needs** T011. **Spec** FR-006, FR-007. **Parent** T053. **Witness** `//:verify_body_test`, `//:preflight_test`
 
 ## Execution record
 

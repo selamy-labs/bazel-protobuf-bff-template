@@ -6,22 +6,20 @@
 This ledger, the plan and the matrix were committed before any `web/` code. Each commit names its
 tasks. Boxes are ticked only when the named witness passes in the verifier.
 
-| Task | Needs | Work | Spec | Parent | Witness |
-| --- | --- | --- | --- | --- | --- |
-| [x] T001 | — | Pin Chromium and its library closure | FR-006 | T030, FR-025 | `//web/e2e:browser_smoke_test` |
-| [x] T002 | — | Pin React, Vite, connect-web, Playwright | FR-006 | T039 | `lock_fixture.sh` |
-| [x] T003 | T002 | `web/client`: transport, credentials, error mapping, tests | FR-001, FR-003, FR-004 | T031, T039, FR-001 | `//web/client:errors_test` |
-| [x] T004 | T003 | `web/app`: form, lookup, builds | FR-001, FR-008 | T039, FR-001 | `//web/e2e:notes_e2e_test`, `//web/app:bundle_test` |
-| [x] T005 | T004 | `web/serve` static server | FR-005 | T039 | `//web/e2e:notes_e2e_test` |
-| [x] T006 | T001, T005 | Specs for every scenario | FR-002, FR-004, FR-005 | T032, FR-008 | `//web/e2e:notes_e2e_test` |
-| [x] T007 | T006 | Broken-mapping witness | FR-007 | T041, SC-002 | `//web/e2e:defect_e2e_test` |
-| [x] T008 | T005 | `//:dev` runner | FR-009 | T040 | `//tools/dev:dev_test` |
-| [x] T009 | T006–T008 | Inventories, docs, provenance, parent ledger | FR-010 | T025, T042 | `test-inventory`, `fresh_clone.sh` |
-| [x] T010 | T006 | Review regression: the omitted-cookie scenario gets a same-origin control and requires a successful POST | FR-005 | T032, FR-008 | `the client omits a cookie the browser would send` in `notes_e2e_test` |
-| [x] T011 | T009 | Quote tool paths, because Bazel resolves some inside the checkout | FR-010 | T042, FR-025 | `//:verify_body_test`, `fresh_clone.sh` |
-| [x] T012 | T001 | Enforce the Linux glibc floor in the preflight; a below-floor or unknown libc fails early | FR-011 | T030, FR-025 | `//:preflight_test` |
-| [x] T013 | T001 | Stop detecting a host C compiler; Go builds with cgo off | FR-012 | FR-025 | `compiler-fixture` in `toolchain-fixtures`, `bazelrc-policy` |
-| [x] T014 | T001 | Pin the browser's fonts and font configuration in its tree; the smoke paints text | FR-006, FR-013 | T030, FR-025 | `//web/e2e:browser_smoke_test` |
+- [x] T001 Pin Chromium and its library closure. **Spec** FR-006. **Parent** T030, FR-025. **Witness** `//web/e2e:browser_smoke_test`
+- [x] T002 Pin React, Vite, connect-web, Playwright. **Spec** FR-006. **Parent** T039. **Witness** `lock_fixture.sh`
+- [x] T003 `web/client`: transport, credentials, error mapping, tests. **Needs** T002. **Spec** FR-001, FR-003, FR-004. **Parent** T031, T039, FR-001. **Witness** `//web/client:errors_test`
+- [x] T004 `web/app`: form, lookup, builds. **Needs** T003. **Spec** FR-001, FR-008. **Parent** T039, FR-001. **Witness** `//web/e2e:notes_e2e_test`, `//web/app:bundle_test`
+- [x] T005 `web/serve` static server. **Needs** T004. **Spec** FR-005. **Parent** T039. **Witness** `//web/e2e:notes_e2e_test`
+- [x] T006 Specs for every scenario. **Needs** T001, T005. **Spec** FR-002, FR-004, FR-005. **Parent** T032, FR-008. **Witness** `//web/e2e:notes_e2e_test`
+- [x] T007 Broken-mapping witness. **Needs** T006. **Spec** FR-007. **Parent** T041, SC-002. **Witness** `//web/e2e:defect_e2e_test`
+- [x] T008 `//:dev` runner. **Needs** T005. **Spec** FR-009. **Parent** T040. **Witness** `//tools/dev:dev_test`
+- [x] T009 Inventories, docs, provenance, parent ledger. **Needs** T006–T008. **Spec** FR-010. **Parent** T025, T042. **Witness** `test-inventory`, `fresh_clone.sh`
+- [x] T010 Review regression: the omitted-cookie scenario gets a same-origin control and requires a successful POST. **Needs** T006. **Spec** FR-005. **Parent** T032, FR-008. **Witness** `the client omits a cookie the browser would send` in `notes_e2e_test`
+- [x] T011 Quote tool paths, because Bazel resolves some inside the checkout. **Needs** T009. **Spec** FR-010. **Parent** T042, FR-025. **Witness** `//:verify_body_test`, `fresh_clone.sh`
+- [x] T012 Enforce the Linux glibc floor in the preflight; a below-floor or unknown libc fails early. **Needs** T001. **Spec** FR-011. **Parent** T030, FR-025. **Witness** `//:preflight_test`
+- [x] T013 Stop detecting a host C compiler; Go builds with cgo off. **Needs** T001. **Spec** FR-012. **Parent** FR-025. **Witness** `compiler-fixture` in `toolchain-fixtures`, `bazelrc-policy`
+- [x] T014 Pin the browser's fonts and font configuration in its tree; the smoke paints text. **Needs** T001. **Spec** FR-006, FR-013. **Parent** T030, FR-025. **Witness** `//web/e2e:browser_smoke_test`
 
 ## Execution record
 

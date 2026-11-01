@@ -7,35 +7,33 @@ This ledger, the plan and the matrix are committed before any production code. O
 parallel. Each commit names its tasks. A box is ticked only when the named witness passes; a tick is a record, not the
 evidence. T017 stops for independent review, and later tasks do not start until it clears.
 
-| Task | Needs | Work | Spec | Parent | Witness |
-| --- | --- | --- | --- | --- | --- |
-| [x] T001 | M5 | Spec, research, plan, tasks, matrix; recheck upstream directly | all | T060–T070 | Review |
-| [x] T002 | T001 | Scratch probes: planted vet defect under `coverage`; subprocess records; reconcile Go report and raw profile by file; Node V8 coverage, then a mature pinned tool; S005 spellings | FR-020a, FR-020b, FR-027 | T063, T047 | Research updated |
-| [x] T003 | T001 | `capture` reads stdout only under bounded supervision; stderr in the failure diagnostic; red first | FR-010 | | `runner_test` |
-| [x] T004 | T001 | `shard`, `postcondition`; validator: neither, both, unknown leg, postcondition without `after_bazel` | FR-001 | T064, T066 | `runner_test` |
-| [x] T005 | T004 | `--shard`, derived obligations, receipts list them; no change without the flag | FR-002 | T064 | `runner_test`, fake Bazel |
-| [x] T006 | T005 | Leg column in `required_tests.txt`; leg inventory and sandbox evidence; each required test in one Bazel leg | FR-002, FR-023 | T066 | `verify_body_test` per leg |
-| [x] T007 | T005 | CI receipt fields, except the base fields that T015 adds; reconcile the evidence-receipt contract | FR-024, FR-015 | T065 | `runner_test` |
-| [x] T008 | T006 | `ciparity`: legs from the registry equal jobs and `needs`; no inline policy; unique artifact names; read-only; no `pull_request_target` | FR-003, FR-004, FR-024, FR-025 | T066 | `parity_test` mutations |
-| [x] T009 | T008 | Workflow legs, per-attempt receipts; the rerun guide check against R4 stays with T023 | FR-004, FR-024 | T064, T065 | `parity_test`, `zizmor`, `actionlint` |
-| [x] T010 | T009 | Gate fixtures by executing its run block: all success, skipped, cancelled, failed, absent, failed then rerun, partial rerun | FR-005 | T061 | `parity_test` |
-| [x] T011 | T002, T003 | Merger in the quality module; `.bazelrc`, `bazelrc.allow`; no C++ or JDK | FR-009 | T063 | `bazelrc-policy`, analysis on this no-toolchain template |
-| [x] T012 | T011 | `PlanBazel` verb rule; one invocation per stage; `coverage-floor` after it | FR-006, FR-007 | T063 | Fake Bazel count; every required test under `coverage` |
-| [x] T013 | T012 | Reports validated: Go statements from the raw profile; Node test entry and a `transport.ts` test; empty, placeholder, truncated, missing module, missing `.cover`, exit 3 with reports | FR-019–FR-021 | T063 | Named fixtures, real tools |
-| [x] T014 | T013 | Evaluator: profiles, measured source sets, enrollment, narrowing table R8, suppressions; `node:coverage` added to S005; real Git delete and add control | FR-016–FR-018 | T060, T063 | Unit, real Git fixtures |
-| [x] T015 | T014 | `from_base.sh`, `--base`: one resolution, lock, private output base, handle, every refusal in R6; same-tree positive | FR-011–FR-015 | T062 | Real Git fixtures |
-| [x] T016 | T015 | Declared `bff-template.policy-base`, installer, `stage.sh`; first push of a topic branch | FR-012, FR-015a | | `fixtures_test` |
-| [ ] T017 | T016 | **Anchor commit**: `floors-from-base` and `coverage-floor` registered, first floors from reconciled measurement; record the exit 11 control and targeted evidence. **Hold for independent targeted review** | FR-011, FR-016 | T062, T063 | Review |
-| [x] T018 | T017 | Base through `fresh_clone.sh` and CI; bounded measurement summary in the receipt; `escalate` and digest cases | FR-020, FR-022, FR-023 | T062 | `runner_test`, `policy_base_test`, `parity_test` |
-| [x] T019 | T018 | README, parent SC-001, contracts, hook limits | FR-022 | SC-001 | Doc assertions |
-| [x] T020 | T018 | S005 re-witness against the pinned tools; closes or restates parent T047 | FR-027 | T047 | Suppression fixtures |
-| [x] T021 | T018 | Bypassed-hook commit fails a CI-equivalent run | FR-027 | T070 | `fixtures_test` |
-| [x] T022 | T009 | Trigger sentence narrowed | FR-026 | | Doc assertion |
-| [x] T023 | T019–T022 | `docs/quality/evidence.md`: separate claims; gaps for T067, T068, FR-023, SC-007 | US5 | T069 | Review |
-| [x] T024 | T023 | Reconcile capability states, classification, parent ledger; cheap checks | all | T070 | Review |
-| [x] T025 | T024 | Reproduce R6 flows, with negatives, through the `policy` leg by reviewed reduction; a real compiled-base positive, and the combined negative: lowered floor plus replaced evaluator and patterns | SC-004 | | Logs |
-| [x] T026 | T025 | Freeze; normal and hostile gates with `--base`; measure once; hold for independent acceptance | SC-002 | T070 | Receipts |
-| [x] T027 | T026 | Repair the measurement harness: a gofmt-clean edit, each run's log and receipt kept outside the clone, a failed passing scenario refused, offline recorded apart, private servers stopped before the work tree goes | SC-002 | T070 | Stub and real-server controls, one `--edited-only` run |
+- [x] T001 Spec, research, plan, tasks, matrix; recheck upstream directly. **Needs** M5. **Spec** all. **Parent** T060–T070. **Witness** Review
+- [x] T002 Scratch probes: planted vet defect under `coverage`; subprocess records; reconcile Go report and raw profile by file; Node V8 coverage, then a mature pinned tool; S005 spellings. **Needs** T001. **Spec** FR-020a, FR-020b, FR-027. **Parent** T063, T047. **Witness** Research updated
+- [x] T003 `capture` reads stdout only under bounded supervision; stderr in the failure diagnostic; red first. **Needs** T001. **Spec** FR-010. **Parent** . **Witness** `runner_test`
+- [x] T004 `shard`, `postcondition`; validator: neither, both, unknown leg, postcondition without `after_bazel`. **Needs** T001. **Spec** FR-001. **Parent** T064, T066. **Witness** `runner_test`
+- [x] T005 `--shard`, derived obligations, receipts list them; no change without the flag. **Needs** T004. **Spec** FR-002. **Parent** T064. **Witness** `runner_test`, fake Bazel
+- [x] T006 Leg column in `required_tests.txt`; leg inventory and sandbox evidence; each required test in one Bazel leg. **Needs** T005. **Spec** FR-002, FR-023. **Parent** T066. **Witness** `verify_body_test` per leg
+- [x] T007 CI receipt fields, except the base fields that T015 adds; reconcile the evidence-receipt contract. **Needs** T005. **Spec** FR-024, FR-015. **Parent** T065. **Witness** `runner_test`
+- [x] T008 `ciparity`: legs from the registry equal jobs and `needs`; no inline policy; unique artifact names; read-only; no `pull_request_target`. **Needs** T006. **Spec** FR-003, FR-004, FR-024, FR-025. **Parent** T066. **Witness** `parity_test` mutations
+- [x] T009 Workflow legs, per-attempt receipts; the rerun guide check against R4 stays with T023. **Needs** T008. **Spec** FR-004, FR-024. **Parent** T064, T065. **Witness** `parity_test`, `zizmor`, `actionlint`
+- [x] T010 Gate fixtures by executing its run block: all success, skipped, cancelled, failed, absent, failed then rerun, partial rerun. **Needs** T009. **Spec** FR-005. **Parent** T061. **Witness** `parity_test`
+- [x] T011 Merger in the quality module; `.bazelrc`, `bazelrc.allow`; no C++ or JDK. **Needs** T002, T003. **Spec** FR-009. **Parent** T063. **Witness** `bazelrc-policy`, analysis on this no-toolchain template
+- [x] T012 `PlanBazel` verb rule; one invocation per stage; `coverage-floor` after it. **Needs** T011. **Spec** FR-006, FR-007. **Parent** T063. **Witness** Fake Bazel count; every required test under `coverage`
+- [x] T013 Reports validated: Go statements from the raw profile; Node test entry and a `transport.ts` test; empty, placeholder, truncated, missing module, missing `.cover`, exit 3 with reports. **Needs** T012. **Spec** FR-019–FR-021. **Parent** T063. **Witness** Named fixtures, real tools
+- [x] T014 Evaluator: profiles, measured source sets, enrollment, narrowing table R8, suppressions; `node:coverage` added to S005; real Git delete and add control. **Needs** T013. **Spec** FR-016–FR-018. **Parent** T060, T063. **Witness** Unit, real Git fixtures
+- [x] T015 `from_base.sh`, `--base`: one resolution, lock, private output base, handle, every refusal in R6; same-tree positive. **Needs** T014. **Spec** FR-011–FR-015. **Parent** T062. **Witness** Real Git fixtures
+- [x] T016 Declared `bff-template.policy-base`, installer, `stage.sh`; first push of a topic branch. **Needs** T015. **Spec** FR-012, FR-015a. **Parent** . **Witness** `fixtures_test`
+- [ ] T017 **Anchor commit**: `floors-from-base` and `coverage-floor` registered, first floors from reconciled measurement; record the exit 11 control and targeted evidence. **Hold for independent targeted review**. **Needs** T016. **Spec** FR-011, FR-016. **Parent** T062, T063. **Witness** Review
+- [x] T018 Base through `fresh_clone.sh` and CI; bounded measurement summary in the receipt; `escalate` and digest cases. **Needs** T017. **Spec** FR-020, FR-022, FR-023. **Parent** T062. **Witness** `runner_test`, `policy_base_test`, `parity_test`
+- [x] T019 README, parent SC-001, contracts, hook limits. **Needs** T018. **Spec** FR-022. **Parent** SC-001. **Witness** Doc assertions
+- [x] T020 S005 re-witness against the pinned tools; closes or restates parent T047. **Needs** T018. **Spec** FR-027. **Parent** T047. **Witness** Suppression fixtures
+- [x] T021 Bypassed-hook commit fails a CI-equivalent run. **Needs** T018. **Spec** FR-027. **Parent** T070. **Witness** `fixtures_test`
+- [x] T022 Trigger sentence narrowed. **Needs** T009. **Spec** FR-026. **Parent** . **Witness** Doc assertion
+- [x] T023 `docs/quality/evidence.md`: separate claims; gaps for T067, T068, FR-023, SC-007. **Needs** T019–T022. **Spec** US5. **Parent** T069. **Witness** Review
+- [x] T024 Reconcile capability states, classification, parent ledger; cheap checks. **Needs** T023. **Spec** all. **Parent** T070. **Witness** Review
+- [x] T025 Reproduce R6 flows, with negatives, through the `policy` leg by reviewed reduction; a real compiled-base positive, and the combined negative: lowered floor plus replaced evaluator and patterns. **Needs** T024. **Spec** SC-004. **Parent** . **Witness** Logs
+- [x] T026 Freeze; normal and hostile gates with `--base`; measure once; hold for independent acceptance. **Needs** T025. **Spec** SC-002. **Parent** T070. **Witness** Receipts
+- [x] T027 Repair the measurement harness: a gofmt-clean edit, each run's log and receipt kept outside the clone, a failed passing scenario refused, offline recorded apart, private servers stopped before the work tree goes. **Needs** T026. **Spec** SC-002. **Parent** T070. **Witness** Stub and real-server controls, one `--edited-only` run
 
 Remain open by design: parent T067 and T068, blocked on upstream releases.
 

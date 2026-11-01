@@ -327,17 +327,17 @@ Optional profiles, provenance and governance
 
 - **FR-030**: An optional cloud deployment profile, if offered, MUST include declarative bootstrap,
   CI/CD responsibilities and explicit operator gates, and MUST NOT be required by the core verifier.
-- **FR-034**: Application images, if offered, MUST be produced only by the Bazel graph through rules_oci.
-  A pipeline MAY invoke that target and publish its digest, and MUST NOT rebuild the image.
-- **FR-035**: No template user MUST need NixOS. Support stays Linux only, as qualified. An optional host
-  profile MUST be a stated contract of measured requirements, and MUST be qualified by the existing
-  commands unchanged.
 - **FR-031**: An optional worker-integration conformance profile MAY define bounded execution,
   failure taxonomy and identity/billing evidence; it MUST remain a contract, not a runtime.
 - **FR-032**: The repository MUST keep a provenance and license inventory and a public-release
   review checklist, and MUST pass a neutrality scan before publication.
 - **FR-033**: Repository ownership, name, visibility and settings MUST be planned as declarative
   provisioning; nothing is created or applied without an operator gate.
+- **FR-034**: Application images, if offered, MUST be produced only by the Bazel graph through rules_oci.
+  A pipeline MAY invoke that target and publish its digest, and MUST NOT rebuild the image.
+- **FR-035**: No template user MUST need NixOS. Support stays Linux only, as qualified. An optional host
+  profile MUST be a stated contract of measured requirements, and MUST be qualified by the existing
+  commands unchanged.
 
 ### Key Entities
 

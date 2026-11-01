@@ -2,26 +2,24 @@
 
 One writer.
 
-| Task | After | Work | Parent | Witness |
-| --- | --- | --- | --- | --- |
-| [x] T001 | M6 accepted | Spec files; recheck upstream | T071–T075 | Review |
-| [x] T002 | T001 | Scratch consumer probe of every R1 coupling, `git_override` execution, and prek `repo`/`rev` on `file://` | T072 | Research updated |
-| [x] T003 | T002 | Host-named contract, registry and vendored paths; `reportPath` from configuration | FR-003 | Unit, this template green |
-| [x] T004 | T003 | Rule definitions in the module; host registry binds ids and paths, as plain data | FR-003 | `runner_test`, real registry |
-| [x] T005 | T003 | Evaluator test by build; refusal names the failure | FR-004 | Real Git fixtures |
-| [x] T006 | T004 | Remote hook definitions at the tree root | FR-002, FR-002a | prek against a `file://` remote |
-| [x] T007 | T006 | `quality/RELEASING.md`; notes from the single rule catalog's diff; recorded tag mapping check | T071, FR-006, FR-008 | Fixtures: added, changed, removed, weakened; a changed mapping refused |
-| [x] T008 | T007 | Tag N, after the interface works, in a local bare remote | T071, FR-010 | Commit recorded |
-| [x] T009 | T008 | Smallest consumer: one Go package, its own policy; one canonical pin, and the deterministic step that syncs both adapters | T072, FR-002 | Separate clone; both adapters resolve one SHA |
-| [x] T017 | T009 | Two repairs from independent review at `a988f2a`: the pin check fails closed; the notes read only inside the selected tree | FR-002, FR-006 | `pin_test`, `release_test`; each refused prek form valid under pinned prek; red before the code |
-| [x] T018 | T017, root's wiring review | A new N, never a moved tag, and a new consumer anchor on it, proven on the real consumer | T071, FR-010 | Commit recorded; anchor controls |
-| [x] T010 | T018 | Consumer anchor C0: exit 11 control, then hold for independent targeted review. No descendant uses C0 as a base before it clears | FR-004 | Review |
-| [x] T011 | T010 | Consumer verifier at N, on a descendant of the reviewed C0 still pinned to N, with `--base=C0`. C0 itself refuses, as its own base | SC-001 | Receipt |
-| [x] T012 | T011 | One real compatible rule improvement, visible in the catalog diff, tag N+1, upgrade by the pin | T073, FR-007, SC-002 | Diff with mechanical effects apart; clean pass; deliberate defect caught; control restored |
-| [x] T013 | T011 | Move a tag in the remote; SHA-pinned consumer unaffected | FR-008 | Logs |
-| [x] T014 | T012 | Language profile document | T074 | Review |
-| [x] T015 | T014 | Evidence, ledgers, freeze, gates, hold. The candidate states it is proposed as 1.0.0 | all, T075, FR-010 | Receipts, independent review |
-| [x] T016 | T015 | Tag that exact reviewed candidate as 1.0.0, with no implementation change | T075 | Tag names the reviewed commit |
+- [x] T001 Spec files; recheck upstream. **Needs** M6 accepted. **Parent** T071–T075. **Witness** Review
+- [x] T002 Scratch consumer probe of every R1 coupling, `git_override` execution, and prek `repo`/`rev` on `file://`. **Needs** T001. **Parent** T072. **Witness** Research updated
+- [x] T003 Host-named contract, registry and vendored paths; `reportPath` from configuration. **Needs** T002. **Parent** FR-003. **Witness** Unit, this template green
+- [x] T004 Rule definitions in the module; host registry binds ids and paths, as plain data. **Needs** T003. **Parent** FR-003. **Witness** `runner_test`, real registry
+- [x] T005 Evaluator test by build; refusal names the failure. **Needs** T003. **Parent** FR-004. **Witness** Real Git fixtures
+- [x] T006 Remote hook definitions at the tree root. **Needs** T004. **Parent** FR-002, FR-002a. **Witness** prek against a `file://` remote
+- [x] T007 `quality/RELEASING.md`; notes from the single rule catalog's diff; recorded tag mapping check. **Needs** T006. **Parent** T071, FR-006, FR-008. **Witness** Fixtures: added, changed, removed, weakened; a changed mapping refused
+- [x] T008 Tag N, after the interface works, in a local bare remote. **Needs** T007. **Parent** T071, FR-010. **Witness** Commit recorded
+- [x] T009 Smallest consumer: one Go package, its own policy; one canonical pin, and the deterministic step that syncs both adapters. **Needs** T008. **Parent** T072, FR-002. **Witness** Separate clone; both adapters resolve one SHA
+- [x] T017 Two repairs from independent review at `a988f2a`: the pin check fails closed; the notes read only inside the selected tree. **Needs** T009. **Parent** FR-002, FR-006. **Witness** `pin_test`, `release_test`; each refused prek form valid under pinned prek; red before the code
+- [x] T018 A new N, never a moved tag, and a new consumer anchor on it, proven on the real consumer. **Needs** T017, root's wiring review. **Parent** T071, FR-010. **Witness** Commit recorded; anchor controls
+- [x] T010 Consumer anchor C0: exit 11 control, then hold for independent targeted review. No descendant uses C0 as a base before it clears. **Needs** T018. **Parent** FR-004. **Witness** Review
+- [x] T011 Consumer verifier at N, on a descendant of the reviewed C0 still pinned to N, with `--base=C0`. C0 itself refuses, as its own base. **Needs** T010. **Parent** SC-001. **Witness** Receipt
+- [x] T012 One real compatible rule improvement, visible in the catalog diff, tag N+1, upgrade by the pin. **Needs** T011. **Parent** T073, FR-007, SC-002. **Witness** Diff with mechanical effects apart; clean pass; deliberate defect caught; control restored
+- [x] T013 Move a tag in the remote; SHA-pinned consumer unaffected. **Needs** T011. **Parent** FR-008. **Witness** Logs
+- [x] T014 Language profile document. **Needs** T012. **Parent** T074. **Witness** Review
+- [x] T015 Evidence, ledgers, freeze, gates, hold. The candidate states it is proposed as 1.0.0. **Needs** T014. **Parent** all, T075, FR-010. **Witness** Receipts, independent review
+- [x] T016 Tag that exact reviewed candidate as 1.0.0, with no implementation change. **Needs** T015. **Parent** T075. **Witness** Tag names the reviewed commit
 
 ## Execution record
 

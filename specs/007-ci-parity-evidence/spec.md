@@ -2,7 +2,7 @@
 
 **Feature Branch**: `007-ci-parity-evidence`
 **Created**: 2026-11-01
-**Status**: Draft
+**Status**: Delivered. Current status is in the [index](../README.md)
 **Parent**: [spec 001](../001-bff-template-foundation/spec.md) US4, FR-019, FR-021, FR-022, FR-024;
 tasks T060–T070; T047's S005 re-witness. Builds on M5, accepted for the qualified local Linux profile
 at `e0a12ac`.

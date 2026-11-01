@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-31
 
-**Status**: Draft
+**Status**: Delivered. Current status is in the [index](../README.md)
 
 **Input**: User description: "M4: a minimal React and TypeScript form and lookup using generated
 Connect clients, and a real browser driven through the real transport against the real server,

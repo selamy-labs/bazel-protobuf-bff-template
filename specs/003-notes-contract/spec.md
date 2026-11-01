@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-31
 
-**Status**: Draft
+**Status**: Delivered. Current status is in the [index](../README.md)
 
 **Input**: User description: "M2: neutral notes contract and build-time generation. NoteService with
 CreateNote and GetNote per the approved API contract; format, lint and breaking checks against an

@@ -1,5 +1,7 @@
 # Spec 008: Second consumer and upgrade (M7)
 
+**Status**: Delivered. Current status is in the [index](../README.md)
+
 Parent: spec 001 US5, FR-027, FR-029, SC-008; tasks T071–T075; upstream RFC #30.
 No remote, publication, settings or paid work: the consumer stays local, as a separate Git repository over `file://`.
 

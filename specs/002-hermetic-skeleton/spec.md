@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-29
 
-**Status**: Draft
+**Status**: Delivered. Current status is in the [index](../README.md)
 
 **Input**: User description: "M1 hermetic skeleton and bootstrap … one command, verified pinned
 toolchain, minimal honest verifier, separate versioned quality module, local CI workflow with an

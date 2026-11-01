@@ -2,7 +2,7 @@
 
 **Feature Branch**: `006-quality-hooks`
 **Created**: 2026-11-01
-**Status**: Draft
+**Status**: Delivered. Current status is in the [index](../README.md)
 **Parent**: [spec 001](../001-bff-template-foundation/spec.md) US3, FR-013–FR-020, SC-005, SC-006;
 [check registry](../001-bff-template-foundation/contracts/check-registry.md) and
 [hook stages](../001-bff-template-foundation/contracts/hook-stages.md) contracts.

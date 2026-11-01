@@ -6,19 +6,17 @@
 This ledger, the plan and the matrix were committed before any `bff/` code. Each commit names its
 tasks. Boxes are ticked only when the named witness passes in the verifier.
 
-| Task | Needs | Work | Spec | Parent | Witness |
-| --- | --- | --- | --- | --- | --- |
-| [x] T001 | — | Name the Go SDK repository; add `format-go`. `lint-go` deferred to M5 (research R7) | FR-014 | constitution IV | `//:native_fixtures_test` |
-| [x] T002 | — | `ports.Store`, `memory` adapter and its tests | FR-004, FR-007 | T033, FR-005 | `//bff/adapters/memory:memory_test` |
-| [x] T003 | T002 | `identity` package and tests | FR-008 | T036, FR-006 | `//bff/identity:identity_test` |
-| [x] T004 | T002, T003 | `app` use cases and property tests | FR-001, FR-004 | T028, T034, FR-003 | `//bff/app:app_test` |
-| [x] T005 | T004 | `testing/identity`, `testing/faults` | FR-009 | T036, FR-006 | `//bff/transport:transport_test` |
-| [x] T006 | T004, T005 | Handlers, interceptors, CORS, mapping, with tests over a real server | FR-001, FR-003, FR-005–FR-008, FR-012 | T027, T035, FR-003–FR-005 | `//bff/transport:transport_test` |
-| [x] T007 | T006 | `server`: startup refusal, ready event, shutdown | FR-009, FR-010, FR-013 | T029, T037, FR-006 | `//bff/server:server_test` |
-| [x] T008 | T007 | Production and dev binaries | FR-009–FR-011, FR-013 | T029, T037, FR-006 | `//bff/cmd:binaries_test` |
-| [x] T009 | T008 | Dependency rules | FR-002, FR-011 | T038, FR-007 | `//bff:dependency_rules_test` |
-| [x] T010 | T006–T009 | Inventories, docs, provenance, parent ledger | FR-015 | FR-021 | `test-inventory`, receipt |
-| [x] T011 | T006 | Review regression: downstream errors cannot label themselves public | FR-006 | T035, FR-004 | `TestDownstreamCannotLabelItsOwnErrorPublic`, `TestDownstreamSentinelsMapToConstantText`, `TestFrameworkErrorsStayPublic` |
+- [x] T001 Name the Go SDK repository; add `format-go`. `lint-go` deferred to M5 (research R7). **Spec** FR-014. **Parent** constitution IV. **Witness** `//:native_fixtures_test`
+- [x] T002 `ports.Store`, `memory` adapter and its tests. **Spec** FR-004, FR-007. **Parent** T033, FR-005. **Witness** `//bff/adapters/memory:memory_test`
+- [x] T003 `identity` package and tests. **Needs** T002. **Spec** FR-008. **Parent** T036, FR-006. **Witness** `//bff/identity:identity_test`
+- [x] T004 `app` use cases and property tests. **Needs** T002, T003. **Spec** FR-001, FR-004. **Parent** T028, T034, FR-003. **Witness** `//bff/app:app_test`
+- [x] T005 `testing/identity`, `testing/faults`. **Needs** T004. **Spec** FR-009. **Parent** T036, FR-006. **Witness** `//bff/transport:transport_test`
+- [x] T006 Handlers, interceptors, CORS, mapping, with tests over a real server. **Needs** T004, T005. **Spec** FR-001, FR-003, FR-005–FR-008, FR-012. **Parent** T027, T035, FR-003–FR-005. **Witness** `//bff/transport:transport_test`
+- [x] T007 `server`: startup refusal, ready event, shutdown. **Needs** T006. **Spec** FR-009, FR-010, FR-013. **Parent** T029, T037, FR-006. **Witness** `//bff/server:server_test`
+- [x] T008 Production and dev binaries. **Needs** T007. **Spec** FR-009–FR-011, FR-013. **Parent** T029, T037, FR-006. **Witness** `//bff/cmd:binaries_test`
+- [x] T009 Dependency rules. **Needs** T008. **Spec** FR-002, FR-011. **Parent** T038, FR-007. **Witness** `//bff:dependency_rules_test`
+- [x] T010 Inventories, docs, provenance, parent ledger. **Needs** T006–T009. **Spec** FR-015. **Parent** FR-021. **Witness** `test-inventory`, receipt
+- [x] T011 Review regression: downstream errors cannot label themselves public. **Needs** T006. **Spec** FR-006. **Parent** T035, FR-004. **Witness** `TestDownstreamCannotLabelItsOwnErrorPublic`, `TestDownstreamSentinelsMapToConstantText`, `TestFrameworkErrorsStayPublic`
 
 ## Execution record
 

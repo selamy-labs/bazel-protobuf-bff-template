@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-31
 
-**Status**: Draft
+**Status**: Delivered. Current status is in the [index](../README.md)
 
 **Input**: User description: "M3: real Go Connect BFF for CreateNote and GetNote with a memory
 storage port. Field validation, not-found, cross-principal isolation, unavailable, cancellation,
