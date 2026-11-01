@@ -15,7 +15,9 @@ go_test(
     name = "release_test",
     size = "small",
     srcs = ["release_test.go"],
+    data = [":release_bin"],
     embed = [":release"],
+    env = {"RELEASE": "$(rlocationpath :release_bin)"},
 )
 
 go_binary(

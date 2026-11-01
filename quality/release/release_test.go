@@ -222,3 +222,40 @@ func TestCheckFindsAMovedTag(t *testing.T) {
 		t.Fatalf("got %v", problems)
 	}
 }
+
+func TestCommand(t *testing.T) {
+	binary := filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("RELEASE"))
+	run := func(want int, args ...string) string {
+		t.Helper()
+		output, err := exec.Command(binary, args...).CombinedOutput()
+		code := 0
+		if exit, ok := err.(*exec.ExitError); ok {
+			code = exit.ExitCode()
+		} else if err != nil {
+			t.Fatal(err)
+		}
+		if code != want {
+			t.Fatalf("%v: exit %d, want %d: %s", args, code, want, output)
+		}
+		return string(output)
+	}
+	root := tree(t, "1", catalogText, rulesText)
+	wants(t, run(0, "notes", root, root), "No rule changed")
+	run(1, "notes", root, filepath.Join(root, "absent"))
+	dir := t.TempDir()
+	record := filepath.Join(dir, "RELEASES")
+	run(0, "record", record, "v1", shaOne)
+	run(1, "record", record, "v1", shaTwo)
+	if out, err := exec.Command("git", "init", "-q", dir).CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	wants(t, run(1, "check", record, dir), "v1 is recorded and missing")
+	empty := filepath.Join(t.TempDir(), "empty")
+	run(0, "check", empty, dir)
+	if err := os.WriteFile(empty, []byte("malformed\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run(1, "check", empty, dir)
+	run(2)
+	run(2, "unknown")
+}
