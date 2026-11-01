@@ -1,0 +1,6 @@
+# Email domains the generic scan accepts (spec 010 FR-005): reserved test domains, and the proposed
+# commit identity's domain, which the release packet lists as pending the operator's approval.
+example.com
+example.invalid
+selamy.dev
+anthropic.com

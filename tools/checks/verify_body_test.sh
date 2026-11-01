@@ -42,6 +42,7 @@ stub "$tree/tools/policy/workspace_policy.sh" workspace-policy
 stub "$tree/tools/policy/config_policy.sh" implicit-config
 stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
 mkdir -p "$tree/tools/release"
+stub "$tree/tools/release/neutrality.sh" neutrality
 cat >"$tree/tools/release/inventory.sh" <<STUB
 #!/usr/bin/env bash
 [[ "\$(cat "$work/fail" 2>/dev/null)" == inventory ]] && { echo "stub failure: inventory"; exit 1; }
