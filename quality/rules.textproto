@@ -217,6 +217,7 @@ checks {
   id: "quality-pin"
   definition: "hooks/pin.sh"
   tool: "PIN"
+  selector { include: "^(MODULE\\.bazel|prek\\.toml)$" context: "^MODULE\\.bazel$" context: "^prek\\.toml$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
