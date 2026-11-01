@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Feedback-cost measurement (specs/002-hermetic-skeleton FR-012, T032, T033).
 #
-#   tools/bench/measure.sh [--cold N] [--warm N] [--weak-isolation] [--stages-only] [--out FILE]
+#   tools/bench/measure.sh --base=<rev> [--cold N] [--warm N] [--weak-isolation] [--stages-only] [--out FILE]
 #
 # Scenarios, all from a clone of HEAD. The source tree must be clean so the record names exactly
 # what was measured.
@@ -43,13 +43,15 @@ cold=3
 warm=5
 out=""
 verify_args=()
+policy_base=""
 isolation=full
 stages_only=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cold) cold="$2"; shift 2 ;;
     --warm) warm="$2"; shift 2 ;;
-    --weak-isolation) verify_args=(--weak-isolation); isolation=weakened; shift ;;
+    --weak-isolation) verify_args+=(--weak-isolation); isolation=weakened; shift ;;
+    --base=*) verify_args+=("$1"); policy_base="${1#--base=}"; shift ;;
     --stages-only) stages_only=true; shift ;;
     --out) out="$2"; shift 2 ;;
     *) echo "measure: unknown argument '$1'" >&2; exit 2 ;;
@@ -234,6 +236,10 @@ stage_scenarios() {
   if [[ "$isolation" == weakened ]]; then
     bazel_flags=(--config=weak-isolation)
     install+=(-- --weak-isolation)
+  fi
+  if [[ -n "$policy_base" ]]; then
+    if [[ "$isolation" != weakened ]]; then install+=(--); fi
+    install+=("--policy-base=$policy_base")
   fi
   : >"$work/install"
   : >"$work/commit_first"
