@@ -1,36 +1,36 @@
-//:bazel_pin_test
-//api:compile_gate_test
-//api:schema_probes_test
-//api:validate_test
-//bff/adapters/memory:memory_test
-//bff/app:app_test
-//bff/cmd/bff:config_test
-//bff/cmd:binaries_test
-//bff/cmd:static_test
-//bff/identity:identity_test
-//bff/server:server_test
-//bff/transport:transport_test
-//bff:dependency_rules_test
-//tools/dev:dev_test
-//tools/hooks:fixtures_test
-//web/app:bundle_test
-//web/client:errors_test
-//web/e2e:browser_smoke_test
-//web/e2e:defect_e2e_test
-//web/e2e:notes_e2e_test
-//web/lint:eslint_test
-//web/lint:eslint_witness_test
-@bff_template_quality//checks/ciparity:ciparity_test
-@bff_template_quality//checks/suppression:suppression_test
-@bff_template_quality//proto:proto_test
-@bff_template_quality//runner:runner_test
-//:bzlmod_policy_test
-//:ci_parity_test
-//:config_policy_test
-//:native_fixtures_test
-//:normalize_json_test
-//:preflight_test
-//:registry_witness_test
-//:speckit_scaffold_test
-//:verify_body_test
-//:verify_deadline_test
+//:bazel_pin_test build-test
+//api:compile_gate_test build-test
+//api:schema_probes_test build-test
+//api:validate_test build-test
+//bff/adapters/memory:memory_test build-test
+//bff/app:app_test build-test
+//bff/cmd/bff:config_test build-test
+//bff/cmd:binaries_test build-test
+//bff/cmd:static_test build-test
+//bff/identity:identity_test build-test
+//bff/server:server_test build-test
+//bff/transport:transport_test build-test
+//bff:dependency_rules_test build-test
+//tools/dev:dev_test build-test
+//tools/hooks:fixtures_test build-test
+//web/app:bundle_test build-test
+//web/client:errors_test build-test
+//web/e2e:browser_smoke_test e2e
+//web/e2e:defect_e2e_test e2e
+//web/e2e:notes_e2e_test e2e
+//web/lint:eslint_test build-test
+//web/lint:eslint_witness_test build-test
+@bff_template_quality//checks/ciparity:ciparity_test build-test
+@bff_template_quality//checks/suppression:suppression_test build-test
+@bff_template_quality//proto:proto_test build-test
+@bff_template_quality//runner:runner_test build-test
+//:bzlmod_policy_test build-test
+//:ci_parity_test build-test
+//:config_policy_test build-test
+//:native_fixtures_test build-test
+//:normalize_json_test build-test
+//:preflight_test build-test
+//:registry_witness_test build-test
+//:speckit_scaffold_test build-test
+//:verify_body_test build-test
+//:verify_deadline_test build-test

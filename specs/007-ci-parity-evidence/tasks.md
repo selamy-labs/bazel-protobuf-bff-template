@@ -12,9 +12,9 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [x] T001 | M5 | Spec, research, plan, tasks, matrix; recheck upstream directly | all | T060–T070 | Review |
 | [x] T002 | T001 | Scratch probes: planted vet defect under `coverage`; subprocess records; reconcile Go report and raw profile by file; Node V8 coverage, then a mature pinned tool; S005 spellings | FR-020a, FR-020b, FR-027 | T063, T047 | Research updated |
 | [x] T003 | T001 | `capture` reads stdout only under bounded supervision; stderr in the failure diagnostic; red first | FR-010 | | `runner_test` |
-| [ ] T004 | T001 | `shard`, `postcondition`; validator: neither, both, unknown leg, postcondition without `after_bazel` | FR-001 | T064, T066 | `runner_test` |
-| [ ] T005 | T004 | `--shard`, derived obligations, receipts list them; no change without the flag | FR-002 | T064 | `runner_test`, fake Bazel |
-| [ ] T006 | T005 | Leg column in `required_tests.txt`; leg inventory and sandbox evidence; each required test in one Bazel leg | FR-002, FR-023 | T066 | `verify_body_test` per leg |
+| [x] T004 | T001 | `shard`, `postcondition`; validator: neither, both, unknown leg, postcondition without `after_bazel` | FR-001 | T064, T066 | `runner_test` |
+| [x] T005 | T004 | `--shard`, derived obligations, receipts list them; no change without the flag | FR-002 | T064 | `runner_test`, fake Bazel |
+| [x] T006 | T005 | Leg column in `required_tests.txt`; leg inventory and sandbox evidence; each required test in one Bazel leg | FR-002, FR-023 | T066 | `verify_body_test` per leg |
 | [ ] T007 | T005 | CI receipt fields; reconcile the evidence-receipt contract | FR-024, FR-015 | T065 | `runner_test` |
 | [ ] T008 | T006 | `ciparity`: legs from the registry equal jobs and `needs`; no inline policy; unique artifact names; read-only; no `pull_request_target` | FR-003, FR-004, FR-024, FR-025 | T066 | `parity_test` mutations |
 | [ ] T009 | T008 | Workflow legs, per-attempt receipts; check the rerun guide against R4 | FR-004, FR-024 | T064, T065 | `parity_test`, `zizmor`, `actionlint` |

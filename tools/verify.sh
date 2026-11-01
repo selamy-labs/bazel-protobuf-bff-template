@@ -7,6 +7,7 @@
 #   tools/verify.sh --offline         use only already-fetched artifacts and skip the networked
 #                                     Spec Kit provenance check (CI never passes this)
 #   tools/verify.sh --bootstrap-only  fetch and verify the pinned toolchain, then stop
+#   tools/verify.sh --shard=<leg>     one leg of the policy, as one CI job runs it
 #
 # The whole run has one overall deadline, inside CI's job timeout. Each phase also has its own.
 #

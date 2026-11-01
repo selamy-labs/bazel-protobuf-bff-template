@@ -128,6 +128,7 @@ type Receipt struct {
 	SchemaVersion  int               `json:"schema_version"`
 	Stage          string            `json:"stage"`
 	Requested      string            `json:"requested_stage"`
+	Shard          string            `json:"shard,omitempty"`
 	Revision       string            `json:"revision"`
 	Tree           string            `json:"tree"`
 	TestedTree     string            `json:"tested_tree"`

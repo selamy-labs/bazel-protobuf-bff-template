@@ -80,7 +80,7 @@ func Validate(registry *registrypb.Registry) []string {
 		seen[id] = true
 		problems = append(problems, validateCheck(check, tools)...)
 	}
-	return problems
+	return append(problems, validateLegs(registry)...)
 }
 
 func validateCheck(check *registrypb.Check, tools map[string]bool) []string {

@@ -251,7 +251,8 @@ planned as follows, and each file is in exactly one row. Numbers come from the a
 | `web-browser` | `unmeasured`, an explicit boundary for review | None. The browser scenarios run this code, and no line data exists | `web/app/App.tsx`, `web/app/main.tsx`, `web/serve/serve.mjs` |
 
 Excludes carry a factual reason: `interfaces-only`, `no-statements`, `build-tag-tools`, `other-platform`, `test-data`, `test-tooling`.
-Lacking a test is not a reason, and absent data is never counted as covered. `web/client/transport.ts` is executable and has no
+The evaluator enforces only that a listed reason is present. Whether it is true of a file is reviewed, because no language-specific
+classifier is built for this. Lacking a test is not a reason, and absent data is never counted as covered. `web/client/transport.ts` is executable and has no
 unit test, so it gets one (T013); excluding it is not an option.
 
 **Instrumented subprocesses.** Tests that run instrumented binaries add repeated records: `ci_parity_test` has 86 `SF` entries. Merges take

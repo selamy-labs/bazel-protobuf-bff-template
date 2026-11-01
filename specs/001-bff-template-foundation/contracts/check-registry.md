@@ -22,13 +22,17 @@ Later milestones add `coverage-floor`, `floors-from-base` (M6) and `contract-con
 bazel run //:quality -- --stage=<pre-commit|commit-msg|pre-push|full>
                         [--isolation=<full|weakened>] [--offline] [--receipt=<path>]
                         [--rerun=<command>] [--jobs=<n>] [--slots=<n>] [--deadline=<duration>]
-                        [--from=<rev>] [--to=<rev>] [--inner] [--bazel-startup=<option>]
+                        [--from=<rev>] [--to=<rev>] [--inner] [--bazel-startup=<option>] [--shard=<leg>]
 ```
+
+`--shard=<leg>` runs one leg of `full`, and only with `--stage=full`. Each check is owned by one leg in
+the registry, or is a postcondition that runs after the Bazel invocation of every leg that has one
+(spec 007 R2). `required_tests.txt` names each required test's leg.
 
 `quality/` is its own module, so the entry is the root target `//:quality`, which embeds
 `@bff_template_quality//runner/cmd` and passes the repository's pinned tools as data. The runner
 derives its input set itself (see hook-stages.md). It never receives a filename list from prek, and
-`tools/hooks/stage.sh` refuses one. CI shards are M6.
+`tools/hooks/stage.sh` refuses one.
 
 **Exit codes.** The runner's exit codes are deliberately disjoint from Bazel's:
 

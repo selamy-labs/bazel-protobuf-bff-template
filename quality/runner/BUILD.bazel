@@ -4,6 +4,7 @@ go_library(
     name = "runner",
     srcs = [
         "bazel.go",
+        "legs.go",
         "push.go",
         "registry.go",
         "report.go",

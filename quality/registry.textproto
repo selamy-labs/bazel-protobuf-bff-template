@@ -23,6 +23,11 @@ escalate: "^tools/verify[^/]*\\.sh$"
 escalate: "^web/(lint/|app/vite\\.config\\.mjs$|e2e/playwright\\.config\\.mjs$)"
 escalate: "^\\.github/"
 
+# The legs that partition `full`. CI runs one per job. spec 007 R2.
+shards: "build-test"
+shards: "e2e"
+shards: "policy"
+
 tools { name: "ACTIONLINT" version_args: "--version" }
 tools { name: "BASELINE" }
 tools { name: "BUF" version_args: "--version" }
@@ -44,6 +49,7 @@ tools { name: "ZIZMOR" version_args: "--version" }
 
 checks {
   id: "secrets"
+  shard: "policy"
   tool: "GITLEAKS"
   selector { include_vendored: true include_fixtures: true context: ".gitleaks.toml" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -55,6 +61,7 @@ checks {
 }
 checks {
   id: "suppression-ban"
+  shard: "policy"
   tool: "SUPPRESSION"
   selector {
     include_vendored: true
@@ -75,6 +82,7 @@ checks {
 }
 checks {
   id: "typos"
+  shard: "policy"
   tool: "TYPOS"
   selector { include_fixtures: true context: "_typos.toml" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -86,6 +94,7 @@ checks {
 }
 checks {
   id: "format-go"
+  shard: "policy"
   tool: "GOFMT"
   selector { include: "\\.go$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -97,6 +106,7 @@ checks {
 }
 checks {
   id: "format-ts"
+  shard: "policy"
   tool: "PRETTIER"
   selector { include: "\\.(ts|tsx|mjs)$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -108,6 +118,7 @@ checks {
 }
 checks {
   id: "format-proto"
+  shard: "policy"
   tool: "BUF"
   selector { include: "^api/.*\\.proto$" context: "^api/.*\\.proto$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -119,6 +130,7 @@ checks {
 }
 checks {
   id: "lint-proto"
+  shard: "policy"
   tool: "BUF"
   selector { include: "^api/.*\\.proto$" context: "^api/.*\\.proto$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -130,6 +142,7 @@ checks {
 }
 checks {
   id: "format-starlark"
+  shard: "policy"
   tool: "BUILDIFIER"
   selector { include: "(^|/)(BUILD|BUILD\\.bazel|MODULE\\.bazel|REPO\\.bazel)$" include: "\\.bzl$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -141,6 +154,7 @@ checks {
 }
 checks {
   id: "shellcheck"
+  shard: "policy"
   tool: "SHELLCHECK"
   selector { include: "\\.(sh|bash)$" shell_scripts: true }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -152,6 +166,7 @@ checks {
 }
 checks {
   id: "actionlint"
+  shard: "policy"
   tool: "ACTIONLINT"
   selector { include: "^\\.github/workflows/[^/]+\\.ya?ml$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -163,6 +178,7 @@ checks {
 }
 checks {
   id: "zizmor"
+  shard: "policy"
   tool: "ZIZMOR"
   selector { include: "^\\.github/workflows/[^/]+\\.ya?ml$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -177,6 +193,7 @@ checks {
 
 checks {
   id: "tests"
+  shard: "build-test"
   stages: [STAGE_PRE_PUSH, STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_BAZEL
@@ -186,6 +203,7 @@ checks {
 }
 checks {
   id: "dependency-rules"
+  shard: "build-test"
   stages: [STAGE_PRE_PUSH, STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_BAZEL
@@ -195,6 +213,7 @@ checks {
 }
 checks {
   id: "proto-breaking"
+  shard: "policy"
   tool: "BUF"
   selector { include: "^api/" }
   stages: [STAGE_PRE_PUSH, STAGE_FULL]
@@ -209,6 +228,7 @@ checks {
 
 checks {
   id: "e2e-browser"
+  shard: "e2e"
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_BAZEL
@@ -218,16 +238,18 @@ checks {
 }
 checks {
   id: "test-inventory"
+  postcondition: true
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
   timeout_seconds: 60
   after_bazel: true
-  command: ["tools/checks/test_evidence.sh", "inventory", "{bazel_log}", "tools/checks/required_tests.txt"]
+  command: ["tools/checks/test_evidence.sh", "inventory", "{bazel_log}", "tools/checks/required_tests.txt", "{shard}"]
   witness: "//:verify_body_test"
 }
 checks {
   id: "sandbox-evidence"
+  postcondition: true
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
@@ -238,6 +260,7 @@ checks {
 }
 checks {
   id: "workspace-policy"
+  shard: "policy"
   selector { include_vendored: true include_fixtures: true }
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
@@ -248,6 +271,7 @@ checks {
 }
 checks {
   id: "implicit-config"
+  shard: "policy"
   selector { include_vendored: true include_fixtures: true }
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
@@ -258,6 +282,7 @@ checks {
 }
 checks {
   id: "bazelrc-policy"
+  shard: "policy"
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
@@ -267,6 +292,7 @@ checks {
 }
 checks {
   id: "toolchain-fixtures"
+  shard: "policy"
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
@@ -277,6 +303,7 @@ checks {
 }
 checks {
   id: "hook-e2e"
+  shard: "policy"
   selector { include_vendored: true include_fixtures: true }
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
@@ -288,6 +315,7 @@ checks {
 }
 checks {
   id: "speckit-provenance"
+  shard: "policy"
   tool: "UV"
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE

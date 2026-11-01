@@ -56,11 +56,13 @@ invalidate_receipt
 weak=false
 offline=false
 bootstrap_only=false
+shard=""
 for arg in "$@"; do
   case "$arg" in
     --weak-isolation) weak=true ;;
     --offline) offline=true ;;
     --bootstrap-only) bootstrap_only=true ;;
+    --shard=*) shard="${arg#--shard=}" ;;
     *) echo "verify: unknown argument '$arg'" >&2; exit 2 ;;
   esac
 done
@@ -69,6 +71,10 @@ bazel_flags=()
 runner_flags=(--stage=full "--receipt=$root/$receipt")
 rerun="tools/verify.sh"
 preflight_args=()
+if [[ -n "$shard" ]]; then
+  runner_flags+=("--shard=$shard")
+  rerun+=" --shard=$shard"
+fi
 if $weak; then
   bazel_flags+=(--config=weak-isolation)
   runner_flags+=(--isolation=weakened)

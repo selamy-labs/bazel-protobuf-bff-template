@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"reflect"
 	"slices"
 	"strconv"
 	"strings"
@@ -1110,6 +1111,132 @@ func TestCancelledContextStartsNoChild(t *testing.T) {
 	_, err = supervised(ctx, []string{"/bin/true"}, filepath.Join(t.TempDir(), "absent"), nil, output)
 	if !errors.Is(err, context.Canceled) {
 		t.Fatalf("a spent context tried to start a child: %v", err)
+	}
+}
+
+func legRegistry(extra string) string {
+	return `shards: "alpha" shards: "beta"
+checks { id: "a" stages: [STAGE_FULL] classification: CLASSIFICATION_GUARANTEE kind: KIND_BAZEL
+ timeout_seconds: 5 witness: "w" targets: ["//..."] shard: "alpha" }
+checks { id: "b" stages: [STAGE_FULL] classification: CLASSIFICATION_GUARANTEE kind: KIND_BAZEL
+ timeout_seconds: 5 witness: "w" targets: ["//web/e2e/..."] shard: "beta" }
+checks { id: "c" stages: [STAGE_FULL] classification: CLASSIFICATION_GUARANTEE kind: KIND_NATIVE
+ timeout_seconds: 5 witness: "w" command: ["true"] after_bazel: true postcondition: true }
+` + extra
+}
+
+func TestLegsValidate(t *testing.T) {
+	cases := map[string]struct{ body, want string }{
+		"neither": {native("n", "true"), "n: is neither owned by a shard nor a postcondition"},
+		"both": {native("n", "true", `after_bazel: true postcondition: true shard: "alpha"`),
+			"n: is both owned by alpha and a postcondition"},
+		"unknown":        {native("n", "true", `shard: "gamma"`), "n: unknown shard gamma"},
+		"not after":      {native("n", "true", `postcondition: true`), "n: a postcondition must set after_bazel"},
+		"empty leg":      {`shards: "gamma"`, "shard gamma owns no check"},
+		"duplicate leg":  {`shards: "alpha"`, "duplicate shard alpha"},
+		"not kebab case": {`shards: "Bad_Leg"` + "\n" + native("n", "true", `shard: "Bad_Leg"`), "shard Bad_Leg is not kebab-case"},
+	}
+	for name, test := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, err := ParseRegistry([]byte(legRegistry(test.body)))
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("got %v, want %q", err, test.want)
+			}
+		})
+	}
+	if _, err := ParseRegistry([]byte(legRegistry(""))); err != nil {
+		t.Fatalf("the control is rejected: %v", err)
+	}
+}
+
+func TestObligationsCoverEveryLegAndPostcondition(t *testing.T) {
+	registry, err := ParseRegistry([]byte(legRegistry(`shards: "gamma"` + "\n" + native("n", "true", `shard: "gamma"`))))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := Obligations(registry)
+	want := map[string][]string{"alpha": {"a", "c"}, "beta": {"b", "c"}, "gamma": {"n"}}
+	if !reflect.DeepEqual(got, want) {
+		t.Fatalf("got %v, want %v", got, want)
+	}
+}
+
+func TestLegPlanSubtractsOnlyWhatItDoesNotContain(t *testing.T) {
+	registry, err := ParseRegistry([]byte(legRegistry("")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	args := func(shard string) string {
+		plan := PlanBazel(registry, registrypb.Stage_STAGE_FULL, shard, nil)
+		return strings.Join(plan.Args[slices.Index(plan.Args, "--")+1:], " ")
+	}
+	if got := args("alpha"); got != "//... -//web/e2e/..." {
+		t.Errorf("alpha: %q", got)
+	}
+	// Subtracting //... here would remove the leg's own targets.
+	if got := args("beta"); got != "//web/e2e/..." {
+		t.Errorf("beta: %q", got)
+	}
+	if got := args(""); got != "//... //web/e2e/..." {
+		t.Errorf("the whole stage: %q", got)
+	}
+}
+
+// The real policy is split, every check is accounted for, and only the legs with Bazel work owe the
+// postconditions.
+func TestRealRegistryPartitionsFull(t *testing.T) {
+	registry := realRegistry(t)
+	legs := Obligations(registry)
+	if len(legs) != 3 {
+		t.Fatalf("legs: %v", legs)
+	}
+	counts := map[string]int{}
+	for _, checks := range legs {
+		for _, id := range checks {
+			counts[id]++
+		}
+	}
+	for _, check := range registry.GetChecks() {
+		want := 1
+		if check.GetPostcondition() {
+			want = 2
+		}
+		if counts[check.GetId()] != want {
+			t.Errorf("%s appears in %d legs, want %d", check.GetId(), counts[check.GetId()], want)
+		}
+	}
+	for _, leg := range []string{"build-test", "e2e"} {
+		if !slices.Contains(legs[leg], "test-inventory") || !slices.Contains(legs[leg], "sandbox-evidence") {
+			t.Errorf("%s lacks a postcondition: %v", leg, legs[leg])
+		}
+	}
+	if slices.Contains(legs["policy"], "test-inventory") {
+		t.Errorf("a leg with no Bazel work has nothing for a postcondition to judge")
+	}
+}
+
+// A leg with no Bazel work owes no postcondition, and an unrun obligation denies a pass.
+func TestLegRunsItsOwnChecksAndDeniesAMissingOne(t *testing.T) {
+	h := committed(newHarness(t))
+	fakeBazel(h, `echo "//a:t   PASSED in 1s"`)
+	body := legRegistry(`shards: "gamma"` + "\n" + native("n", "true", `shard: "gamma"`))
+	options := h.options(body, registrypb.Stage_STAGE_FULL)
+	options.Shard = "gamma"
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	receipt := receiptOf(t, options.ReceiptPath)
+	if receipt.Shard != "gamma" || receipt.Expected != 1 || receipt.Checks[0].Check != "n" {
+		t.Fatalf("the receipt is not the leg's: %+v", receipt)
+	}
+	options.Shard = "alpha"
+	if h.run(options) != ExitOK {
+		t.Fatalf("the control leg failed\n%s", h.out.String())
+	}
+	receipt = receiptOf(t, options.ReceiptPath)
+	if receipt.Expected != 2 {
+		t.Fatalf("leg alpha owes its check and the postcondition: %+v", receipt.Checks)
 	}
 }
 

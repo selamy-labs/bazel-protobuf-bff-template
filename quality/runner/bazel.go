@@ -57,17 +57,18 @@ type BazelPlan struct {
 	Timeout time.Duration
 }
 
-// PlanBazel composes every Bazel check of a stage into one invocation. Targets of checks that do not
-// run in this stage but whose scope another check would reach are subtracted, which keeps browser
-// tests out of pre-push with no second list.
-func PlanBazel(registry *registrypb.Registry, stage registrypb.Stage, flags []string) *BazelPlan {
+// PlanBazel composes every Bazel check of a stage or leg into one invocation. Targets of checks that
+// do not run here but whose scope another check would reach are subtracted, which keeps browser tests
+// out of pre-push with no second list. A pattern that contains a selected target is not subtracted,
+// because it would remove what was selected.
+func PlanBazel(registry *registrypb.Registry, stage registrypb.Stage, shard string, flags []string) *BazelPlan {
 	plan := &BazelPlan{}
 	var targets, excluded []string
 	for _, check := range registry.GetChecks() {
 		if check.GetKind() != registrypb.Kind_KIND_BAZEL {
 			continue
 		}
-		if !slices.Contains(check.GetStages(), stage) {
+		if !Selected(registry, check, stage, shard) {
 			excluded = append(excluded, check.GetTargets()...)
 			continue
 		}
@@ -85,7 +86,9 @@ func PlanBazel(registry *registrypb.Registry, stage registrypb.Stage, flags []st
 	plan.Args = append(append([]string{"test"}, flags...), "--keep_going", "--noshow_progress", "--")
 	plan.Args = append(plan.Args, targets...)
 	for _, target := range excluded {
-		plan.Args = append(plan.Args, "-"+target)
+		if !slices.ContainsFunc(targets, func(selected string) bool { return matchesTarget(selected, target) }) {
+			plan.Args = append(plan.Args, "-"+target)
+		}
 	}
 	return plan
 }

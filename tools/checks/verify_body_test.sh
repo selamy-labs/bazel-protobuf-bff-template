@@ -12,6 +12,8 @@ registry="$PWD/${REGISTRY:?}"
 required="$PWD/tools/checks/required_tests.txt"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
+labels="$work/labels"
+awk '!/^#/ {print $1}' "$required" >"$labels"
 failures=0
 fail() { echo "FAIL $1" >&2; failures=$((failures + 1)); }
 
@@ -81,13 +83,21 @@ case "\$1" in
     done
     ;;
   test)
+    # Honor the plan, so a wrong subtraction shows up as a wrong inventory.
+    keep="$work/kept"
+    cp "$labels" "\$keep"
+    case " \$* " in
+      *" //... "*) ;;
+      *) grep -F '//web/e2e' "$labels" >"\$keep" ;;
+    esac
+    case " \$* " in *" -//web/e2e/... "*) sed -i '\\#//web/e2e#d' "\$keep" ;; esac
     selected="\$(cat "$work/fail" 2>/dev/null)"
     case "\$selected" in
-      tests) echo '//:verify_body_test FAILED in 0.1s'; sed '/verify_body_test/d; s/\$/ PASSED in 0.1s/' "$required"; exit 3 ;;
-      dependency-rules) echo '//bff:dependency_rules_test FAILED in 0.1s'; sed '/dependency_rules/d; s/\$/ PASSED in 0.1s/' "$required"; exit 3 ;;
-      e2e-browser) echo '//web/e2e:notes_e2e_test FAILED in 0.1s'; sed '/notes_e2e/d; s/\$/ PASSED in 0.1s/' "$required"; exit 3 ;;
-      test-inventory) sed 1d "$required" | sed 's/\$/ PASSED in 0.1s/' ;;
-      *) sed 's/\$/ PASSED in 0.1s/' "$required" ;;
+      tests) echo '//:verify_body_test FAILED in 0.1s'; sed '/verify_body_test/d; s/\$/ PASSED in 0.1s/' "\$keep"; exit 3 ;;
+      dependency-rules) echo '//bff:dependency_rules_test FAILED in 0.1s'; sed '/dependency_rules/d; s/\$/ PASSED in 0.1s/' "\$keep"; exit 3 ;;
+      e2e-browser) echo '//web/e2e:notes_e2e_test FAILED in 0.1s'; sed '/notes_e2e/d; s/\$/ PASSED in 0.1s/' "\$keep"; exit 3 ;;
+      test-inventory) sed 1d "\$keep" | sed 's/\$/ PASSED in 0.1s/' ;;
+      *) sed 's/\$/ PASSED in 0.1s/' "\$keep" ;;
     esac
     if [[ "\$selected" == sandbox-evidence ]]; then echo 'INFO: 3 processes: 1 internal, 2 local.'
     else echo 'INFO: 3 processes: 1 internal, 2 linux-sandbox.'; fi
@@ -277,6 +287,41 @@ env -i HOME="$work" PATH="$work/no-flock" "$work/no-flock/bash" "$tree/tools/che
 [[ $rc -eq 2 ]] || fail "no flock: exit $rc, want 2"
 grep -qF "bootstrap ERROR: 'flock' not found" "$work/second" || fail "no flock: the cause was not named"
 same_as_sentinel "$receipt" || fail "no flock: the receipt was removed without the lock"
+
+# Each leg runs its own checks and its own rows of the inventory. The whole run's results are the union.
+: >"$work/fail"
+: >"$work/hang"
+rm -f "$receipt"
+union="$work/union"
+: >"$union"
+mapfile -t legs < <(sed -nE 's/^shards: "([a-z0-9-]+)"$/\1/p' "$registry")
+[[ ${#legs[@]} -eq 3 ]] || fail "read ${#legs[@]} legs"
+for leg in "${legs[@]}"; do
+  rc=0
+  run "--shard=$leg" || rc=$?
+  [[ $rc -eq 0 ]] || { fail "leg $leg: exit $rc"; sed 's/^/  /' "$work/out" >&2; }
+  [[ "$(field shard)" == "$leg" ]] || fail "leg $leg: the receipt names '$(field shard)'"
+  [[ "$(field result)" == PASSED ]] || fail "leg $leg: result $(field result)"
+  grep -E '^      "check": ' "$receipt" | sed -E 's/.*"check": "([^"]+)".*/\1/' >>"$union"
+done
+for id in "${expected[@]}"; do
+  grep -qFx "$id" "$union" || fail "no leg ran $id"
+done
+for postcondition in test-inventory sandbox-evidence; do
+  [[ "$(grep -cFx "$postcondition" "$union")" -eq 2 ]] || fail "$postcondition did not run in each Bazel leg"
+done
+owned="$(sort "$union" | grep -vxE 'test-inventory|sandbox-evidence' | uniq -d)"
+[[ -z "$owned" ]] || fail "an owned check ran in two legs: $owned"
+
+# A leg's inventory is that leg's rows, so a target the leg did not run fails it.
+echo test-inventory >"$work/fail"
+rc=0
+run --shard=e2e || rc=$?
+[[ $rc -eq 1 && "$(state test-inventory)" == FAILED ]] || fail "a target missing from the e2e leg was not caught: exit $rc"
+: >"$work/fail"
+rc=0
+run --shard=no-such-leg || rc=$?
+[[ $rc -eq 2 ]] || fail "an unknown leg: exit $rc, want 2"
 
 [[ $failures -eq 0 ]] && echo "ok   verify-body"
 exit "$failures"

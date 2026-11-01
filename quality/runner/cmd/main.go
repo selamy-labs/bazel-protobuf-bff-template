@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"slices"
 	"strings"
 	"syscall"
 	"time"
@@ -75,6 +76,7 @@ func run() int {
 	from := flags.String("from", "", "pushed range start")
 	to := flags.String("to", "", "pushed commit")
 	inner := flags.Bool("inner", false, "judge the current worktree as the pushed commit")
+	shard := flags.String("shard", "", "the leg of full to run; empty runs all of it")
 	flags.Var(tools, "tool", "NAME=path, repeated")
 	var startup stringList
 	flags.Var(&startup, "bazel-startup", "a Bazel startup option, repeated")
@@ -97,6 +99,10 @@ func run() int {
 	registry, err := runner.LoadRegistry(*registryPath)
 	if err != nil {
 		return fail(err)
+	}
+	if *shard != "" && (stage != registrypb.Stage_STAGE_FULL || !slices.Contains(registry.GetShards(), *shard)) {
+		fmt.Fprintf(os.Stderr, "quality: %q is not a leg of full\n", *shard)
+		return runner.ExitConfig
 	}
 	runfiles, err := filepath.Abs("..")
 	if err != nil {
@@ -130,7 +136,7 @@ func run() int {
 		return code
 	}
 	options := runner.Options{
-		Registry: registry, Stage: stage, Requested: stage, Root: root, Adapter: adapterPath, Bazel: bazel,
+		Registry: registry, Stage: stage, Requested: stage, Shard: *shard, Root: root, Adapter: adapterPath, Bazel: bazel,
 		BazelStartup: startup,
 		Tools:        tools, Env: env, Isolation: *isolation, Offline: *offline, ReceiptPath: *receipt,
 		Rerun: *rerun, Jobs: *jobs, Deadline: limit, Stdout: os.Stdout,

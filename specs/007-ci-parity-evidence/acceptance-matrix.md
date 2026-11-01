@@ -24,7 +24,8 @@ first.
 | FR-015a | `fixtures_test` | zero `--from`, setting present: first push of a topic branch passes, escalated to `full`, `hook-config` in the receipt | setting unset → exit 11 naming the install command; a moved `main` or `HEAD` is never read; installed with no value → nothing stored | G | off |
 | FR-016 | Real Git fixtures | rows allowed in R8 pass | floor lowered, profile removed, metric changed, each narrowing row → fails | G | off |
 | FR-016a | Real Git fixtures | delete and add within `includes` → passes | real `git rm` and add to a path outside every profile → fails, `unenrolled source`; a relocation into an existing exclude passes, asserted as the stated limit | G | off |
-| FR-017 | Real Git fixtures | every measured file reported; an excludes entry with a factual reason | file absent from report → fails, never covered; an exclude with no reason, or one for a file with executable statements → rejected | G | off |
+| FR-017 | Real Git fixtures | every measured file reported; each `excludes` entry has an allowed reason | file absent from report → fails, never counted as covered; an exclude with an empty or unlisted reason → rejected | G | off |
+| FR-017 | Review of `coverage_floors.json` | each stated reason is true of its files | a reason that does not hold, or a boundary drawn too wide → review rejects. No tool checks this | S | hum |
 | FR-018 | Real Git fixtures | no new suppression | suppression added per language; pattern set edited → fails | G | off |
 | FR-019 | Real tools | exit 0 | exit 3 with reports, empty report, truncated report → `FAILED`; removed test lowers number → fails | G | off, loc |
 | FR-020 | Report fixtures, real profile | `statements` from the raw profile; Go branch shown `unmeasured` | LCOV value as Go percentage, missing `.cover`, `unmeasured` shown as met or not applicable → rejected | G | off |

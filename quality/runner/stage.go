@@ -26,9 +26,11 @@ type Options struct {
 	Registry  *registrypb.Registry
 	Stage     registrypb.Stage
 	Requested registrypb.Stage
-	Root      string
-	Adapter   string
-	Bazel     string
+	// Shard is the leg of full to run. Empty runs the whole stage.
+	Shard   string
+	Root    string
+	Adapter string
+	Bazel   string
 	// BazelStartup holds startup options, for a run on an isolated output base.
 	BazelStartup []string
 	Tools        map[string]string
@@ -193,10 +195,14 @@ func (e *execution) record(result Result, check *registrypb.Check) {
 	PrintResult(e.options.Stdout, result, e.options.Rerun)
 }
 
+func (e *execution) selected(check *registrypb.Check) bool {
+	return Selected(e.options.Registry, check, e.options.Stage, e.options.Shard)
+}
+
 func (e *execution) run(ctx context.Context) []Result {
 	var pool, exclusive, after []planned
 	for _, check := range e.options.Registry.GetChecks() {
-		if !slices.Contains(check.GetStages(), e.options.Stage) || check.GetKind() != registrypb.Kind_KIND_NATIVE {
+		if !e.selected(check) || check.GetKind() != registrypb.Kind_KIND_NATIVE {
 			continue
 		}
 		plan, skip := e.plan(check)
@@ -265,7 +271,7 @@ func (e *execution) expand(plan planned) ([]string, error) {
 	}
 	pairs := []string{
 		"{adapter}", e.options.Adapter, "{list}", list, "{list_nl}", listNL, "{root}", e.inputs.Root,
-		"{bazel_log}", e.log, "{isolation}", e.options.Isolation,
+		"{bazel_log}", e.log, "{isolation}", e.options.Isolation, "{shard}", e.options.Shard,
 	}
 	for name, path := range e.options.Tools {
 		pairs = append(pairs, "{"+name+"}", path)
@@ -388,7 +394,7 @@ func (e *execution) bazelFlags() []string {
 }
 
 func (e *execution) runBazel(ctx context.Context) {
-	plan := PlanBazel(e.options.Registry, e.options.Stage, e.bazelFlags())
+	plan := PlanBazel(e.options.Registry, e.options.Stage, e.options.Shard, e.bazelFlags())
 	log, err := os.Create(e.log)
 	if plan == nil {
 		if err == nil {
@@ -449,7 +455,7 @@ func (e *execution) complete() []Result {
 		seen[result.Check] = true
 	}
 	for _, check := range e.options.Registry.GetChecks() {
-		if slices.Contains(check.GetStages(), e.options.Stage) && !seen[check.GetId()] {
+		if e.selected(check) && !seen[check.GetId()] {
 			e.record(Result{State: NotRun}, check)
 		}
 	}
@@ -468,7 +474,7 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 	defer cancel()
 	options := e.options
 	receipt := &Receipt{
-		SchemaVersion: 4, Stage: StageName(options.Stage), Requested: StageName(options.Requested),
+		SchemaVersion: 5, Stage: StageName(options.Stage), Requested: StageName(options.Requested), Shard: options.Shard,
 		Isolation: options.Isolation, Offline: options.Offline, TestCached: options.Stage != registrypb.Stage_STAGE_FULL,
 		RegistryVer: options.Registry.GetVersion(), Checks: results, Expected: len(results),
 		StartedAt:  started.UTC().Format(time.RFC3339),

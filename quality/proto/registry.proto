@@ -82,6 +82,12 @@ message Check {
   Threshold threshold = 14;
   // Skipped with --offline, because it needs the network. A skipped run cannot be PASSED.
   bool needs_network = 15;
+  // The one leg that owns this check. Set on every check that is not a postcondition, once the
+  // registry declares shards. Spec 007 FR-001.
+  string shard = 16;
+  // No shard: runs after the Bazel invocation of every leg that has one, and judges that leg's log.
+  // Requires after_bazel.
+  bool postcondition = 17;
 }
 
 // A pinned tool, as the root target passes it in NAME=path form.
@@ -101,4 +107,6 @@ message Registry {
   string fixture_manifest = 4;
   repeated Tool tools = 5;
   repeated Check checks = 6;
+  // The legs that partition full. Empty means the policy is not split.
+  repeated string shards = 7;
 }
