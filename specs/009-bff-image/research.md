@@ -31,6 +31,17 @@ The startup claim has two layers. The extracted entrypoint runs in the verifier.
 
 A test in one output base can only see one build. A script outside the verifier builds in two clones at different paths, with separate output bases, and compares manifest digests.
 
+## R6 Coverage mode, found by the first full verifier (2026-11-01)
+
+The full verifier runs `bazel coverage`, and its instrumentation filter covers `//bff`. The first full run at
+`29d0d6c` failed: the image held an instrumented server, whose stderr carried coverage warnings before the
+refusal. A transition on the packaged binary resets `collect_code_coverage`, so the image holds an uninstrumented
+server under either command. The digest still differs between the two commands, by one cause measured on the
+binaries: the generated `.pb.go` sources are recorded with the output directory of the configuration that made
+them, `bazel-out/k8-fastbuild/bin` in a plain build and a transitioned directory under coverage. Same size, no
+shim, and no other differing string. So identity is the plain build's digest, and the verifier's witness checks
+content and behavior. Coverage of the server's own code is unchanged: it comes from the tests, not the image.
+
 ## Alternatives rejected
 
 - A Dockerfile or Cloud Build image step: a second builder, and the conflict this feature removes.
