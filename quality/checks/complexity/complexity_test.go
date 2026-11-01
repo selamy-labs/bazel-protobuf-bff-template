@@ -175,12 +175,13 @@ func TestNothingMeasuredIsAnErrorAndExcludedFilesAreCounted(t *testing.T) {
 	if _, _, err := b.Check(nil, sources(nil)); err == nil {
 		t.Error("an empty list passed")
 	}
-	result, _, err := b.Check([]string{"a_test.go", "b.md"}, sources(map[string]string{"a_test.go": nested}))
-	if err == nil {
-		t.Errorf("only excluded input passed: %+v", result)
+	// A staged change of test files only is nothing to judge: the hook refused such a commit once.
+	result, problems, err := b.Check([]string{"a_test.go", "b.md"}, sources(map[string]string{"a_test.go": nested}))
+	if err != nil || len(problems) != 0 || result.Excluded != 1 || result.Files != 0 {
+		t.Errorf("only excluded input: %+v %v %v", result, problems, err)
 	}
-	if result.Excluded != 1 || result.Files != 0 {
-		t.Errorf("result %+v", result)
+	if _, _, err := b.Check([]string{"b.md"}, sources(nil)); err == nil {
+		t.Error("a list with no Go file passed")
 	}
 	if result, _, err := b.Check([]string{"a.go"}, sources(map[string]string{"a.go": "package p\n\nvar x = 1\n"})); err != nil || result.Files != 1 || result.Functions != 0 {
 		t.Errorf("a file with no function is a measurement: %+v %v", result, err)

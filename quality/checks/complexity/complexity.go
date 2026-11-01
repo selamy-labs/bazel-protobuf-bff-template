@@ -299,8 +299,9 @@ func (b *Budgets) Check(paths []string, read func(string) ([]byte, error)) (Resu
 		result.Files++
 		problems = append(problems, b.judge(measured, &result)...)
 	}
-	// A measured file with no function is a measurement; a list that measures no file is not one.
-	if result.Files == 0 {
+	// A measured file with no function is a measurement, and a selection made only of excluded files is nothing
+	// to judge; a list holding no Go file at all is not a measurement.
+	if result.Files == 0 && result.Excluded == 0 {
 		return result, nil, errors.New("no Go file was measured")
 	}
 	return result, problems, nil

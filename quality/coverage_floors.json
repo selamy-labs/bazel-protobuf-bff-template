@@ -12,6 +12,7 @@
   },
   "excludes": [
     { "pattern": "_test\\.go$", "reason": "test-code" },
+    { "pattern": "^bff/ports/porttest/", "reason": "test-code" },
     { "pattern": "\\.test\\.(ts|mjs)$", "reason": "test-code" },
     { "pattern": "^api/testdata/", "reason": "test-data" },
     { "pattern": "^quality/checks/suppression/testdata/", "reason": "test-data" },
@@ -31,10 +32,11 @@
       "name": "go-entrypoints",
       "language": "go",
       "metric": "block-span-lines",
-      "include": "^(bff/cmd/bff-dev/main\\.go|quality/checks/ciparity/cmd/main\\.go|quality/checks/complexity/cmd/complexity/main\\.go|quality/checks/coverage/cmd/(floors|merger)/main\\.go|quality/checks/suppression/main\\.go|quality/proto/cmd/main\\.go|quality/release/cmd/main\\.go|quality/runner/cmd/main\\.go|tools/dev/profile/main\\.go)$",
+      "include": "^(bff/cmd/bff-dev/main\\.go|quality/checks/ciparity/cmd/main\\.go|quality/checks/complexity/cmd/complexity/main\\.go|quality/checks/coverage/cmd/(floors|merger)/main\\.go|quality/checks/suppression/main\\.go|quality/proto/cmd/main\\.go|quality/release/cmd/main\\.go|quality/runner/cmd/main\\.go)$",
       "floor": 70
     },
     { "name": "go-root", "language": "go", "metric": "statements", "include": "^bff/", "floor": 87 },
+    { "name": "go-tools", "language": "go", "metric": "statements", "include": "^tools/dev/profile/", "floor": 74 },
     { "name": "go-quality", "language": "go", "metric": "statements", "include": "^quality/", "floor": 75 },
     { "name": "ts-client", "language": "typescript", "metric": "compiled-js-lines", "include": "^web/client/", "floor": 100 },
     { "name": "web-browser", "language": "typescript", "metric": "unmeasured", "include": "^web/(app|serve)/", "floor": 0 }

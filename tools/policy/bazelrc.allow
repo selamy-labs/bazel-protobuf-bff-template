@@ -11,4 +11,4 @@ test --test_output=errors
 build:weak-isolation --spawn_strategy=processwrapper-sandbox
 coverage --coverage_output_generator=@bff_template_quality//checks/coverage:merger
 coverage --coverage_report_generator=@bff_template_quality//checks/coverage:merger
-coverage --instrumentation_filter=^//bff[/:],^//web/client[/:],^@@bff_template_quality[+]//
+coverage --instrumentation_filter=^//bff[/:],^//tools/dev/profile[/:],^//web/client[/:],^@@bff_template_quality[+]//
