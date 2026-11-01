@@ -12,7 +12,8 @@
     "runtime_identity",
     "build_identity",
     "artifact_registry",
-    "state_bucket"
+    "state_bucket",
+    "notes_bucket"
   ],
   "properties": {
     "version": {
@@ -46,6 +47,11 @@
     "state_bucket": {
       "type": "string",
       "description": "Named for the record only; this repository never reads it."
+    },
+    "notes_bucket": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$",
+      "description": "The bucket the service keeps one object per note in, which the runtime identity may create and read objects in; required with the managed store."
     }
   }
 }

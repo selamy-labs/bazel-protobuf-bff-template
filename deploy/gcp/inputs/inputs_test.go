@@ -94,6 +94,7 @@ func TestEveryRefusalNamesTheField(t *testing.T) {
 		"bad runtime identity":      {`"runtime_identity": "bff-runtime@example.invalid"`, `"runtime_identity": "not-an-identity"`, "contract.runtime_identity"},
 		"bad build identity":        {`"build_identity": "bff-build@example.invalid"`, `"build_identity": "nope"`, "contract.build_identity"},
 		"missing registry":          {`"artifact_registry": "example-region1-docker.example.invalid/example-bff-hosted-000000/bff"`, `"artifact_registry": ""`, "contract.artifact_registry"},
+		"bad notes bucket":          {`"notes_bucket": "example-bff-hosted-000000-notes"`, `"notes_bucket": "Notes Bucket"`, "contract.notes_bucket"},
 		"short display name":        {`"display_name": "BFF hosted example"`, `"display_name": "BFF"`, "project.display_name"},
 		"bad parent":                {`"parent": "organizations/000000000000"`, `"parent": "projects/x"`, "project.parent"},
 		"bad owner group":           {`"owner_group": "bff-owners@example.invalid"`, `"owner_group": "owners"`, "project.owner_group"},

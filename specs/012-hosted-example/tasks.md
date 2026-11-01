@@ -12,14 +12,14 @@
 ## Phase 2: Probes (research)
 
 - [x] T003 [P] (golang-jwt 5.3.1 and keyfunc 3.9.1 pinned by go.sum after the probe; synthetic keys in the tests; recorded in R2) Issuer and verification library probe: a maintained library for the chosen issuer, pinned by go.sum after the probe, with synthetic keys for the negative tests; recorded in research R2
-- [ ] T004 [P] Managed store probe: the simplest managed store with owner-scoped keys, run against the `ports.Store` contract suite behind an emulator or a recorded gate; recorded in research R3
+- [x] T004 [P] (an object bucket through two JSON API calls and the runtime's token, no client library; the contract suite, a restart and owner isolation against a fake of those calls; recorded in R3) Managed store probe: the simplest managed store with owner-scoped keys, run against the `ports.Store` contract suite behind an emulator or a recorded gate; recorded in research R3
 - [x] T005 [P] (research R4) Cloud Run evaluation against the server: `PORT`, `0.0.0.0`, the verifier, the exact origin, bounded shutdown, in-memory versus managed persistence; what it provides and what the example still lacks; recorded in research R4
-- [ ] T006 [P] Pages base path probe: project-site path versus host origin; recorded in research R5
+- [x] T006 [P] (recorded in R5 from the local hosted journey; the live site is T017's) Pages base path probe: project-site path versus host origin; recorded in research R5
 
 ## Phase 3: User Story 4 - A real identity, a real store, a real port (Priority: P1)
 
 - [x] T007 [US4] (`bff/adapters/identity/oidc`, composed through `newVerifier` from the three issuer inputs; eleven refusals tested with synthetic keys; the development identity stays out of the production binary) The verifier adapter in `bff/adapters/identity/<issuer>/` implementing `identity.Verifier`, composed in production through `bff/cmd/bff/verifier.go`; tests refuse a wrong issuer, a wrong audience, an expired token and a bad signature; the dev identity stays out of the production binary (`//bff/cmd:binaries_test`)
-- [ ] T008 [US4] The managed store adapter in `bff/adapters/store/<managed>/` behind `ports.Store`, passing `bff/ports/contract_test.go`, with a read-after-restart test and an owner-isolation test
+- [x] T008 [US4] (`bff/adapters/store/object`, composed through `--store=object` and `--object-bucket` from the contract's `notes_bucket`; the contract suite, `TestANoteSurvivesARestart`, owner isolation) The managed store adapter in `bff/adapters/store/<managed>/` behind `ports.Store`, passing `bff/ports/contract_test.go`, with a read-after-restart test and an owner-isolation test
 - [x] T009 [US4] (the flag, then BFF_ADDR, then PORT on every interface, then 8080; dev stays loopback-only by its own refusal; a non-default port tested) `PORT` and the address at the funnel in `bff/cmd/bff/config.go`: production binds `0.0.0.0:$PORT`, dev stays loopback-only, a non-default port is tested
 - [ ] T010 [US4] Supported sign-in in `web/app/signin/` acquiring the bearer credential for the generated client; the production bundle inspected for the absent test identity (`//web/app:bundle_test`)
 

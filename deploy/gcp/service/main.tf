@@ -50,6 +50,15 @@ resource "google_cloud_run_v2_service" "bff" {
         name  = "BFF_VERIFIER_JWKS_URL"
         value = local.inputs.runtime.verifier.jwks_url
       }
+      # The persistence the funnel states: the managed store is one object per note in the contract's bucket.
+      env {
+        name  = "BFF_STORE"
+        value = local.inputs.runtime.persistence.kind == "managed-store" ? "object" : "memory"
+      }
+      env {
+        name  = "BFF_OBJECT_BUCKET"
+        value = local.inputs.contract.notes_bucket
+      }
     }
   }
 

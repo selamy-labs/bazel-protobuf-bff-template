@@ -46,6 +46,13 @@ The browser sends a bearer credential in the `Authorization` header, and cookies
 CORS allows no credentials, so the server has no CSRF surface. Before you move to cookie sessions,
 add `SameSite`, CSRF tokens and origin checks.
 
+## Persistence
+
+The store is the composition's choice: `--store=memory`, the example's bounded store, or `--store=object` with
+`--object-bucket`, one object per note in a managed bucket through the bucket service's JSON API with the
+runtime's own token ([adapters/store/object](adapters/store/object/store.go)). The local demo uses the
+file-backed store through the launcher. Every adapter passes the same contract suite as the memory fake.
+
 ## Errors
 
 A store or verifier cannot choose what a caller reads. Only `ports.ErrNotFound`,

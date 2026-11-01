@@ -205,3 +205,35 @@ func TestABoundBeyondTheInvariantIsRefused(t *testing.T) {
 		}
 	}
 }
+
+// The store is the composition's choice (spec 012 FR-017): memory by default, the object store with its bucket, and
+// nothing else; the bucket is required with the object store.
+func TestTheStoreIsTheComposition(t *testing.T) {
+	issuer := []string{"--allowed-origin=https://app.example.com", "--verifier-issuer=https://issuer.example/", "--verifier-audience=bff", "--verifier-jwks-url=https://issuer.example/jwks"}
+	cases := map[string]struct {
+		args []string
+		env  map[string]string
+		want string
+	}{
+		"memory by the composition":   {nil, nil, ""},
+		"object by flag":              {[]string{"--store=object", "--object-bucket=notes"}, nil, ""},
+		"object by the environment":   {nil, map[string]string{"BFF_STORE": "object", "BFF_OBJECT_BUCKET": "notes"}, ""},
+		"object without a bucket":     {[]string{"--store=object"}, nil, "object-bucket: required"},
+		"a store that does not exist": {[]string{"--store=cloud"}, nil, "neither memory nor object"},
+	}
+	for name, c := range cases {
+		parsed, err := parse(append(append([]string{}, issuer...), c.args...), func(key string) string { return c.env[key] })
+		if err != nil {
+			t.Fatal(err)
+		}
+		config, err := configure(parsed, withVerifier)
+		switch {
+		case c.want == "" && err != nil:
+			t.Errorf("%s: %v", name, err)
+		case c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)):
+			t.Errorf("%s: got %v, want %q", name, err, c.want)
+		case c.want == "" && config.Store == nil:
+			t.Errorf("%s: no store", name)
+		}
+	}
+}

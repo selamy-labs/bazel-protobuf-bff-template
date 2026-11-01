@@ -1,0 +1,22 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# The hosted example's persistence (spec 012 FR-017): one object per note in a managed bucket, through two calls of
+# the bucket service's JSON API with the runtime's own token. No client library.
+go_library(
+    name = "object",
+    srcs = ["store.go"],
+    importpath = "example.com/bfftemplate/bff/adapters/store/object",
+    visibility = ["//bff:__subpackages__"],
+    deps = ["//bff/ports"],
+)
+
+go_test(
+    name = "object_test",
+    size = "small",
+    srcs = ["store_test.go"],
+    embed = [":object"],
+    deps = [
+        "//bff/ports",
+        "//bff/ports/porttest",
+    ],
+)

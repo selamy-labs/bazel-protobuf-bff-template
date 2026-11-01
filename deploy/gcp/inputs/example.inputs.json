@@ -7,7 +7,8 @@
     "runtime_identity": "bff-runtime@example.invalid",
     "build_identity": "bff-build@example.invalid",
     "artifact_registry": "example-region1-docker.example.invalid/example-bff-hosted-000000/bff",
-    "state_bucket": "example-bff-hosted-000000-state"
+    "state_bucket": "example-bff-hosted-000000-state",
+    "notes_bucket": "example-bff-hosted-000000-notes"
   },
   "project": {
     "display_name": "BFF hosted example",

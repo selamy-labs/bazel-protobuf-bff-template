@@ -8,6 +8,8 @@
 //deploy/gcp:offline_test build-test
 //deploy/gcp/inputs:inputs_test build-test
 //bff/adapters/store/local:local_test build-test
+//bff/adapters/store/object:object_test build-test
+//bff/adapters/identity/oidc:oidc_test build-test
 //bff/app:app_test build-test
 //bff/cmd/bff:config_test build-test
 //bff/cmd/bff:image_test build-test

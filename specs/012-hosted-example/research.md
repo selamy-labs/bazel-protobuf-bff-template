@@ -14,6 +14,7 @@ revision; none by a product's name.
 
 ## R3 Store (probe at T004 and T019)
 
+- Probed and landed at T004 and T008: the simplest managed store with owner-scoped keys is an object bucket, one object per note under `notes/<hex owner>/<hex id>.json`, written and read through two calls of the bucket service's JSON API with a token the runtime reads from its own metadata endpoint; no client library, so nothing new is pinned. Firestore was the alternative and needs a client library with a large dependency tree for two operations. `bff/adapters/store/object` passes the same contract suite as the memory fake and the file-backed store, with a read after a restart and owner isolation, against a fake of exactly those two calls and the token endpoint, which stands for the API surface and not for the service: the live bucket is a gate (T017). Every failure is unavailable, never an empty note; the token is cached until shortly before it expires; names never leave the prefix. The bucket is the infrastructure owner's (`contract.notes_bucket`), and the runtime identity's permission to create and read objects in it is enumerated on the owner's side.
 - `ports.Store` has `Put` and `Get` by owner and id with `ErrNotFound` and `ErrUnavailable`; the memory adapter is bounded. The local demo takes a file-backed adapter under the same contract suite with stated persistence, restart and reset semantics; the hosted example takes the simplest managed store with owner-scoped keys, under the same suite, with a read-after-restart test and an owner-isolation test. A one-instance limit is never a durability claim.
 
 ## R4 Cloud Run against the server (evaluation, T005)
@@ -41,7 +42,7 @@ records the endpoint, the identity, the digest and the flow.
 
 ## R5 Pages base path and the browser origin (probe at T006)
 
-- A Pages project site serves under a path while the browser origin is the host alone; CORS here allows one exact origin with no path, and that stays. The frontend base path and the RPC base URL are independent inputs; the journey tests the preflight, a blocked foreign origin, an authenticated call, error and status accessibility, reload and deep link, logout and cancellation, and log redaction.
+- Recorded at T006 from the local hosted journey (`//web/e2e:hosted_e2e_test`): the page under a project-site path reads its script and its configuration relative to the path and nothing at the root, the backend's allowed origin is the host alone, and the preflight passes for it; the live Pages site itself has not been served, which is T017's. A Pages project site serves under a path while the browser origin is the host alone; CORS here allows one exact origin with no path, and that stays. The frontend base path and the RPC base URL are independent inputs; the journey tests the preflight, a blocked foreign origin, an authenticated call, error and status accessibility, reload and deep link, logout and cancellation, and log redaction.
 
 ## R6 The local launcher on a host with bash 3.2 (independent Mac probe, 2026-11-01)
 

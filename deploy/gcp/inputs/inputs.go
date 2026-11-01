@@ -40,6 +40,7 @@ type Contract struct {
 	BuildIdentity    string `json:"build_identity"`
 	ArtifactRegistry string `json:"artifact_registry"`
 	StateBucket      string `json:"state_bucket"`
+	NotesBucket      string `json:"notes_bucket"`
 }
 
 type Project struct {
@@ -101,6 +102,7 @@ var (
 	basePath  = regexp.MustCompile(`^/([a-z0-9-]+/)*$`)
 	currency  = regexp.MustCompile(`^[A-Z]{3}$`)
 	email     = regexp.MustCompile(`^[^@\s]+@[^@\s]+\.[^@\s]+$`)
+	bucket    = regexp.MustCompile(`^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$`)
 )
 
 // Validate applies every rule the schema states and the ones a schema cannot: the identities are distinct, the
@@ -140,6 +142,8 @@ func (in *Inputs) validateContract() error {
 		return errors.New("contract.runtime_identity and contract.build_identity: the same identity; the runtime must hold no build or deploy permission")
 	case c.ArtifactRegistry == "" || c.StateBucket == "":
 		return errors.New("contract.artifact_registry and contract.state_bucket: required")
+	case !bucket.MatchString(c.NotesBucket):
+		return fmt.Errorf("contract.notes_bucket: %q is not a bucket name", c.NotesBucket)
 	case in.Region != c.Region:
 		return fmt.Errorf("region: %q differs from the contract's %q", in.Region, c.Region)
 	}

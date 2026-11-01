@@ -43,6 +43,10 @@ run "the_origin_port_and_bounds_come_from_the_funnel" {
     condition     = google_cloud_run_v2_service.bff.template[0].scaling[0].min_instance_count == 0
     error_message = "the example scales to zero"
   }
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_STORE"]) == "object" && one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_OBJECT_BUCKET"]) == "example-bff-hosted-000000-notes"
+    error_message = "the managed store is the contract's bucket"
+  }
 }
 
 # Rollback as an input (spec 012 FR-009): the same configuration with the previous digest serving. The image

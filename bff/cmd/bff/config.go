@@ -5,12 +5,15 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"strconv"
 	"time"
 
 	"example.com/bfftemplate/bff/adapters/identity/oidc"
 	"example.com/bfftemplate/bff/adapters/memory"
+	"example.com/bfftemplate/bff/adapters/store/object"
 	"example.com/bfftemplate/bff/identity"
+	"example.com/bfftemplate/bff/ports"
 	"example.com/bfftemplate/bff/server"
 )
 
@@ -25,6 +28,8 @@ type options struct {
 	shutdownBound   time.Duration
 	maxNotes        int
 	verifier        oidc.Settings
+	store           string
+	bucket          string
 }
 
 // The composition's defaults (spec 011 FR-016): each is set here once, read by its flag, then its BFF_*
@@ -35,6 +40,11 @@ const (
 	maxRequestBytes = 64 << 10
 	shutdownBound   = 5 * time.Second
 	maxNotes        = 10000
+	// The managed store's endpoints (spec 012 FR-017): the public bucket API, and the metadata server's token
+	// endpoint where a hosted runtime reads a token for its own identity. Declared once here, required below.
+	objectEndpoint = "https://storage.googleapis.com"
+	objectTokenURL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+	objectPrefix   = "notes"
 	// maxNotesCeiling is an invariant: the memory store is the example's, never a production database.
 	maxNotesCeiling = 1_000_000
 )
@@ -89,6 +99,9 @@ func parse(args []string, getenv func(string) string) (options, error) {
 		return options{}, err
 	}
 	flags.IntVar(&parsed.maxNotes, "max-notes", notes, "how many notes the memory store holds")
+	// The store (spec 012 FR-017): memory, the example's, or object, a managed bucket the contract names.
+	flags.StringVar(&parsed.store, "store", fallback(getenv("BFF_STORE"), "memory"), "memory or object")
+	flags.StringVar(&parsed.bucket, "object-bucket", getenv("BFF_OBJECT_BUCKET"), "the bucket, required with --store=object")
 	if err := flags.Parse(args); err != nil {
 		return options{}, err
 	}
@@ -165,6 +178,10 @@ func configure(parsed options, newVerifier func(oidc.Settings) (identity.Verifie
 	if parsed.maxNotes < 1 || parsed.maxNotes > maxNotesCeiling {
 		return server.Config{}, fmt.Errorf("max-notes: %d is outside 1 to %d; the ceiling is an invariant, not a setting", parsed.maxNotes, maxNotesCeiling)
 	}
+	store, err := openStore(parsed)
+	if err != nil {
+		return server.Config{}, err
+	}
 	limits := listener
 	limits.ShutdownBound = parsed.shutdownBound
 	return server.Config{
@@ -172,7 +189,7 @@ func configure(parsed options, newVerifier func(oidc.Settings) (identity.Verifie
 		Addr:          parsed.addr,
 		AllowedOrigin: parsed.allowedOrigin,
 		Authenticator: authenticator,
-		Store:         memory.New(parsed.maxNotes),
+		Store:         store,
 		Calls: server.CallLimits{
 			DefaultDeadline: parsed.defaultDeadline,
 			MaxDeadline:     parsed.maxDeadline,
@@ -180,4 +197,20 @@ func configure(parsed options, newVerifier func(oidc.Settings) (identity.Verifie
 		},
 		Listener: limits,
 	}, nil
+}
+
+// openStore is the one place the production persistence is chosen (spec 012 FR-017): the memory store with its
+// bound, or one object per note in the bucket the contract names, through the endpoints declared above.
+func openStore(parsed options) (ports.Store, error) {
+	switch parsed.store {
+	case "memory":
+		return memory.New(parsed.maxNotes), nil
+	case "object":
+		if parsed.bucket == "" {
+			return nil, errors.New("object-bucket: required with --store=object (or BFF_OBJECT_BUCKET)")
+		}
+		return object.Open(object.Settings{Bucket: parsed.bucket, Endpoint: objectEndpoint, TokenURL: objectTokenURL, Prefix: objectPrefix}, &http.Client{Timeout: 10 * time.Second})
+	default:
+		return nil, fmt.Errorf("store: %q is neither memory nor object", parsed.store)
+	}
 }

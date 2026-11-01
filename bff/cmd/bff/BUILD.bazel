@@ -14,7 +14,9 @@ go_library(
     deps = [
         "//bff/adapters/identity/oidc",
         "//bff/adapters/memory",
+        "//bff/adapters/store/object",
         "//bff/identity",
+        "//bff/ports",
         "//bff/server",
     ],
 )
@@ -34,6 +36,7 @@ go_test(
     deps = [
         "//bff/adapters/identity/oidc",
         "//bff/adapters/memory",
+        "//bff/adapters/store/object",
         "//bff/identity",
         "//bff/server",
     ],
