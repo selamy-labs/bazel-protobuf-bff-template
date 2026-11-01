@@ -45,6 +45,26 @@ by one pin.
 | NixOS on self-managed hosts | Shared host operations | Outside this repository; the consumer side is [host-profile](contracts/host-profile.md) |
 | Hook stage contract, policy-diff, evidence validator, contract analyzer, worker profile | Upstream #25 to #29, TS #20 | Consumed, not implemented here |
 
+**Capabilities, and who consumes them.** This template is a shared foundation, and its reusable value is
+the set below. Each row says what is delivered here and what a downstream product still owns. Three
+downstream products are known to its operator and are named only by neutral labels here: a routing
+service, a small team's consumer idea, and a trading platform. Their domain models, business rules,
+identities, permissions, data and deployment approvals are **unknown to this specification**, stay
+with their product owners, and are not invented here. None of them is started by this template, and
+none of them requires NixOS.
+
+| Capability | Delivered here | A downstream product still owns |
+| --- | --- | --- |
+| Typed schema and generated code | One Protobuf contract, generated Go and TypeScript, drift and breaking-change checks | Its own schema, package versions and compatibility policy |
+| Typed backend and frontend boundary | A Connect BFF with ports and adapters, and a browser client that observes success and typed failure | Its domain, storage, identity provider and authorization |
+| Declarative, reproducible build and quality | Pinned toolchains, one rule catalog, hooks, verifier and receipts, consumable by one pin | Its own floors, required tests, policy base and review |
+| Packaging | The production server as one OCI image from the build graph, with the exact startup refusal (M8a) | A real verifier, runtime assets, registry and deployment |
+| Fresh-clone and app flow | Clone to a passing verifier and a working slice on the supported profile | Its product flows, their acceptance tests and CI |
+| Independent consumer upgrade | A second consumer moved N to N+1 by one pin, with notes and negative controls | Its own upgrade cadence and the review of each pin change |
+
+Hooks give early, enforceable checks. They are bypassable and prove no business correctness. A product's
+acceptance tests, negative controls, exact-source independent review and its own CI still matter.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Fresh clone shows a working browser-to-BFF slice (Priority: P1)
