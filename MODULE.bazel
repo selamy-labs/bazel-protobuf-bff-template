@@ -33,6 +33,15 @@ go_sdk.download(
 )
 use_repo(go_sdk, "go_sdk")
 
+# vet and staticcheck run in the Go build, so a finding fails it (spec 006 FR-016).
+go_sdk.nogo(
+    includes = [
+        "//:__subpackages__",
+        "@bff_template_quality//:__subpackages__",
+    ],
+    nogo = "@bff_template_quality//analysis:nogo",
+)
+
 # Go dependencies come from go.mod and go.sum (spec 003 research R3).
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")

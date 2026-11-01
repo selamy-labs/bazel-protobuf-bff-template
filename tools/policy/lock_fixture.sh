@@ -5,7 +5,9 @@
 #   2. a native tool whose checksum does not match its pin is rejected, not used;
 #   3. a hostile HOME rc breaks raw Bazel (control) but cannot reach the pinned wrapper;
 #   4. every target analyzes with no C compiler on PATH, and a real C consumer fails even when the
-#      host has a compiler (specs/005-browser-client FR-012).
+#      host has a compiler (specs/005-browser-client FR-012);
+#   5. a vet or staticcheck finding fails the Go build, in the root and in the quality module, and the
+#      corrected code builds (specs/006-quality-hooks FR-016).
 # Runs in a throwaway copy with its own output root, sharing only the download cache. The fourth
 # reads the real checkout, with its own output root and no convenience links, because it must see
 # every target.
@@ -102,3 +104,35 @@ if in_ws build --config=weak-isolation --nobuild //c_consumer:main; then
 fi
 grep -qF 'Unable to find a CC toolchain' "$work/log" || { echo "compiler-fixture: failure did not name the C toolchain:" >&2; tail -8 "$work/log" >&2; exit 1; }
 echo "ok   compiler-fixture control and corrected"
+
+# package <directory>: one library that the analyzers judge when it builds.
+go_package() {
+  mkdir -p "$1"
+  cat >"$1/BUILD.bazel" <<'FIXTURE'
+load("@rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "fixture",
+    srcs = ["fixture.go"],
+    importpath = "example.com/fixture",
+    visibility = ["//visibility:public"],
+)
+FIXTURE
+}
+analyzed() { # analyzed <directory> <target> <name> <finding> <defect body>: rejected, then corrected
+  local dir="$1" target="$2" name="$3" finding="$4" body="$5"
+  printf 'package fixture\n\nimport "fmt"\n\nfunc Value() string { return fmt.Sprint(1) }\n' >"$dir/fixture.go"
+  in_ws build --config=weak-isolation "$target" || { echo "analysis-fixture: $name: valid code failed:" >&2; tail -8 "$work/log" >&2; exit 1; }
+  printf 'package fixture\n\nimport "fmt"\n\nfunc Value() string {\n%s\n\treturn fmt.Sprint(1)\n}\n' "$body" >"$dir/fixture.go"
+  if in_ws build --config=weak-isolation "$target"; then
+    echo "analysis-fixture: $name: the build accepted the finding" >&2
+    exit 1
+  fi
+  grep -qF "$finding" "$work/log" || { echo "analysis-fixture: $name: failed without '$finding':" >&2; tail -8 "$work/log" >&2; exit 1; }
+}
+go_package "$work/ws/analysis_fixture"
+go_package "$work/ws/quality/analysis_fixture"
+analyzed "$work/ws/analysis_fixture" //analysis_fixture:fixture root-vet '(printf)' $'\t_ = fmt.Sprintf("%d", "text")'
+analyzed "$work/ws/analysis_fixture" //analysis_fixture:fixture root-staticcheck '(SA5000)' $'\tvar counts map[string]int\n\tcounts["a"] = 1'
+analyzed "$work/ws/quality/analysis_fixture" @bff_template_quality//analysis_fixture:fixture quality-vet '(printf)' $'\t_ = fmt.Sprintf("%d", "text")'
+echo "ok   analysis-fixture defect and corrected"

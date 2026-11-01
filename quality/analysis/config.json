@@ -1,0 +1,7 @@
+{
+  "_base": {
+    "exclude_files": {
+      "^bazel-out/": "generated code is judged by its generator"
+    }
+  }
+}

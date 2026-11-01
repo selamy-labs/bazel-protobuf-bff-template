@@ -5,6 +5,7 @@ module(
     version = "0.1.0",
 )
 
+bazel_dep(name = "gazelle", version = "0.54.0")
 bazel_dep(name = "rules_go", version = "0.64.2")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "rules_multitool", version = "1.11.1")
@@ -12,3 +13,9 @@ bazel_dep(name = "rules_multitool", version = "1.11.1")
 multitool = use_extension("@rules_multitool//multitool:extension.bzl", "multitool")
 multitool.hub(lockfile = "//:multitool.lock.json")
 use_repo(multitool, "multitool")
+
+# Raises x/tools for every module, including rules_go's nogo, which needs export data V5 for
+# Go 1.27 (spec 006 R1). Consumers inherit this selection.
+go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
+go_deps.from_file(go_mod = "//:go.mod")
+use_repo(go_deps, "co_honnef_go_tools")
