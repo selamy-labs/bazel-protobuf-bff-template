@@ -47,4 +47,18 @@ The checks below were run before the M0 commit:
 
 | Date | Revision | Reviewer | Result |
 | --- | --- | --- | --- |
-| — | — | — | not yet reviewed |
+| 2026-11-01 | `00a4c6b` | the author, not an independent reviewer | Executed at this revision, row by row, below. Technical readiness stands with the release gates pending: the owner identity, the LICENSE holder line, 17 unresolved licenses, and the first-push base decision are the operator's |
+
+## Execution at `00a4c6b`
+
+| Row | State | Evidence |
+| --- | --- | --- |
+| Name, owner, visibility, license approved | pending the operator: name, visibility and MIT are approved; the owner identity and the LICENSE holder line await approval | the external release packet |
+| LICENSE present, provenance covers every path | yes; 17 licenses explicitly unresolved, each a listed finding | the `inventory` check at `full`; [m8](evidence/m8.md) |
+| Neutrality scan over the full history | the generic scan passes with decided findings by object id; the private scan found 20 markers literally absent over the whole repository and over the export clone, by label only | [m8](evidence/m8.md) |
+| Secret scan over the full history | the pinned gitleaks 8.30.1 over 115 commits with the repository's configuration, redacted: no leaks found; author-run | the retained run outside the repository |
+| No organization-specific assumptions in CI | the workflow names only GitHub-hosted runners, carries no deployment values and needs no account; hosted CI has never run | `//:ci_parity_test`, [capability states](quality/capability-states.md) |
+| No live-enforcement claims | none; each such capability is `no` in capability states, and the runbook names every gate | [capability states](quality/capability-states.md), [runbook](release-runbook.md) |
+| Fresh clone passes with no credentials | author runs only, at weakened isolation; independent full-sandbox runs exist at M7's and M8a's revisions, not at this one | the evidence records |
+| First hosted push has no base | decided: the first run is expected to exit 11, and the operator names the reviewed candidate as the base afterwards | [runbook](release-runbook.md), steps 4 and 5 |
+| Result recorded with revision and reviewer | this row | this file |

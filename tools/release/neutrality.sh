@@ -72,13 +72,16 @@ while IFS= read -r -d $'\x1e' record; do
 done <"$work/commits"
 
 # Generic. grep reads a file to its end, so a match and a read error are distinct. A hit on an object the
-# allowlist names with a `blob <id> <reason>` line is a decided finding: printed with its reason, counted apart,
-# and not a failure. The decision names one object, so a new blob with the same text is a new finding.
+# allowlist names with a `blob <id> <reason>` line is a decided finding: counted apart and not a failure. The
+# decision names one object, so a new blob with the same text is a new finding. No text from the allowlist is
+# ever printed: a decision is named by the allowlist's line number and the allowlist's own content hash, so that
+# a reason, which may be written freely, cannot reach any output.
 : >"$work/hits"; : >"$work/decided"
+allow_id=""; [[ -n "$allow" ]] && allow_id="$(sha256sum "$allow" | cut -c1-12)"
 hit() {
-  local reason=""
-  if [[ -n "$allow" && "$2" == blob\ * ]]; then reason="$(awk -v id="${2#blob }" '$1 == "blob" && $2 == id {$1 = ""; $2 = ""; sub(/^ +/, ""); print}' "$allow")"; fi
-  if [[ -n "$reason" ]]; then echo "neutrality: generic $1 at $2, decided: $reason" | tee -a "$work/decided"
+  local line=""
+  if [[ -n "$allow" && "$2" == blob\ * ]]; then line="$(awk -v id="${2#blob }" '$1 == "blob" && $2 == id {print NR; exit}' "$allow")"; fi
+  if [[ -n "$line" ]]; then echo "neutrality: generic $1 at $2, decided at allowlist line $line of $allow_id" | tee -a "$work/decided"
   else echo "neutrality: generic $1 at $2" | tee -a "$work/hits"; fi
 }
 scan_file() { # scan_file <file> <locator>

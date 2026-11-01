@@ -72,7 +72,14 @@ expect "tags without a marker still pass" 0 "$S" "$T/clean-tags" --allow "$T/all
 mk "$T/decided"; (cd "$T/decided" && printf 'see /ho%s/x\n' 'me/someone' >b.txt && git add . && git commit -q -m two)
 id="$(git -C "$T/decided" rev-parse HEAD:b.txt)"; { cat "$T/allow"; printf 'blob %s a synthetic fixture value\n' "$id"; } >"$T/allow-decided"
 expect "a decided finding does not fail" 0 "$S" "$T/decided" --allow "$T/allow-decided"
-grep -q 'decided: a synthetic fixture value' "$T/out" || { echo "FAIL the decision is not printed"; failures=$((failures + 1)); }
+grep -q 'decided at allowlist line [0-9]* of [0-9a-f]*' "$T/out" || { echo "FAIL the decision is not referenced"; failures=$((failures + 1)); }
+grep -q 'a synthetic fixture value' "$T/out" && { echo "FAIL the allowlist's reason text was printed"; failures=$((failures + 1)); }
+# a reason that holds a marker: never printed, in either scan's output
+reason_marker="quokka-lantern-4420"; { cat "$T/allow"; printf 'blob %s decided because of %s\n' "$id" "$reason_marker"; } >"$T/allow-reason"; printf '%s\n' "$reason_marker" >"$T/reason-markers"; chmod 600 "$T/reason-markers"
+expect "a decided reason that holds a marker" 0 "$S" "$T/decided" --allow "$T/allow-reason" --markers "$T/reason-markers" --mapping "$T/map-reason"
+grep -qF "$reason_marker" "$T/out" && { echo "FAIL the reason's marker appeared in output"; failures=$((failures + 1)); }
+grep -q 'private passed, 1 markers literally absent' "$T/out" || { echo "FAIL the export without the marker did not pass"; failures=$((failures + 1)); }
+expect "the clean counterpart with the same allowlist" 0 "$S" "$T/decided" --allow "$T/allow-reason"
 (cd "$T/decided" && printf 'see /ho%s/y\n' 'me/someone' >c.txt && git add . && git commit -q -m three)
 expect "the same pattern in a new blob is a new finding" 1 "$S" "$T/decided" --allow "$T/allow-decided"
 echo "fixture failures: $failures"; exit "$failures"

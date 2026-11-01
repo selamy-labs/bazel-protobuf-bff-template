@@ -51,8 +51,8 @@
 
 The final scan comes after everything it must cover: the inventory (T004 to T006), the governance target (T010, T011), the runbook (T012), and spec 009 complete. A candidate that differs from the scanned revision is refused.
 
-- [ ] T013 Private release scan at the frozen revision with the operator's marker file, mapping retained outside the repository; the result states scope and literal absence, or each finding has a decision. Record in `docs/evidence/m8.md` by label only
-- [ ] T014 Execute `docs/public-release-review.md` at that same revision; record reviewer and revision, with release gates shown pending
+- [x] T013 Private release scan at the frozen revision with the operator's marker file, mapping retained outside the repository; the result states scope and literal absence, or each finding has a decision. Record in `docs/evidence/m8.md` by label only
+- [x] T014 Execute `docs/public-release-review.md` at that same revision; record reviewer and revision, with release gates shown pending
 - [ ] T015 `docs/evidence/m8.md`, `specs/README.md` statuses, the full verifier, freeze at the scanned revision, hold for independent acceptance
 - [ ] T016 External release packet, outside the repository: configured identity, proposed release ref, the activation input, the open workflow choice. Technical readiness is recorded with publication pending
 
