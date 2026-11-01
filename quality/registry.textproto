@@ -62,6 +62,7 @@ rules { id: "tests" shard: "build-test" targets: ["//...", "@bff_template_qualit
 rules { id: "coverage-floor" shard: "build-test" }
 rules { id: "complexity" shard: "policy" args: ["--budgets=quality/complexity_budgets.json"] context: "quality/complexity_budgets.json" }
 rules { id: "floors-from-base" shard: "policy" }
+rules { id: "complexity-from-base" shard: "policy" }
 rules { id: "test-inventory" args: ["tools/checks/required_tests.txt"] }
 rules { id: "sandbox-evidence" }
 

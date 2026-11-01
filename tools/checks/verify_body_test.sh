@@ -62,6 +62,7 @@ stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
 stub "$tree/tools/hooks/e2e.sh" hook-e2e
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
 stub "$work/bin/FROM_BASE" floors-from-base
+sed -i "\$i [[ \"\${6:-floors}\" == complexity && \"\$(cat \"$work/fail\" 2>/dev/null)\" == complexity-from-base ]] && { echo \"stub failure: complexity-from-base\"; exit 1; }" "$work/bin/FROM_BASE"
 stub "$work/bin/RELEASE" catalog-definitions
 stub "$work/bin/SUPPRESSION" suppression-ban
 stub "$work/bin/FLOORS" coverage-floor

@@ -31,12 +31,25 @@ printf '%s\n' "\$@" >"$work/floors"
 exit "\$(cat "$work/floors-exit" 2>/dev/null || echo 0)"
 INNER
 chmod +x bazel-bin/external/bff_template_quality+/checks/coverage/floors_/floors
+mkdir -p bazel-bin/external/bff_template_quality+/checks/complexity/complexity_bin_
+cat >bazel-bin/external/bff_template_quality+/checks/complexity/complexity_bin_/complexity_bin <<'INNER'
+#!/usr/bin/env bash
+printf '%s\n' "\$@" >"$work/complexity"
+exit "\$(cat "$work/complexity-exit" 2>/dev/null || echo 0)"
+INNER
+chmod +x bazel-bin/external/bff_template_quality+/checks/complexity/complexity_bin_/complexity_bin
 STUB
 chmod +x "$repo/tools/bootstrap/bazel.sh"
 echo base >"$repo/marker"
 git -C "$repo" add -A
 git -C "$repo" commit -q -m base
 base="$(git -C "$repo" rev-parse HEAD)"
+# A later base that holds the comparator's package, for the complexity cases.
+mkdir -p "$repo/quality/checks/complexity"
+echo comparator >"$repo/quality/checks/complexity/keep"
+git -C "$repo" add -A
+git -C "$repo" commit -q -m "base with the comparator"
+anchored="$(git -C "$repo" rev-parse HEAD)"
 printf '#!/bin/sh\ntouch "%s/poisoned"\nexit 0\n' "$work" >"$repo/tools/bootstrap/bazel.sh"
 echo 'build --poisoned' >"$repo/.bazelrc"
 echo proposal >"$repo/marker"
@@ -113,6 +126,39 @@ rc=0
 bash "$script" "$base" "$repo" full "$contract" tools/none.sh </dev/null >"$work/out" 2>&1 || rc=$?
 [[ $rc -eq 11 ]] || fail "a base with no wrapper: exit $rc, want 11"
 grep -qF 'no Bazel wrapper at tools/none.sh' "$work/out" || fail "the missing wrapper was not named"
+
+# The complexity comparator from the base (spec 011 R9): a base before the anchor compares nothing and says
+# so; a base at or after it builds the comparator and runs it against the tested tree with the base's budgets.
+budgets=quality/complexity_budgets.json
+run_cx() { rc=0; bash "$script" "$1" "$repo" full "$budgets" tools/bootstrap/bazel.sh complexity </dev/null >"$work/out" 2>&1 || rc=$?; }
+rm -f "$work/complexity"
+run_cx "$base"
+[[ $rc -eq 0 ]] || fail "complexity before the anchor: exit $rc"
+grep -qF 'holds no complexity comparator; compared nothing' "$work/out" || fail "a base without the comparator did not say so"
+[[ ! -e "$work/complexity" ]] || fail "a base without the comparator ran an evaluator"
+run_cx "$anchored"
+[[ $rc -eq 0 ]] || { fail "complexity control: exit $rc"; cat "$work/out" >&2; }
+grep -qxF '@bff_template_quality//checks/complexity:complexity_bin' "$work/built" || fail "not the comparator target"
+grep -qxF -- "--base-root=$worktree" "$work/complexity" || fail "the comparator was not given the base's tree"
+grep -qxF -- "--root=$repo" "$work/complexity" || fail "the comparator was not given the tested tree"
+grep -qx -- '--budgets=quality/complexity_budgets.json' "$work/complexity" && fail "the default budgets path was named to an older comparator"
+[[ "$(tail -n 1 "$work/built")" == "$anchored" ]] || fail "the comparator was not built at the base named"
+budgets=policy/budgets.json
+run_cx "$anchored"
+[[ $rc -eq 0 ]] || fail "a host's budgets: exit $rc"
+grep -qx -- '--budgets=policy/budgets.json' "$work/complexity" || fail "the host's budgets did not reach the comparator"
+budgets=quality/complexity_budgets.json
+echo 1 >"$work/complexity-exit"
+run_cx "$anchored"
+[[ $rc -eq 1 ]] || fail "a loosened budget: exit $rc, want 1"
+echo 2 >"$work/complexity-exit"
+run_cx "$anchored"
+[[ $rc -eq 11 ]] || fail "a comparator that could not judge: exit $rc, want 11"
+grep -qF 'complexity-from-base: the base'"'"'s evaluator could not judge' "$work/out" || fail "the complexity refusal is not named as its own check"
+rm -f "$work/complexity-exit"
+rc=0
+bash "$script" "$base" "$repo" full "$budgets" tools/bootstrap/bazel.sh mutation </dev/null >"$work/out" 2>&1 || rc=$?
+[[ $rc -eq 11 ]] || fail "an unknown evaluator: exit $rc, want 11"
 
 [[ $failures -eq 0 ]] && echo "ok   from-base"
 exit "$failures"

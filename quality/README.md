@@ -16,20 +16,20 @@ depends on the application that uses it.
 
 ## Contents (1.0.0)
 
-| Path | What it is |
-| --- | --- |
-| `checks/suppression` | The `suppression-ban` Go check. Its stable codes S001–S013 are defined in `rules.go`, and each code has a defect and a corrected fixture. |
-| `checks/coverage` | The coverage merger, and `floors`: `check` judges a run against the host's contract, and `compare`, built from a base, judges a tree's contract. |
-| `checks/ciparity` | Validates a workflow against a closed allowlist policy. Unknown keys fail. |
-| `proto` | The canonical `buf.yaml` and the compatibility baseline reader, which reads a declared commit from Git objects and fails closed. |
-| `rules.textproto`, `proto` | The rule catalog, the one definition of each reusable rule, and its schema. |
-| `defs.bzl` | `quality_binary`, which builds the runner for a host. |
-| `hooks` | `install`, and `pin`, which keeps a consumer's two adapters on one commit. |
-| `release` | Release notes from the catalog, and the tag record. See [RELEASING.md](RELEASING.md). |
-| `runner` | The one runner: selection, snapshots, the bounded pool, the single Bazel invocation, receipts, deadlines and server custody. |
-| `adapters/native.sh` | The one definition of how each native tool is invoked. |
-| `analysis` | The nogo configuration: vet and staticcheck. |
-| `tools` | Pinned native tools: `actionlint`, `buf`, `buildifier`, `gitleaks`, `prek`, `shellcheck`, `typos`, `uv`, `yq`, `zizmor`. They are exposed as `@bff_template_quality//tools:<name>`, and pinned by sha256 in `multitool.lock.json`. |
+| Path                       | What it is                                                                                                                                                                                                                         |
+| -------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `checks/suppression`       | The `suppression-ban` Go check. Its stable codes S001–S013 are defined in `rules.go`, and each code has a defect and a corrected fixture.                                                                                          |
+| `checks/coverage`          | The coverage merger, and `floors`: `check` judges a run against the host's contract, and `compare`, built from a base, judges a tree's contract.                                                                                   |
+| `checks/ciparity`          | Validates a workflow against a closed allowlist policy. Unknown keys fail.                                                                                                                                                         |
+| `proto`                    | The canonical `buf.yaml` and the compatibility baseline reader, which reads a declared commit from Git objects and fails closed.                                                                                                   |
+| `rules.textproto`, `proto` | The rule catalog, the one definition of each reusable rule, and its schema.                                                                                                                                                        |
+| `defs.bzl`                 | `quality_binary`, which builds the runner for a host.                                                                                                                                                                              |
+| `hooks`                    | `install`, and `pin`, which keeps a consumer's two adapters on one commit.                                                                                                                                                         |
+| `release`                  | Release notes from the catalog, and the tag record. See [RELEASING.md](RELEASING.md).                                                                                                                                              |
+| `runner`                   | The one runner: selection, snapshots, the bounded pool, the single Bazel invocation, receipts, deadlines and server custody.                                                                                                       |
+| `adapters/native.sh`       | The one definition of how each native tool is invoked.                                                                                                                                                                             |
+| `analysis`                 | The nogo configuration: vet and staticcheck.                                                                                                                                                                                       |
+| `tools`                    | Pinned native tools: `actionlint`, `buf`, `buildifier`, `gitleaks`, `prek`, `shellcheck`, `typos`, `uv`, `yq`, `zizmor`. They are exposed as `@bff_template_quality//tools:<name>`, and pinned by sha256 in `multitool.lock.json`. |
 
 ## How to use
 
@@ -66,13 +66,13 @@ not the shared stage contract of relentless-ci-python#25, which is unreleased.
 
 The host provides:
 
-| What | Notes |
-| --- | --- |
-| `//:quality` | `quality_binary` from `@bff_template_quality//:defs.bzl`, naming the paths below, and `GOFMT` from the Go SDK the host chose |
-| A registry | Binds catalog rules with `rules { id: ... shard: ... }`, with its paths in `args`, `context` and `targets`. It has `escalate` and `shards`, and its own `checks` for its own scripts |
-| A coverage contract, and a required tests list | Its own, with its own floors and legs |
-| A Bazel wrapper | Takes startup options, and `--path` to print the verified binary |
-| `.bazelrc` | The `weak-isolation` config if a host needs it, and the coverage generators, as in this repository's |
+| What                                           | Notes                                                                                                                                                                                |
+| ---------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `//:quality`                                   | `quality_binary` from `@bff_template_quality//:defs.bzl`, naming the paths below, and `GOFMT` from the Go SDK the host chose                                                         |
+| A registry                                     | Binds catalog rules with `rules { id: ... shard: ... }`, with its paths in `args`, `context` and `targets`. It has `escalate` and `shards`, and its own `checks` for its own scripts |
+| A coverage contract, and a required tests list | Its own, with its own floors and legs                                                                                                                                                |
+| A Bazel wrapper                                | Takes startup options, and `--path` to print the verified binary                                                                                                                     |
+| `.bazelrc`                                     | The `weak-isolation` config if a host needs it, and the coverage generators, as in this repository's                                                                                 |
 
 After changing the pin:
 
@@ -89,7 +89,7 @@ rule at commit time, so `tools/verify.sh` is what catches it. The rule reads the
 `--override_module` flag or rc line is outside it.
 A host that builds with `--config=weak-isolation` passes it to the `run` above as well.
 
-`floors-from-base` builds the evaluator from the base's pin, so a proposal cannot replace the evaluator. The adapter
+`floors-from-base` and `complexity-from-base` build their evaluator from the base's pin, so a proposal cannot replace the evaluator. The adapter
 that calls it comes from the proposal's pin, and a pin change that guts it is not caught by this rule. Read a pin
 change as a policy change.
 
