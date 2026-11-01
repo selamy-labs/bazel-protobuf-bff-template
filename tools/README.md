@@ -8,7 +8,7 @@ This directory holds repository orchestration scripts. The checks they run live 
 
 | Script | Role |
 | --- | --- |
-| `verify.sh` | The canonical verifier. CI runs exactly this. It scrubs the environment and runs `checks/verify_body.sh`, which proves the host, builds `//:quality` and hands over to the registry. |
+| `verify.sh` | The canonical verifier. CI runs exactly this. It scrubs the environment and runs `checks/verify_body.sh`, which removes a stale receipt under the runner's lock, proves the host, builds `//:quality` and hands over to the registry. |
 | `bootstrap/bazel.sh` | The pinned Bazel: sha256 checked on every call, host and user rc files disabled. |
 | `bootstrap/preflight.sh` | Host capability preflight: prerequisites, disk, the Linux glibc floor, and namespace isolation. |
 | `bootstrap/fresh_clone.sh` | Fresh-clone witness: an empty `HOME`, `PATH=/usr/bin:/bin`, and a path with spaces and regex characters. `--hostile` plants hostile settings and a real defect. |

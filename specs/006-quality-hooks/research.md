@@ -94,8 +94,15 @@ with its last open description. A daemon therefore cannot keep a slot. A negativ
 close-on-exec and must show the failure. Waiting is bounded and ends with exit 10. Pre-commit takes no
 slot: it builds nothing past the runner and has a 5 s target. The push worktree has its own lock,
 held by the orchestrating parent. `<receipt>.lock` is held for the whole run, so a second producer
-cannot remove or overwrite what an active one is writing. `verify_body.sh` still removes a stale
-receipt before the runner starts, and that one removal happens outside the lock.
+cannot remove or overwrite what an active one is writing. `verify_body.sh` removes a stale receipt
+before the runner starts, because a failed startup must leave no earlier result. Review found that this
+removal ran outside the lock, so a second wrapper could delete an active producer's receipt. It now
+takes the same lock, through `flock(1)` for the `rm` alone: a descriptor held in the shell would reach
+every child, and so the Bazel daemon. Bash has no `flock`, and the runner does not exist yet at that
+point, so util-linux became a declared host prerequisite. Its absence is a `bootstrap ERROR` that
+removes nothing, which is the one case where a stale receipt survives a failed startup, and the message
+says so. Waiting 30 s and refusing is deliberate: a full run takes minutes, and queueing behind one
+would spend the waiter's own deadline.
 
 ## R7 Daemons
 

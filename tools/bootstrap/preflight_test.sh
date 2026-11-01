@@ -94,4 +94,14 @@ for doc in README.md web/README.md; do
   grep -qF 'glibc 2.36 or' "$doc" || fail "$doc no longer states the floor"
 done
 
+# flock is a declared prerequisite: the wrapper needs it before it can remove a stale receipt.
+mkdir "$tree/no-flock"
+for tool in bash git curl sha256sum timeout tar sort grep xargs dirname; do
+  ln -s "$(command -v "$tool")" "$tree/no-flock/$tool"
+done
+rc=0
+output="$(PATH="$tree/no-flock" "$tree/no-flock/bash" "$tree/tools/bootstrap/preflight.sh" 2>&1)" || rc=$?
+[[ $rc -eq 1 && "$output" == *"'flock' not found"* ]] || fail "a missing flock was not named: exit $rc: $output"
+grep -qwF flock README.md || fail "README.md does not declare flock"
+
 echo "preflight_test: PASSED"

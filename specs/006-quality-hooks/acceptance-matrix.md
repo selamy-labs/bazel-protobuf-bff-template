@@ -12,6 +12,7 @@ control: the same setup must pass before a rejection earns credit.
 | FR-004 | `runner_test`, `hook-e2e` | two Bazel checks | fake Bazel counts exactly one test invocation | G | off, loc |
 | FR-005 | `runner_test` | a child exits 0 | stdin reader sees EOF; a hung, SIGTERM-ignoring `setsid` tree → `TIMED_OUT`, nothing left | G | off |
 | FR-006 | `runner_test` | exit 0 | each table row of both code tables | G | off |
+| FR-006 | `verify_body_test`, `preflight_test` | a stale receipt is removed once its owner has released, and a holder that releases within the bound is waited for | a wrapper started beside a running runner → exit 10 with the receipt intact; no `flock` → `bootstrap ERROR`, exit 2, nothing removed; lock held across a Bazel call → test fails | G | off |
 | FR-007 | `runner_test` | format parsed back | 51 lines → 50 and `… 1 more`; a failure with no rerun → test fails | G | off |
 | FR-008 | `runner_test` | `allow_empty` → not applicable | zero inputs at `full` → 12 | G | off |
 | FR-009 | `fixtures_test` | clean staged commit | bad staged blob with clean working copy → rejected; bad working copy with clean staged blob → passes; `commit -a` and `commit <path>` read their own index | G | off |

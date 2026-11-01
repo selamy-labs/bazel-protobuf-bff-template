@@ -81,6 +81,11 @@ a private retained log (below), so the omitted lines can be retrieved.
 **Receipts and logs**:
 
 - `<receipt>.lock` is held for the whole run, so one producer owns a receipt path.
+- `tools/verify.sh` removes a stale receipt before the runner exists, so that a failed startup leaves no
+  earlier result. It takes the same `flock` on the same path for that one removal, and holds nothing
+  afterward, so no Bazel process can inherit it. A holder that outlasts 30 s is refused with exit 10,
+  and the receipt stays. Without `flock` the wrapper stops with a `bootstrap ERROR`, exit 2, and removes
+  nothing. Its overall deadline covers this wait.
 - The receipt is written to a unique temporary file and renamed.
 - Final bookkeeping shares a 30 s bound, plus up to 9 s to stop a helper. Once the bound has passed,
   no further helper starts. An identity it cannot establish goes in `problems` and denies `PASSED`.

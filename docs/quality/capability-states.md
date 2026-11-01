@@ -48,8 +48,8 @@ validator.
 | Gap | Owner |
 | --- | --- |
 | Hosted CI has never run, and no remote exists | M6, then an operator gate |
-| macOS is unverified. The browser tests cannot run there | Open |
-| M5 has run only with weakened isolation on the authoring host | Independent qualified Linux review |
+| macOS is unverified. The browser tests cannot run there, and stock macOS has no `flock` | Open |
+| The authoring host runs M5 only with weakened isolation. Full isolation was observed independently, at a revision before the receipt repair ([m5](../evidence/m5.md)) | Independent qualified Linux review of the final revision |
 | Coverage is not measured or floored | M6 (parent T063) |
 | Complexity is not measured. No numeric threshold is imported from another project | Open. It needs a language-qualified analyzer and a baseline of this repository's own |
 | Duplication is not measured | Open, with complexity |

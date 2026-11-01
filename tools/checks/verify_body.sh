@@ -5,9 +5,53 @@ set -euo pipefail
 root="$1"
 shift
 cd "$root"
-# A receipt on disk always describes the run that just finished, never an earlier one.
 receipt=.verify/receipt.json
-rm -f "$receipt"
+receipt_wait=30
+
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
+
+# timeout gives its command a process group, so the wrapper's overall deadline reaches it only
+# through this handler, which passes the signal on.
+active=""
+trap 'if [[ -n "$active" ]]; then kill -TERM "$active" 2>/dev/null || true; fi; exit 143' TERM
+
+bounded() { # bounded <seconds> <command...>: stdin is closed; returns the command's exit code
+  local seconds="$1" rc=0
+  shift
+  timeout --kill-after=60 "$seconds" "$@" </dev/null &
+  active=$!
+  wait "$active" || rc=$?
+  active=""
+  return "$rc"
+}
+
+# A receipt on disk always describes the run that just finished, never an earlier one. One producer
+# owns a receipt path, through <receipt>.lock, for its whole run (Run in quality/runner/stage.go), so
+# this removal takes that same flock. It is held for the rm alone: no shell descriptor keeps it, and
+# --close keeps it from rm, so nothing that starts Bazel can carry it into a daemon.
+invalidate_receipt() {
+  local rc=0
+  if ! command -v flock >/dev/null 2>&1; then
+    echo "verify: bootstrap ERROR: 'flock' not found in /usr/bin or /bin; install util-linux. No stale receipt was removed and nothing was verified" >&2
+    exit 2
+  fi
+  mkdir -p "$(dirname "$receipt")"
+  bounded "$((receipt_wait + 10))" flock --close --wait "$receipt_wait" --conflict-exit-code 75 \
+    "$receipt.lock" rm -f "$receipt" || rc=$?
+  case "$rc" in
+    0) ;;
+    75 | 124 | 137)
+      echo "verify: another run holds $receipt; it was left in place and nothing was verified" >&2
+      exit 10
+      ;;
+    *)
+      echo "verify: could not remove the stale $receipt (exit $rc); nothing was verified" >&2
+      exit 2
+      ;;
+  esac
+}
+invalidate_receipt
 
 weak=false
 offline=false
@@ -36,24 +80,6 @@ if $offline; then
   runner_flags+=(--offline)
   rerun+=" --offline"
 fi
-
-work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
-
-# timeout gives its command a process group, so the wrapper's overall deadline reaches it only
-# through this handler, which passes the signal on.
-active=""
-trap 'if [[ -n "$active" ]]; then kill -TERM "$active" 2>/dev/null || true; fi; exit 143' TERM
-
-bounded() { # bounded <seconds> <command...>: stdin is closed; returns the command's exit code
-  local seconds="$1" rc=0
-  shift
-  timeout --kill-after=60 "$seconds" "$@" </dev/null &
-  active=$!
-  wait "$active" || rc=$?
-  active=""
-  return "$rc"
-}
 
 if ! bounded 600 tools/bootstrap/preflight.sh "${preflight_args[@]}" >"$work/preflight.log" 2>&1; then
   cat "$work/preflight.log" >&2

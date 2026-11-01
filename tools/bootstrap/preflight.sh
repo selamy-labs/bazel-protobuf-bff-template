@@ -46,7 +46,7 @@ check_glibc() {
   fi
 }
 
-for tool in bash git curl sha256sum timeout tar sort grep xargs; do
+for tool in bash git curl sha256sum timeout tar sort grep xargs flock; do
   command -v "$tool" >/dev/null 2>&1 ||
     fail "prerequisite" "'$tool' not found in /usr/bin or /bin" "install it with your OS package manager"
 done

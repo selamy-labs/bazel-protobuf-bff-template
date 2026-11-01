@@ -20,7 +20,7 @@ mkdir -p "$tree/tools/checks" "$tree/tools/bootstrap" "$tree/tools/policy" "$tre
   "$tree/api" "$tree/.github/workflows"
 cp tools/checks/verify_body.sh tools/checks/required_tests.txt tools/checks/test_evidence.sh "$tree/tools/checks/"
 sed 's/^deadline=[0-9]*$/deadline=20/' tools/verify.sh >"$tree/tools/verify.sh"
-sed -i 's/--kill-after=60/--kill-after=1/' "$tree/tools/checks/verify_body.sh"
+sed -i 's/--kill-after=60/--kill-after=1/; s/^receipt_wait=[0-9]*$/receipt_wait=3/' "$tree/tools/checks/verify_body.sh"
 
 stub() { # stub <path> <check id>: exits 1 when that check is the one selected to fail
   cat >"$1" <<STUB
@@ -69,6 +69,9 @@ cat >"$tree/tools/bootstrap/bazel.sh" <<STUB
 case "\$1" in
   --path) echo "$work/bin/BUF" ;;
   run)
+    if [[ -e "$tree/.verify/receipt.json.lock" ]] && ! flock -n "$tree/.verify/receipt.json.lock" true; then
+      echo held >>"$work/lock-at-bazel"
+    fi
     for arg in "\$@"; do
       if [[ "\$arg" == --script_path=* ]]; then
         printf '#!/bin/sh\nexport BUILD_WORKSPACE_DIRECTORY="%s"\nexec "%s" "--registry=%s" "--adapter=%s" %s "\$@"\n' \
@@ -169,10 +172,34 @@ run || rc=$?
 grep -qF 'nothing was verified' "$work/out" || fail "an unbuildable runner must say nothing was verified"
 sed -i 's/^  run) exit 1 ;;$/  run)/; /^  never)$/d' "$tree/tools/bootstrap/bazel.sh"
 
+# The real runner owns the receipt below, through its own lock, so these cases hold if and only if the
+# wrapper uses that protocol. The owner is hung on a check for the rest of its 20 s deadline.
+lock="$receipt.lock"
+held() { ! flock -n "$lock" true; }
+same_as_sentinel() { [[ "$(cat "$1" 2>/dev/null)" == sentinel ]]; }
+second() { HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" </dev/null >"$work/second" 2>&1; }
+
 echo format-go >"$work/hang"
 : >"$work/fail"
+rm -f "$work/hung-pid" "$work/lock-at-bazel"
+run &
+owner=$!
+for _ in $(seq 1 100); do
+  if [[ -s "$work/hung-pid" ]]; then break; fi
+  sleep 0.1
+done
+[[ -s "$work/hung-pid" ]] || fail "control: the owner never reached its hung check"
+echo sentinel >"$receipt"
+held || fail "control: the real runner does not hold $lock"
 rc=0
-run || rc=$?
+second || rc=$?
+[[ $rc -eq 10 ]] || fail "a held receipt: exit $rc, want 10"
+grep -qF 'another run holds' "$work/second" || fail "a held receipt: no refusal named"
+held || fail "control: the owner let go during the refusal, so it proves nothing"
+same_as_sentinel "$receipt" || fail "starting the wrapper removed a receipt its owner holds"
+
+rc=0
+wait "$owner" || rc=$?
 [[ $rc -eq 124 ]] || fail "hung check: exit $rc, want 124"
 grep -qF 'overall deadline' "$work/out" || fail "hung check: no diagnostic"
 hung="$(cat "$work/hung-pid" 2>/dev/null || true)"
@@ -182,6 +209,74 @@ if [[ -n "$hung" ]] && kill -0 "$hung" 2>/dev/null; then
   kill "$hung"
   fail "a grandchild of a bounded check outlived the overall deadline"
 fi
+if held; then fail "the receipt lock outlived its owner"; fi
+[[ ! -e "$work/lock-at-bazel" ]] || fail "the receipt lock was held across a Bazel call"
+
+# Once the owner has gone, startup still invalidates, even when that startup then fails.
+: >"$work/hang"
+echo sentinel >"$receipt"
+sed -i 's/^echo isolation=full$/exit 1/' "$tree/tools/bootstrap/preflight.sh"
+rc=0
+run || rc=$?
+[[ $rc -ne 0 ]] || fail "failed preflight passed after a release"
+[[ ! -e "$receipt" ]] || fail "a stale receipt survived startup after its owner released"
+sed -i 's/^exit 1$/echo isolation=full/' "$tree/tools/bootstrap/preflight.sh"
+
+# A holder that lets go inside the bound is waited for: the receipt is intact until the release.
+echo sentinel >"$receipt"
+cat >"$work/hold.sh" <<STUB
+touch "$work/hold-started"
+sleep 1
+cp "$receipt" "$work/at-release"
+STUB
+flock "$lock" bash "$work/hold.sh" &
+holder=$!
+for _ in $(seq 1 50); do
+  if [[ -e "$work/hold-started" ]]; then break; fi
+  sleep 0.1
+done
+[[ -e "$work/hold-started" ]] || fail "control: the short holder never held the lock"
+rc=0
+second || rc=$?
+wait "$holder" || fail "control: the short holder failed"
+[[ $rc -eq 0 ]] || { fail "waiting for a release: exit $rc, want 0"; sed 's/^/  /' "$work/second" >&2; }
+same_as_sentinel "$work/at-release" || fail "the receipt was removed while the short holder held it"
+[[ "$(field result)" == PASSED ]] || fail "after the wait: receipt result $(field result)"
+
+# The overall deadline still rules a wait longer than itself.
+sed 's/^deadline=[0-9]*$/deadline=1/' "$tree/tools/verify.sh" >"$tree/tools/verify_short.sh"
+sed 's/^receipt_wait=[0-9]*$/receipt_wait=300/' "$tree/tools/checks/verify_body.sh" >"$tree/tools/checks/verify_body_long.sh"
+sed -i 's/verify_body\.sh/verify_body_long.sh/' "$tree/tools/verify_short.sh"
+echo sentinel >"$receipt"
+flock "$lock" sleep 12 &
+holder=$!
+for _ in $(seq 1 50); do
+  if held; then break; fi
+  sleep 0.1
+done
+rc=0
+HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify_short.sh" </dev/null >"$work/second" 2>&1 || rc=$?
+[[ $rc -eq 124 ]] || fail "a wait past the overall deadline: exit $rc, want 124"
+same_as_sentinel "$receipt" || fail "the overall deadline removed a held receipt"
+held || fail "control: the holder of the overall-deadline case let go too early"
+kill "$holder" 2>/dev/null || true
+wait "$holder" 2>/dev/null || true
+for _ in $(seq 1 120); do
+  if ! held; then break; fi
+  sleep 0.1
+done
+rm -f "$tree/tools/verify_short.sh" "$tree/tools/checks/verify_body_long.sh"
+
+# Without the declared locking tool nothing is removed unlocked, and the cause is named.
+mkdir "$work/no-flock"
+for tool in bash mktemp rm; do ln -s "$(command -v "$tool")" "$work/no-flock/$tool"; done
+echo sentinel >"$receipt"
+rc=0
+env -i HOME="$work" PATH="$work/no-flock" "$work/no-flock/bash" "$tree/tools/checks/verify_body.sh" "$tree" \
+  </dev/null >"$work/second" 2>&1 || rc=$?
+[[ $rc -eq 2 ]] || fail "no flock: exit $rc, want 2"
+grep -qF "bootstrap ERROR: 'flock' not found" "$work/second" || fail "no flock: the cause was not named"
+same_as_sentinel "$receipt" || fail "no flock: the receipt was removed without the lock"
 
 [[ $failures -eq 0 ]] && echo "ok   verify-body"
 exit "$failures"

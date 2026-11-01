@@ -27,6 +27,7 @@ ticked only when the named witness passes in the verifier; a ticked box is a rec
 | [x] T016 | T011, T012 | Classification, hooks and bypass documents | FR-021, FR-022 | T048, T049 | Review; `doc` assertions in fixtures |
 | [x] T017 | T014 | Measure stages cold, warm and edited, with failed attempts | FR-019 | T059, SC-006 | `docs/budgets/` record |
 | [x] T018 | T017 | Capability states, parent ledger, contracts, evidence, independent-review handoff | all | T090 | Review |
+| [x] T019 | T011 | Stale-receipt removal at startup takes the runner's receipt lock; `flock` declared | FR-006, FR-007 | T053 | `//:verify_body_test`, `//:preflight_test` |
 
 ## Execution record
 
@@ -54,5 +55,7 @@ review is pending.
 
 - After review of `405f93a`: the `escalate` list became the one definition of policy inputs, for
   escalation and for the digest. Red first over the real registry and real Git.
+- After independent review of `41f2f98` (T019): the wrapper's startup removal took the runner's receipt
+  lock. Red first, with the real runner as the owner.
 
 Carried forward: the S005 coverage-marker re-witness in parent T047 moves to M6, so T047 stays open.
