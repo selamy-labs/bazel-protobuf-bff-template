@@ -41,7 +41,11 @@
     "policy"
   ],
   "gate": "gate",
-  "required_run": "tools/verify.sh --shard={job}",
+  "required_run": {
+    "build-test": "tools/verify.sh --shard=build-test",
+    "e2e": "tools/verify.sh --shard=e2e",
+    "policy": "tools/verify.sh --shard=policy \"--base=$POLICY_BASE\" --base-source=ci-event"
+  },
   "runs": [
     {
       "body": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
@@ -53,7 +57,19 @@
       "body": "tools/verify.sh --shard=e2e"
     },
     {
-      "body": "tools/verify.sh --shard=policy"
+      "body": "tools/ci/policy_base.sh >>\"$GITHUB_OUTPUT\"",
+      "env": {
+        "EVENT": "${{ github.event_name }}",
+        "PR_BASE": "${{ github.event.pull_request.base.sha }}",
+        "MERGE_BASE": "${{ github.event.merge_group.base_sha }}",
+        "PUSH_BEFORE": "${{ github.event.before }}"
+      }
+    },
+    {
+      "body": "tools/verify.sh --shard=policy \"--base=$POLICY_BASE\" --base-source=ci-event",
+      "env": {
+        "POLICY_BASE": "${{ steps.base.outputs.sha }}"
+      }
     },
     {
       "body": "count=0\nfor result in $RESULTS; do\n  if [ \"$result\" != \"success\" ]; then\n    echo \"gate: a required job finished as '$result'\" >&2\n    exit 1\n  fi\n  count=$((count + 1))\ndone\nif [ \"$count\" != \"$EXPECTED_LEGS\" ]; then\n  echo \"gate: $count results, expected $EXPECTED_LEGS\" >&2\n  exit 1\nfi",
@@ -80,7 +96,8 @@
     "policy": [
       "uses:actions/checkout",
       "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
-      "run:tools/verify.sh --shard=policy",
+      "run:tools/ci/policy_base.sh >>\"$GITHUB_OUTPUT\"",
+      "run:tools/verify.sh --shard=policy \"--base=$POLICY_BASE\" --base-source=ci-event",
       "uses:actions/upload-artifact"
     ],
     "gate": [

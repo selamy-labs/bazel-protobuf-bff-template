@@ -247,6 +247,7 @@ checks {
   timeout_seconds: 120
   after_bazel: true
   needs_coverage: true
+  summary: true
   shard: "build-test"
   command: ["{FLOORS}", "check", "--root={root}", "--log={bazel_log}", "--testlogs={root}/bazel-testlogs", "--bazel-exit={bazel_exit}"]
   witness: "@bff_template_quality//checks/coverage:coverage_test"

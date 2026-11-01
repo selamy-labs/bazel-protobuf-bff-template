@@ -49,3 +49,7 @@ leg_whole_policy	(.jobs.e2e.steps[] | select(.name == "Verify")).run = "tools/ve
 artifact_name_without_attempt	(.jobs.e2e.steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with.name = "verify-receipt"	with inputs
 pull_request_target_trigger	.on.pull_request_target = null	on triggers
 gate_expected_lowered	(.jobs.gate.steps[0].env.EXPECTED_LEGS) = "2"	env
+policy_base_self	(.jobs.policy.steps[] | select(.name == "Verify")).env.POLICY_BASE = "${{ github.sha }}"	env
+policy_base_step_removed	.jobs.policy.steps |= map(select(.id != "base"))	step order
+policy_base_interpolated	(.jobs.policy.steps[] | select(.id == "base")).run = "echo sha=${{ github.event.before }}"	run body
+policy_leg_without_base	(.jobs.policy.steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=policy"	run body

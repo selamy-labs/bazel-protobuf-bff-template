@@ -94,6 +94,9 @@ message Check {
   // Compares with a policy base. With no usable base this check is refused, exit 11, and nothing
   // stands in for one (spec 007 FR-012 to FR-014).
   bool needs_base = 19;
+  // Prints what it measured on lines starting `measurement: `. The runner keeps those lines in the
+  // receipt, within a bound, whatever the result. Nothing else of a tool's output is kept on a pass.
+  bool summary = 20;
 }
 
 // A pinned tool, as the root target passes it in NAME=path form.

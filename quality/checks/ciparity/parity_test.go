@@ -22,7 +22,7 @@ func policy() Policy {
 			"verify": {"uses:actions/checkout", "run:tools/verify.sh"},
 			"gate":   {"run:gate body"},
 		},
-		RequiredRun:  "tools/verify.sh",
+		RequiredRun:  map[string]string{"verify": "tools/verify.sh"},
 		RequiredJobs: []string{"verify"},
 		Gate:         "gate",
 	}

@@ -40,6 +40,13 @@ const (
 // MaxDiagnostics bounds what one check prints.
 const MaxDiagnostics = 50
 
+// A measurement summary stays small: it says what was measured, and it is not a tool log.
+const (
+	measurementPrefix = "measurement: "
+	MaxMeasurements   = 32
+	MaxMeasurementLen = 200
+)
+
 // Result is one check's outcome.
 type Result struct {
 	Check    string  `json:"check"`
@@ -51,8 +58,31 @@ type Result struct {
 	Log        string `json:"log,omitempty"`
 	Reason     string `json:"reason,omitempty"`
 	NoEvidence bool   `json:"no_evidence,omitempty"`
-	EmptyInput bool   `json:"empty_input,omitempty"`
-	output     string
+	// Measurements is the bounded summary of a check that declares one.
+	Measurements []string `json:"measurements,omitempty"`
+	EmptyInput   bool     `json:"empty_input,omitempty"`
+	output       string
+}
+
+// Measurements picks a check's summary out of its output, within the bound. Overflow is named, so a
+// cut summary cannot read as a complete one.
+func Measurements(output string) []string {
+	var kept []string
+	extra := 0
+	for line := range strings.Lines(output) {
+		text, ok := strings.CutPrefix(strings.TrimRight(line, "\r\n"), measurementPrefix)
+		switch {
+		case !ok:
+		case len(kept) >= MaxMeasurements:
+			extra++
+		default:
+			kept = append(kept, text[:min(len(text), MaxMeasurementLen)])
+		}
+	}
+	if extra > 0 {
+		kept = append(kept, fmt.Sprintf("… %d more", extra))
+	}
+	return kept
 }
 
 // ExitCode folds results into one code. An interruption outranks an empty input, which outranks

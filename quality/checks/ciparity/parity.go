@@ -29,8 +29,8 @@ type Policy struct {
 	MaxTimeoutMinutes float64 `json:"max_timeout_minutes"`
 	// Runs are the only permitted `run:` bodies, compared after trimming surrounding whitespace.
 	Runs []RunRule `json:"runs"`
-	// RequiredRun must appear exactly once in every job except the gate. {job} expands to the job.
-	RequiredRun string `json:"required_run"`
+	// RequiredRun is the one verifier call each job must make, exactly once.
+	RequiredRun map[string]string `json:"required_run"`
 	// JobSteps is each job's exact ordered step list: "uses:<owner/repo>" or "run:<body>".
 	JobSteps map[string][]string `json:"job_steps"`
 	// RequiredJobs must exist (besides the gate).
@@ -210,7 +210,7 @@ func (v *validator) job(name string, job map[string]any, isGate bool) {
 		v.fail("%s: step order %q is not the permitted step order %q", where, order, want)
 	}
 	if !isGate && required != 1 {
-		v.fail("%s: must run %q exactly once, found %d", where, v.p.RequiredRun, required)
+		v.fail("%s: must run %q exactly once, found %d", where, v.p.RequiredRun[name], required)
 	}
 }
 
@@ -314,7 +314,7 @@ func (v *validator) run(where, body string, step map[string]any, isGate bool) bo
 				v.fail("%s: env %s must be %q", where, k, want)
 			}
 		}
-		return body == strings.TrimSpace(strings.ReplaceAll(v.p.RequiredRun, "{job}", v.current))
+		return body == strings.TrimSpace(v.p.RequiredRun[v.current])
 	}
 	first, _, _ := strings.Cut(body, "\n")
 	v.fail("%s: run body is not allowlisted (first line %q)", where, first)

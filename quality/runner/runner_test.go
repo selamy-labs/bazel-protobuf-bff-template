@@ -1289,6 +1289,79 @@ func TestAfterBazelCheckReceivesTheRealExit(t *testing.T) {
 	}
 }
 
+func measuredCheck(script string) string {
+	return native("floor", script, "summary: true") + native("plain", "echo measurement: not declared")
+}
+
+func TestReceiptKeepsADeclaredSummary(t *testing.T) {
+	h := committed(newHarness(t))
+	lines := `echo noise; echo "measurement: go-root: 87.9% statements (233 of 265), floor 87.0%, branches unmeasured"; ` +
+		`echo "measurement: web-browser: unmeasured, 3 files, no data"`
+	run := func(script string, want int) map[string]Result {
+		t.Helper()
+		options := h.options(measuredCheck(script), registrypb.Stage_STAGE_FULL)
+		options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+		if code := h.run(options); code != want {
+			t.Fatalf("exit %d, want %d\n%s", code, want, h.out.String())
+		}
+		results := map[string]Result{}
+		for _, result := range receiptOf(t, options.ReceiptPath).Checks {
+			results[result.Check] = result
+		}
+		return results
+	}
+	passed := run(lines, ExitOK)
+	if got := passed["floor"].Measurements; len(got) != 2 || got[1] != "web-browser: unmeasured, 3 files, no data" {
+		t.Fatalf("the summary was lost: %q", got)
+	}
+	if passed["floor"].State != Passed {
+		t.Fatalf("an unmeasured entry changed the result: %s", passed["floor"].State)
+	}
+	if len(passed["plain"].Measurements) != 0 {
+		t.Fatalf("a check that declared no summary kept one: %q", passed["plain"].Measurements)
+	}
+	failed := run(lines+"; exit 1", ExitFailed)
+	if failed["floor"].State != Failed || len(failed["floor"].Measurements) != 2 {
+		t.Fatalf("a failing check lost its summary: %+v", failed["floor"])
+	}
+}
+
+func TestSummaryIsBounded(t *testing.T) {
+	var output strings.Builder
+	for index := range MaxMeasurements + 8 {
+		fmt.Fprintf(&output, "%s%d %s\n", measurementPrefix, index, strings.Repeat("x", 2*MaxMeasurementLen))
+	}
+	got := Measurements(output.String())
+	if len(got) != MaxMeasurements+1 || got[MaxMeasurements] != "… 8 more" || len(got[0]) != MaxMeasurementLen {
+		t.Fatalf("%d lines, last %q, first %d bytes", len(got), got[len(got)-1], len(got[0]))
+	}
+}
+
+// A check that promised a summary and printed none cannot pass: the receipt would not say what it measured.
+func TestPromisedSummaryIsRequired(t *testing.T) {
+	h := committed(newHarness(t))
+	options := h.options(measuredCheck("echo nothing to report"), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitNoEvidence {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	if problems := strings.Join(receiptOf(t, options.ReceiptPath).Problems, "\n"); !strings.Contains(problems, "floor measurement") {
+		t.Fatalf("problems: %q", problems)
+	}
+}
+
+func TestRealCoverageFloorDeclaresASummary(t *testing.T) {
+	for _, check := range realRegistry(t).GetChecks() {
+		if check.GetId() == "coverage-floor" {
+			if !check.GetSummary() || !slices.Contains(check.GetCommand(), "--bazel-exit={bazel_exit}") {
+				t.Fatalf("coverage-floor: %v", check)
+			}
+			return
+		}
+	}
+	t.Fatal("coverage-floor is not registered")
+}
+
 // baseRepository holds a commit with the evaluator's paths, then a later commit on top.
 func baseRepository(t *testing.T) (h *harness, evaluator, head string) {
 	t.Helper()

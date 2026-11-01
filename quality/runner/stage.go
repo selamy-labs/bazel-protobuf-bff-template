@@ -354,6 +354,9 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 	defer cancel()
 	code, runErr := supervised(checkCtx, argv, e.inputs.Root, e.options.Env, log)
 	result.output = readBounded(logPath)
+	if plan.check.GetSummary() {
+		result.Measurements = Measurements(result.output)
+	}
 	switch {
 	case runErr == nil:
 	case checkCtx.Err() == nil:
@@ -524,6 +527,12 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 		receipt.Attempt = os.Getenv("GITHUB_RUN_ATTEMPT")
 		receipt.ClaimLayer = "hosted-ci"
 		receipt.Producer = fmt.Sprintf("github-actions/%s/%s/%s/%s", os.Getenv("GITHUB_WORKFLOW"), os.Getenv("GITHUB_JOB"), run, receipt.Attempt)
+	}
+	for _, result := range results {
+		index := slices.IndexFunc(options.Registry.GetChecks(), func(c *registrypb.Check) bool { return c.GetId() == result.Check })
+		if result.State == Passed && index >= 0 && options.Registry.GetChecks()[index].GetSummary() && len(result.Measurements) == 0 {
+			receipt.Problems = append(receipt.Problems, result.Check+" measurement: it passed and printed none")
+		}
 	}
 	receipt.BaseRevision, receipt.BaseSource, receipt.BaseRefusal = e.base.Revision, e.base.Source, e.base.Refusal
 	if e.base.Revision != "" {

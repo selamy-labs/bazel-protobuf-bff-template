@@ -46,6 +46,7 @@ stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
 stub "$tree/tools/policy/from_base.sh" floors-from-base
 stub "$work/bin/SUPPRESSION" suppression-ban
 stub "$work/bin/FLOORS" coverage-floor
+sed -i '$i echo "measurement: stub: 100.0% statements (1 of 1), floor 0.0%, branches unmeasured"' "$work/bin/FLOORS"
 cat >"$work/bin/adapter" <<STUB
 #!/usr/bin/env bash
 if [[ "\$1" == "\$(cat "$work/hang" 2>/dev/null)" ]]; then
@@ -325,6 +326,11 @@ for postcondition in test-inventory sandbox-evidence; do
 done
 owned="$(sort "$union" | grep -vxE 'test-inventory|sandbox-evidence' | uniq -d)"
 [[ -z "$owned" ]] || fail "an owned check ran in two legs: $owned"
+
+# The real runner keeps the check's summary in the receipt.
+: >"$work/fail"
+run || fail "control before the summary case"
+grep -qF 'stub: 100.0% statements (1 of 1), floor 0.0%, branches unmeasured' "$receipt" || fail "the receipt lost the coverage summary"
 
 # With no base, every other check still reports, and the run is exit 11 with no pass.
 rc=0

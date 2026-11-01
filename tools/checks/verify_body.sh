@@ -58,6 +58,7 @@ offline=false
 bootstrap_only=false
 shard=""
 base=""
+base_source=""
 for arg in "$@"; do
   case "$arg" in
     --weak-isolation) weak=true ;;
@@ -65,6 +66,7 @@ for arg in "$@"; do
     --bootstrap-only) bootstrap_only=true ;;
     --shard=*) shard="${arg#--shard=}" ;;
     --base=*) base="${arg#--base=}" ;;
+    --base-source=*) base_source="${arg#--base-source=}" ;;
     *) echo "verify: unknown argument '$arg'" >&2; exit 2 ;;
   esac
 done
@@ -81,6 +83,7 @@ if [[ -n "$base" ]]; then
   runner_flags+=("--base=$base")
   rerun+=" --base=$base"
 fi
+if [[ -n "$base_source" ]]; then runner_flags+=("--base-source=$base_source"); fi
 if $weak; then
   bazel_flags+=(--config=weak-isolation)
   runner_flags+=(--isolation=weakened)

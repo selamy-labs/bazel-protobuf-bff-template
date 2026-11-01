@@ -1,5 +1,6 @@
 //:bazel_pin_test build-test
 //:from_base_test build-test
+//:policy_base_test build-test
 //api:compile_gate_test build-test
 //api:schema_probes_test build-test
 //api:validate_test build-test

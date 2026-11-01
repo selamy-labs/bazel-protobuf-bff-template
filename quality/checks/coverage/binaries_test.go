@@ -119,7 +119,7 @@ func checkRun(t *testing.T, root, exit, log string, reports map[string]string) (
 func TestFloorsCheckCommand(t *testing.T) {
 	root := repository(t, simple(50), map[string]string{"src/a.go": "package a\n"})
 	good := map[string]string{"a/t": ProfilePrefix + "src/a.go:1.1,2.2 1 1\n"}
-	if out, code := checkRun(t, root, "0", "//a:t   PASSED in 1s\n", good); code != 0 || !strings.Contains(out, "100.0% statements") {
+	if out, code := checkRun(t, root, "0", "//a:t   PASSED in 1s\n", good); code != 0 || !strings.Contains(out, "measurement: go: 100.0% statements") {
 		t.Fatalf("the control: exit %d\n%s", code, out)
 	}
 	passing := "//a:t   PASSED in 1s\n"

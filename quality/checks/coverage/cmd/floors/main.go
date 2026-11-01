@@ -159,7 +159,7 @@ func check(args []string) (int, error) {
 	}
 	results, problems := config.Check(files, combined)
 	for _, result := range results {
-		fmt.Println(result)
+		fmt.Println("measurement: " + result.String())
 	}
 	return report(problems), nil
 }

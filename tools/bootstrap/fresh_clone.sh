@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Fresh-clone witness (specs/002-hermetic-skeleton FR-011, SC-001, T028, T030).
 #
-#   tools/bootstrap/fresh_clone.sh [--weak-isolation] [--hostile]
+#   tools/bootstrap/fresh_clone.sh --base=<rev> [--weak-isolation] [--hostile]
 #
 # Clones HEAD into an empty directory whose path contains spaces and regular-expression
 # metacharacters, with an empty HOME and only /usr/bin:/bin on PATH, so no Bazel, Bazelisk or uv
@@ -18,6 +18,7 @@ hostile=false
 for arg in "$@"; do
   case "$arg" in
     --weak-isolation) verify_args+=(--weak-isolation) ;;
+    --base=*) verify_args+=("$arg") ;;
     --hostile) hostile=true ;;
     *) echo "fresh-clone: unknown argument '$arg'" >&2; exit 2 ;;
   esac
