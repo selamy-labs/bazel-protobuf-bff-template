@@ -95,3 +95,7 @@ The third option of R2, kept to plain data.
 ## R9 One pin
 
 `git_override`'s `commit` in `MODULE.bazel` is the canonical value, because Bazel can only read it there. prek's `rev` is written from it by `@bff_template_quality//hooks:pin`, and the `quality-pin` rule fails if the two differ, if the remotes differ, or if `local_path_override` or a local hook stands in.
+
+Independent review at `a988f2a` found that an indented `repo = "local"` with a real local hook passed the check and prek's own validation, because the check matched one spelling of a forbidden line. A shell has no TOML parser, and adding one for this would be a new dependency in every consumer. So the check inverts: it accepts the one form `sync` writes, line by line, and refuses the rest. That costs a consumer its formatting freedom in this file and any second repository, and a host's own checks go in its registry instead. It also closes two bypasses that keep the pin intact and change what runs: hook keys other than `id` and `args`, and `git_override` keys beyond `module_name`, `commit`, `remote` and `strip_prefix`, such as `patches`.
+
+The check reads files. A command-line or rc-file `--override_module` is outside it.
