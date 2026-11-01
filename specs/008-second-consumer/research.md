@@ -60,10 +60,38 @@ N is a real local tag, cut after the consumer interface works. M6's source canno
 | A consumer pinned to a full SHA is unaffected by a tag moving elsewhere | Move the tag in the `file://` remote; the consumer still resolves its commit, and the verdict does not change. This is a positive |
 | Release tooling refuses to change a recorded tag-to-commit mapping | A release-procedure check over a tracked record. It runs in the release step, and no consumer sees it |
 
-An immutable SHA does not fail because a tag moved, and it should not. No issuer, catalog, allowlist or authorization gate is built.
+An immutable SHA does not fail because a tag moved, and it should not. No issuer, authorization catalog, allowlist or authorization gate is built.
 
 **N+1 needs one real, compatible rule improvement**, so a clean consumer upgrades by the pin alone, and the notes must show it. A new S-code alone does not: `suppression-ban` stays one unchanged registry entry, so a registry diff would be silent. Two fixes are open: represent suppression rules in the single catalog being diffed, or choose a real compatible improvement that is already registry-visible. Neither an arbitrary floor rise nor a second handwritten rule definition is acceptable as a witness. Its evidence has three parts: the clean consumer passes at N+1; a deliberate defect is caught at N+1; the restored control passes. If evidence shows a migration is unavoidable, that goes to review, and the criterion stands.
 
 ## R6 Upstream
 
 Python #30 is the RFC. Read directly at T001, on 2026-11-01: Python #25 to #31 and TypeScript #20 are all open, with no comments and no update since 2026-10-28, and no release exists. Nothing upstream is adopted here, and each stays a named gap.
+
+## R7 Probe results, T002
+
+A separate repository, on the pinned Bazel 9.3.0 and prek 0.5.5, against `file://` bare remotes. Scripts and raw logs are outside this repository. The first prek attempts were setup failures and earn nothing.
+
+| Question | Observed |
+| --- | --- |
+| Does `git_override` with `strip_prefix = "quality"` execute? | Yes. `//:quality`, `floors`, `suppression-ban` and `prek` built from a full SHA. A floating version is not needed: the override decides |
+| Canonical name of the module | `bff_template_quality+`, as in this repository, so `from_base.sh`'s path and `reportPath` hold unchanged. The R1 row needs no change |
+| Does the module's runner start in a consumer? | `pre-commit` exits 0 with everything skipped, and `full` exits 2: `tools/speckit/scaffold.sha256` is missing. The registry's host paths fail first, before any base rule |
+| prek `repo`/`rev` on `file://` | A full SHA fetches into prek's own cache. `language: script` runs that copy, with the working directory and Git top level in the consumer, and hook `args` arrive after `entry`'s. A SHA that does not exist exits 2, and the restored pin passes |
+
+So a hook's script can come from the pinned tree, and a host can name its own paths through hook arguments.
+
+## R8 Decision: the binding
+
+The third option of R2, kept to plain data.
+
+- `quality/rules.textproto` is the rule catalog: the one definition of each rule a repository can bind, and the file release notes are diffed from. It has the `Registry` schema, and its checks carry no leg and no host path. A rule's banned codes are listed in the catalog, so a code added inside `suppression-ban` is visible, and a test keeps the list equal to the code.
+- A host registry gains `rules`. Each entry names a rule id, its leg, and any `args`, `context` paths or Bazel `targets` that are the host's. The entry appends these to the rule. There are no placeholders, expressions or conditionals. A host's own scripts stay ordinary `checks` in its registry.
+- This repository's registry stays at `quality/registry.textproto`, and its contract at `quality/coverage_floors.json`, so the accepted base `e3b3b34` can still judge it: that base's evaluator reads those paths. Those two files are this repository's host files. A consumer pins past them and reads neither.
+- The scripts a rule runs move into the module: `from_base.sh` and `test_evidence.sh`, and `stage.sh` with `install.sh` behind thin local paths. Otherwise a consumer would hold a copy.
+- A consumer's Bazel wrapper stays its own, because it is what fetches Bazel. It is named to the runner, and must accept startup options and `--path`.
+- The evaluator test becomes: the base has the contract the host names, and the base can build `@bff_template_quality//checks/coverage:floors`. A failed build is a named refusal, exit 11.
+
+## R9 One pin
+
+`git_override`'s `commit` in `MODULE.bazel` is the canonical value, because Bazel can only read it there. prek's `rev` is written from it by `@bff_template_quality//hooks:pin`, and the `quality-pin` rule fails if the two differ, if the remotes differ, or if `local_path_override` or a local hook stands in.
