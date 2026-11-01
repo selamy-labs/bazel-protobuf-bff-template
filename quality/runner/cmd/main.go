@@ -77,6 +77,8 @@ func run() int {
 	to := flags.String("to", "", "pushed commit")
 	inner := flags.Bool("inner", false, "judge the current worktree as the pushed commit")
 	shard := flags.String("shard", "", "the leg of full to run; empty runs all of it")
+	base := flags.String("base", "", "the policy base: a revision, resolved once")
+	baseSource := flags.String("base-source", "argument", "how the base was chosen: argument, hook-config or ci-event")
 	flags.Var(tools, "tool", "NAME=path, repeated")
 	var startup stringList
 	flags.Var(&startup, "bazel-startup", "a Bazel startup option, repeated")
@@ -127,7 +129,7 @@ func run() int {
 	cache = filepath.Join(cache, "bff-template")
 	if stage == registrypb.Stage_STAGE_PRE_PUSH && !*inner {
 		code, err := runner.RunPush(ctx, runner.PushOptions{
-			Root: root, Bazel: bazel, Env: env, From: *from, To: *to, Isolation: *isolation,
+			Root: root, Bazel: bazel, Env: env, From: *from, To: *to, Base: *base, BaseSource: *baseSource, Isolation: *isolation,
 			Offline: *offline, CacheDir: cache, Receipt: *receipt, Deadline: limit, Stdout: os.Stdout,
 		})
 		if err != nil {
@@ -136,7 +138,7 @@ func run() int {
 		return code
 	}
 	options := runner.Options{
-		Registry: registry, Stage: stage, Requested: stage, Shard: *shard, Root: root, Adapter: adapterPath, Bazel: bazel,
+		Registry: registry, Stage: stage, Requested: stage, Shard: *shard, Base: *base, BaseSource: *baseSource, Root: root, Adapter: adapterPath, Bazel: bazel,
 		BazelStartup: startup,
 		Tools:        tools, Env: env, Isolation: *isolation, Offline: *offline, ReceiptPath: *receipt,
 		Rerun: *rerun, Jobs: *jobs, Deadline: limit, Stdout: os.Stdout,

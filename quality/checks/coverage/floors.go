@@ -71,6 +71,9 @@ func (c *Config) Check(files []string, report *Report) ([]Result, []string) {
 		if branchTotal > 0 {
 			result.Branches = fmt.Sprintf("%d of %d", branchCovered, branchTotal)
 		}
+		if result.Total == 0 && len(sources) > 0 {
+			problems = append(problems, profile.Name+": no countable data, so its floor cannot be judged")
+		}
 		if result.Total > 0 && result.Percent() < profile.Floor {
 			problems = append(problems, fmt.Sprintf("%s: %.1f%% is below its floor of %.1f%%", profile.Name, result.Percent(), profile.Floor))
 		}
@@ -86,7 +89,6 @@ func (c *Config) measure(metric, source string, report *Report) (covered, total 
 			if c.repositoryPath(path) != source {
 				continue
 			}
-			found = true
 			for _, block := range blocks {
 				total += block.statements
 				if block.covered {
@@ -94,6 +96,8 @@ func (c *Config) measure(metric, source string, report *Report) (covered, total 
 				}
 			}
 		}
+		// A file that counts nothing was not measured. A true no-statement file is a reviewed exclude.
+		found = total > 0
 	case BlockSpanLines:
 		return c.lines(source, report)
 	case CompiledJSLines:

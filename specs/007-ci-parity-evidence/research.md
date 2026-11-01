@@ -131,8 +131,9 @@ Whether a base was reviewed is recorded apart from this check.
 The refusal keeps every other result, and uses M5's existing exit 11 ("baseline or evidence unavailable"). This changes the
 bare command's outcome, which is an intended change to parent SC-001: one documented command remains one command.
 
-**Hook context.** A policy input in a push escalates to `full`, and so does a zero `--from`. A developer's first push of a
-topic branch is routine, so it must not need `--no-verify`:
+**Hook context.** prek gives a new branch its fork point from the remote as `--from` (observed in `fixtures_test`), so an ordinary
+first push of a topic branch stays narrow and reads no base. A policy input in a push escalates to `full`, and so does a zero
+`--from`, which prek passes when no remote commit is in reach. Those pushes are routine too, so they must not need `--no-verify`:
 
 ```sh
 tools/bootstrap/bazel.sh run //tools/hooks:install -- --policy-base=<rev>   # stores it in local Git config

@@ -21,13 +21,13 @@ first.
 | FR-013a | Real Git fixtures | different commit, same tree → compared and passes | a weakening commit whose tree differs only by a README edit still fails on its floor, so tree difference earns nothing | G | off |
 | FR-014 | `verify_body_test` | refusal beside every other check's result | other checks skipped, or result PASSED → test fails | G | off |
 | FR-015 | `runner_test` | SHA and `base_source` recorded | a `reviewed` field, or base missing → rejected | G | off |
-| FR-015a | `fixtures_test` | zero `--from`, setting present: first push of a topic branch passes, escalated to `full`, `hook-config` in the receipt | setting unset → exit 11 naming the install command; a moved `main` or `HEAD` is never read; installed with no value → nothing stored | G | off |
+| FR-015a | `fixtures_test` | ordinary first push of a topic branch reads no base; with the setting, a policy-change first push and a zero `--from` both pass at `full`, `hook-config` in the receipt | setting unset → exit 11 naming the install command; a value resolving to the pushed commit → own base; installed with no value → nothing stored | G | off |
 | FR-016 | Real Git fixtures | rows allowed in R8 pass | floor lowered, profile removed, metric changed, each narrowing row → fails | G | off |
 | FR-016a | Real Git fixtures | delete and add within `includes` → passes | real `git rm` and add to a path outside every profile → fails, `unenrolled source`; a relocation into an existing exclude passes, asserted as the stated limit | G | off |
 | FR-017 | Real Git fixtures | every measured file reported; each `excludes` entry has an allowed reason | file absent from report → fails, never counted as covered; an exclude with an empty or unlisted reason → rejected | G | off |
 | FR-017 | Review of `coverage_floors.json` | each stated reason is true of its files | a reason that does not hold, or a boundary drawn too wide → review rejects. No tool checks this | S | hum |
 | FR-018 | Real Git fixtures | no new suppression | suppression added per language; pattern set edited → fails | G | off |
-| FR-019 | Real tools | exit 0 | exit 3 with reports, empty report, truncated report → `FAILED`; removed test lowers number → fails | G | off, loc |
+| FR-019 | `runner_test`, `coverage_test` | exit 0 reaches the check | fake Bazel exit 3 with only passing summaries and a good report, or an interrupted or unrun invocation → `coverage-floor` not PASSED, other results kept; empty, truncated or zero-statement report → `FAILED`; removed test lowers number → fails | G | off, loc |
 | FR-020 | Report fixtures, real profile | `statements` from the raw profile; Go branch shown `unmeasured` | LCOV value as Go percentage, missing `.cover`, `unmeasured` shown as met or not applicable → rejected | G | off |
 | FR-020a | Real tools | a TS test yields line data for each `web/client` file; `web-browser` shown `unmeasured` | empty report, `(empty-report)` placeholder, a client file absent → `FAILED`; a removed TS test lowers the number | G | off, loc |
 | FR-020b | Research R7 | each Go difference has a cause | an unexplained file → no floor set | S | hum |

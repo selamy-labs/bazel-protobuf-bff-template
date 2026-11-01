@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"runtime"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -27,10 +28,13 @@ type Options struct {
 	Stage     registrypb.Stage
 	Requested registrypb.Stage
 	// Shard is the leg of full to run. Empty runs the whole stage.
-	Shard   string
-	Root    string
-	Adapter string
-	Bazel   string
+	Shard string
+	// Base names the policy base, and BaseSource how it was chosen. Both stay empty when none was.
+	Base       string
+	BaseSource string
+	Root       string
+	Adapter    string
+	Bazel      string
 	// BazelStartup holds startup options, for a run on an isolated output base.
 	BazelStartup []string
 	Tools        map[string]string
@@ -126,6 +130,8 @@ func Run(ctx context.Context, options Options) (int, error) {
 		defer slot.Release()
 	}
 	execution := &execution{options: options, scratch: scratch, inputs: inputs, log: filepath.Join(scratch, "bazel.log")}
+	execution.base = execution.resolveBase(ctx, git)
+	execution.bazelExit = "not-run"
 	results := execution.run(ctx)
 	code := ExitCode(results)
 	if ctx.Err() != nil && code == ExitOK {
@@ -163,13 +169,17 @@ func readBounded(path string) string {
 }
 
 type execution struct {
-	options Options
-	scratch string
-	inputs  *Inputs
-	log     string
-	logs    string
-	mu      sync.Mutex
-	results []Result
+	base Base
+	// bazelExit is how the stage's Bazel invocation ended, for a check that reads what it left: a
+	// number, `interrupted`, or `not-run`.
+	bazelExit string
+	options   Options
+	scratch   string
+	inputs    *Inputs
+	log       string
+	logs      string
+	mu        sync.Mutex
+	results   []Result
 }
 
 func (e *execution) record(result Result, check *registrypb.Check) {
@@ -193,6 +203,26 @@ func (e *execution) record(result Result, check *registrypb.Check) {
 	}
 	e.results = append(e.results, result)
 	PrintResult(e.options.Stdout, result, e.options.Rerun)
+}
+
+// resolveBase asks for a base only when someone named one or a selected check needs one, so a stage
+// with no such check behaves as it always did.
+func (e *execution) resolveBase(ctx context.Context, git Git) Base {
+	needed := slices.ContainsFunc(e.options.Registry.GetChecks(), func(check *registrypb.Check) bool {
+		return check.GetNeedsBase() && e.selected(check)
+	})
+	if !needed && e.options.Base == "" {
+		return Base{}
+	}
+	head, err := git.Run(ctx, nil, "rev-parse", "HEAD")
+	if err != nil {
+		return Base{Source: e.options.BaseSource, Refusal: "the tested commit cannot be named"}
+	}
+	base := ResolveBase(ctx, git, e.options.Base, e.options.BaseSource, strings.TrimSpace(string(head)))
+	if base.Refusal == "" && e.options.Offline && needed {
+		return Base{Source: e.options.BaseSource, Refusal: "building the base's evaluator needs the network"}
+	}
+	return base
 }
 
 func (e *execution) selected(check *registrypb.Check) bool {
@@ -230,6 +260,9 @@ func (e *execution) run(ctx context.Context) []Result {
 // and at full that is an error unless it declared allow_empty.
 func (e *execution) plan(check *registrypb.Check) (planned, *Result) {
 	plan := planned{check: check}
+	if check.GetNeedsBase() && e.base.Refusal != "" {
+		return plan, &Result{State: Errored, NoEvidence: true, Reason: e.base.Refusal}
+	}
 	if check.GetNeedsNetwork() && e.options.Offline {
 		return plan, &Result{State: Skipped, Reason: "--offline; not a passing result"}
 	}
@@ -271,7 +304,7 @@ func (e *execution) expand(plan planned) ([]string, error) {
 	}
 	pairs := []string{
 		"{adapter}", e.options.Adapter, "{list}", list, "{list_nl}", listNL, "{root}", e.inputs.Root,
-		"{bazel_log}", e.log, "{isolation}", e.options.Isolation, "{shard}", e.options.Shard,
+		"{bazel_log}", e.log, "{isolation}", e.options.Isolation, "{shard}", e.options.Shard, "{base}", e.base.Revision, "{bazel_exit}", e.bazelExit,
 	}
 	for name, path := range e.options.Tools {
 		pairs = append(pairs, "{"+name+"}", path)
@@ -422,6 +455,10 @@ func (e *execution) runBazel(ctx context.Context) {
 	args := append(slices.Clone(e.options.BazelStartup), plan.Args...)
 	code, runErr := RunBazel(bazelCtx, e.options.Bazel, args, e.options.Root, e.options.Env, log)
 	seconds := time.Since(started).Seconds()
+	e.bazelExit = strconv.Itoa(code)
+	if runErr != nil {
+		e.bazelExit = "interrupted"
+	}
 	if runErr != nil && !errors.Is(runErr, context.DeadlineExceeded) && !errors.Is(runErr, context.Canceled) {
 		fail(Errored, runErr.Error(), "")
 		return
@@ -487,6 +524,14 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 		receipt.Attempt = os.Getenv("GITHUB_RUN_ATTEMPT")
 		receipt.ClaimLayer = "hosted-ci"
 		receipt.Producer = fmt.Sprintf("github-actions/%s/%s/%s/%s", os.Getenv("GITHUB_WORKFLOW"), os.Getenv("GITHUB_JOB"), run, receipt.Attempt)
+	}
+	receipt.BaseRevision, receipt.BaseSource, receipt.BaseRefusal = e.base.Revision, e.base.Source, e.base.Refusal
+	if e.base.Revision != "" {
+		digest, err := BasePolicyDigest(ctx, git, e.base.Revision, options.Registry.GetEscalate())
+		if err != nil {
+			receipt.Problems = append(receipt.Problems, "base policy digest: "+err.Error())
+		}
+		receipt.BasePolicyDigest = digest
 	}
 	data, _ := os.ReadFile(e.log)
 	targets := 0

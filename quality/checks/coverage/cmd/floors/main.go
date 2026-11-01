@@ -1,7 +1,7 @@
 // Command floors judges coverage. `check` reads a finished run against the tree's own contract, and
 // `compare` is built from a base and judges a proposal's contract and suppressions against that base.
 //
-//	floors check --root <dir> --log <bazel log> --testlogs <dir>
+//	floors check --root <dir> --log <bazel log> --testlogs <dir> --bazel-exit <outcome>
 //	floors compare --base-root <dir> --root <dir>
 //
 // Exit 0 passes, 1 is a finding, and 2 means it could not judge. A run that it cannot read never passes.
@@ -9,6 +9,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -116,8 +117,16 @@ func check(args []string) (int, error) {
 	root := flags.String("root", ".", "repository root")
 	log := flags.String("log", "", "the Bazel log of this run")
 	testlogs := flags.String("testlogs", "", "the test log tree")
+	exit := flags.String("bazel-exit", "", "how the run's Bazel invocation ended; only 0 can pass")
 	if err := flags.Parse(args); err != nil {
 		return 2, err
+	}
+	if *exit == "" {
+		return 2, errors.New("--bazel-exit is required")
+	}
+	if *exit != "0" {
+		// Summary lines and reports can both look complete beside a failed invocation.
+		return report([]string{"the Bazel invocation exited " + *exit + ", so its coverage is not evidence"}), nil
 	}
 	config, err := coverage.Load(filepath.Join(*root, contract))
 	if err != nil {

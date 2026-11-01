@@ -414,6 +414,98 @@ rc=0
 rejected "the full policy catches the bypassed secret" "secrets" "src/bypassed.txt"
 [[ "$(state_of "$work/full.json" secrets)" == FAILED ]] || fail "full did not record secrets as FAILED"
 
+# --- The policy base at pre-push. prek gives a new branch its fork point as --from, so an ordinary first
+# push stays narrow and needs no base. A policy change, or a push with no base in reach, widens to `full`,
+# and then only the declared setting supplies one. A small registry keeps `full` passable here, and its
+# check needs a base as the real one does.
+t="$work/topic"
+mkdir -p "$t"
+new_repo "$t"
+mkdir -p "$t/quality/checks/coverage/cmd/floors"
+echo 'package main' >"$t/quality/checks/coverage/cmd/floors/main.go"
+echo '{}' >"$t/quality/coverage_floors.json"
+cat >"$work/base.textproto" <<'REGISTRY'
+version: "0.0.0"
+vendored_manifest: "tools/speckit/scaffold.sha256"
+fixture_manifest: "quality/checks/suppression/testdata/fixtures.sha256"
+escalate: "^quality/"
+checks {
+  id: "compare"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 30
+  needs_base: true
+  command: ["sh", "-c", "echo compared with {base}"]
+  witness: "//:test"
+}
+REGISTRY
+sed -i "2s|.*|$work/base.textproto|" "$t/tools/bootstrap/bazel.config"
+git -C "$t" add -A
+git -C "$t" commit -q --no-verify -m evaluator
+topic_remote="$work/topic.git"
+git init -q --bare "$topic_remote"
+git -C "$t" remote add origin "$topic_remote"
+git -C "$t" push -q --no-verify origin main
+reviewed="$(git -C "$t" rev-parse main)"
+receipt="$t/.git/bff-template/receipts/pre-push.json"
+of_receipt() { "$yq" -p=json -o=json -r ".$1" "$receipt"; }
+
+git -C "$t" switch -q -c ordinary
+echo more >"$t/more.txt"
+git -C "$t" add more.txt
+git -C "$t" commit -q --no-verify -m ordinary
+push "$t" -q origin ordinary
+accepted "an ordinary first push of a topic branch needs no base"
+[[ "$(of_receipt stage)" == pre-push ]] || fail "an ordinary first push widened"
+
+git -C "$t" switch -q -c policy main
+echo '{ }' >"$t/quality/coverage_floors.json"
+git -C "$t" add -A
+git -C "$t" commit -q --no-verify -m policy
+push "$t" -q origin policy
+rejected "a first push that needs a base, with none declared, is refused" "no policy base was named" "--policy-base=<commit>"
+grep -qF 'exit code: 11' "$work/out" || fail "the refusal was not exit 11"
+if git -C "$topic_remote" rev-parse -q --verify refs/heads/policy >/dev/null; then fail "the refused push arrived"; fi
+if grep -qF 'compared with' "$work/out"; then fail "something stood in for the base"; fi
+
+rc=0
+(cd "$t" && BUILD_WORKSPACE_DIRECTORY="$t" bash "$source_root/tools/hooks/install.sh" "$pinned_prek" --policy-base= >/dev/null 2>&1) || rc=$?
+[[ $rc -eq 2 ]] || fail "an empty --policy-base: exit $rc, want 2"
+[[ -z "$(git -C "$t" config --get bff-template.policy-base || true)" ]] || fail "an empty value was stored"
+(cd "$t" && BUILD_WORKSPACE_DIRECTORY="$t" bash "$source_root/tools/hooks/install.sh" "$pinned_prek" --policy-base=main >/dev/null) ||
+  fail "installing a policy base failed"
+[[ "$(git -C "$t" config --get bff-template.policy-base)" == main ]] || fail "the setting holds what was given, unresolved"
+
+push "$t" -q origin policy
+accepted "a first push of a policy change, with a declared base"
+git -C "$topic_remote" rev-parse -q --verify refs/heads/policy >/dev/null || fail "the accepted push did not arrive"
+[[ "$(of_receipt stage)" == full ]] || fail "a policy change must widen to full"
+[[ "$(of_receipt base_revision)" == "$reviewed" ]] || fail "the receipt lost the resolved base"
+[[ "$(of_receipt base_source)" == hook-config ]] || fail "the receipt lost how the base was chosen"
+
+# A zero --from, as prek passes when no remote commit is in reach, widens too and takes the same base.
+zero="$(printf '0%.0s' {1..40})"
+pushed="$(git -C "$t" rev-parse HEAD)"
+rc=0
+(cd "$t" && PRE_COMMIT_FROM_REF="$zero" PRE_COMMIT_TO_REF="$pushed" tools/hooks/stage.sh pre-push) </dev/null >"$work/out" 2>&1 || rc=$?
+accepted "a zero --from with a declared base"
+[[ "$(of_receipt stage)" == full ]] || fail "a zero --from must widen to full"
+[[ "$(of_receipt base_source)" == hook-config ]] || fail "a zero --from lost the declared base"
+
+git -C "$t" config --unset bff-template.policy-base
+rc=0
+(cd "$t" && PRE_COMMIT_FROM_REF="$zero" PRE_COMMIT_TO_REF="$pushed" tools/hooks/stage.sh pre-push) </dev/null >"$work/out" 2>&1 || rc=$?
+[[ $rc -eq 11 ]] || fail "a zero --from with no declared base: exit $rc, want 11"
+grep -qF 'no policy base was named' "$work/out" || fail "the zero --from refusal named no cause"
+
+git -C "$t" config bff-template.policy-base HEAD
+echo '{  }' >"$t/quality/coverage_floors.json"
+git -C "$t" add -A
+git -C "$t" commit -q --no-verify -m again
+push "$t" -q origin policy
+rejected "a declared base that resolves to the pushed commit is refused" "a commit cannot be its own base"
+
 # --- A policy input widens the push, which cannot then pass here: the verdict is the full stage's.
 git -C "$p" rm -q src/bypassed.txt
 git -C "$p" commit -q --no-verify -m 'removes it'

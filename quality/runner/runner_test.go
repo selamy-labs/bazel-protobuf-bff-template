@@ -1252,6 +1252,185 @@ func TestCoverageCheckChangesTheVerbNotTheCount(t *testing.T) {
 	}
 }
 
+// The check that reads coverage is told how the invocation really ended: summary lines cannot say.
+func TestAfterBazelCheckReceivesTheRealExit(t *testing.T) {
+	h := committed(newHarness(t))
+	seen := filepath.Join(t.TempDir(), "seen")
+	body := bazelCheck("tests", "//a/...", "STAGE_FULL") +
+		native("floor", `echo {bazel_exit} >`+seen+`; [ "{bazel_exit}" = 0 ]`, "after_bazel: true needs_coverage: true")
+	for name, test := range map[string]struct {
+		bazel, want string
+		passed      bool
+	}{
+		"exit 0":                   {`echo "//a:t   PASSED in 1s"`, "0", true},
+		"exit 3, summaries passed": {`echo "//a:t   PASSED in 1s"; exit 3`, "3", false},
+		"exit 1":                   {`echo "//a:t   PASSED in 1s"; exit 1`, "1", false},
+	} {
+		t.Run(name, func(t *testing.T) {
+			fakeBazel(h, test.bazel)
+			options := h.options(body, registrypb.Stage_STAGE_FULL)
+			options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+			h.run(options)
+			data, err := os.ReadFile(seen)
+			if err != nil || strings.TrimSpace(string(data)) != test.want {
+				t.Fatalf("the check saw %q, %v; want %s", data, err, test.want)
+			}
+			states := map[string]State{}
+			for _, result := range receiptOf(t, options.ReceiptPath).Checks {
+				states[result.Check] = result.State
+			}
+			if (states["floor"] == Passed) != test.passed {
+				t.Fatalf("floor is %s\n%s", states["floor"], h.out.String())
+			}
+			if len(states) != 2 {
+				t.Fatalf("another check's result was lost: %v", states)
+			}
+		})
+	}
+}
+
+// baseRepository holds a commit with the evaluator's paths, then a later commit on top.
+func baseRepository(t *testing.T) (h *harness, evaluator, head string) {
+	t.Helper()
+	h = committed(newHarness(t))
+	h.write(evaluatorPath, "package main\n")
+	h.write(contractPath, "{}\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "evaluator")
+	evaluator = strings.TrimSpace(h.git("rev-parse", "HEAD"))
+	h.write("next.txt", "x\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "next")
+	return h, evaluator, strings.TrimSpace(h.git("rev-parse", "HEAD"))
+}
+
+func TestResolveBase(t *testing.T) {
+	h, evaluator, head := baseRepository(t)
+	h.git("tag", "reviewed", evaluator)
+	root := strings.TrimSpace(h.git("rev-list", "--max-parents=0", "HEAD"))
+	git := Git{Dir: h.dir, Env: gitEnv()}
+	ctx := context.Background()
+	for _, named := range []string{evaluator, "reviewed", "HEAD~1", "HEAD^"} {
+		if got := ResolveBase(ctx, git, named, "argument", head); got.Revision != evaluator || got.Refusal != "" {
+			t.Errorf("%s: %+v", named, got)
+		}
+	}
+	h.git("branch", "here", head)
+	h.git("checkout", "-q", "--orphan", "other")
+	h.git("commit", "-q", "-m", "unrelated")
+	unrelated := strings.TrimSpace(h.git("rev-parse", "HEAD"))
+	h.git("checkout", "-q", "here")
+	refusals := map[string]string{
+		"":             "no policy base was named",
+		"-x":           "malformed revision",
+		"--all":        "malformed revision",
+		"a b":          "malformed revision",
+		"line\nbreak":  "malformed revision",
+		"HEAD~1..HEAD": "malformed revision",
+		"deadbeef":     "unknown revision",
+		"no-such-ref":  "unknown revision",
+		head:           "a commit cannot be its own base",
+		"HEAD":         "a commit cannot be its own base",
+		"here":         "a commit cannot be its own base",
+		"HEAD~0":       "a commit cannot be its own base",
+		unrelated:      "not an ancestor",
+		root:           "the base has no evaluator",
+	}
+	for named, want := range refusals {
+		got := ResolveBase(ctx, git, named, "argument", head)
+		if got.Revision != "" || !strings.Contains(got.Refusal, want) {
+			t.Errorf("%q: want %q, got %+v", named, want, got)
+		}
+	}
+	// A descendant is an existing commit, and it is still not an ancestor.
+	if got := ResolveBase(ctx, git, head, "argument", evaluator); !strings.Contains(got.Refusal, "not an ancestor") {
+		t.Errorf("a descendant: %+v", got)
+	}
+}
+
+// A different commit with an identical tree is a valid comparison: nothing changed. A differing tree
+// earns nothing either, which is why the rule is about commits.
+func TestResolveBaseAcceptsADifferentCommitWithTheSameTree(t *testing.T) {
+	h, _, head := baseRepository(t)
+	h.git("commit", "-q", "--allow-empty", "-m", "same tree")
+	empty := strings.TrimSpace(h.git("rev-parse", "HEAD"))
+	if strings.TrimSpace(h.git("rev-parse", head+"^{tree}")) != strings.TrimSpace(h.git("rev-parse", "HEAD^{tree}")) {
+		t.Fatal("control: the trees differ")
+	}
+	got := ResolveBase(context.Background(), Git{Dir: h.dir, Env: gitEnv()}, head, "argument", empty)
+	if got.Revision != head || got.Refusal != "" {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func TestShallowHistoryIsRefused(t *testing.T) {
+	h, _, _ := baseRepository(t)
+	clone := t.TempDir()
+	if out, err := exec.Command("git", "clone", "-q", "--depth=1", "file://"+h.dir, clone).CombinedOutput(); err != nil {
+		t.Fatalf("%v: %s", err, out)
+	}
+	got := ResolveBase(context.Background(), Git{Dir: clone, Env: gitEnv()}, "HEAD", "argument", "x")
+	if !strings.Contains(got.Refusal, "history is shallow") {
+		t.Fatalf("got %+v", got)
+	}
+}
+
+func baseChecks() string {
+	return native("compare", "echo compared against {base}", "needs_base: true") + native("other", "true")
+}
+
+// A refusal keeps every other result, exits 11, and nothing stands in for the base.
+func TestRefusedBaseKeepsOtherResults(t *testing.T) {
+	h, _, _ := baseRepository(t)
+	options := h.options(baseChecks(), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitNoEvidence {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	receipt := receiptOf(t, options.ReceiptPath)
+	states := map[string]State{}
+	for _, result := range receipt.Checks {
+		states[result.Check] = result.State
+	}
+	if states["other"] != Passed || states["compare"] != Errored {
+		t.Fatalf("states: %v", states)
+	}
+	if receipt.Result == "PASSED" || !strings.Contains(receipt.BaseRefusal, "no policy base was named") {
+		t.Fatalf("receipt: %+v", receipt)
+	}
+}
+
+func TestNamedBaseReachesTheCheckAndTheReceipt(t *testing.T) {
+	h, evaluator, _ := baseRepository(t)
+	options := h.options(baseChecks(), registrypb.Stage_STAGE_FULL)
+	options.Base, options.BaseSource = "HEAD~1", "hook-config"
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	receipt := receiptOf(t, options.ReceiptPath)
+	if receipt.BaseRevision != evaluator || receipt.BaseSource != "hook-config" || receipt.BasePolicyDigest == "" {
+		t.Fatalf("receipt: %+v", receipt)
+	}
+}
+
+func TestOfflineRefusesABuiltBase(t *testing.T) {
+	h, _, _ := baseRepository(t)
+	options := h.options(baseChecks(), registrypb.Stage_STAGE_FULL)
+	options.Base, options.Offline = "HEAD~1", true
+	if code := h.run(options); code != ExitNoEvidence {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+}
+
+// A stage with no check that needs a base never looks for one.
+func TestNoBaseIsAskedForWhenNothingNeedsOne(t *testing.T) {
+	h, _, _ := baseRepository(t)
+	if code := h.run(h.options(native("other", "true"), registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+}
+
 // A leg with no Bazel work owes no postcondition, and an unrun obligation denies a pass.
 func TestLegRunsItsOwnChecksAndDeniesAMissingOne(t *testing.T) {
 	h := committed(newHarness(t))

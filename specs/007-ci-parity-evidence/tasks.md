@@ -23,8 +23,8 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [x] T012 | T011 | `PlanBazel` verb rule; one invocation per stage; `coverage-floor` after it | FR-006, FR-007 | T063 | Fake Bazel count; every required test under `coverage` |
 | [x] T013 | T012 | Reports validated: Go statements from the raw profile; Node test entry and a `transport.ts` test; empty, placeholder, truncated, missing module, missing `.cover`, exit 3 with reports | FR-019–FR-021 | T063 | Named fixtures, real tools |
 | [x] T014 | T013 | Evaluator: profiles, measured source sets, enrollment, narrowing table R8, suppressions; `node:coverage` added to S005; real Git delete and add control | FR-016–FR-018 | T060, T063 | Unit, real Git fixtures |
-| [ ] T015 | T014 | `from_base.sh`, `--base`: one resolution, lock, private output base, handle, every refusal in R6; same-tree positive | FR-011–FR-015 | T062 | Real Git fixtures |
-| [ ] T016 | T015 | Declared `bff-template.policy-base`, installer, `stage.sh`; first push of a topic branch | FR-012, FR-015a | | `fixtures_test` |
+| [x] T015 | T014 | `from_base.sh`, `--base`: one resolution, lock, private output base, handle, every refusal in R6; same-tree positive | FR-011–FR-015 | T062 | Real Git fixtures |
+| [x] T016 | T015 | Declared `bff-template.policy-base`, installer, `stage.sh`; first push of a topic branch | FR-012, FR-015a | | `fixtures_test` |
 | [ ] T017 | T016 | **Anchor commit**: `floors-from-base` and `coverage-floor` registered, first floors from reconciled measurement; record the exit 11 control and targeted evidence. **Hold for independent targeted review** | FR-011, FR-016 | T062, T063 | Review |
 | [ ] T018 | T017 | Base through `fresh_clone.sh` and CI; `escalate` and digest cases | FR-022, FR-023 | T062 | Real-registry tests |
 | [ ] T019 | T018 | README, parent SC-001, contracts, hook limits | FR-022 | SC-001 | Doc assertions |

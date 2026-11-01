@@ -132,7 +132,15 @@ func (r *Report) addBranch(source, record string) error {
 		branches = map[string]bool{}
 		r.Branches[source] = branches
 	}
+	taken := 0
+	if fields[3] != "-" { // LCOV's mark for a branch that was never reached.
+		count, err := strconv.Atoi(fields[3])
+		if err != nil || count < 0 {
+			return fmt.Errorf("not a BRDA line: %q", record)
+		}
+		taken = count
+	}
 	key := strings.Join(fields[:3], ",")
-	branches[key] = branches[key] || (fields[3] != "-" && fields[3] != "0")
+	branches[key] = branches[key] || taken > 0
 	return nil
 }

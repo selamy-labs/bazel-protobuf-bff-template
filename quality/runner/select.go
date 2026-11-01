@@ -243,6 +243,11 @@ func TestedTree(ctx context.Context, git Git, inputs *Inputs, policy []string, s
 	if err != nil {
 		return "", "", err
 	}
+	return tree, policyDigest(listing, patterns), nil
+}
+
+// policyDigest hashes the entries of an `ls-tree -r -z` listing that are policy inputs.
+func policyDigest(listing []byte, patterns []*regexp.Regexp) string {
 	hash := sha256.New()
 	for _, entry := range Split(listing) {
 		_, path, _ := strings.Cut(entry, "\t")
@@ -250,5 +255,5 @@ func TestedTree(ctx context.Context, git Git, inputs *Inputs, policy []string, s
 			_, _ = hash.Write([]byte(entry + "\x00"))
 		}
 	}
-	return tree, hex.EncodeToString(hash.Sum(nil)), nil
+	return hex.EncodeToString(hash.Sum(nil))
 }

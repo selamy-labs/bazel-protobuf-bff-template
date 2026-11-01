@@ -68,8 +68,8 @@ message Check {
   uint32 timeout_seconds = 7;
   // Zero inputs at `full` is not an error for this check.
   bool allow_empty = 8;
-  // KIND_NATIVE: argv. {adapter}, {list}, {list_nl}, {root}, {bazel_log} and {isolation} expand, as
-  // does {NAME} for a Tool.
+  // KIND_NATIVE: argv. {adapter}, {list}, {list_nl}, {root}, {bazel_log}, {bazel_exit}, {isolation},
+  // {shard} and {base} expand, as does {NAME} for a Tool.
   repeated string command = 9;
   // KIND_BAZEL: target patterns.
   repeated string targets = 10;
@@ -91,6 +91,9 @@ message Check {
   // Reads coverage data, so the Bazel invocation that runs with this check is `coverage`, not `test`.
   // It stays one invocation, and it still gives every test result (spec 007 FR-006).
   bool needs_coverage = 18;
+  // Compares with a policy base. With no usable base this check is refused, exit 11, and nothing
+  // stands in for one (spec 007 FR-012 to FR-014).
+  bool needs_base = 19;
 }
 
 // A pinned tool, as the root target passes it in NAME=path form.

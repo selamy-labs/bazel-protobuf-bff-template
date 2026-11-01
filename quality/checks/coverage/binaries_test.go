@@ -101,7 +101,7 @@ func floors(t *testing.T, args ...string) (string, int) {
 	return out.String(), code
 }
 
-func checkRun(t *testing.T, root, log string, reports map[string]string) (string, int) {
+func checkRun(t *testing.T, root, exit, log string, reports map[string]string) (string, int) {
 	t.Helper()
 	logs := t.TempDir()
 	for target, text := range reports {
@@ -113,32 +113,42 @@ func checkRun(t *testing.T, root, log string, reports map[string]string) (string
 	}
 	path := filepath.Join(t.TempDir(), "log")
 	write(t, path, log)
-	return floors(t, "check", "--root="+root, "--log="+path, "--testlogs="+logs)
+	return floors(t, "check", "--root="+root, "--log="+path, "--testlogs="+logs, "--bazel-exit="+exit)
 }
 
 func TestFloorsCheckCommand(t *testing.T) {
 	root := repository(t, simple(50), map[string]string{"src/a.go": "package a\n"})
 	good := map[string]string{"a/t": ProfilePrefix + "src/a.go:1.1,2.2 1 1\n"}
-	if out, code := checkRun(t, root, "//a:t   PASSED in 1s\n", good); code != 0 || !strings.Contains(out, "100.0% statements") {
+	if out, code := checkRun(t, root, "0", "//a:t   PASSED in 1s\n", good); code != 0 || !strings.Contains(out, "100.0% statements") {
 		t.Fatalf("the control: exit %d\n%s", code, out)
 	}
+	passing := "//a:t   PASSED in 1s\n"
 	cases := map[string]struct {
-		log     string
-		reports map[string]string
-		want    string
+		exit, log string
+		reports   map[string]string
+		want      string
 	}{
-		"exit 3 with reports": {"//a:t   PASSED in 1s\n//b:t   FAILED in 1s\n", good, "//b:t is FAILED, so its coverage is not evidence"},
-		"no test":             {"", good, "the log shows no test"},
-		"report of no target": {"//z:t   PASSED in 1s\n", good, "src/a.go is absent from the report"},
-		"truncated":           {"//a:t   PASSED in 1s\n", map[string]string{"a/t": "SF:x.js\nDA:1,1\n"}, "truncated"},
+		// Every summary line passes and the report is good. Only the invocation's exit says otherwise.
+		"exit 3, only passing summaries": {"3", passing, good, "the Bazel invocation exited 3"},
+		"interrupted":                    {"interrupted", passing, good, "the Bazel invocation exited interrupted"},
+		"not run":                        {"not-run", passing, good, "the Bazel invocation exited not-run"},
+		"exit 3 with a failed summary":   {"3", passing + "//b:t   FAILED in 1s\n", good, "the Bazel invocation exited 3"},
+		"exit 0 with a failed summary":   {"0", passing + "//b:t   FAILED in 1s\n", good, "//b:t is FAILED"},
+		"no test":                        {"0", "", good, "the log shows no test"},
+		"report of no target":            {"0", "//z:t   PASSED in 1s\n", good, "src/a.go is absent from the report"},
+		"truncated":                      {"0", passing, map[string]string{"a/t": "SF:x.js\nDA:1,1\n"}, "truncated"},
+		"no countable data":              {"0", passing, map[string]string{"a/t": ProfilePrefix + "src/a.go:1.1,2.2 0 0\n"}, "no countable data"},
 	}
 	for name, test := range cases {
 		t.Run(name, func(t *testing.T) {
-			out, code := checkRun(t, root, test.log, test.reports)
+			out, code := checkRun(t, root, test.exit, test.log, test.reports)
 			if code != 1 || !strings.Contains(out, test.want) {
 				t.Fatalf("exit %d, want 1 with %q\n%s", code, test.want, out)
 			}
 		})
+	}
+	if out, code := floors(t, "check", "--root="+root, "--log=/dev/null", "--testlogs="+root); code != 2 {
+		t.Fatalf("no invocation outcome was given: exit %d\n%s", code, out)
 	}
 }
 

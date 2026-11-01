@@ -124,6 +124,13 @@ sh_test(
 )
 
 sh_test(
+    name = "from_base_test",
+    size = "small",
+    srcs = ["tools/policy/from_base_test.sh"],
+    data = ["tools/policy/from_base.sh"],
+)
+
+sh_test(
     name = "bazel_pin_test",
     size = "small",
     srcs = ["tools/bootstrap/bazel_pin_test.sh"],

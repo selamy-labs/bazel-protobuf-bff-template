@@ -17,13 +17,16 @@ import (
 // PushOptions is the orchestrating half of pre-push. It runs in the checkout, moves a private
 // worktree to the pushed commit, and leaves the verdict to that commit's own runner.
 type PushOptions struct {
-	Root      string
-	Bazel     string
-	Env       []string
-	From, To  string
-	Isolation string
-	Offline   bool
-	CacheDir  string
+	Root     string
+	Bazel    string
+	Env      []string
+	From, To string
+	// Base and BaseSource pass through to the pushed commit's runner. From selects inputs, and is
+	// never a base.
+	Base, BaseSource string
+	Isolation        string
+	Offline          bool
+	CacheDir         string
 	// Receipt is where the pushed commit's runner writes its evidence.
 	Receipt  string
 	Deadline time.Duration
@@ -123,6 +126,9 @@ func RunPush(ctx context.Context, options PushOptions) (int, error) {
 	}
 	if options.Offline {
 		args = append(args, "--offline")
+	}
+	if options.Base != "" {
+		args = append(args, "--base="+options.Base, "--base-source="+options.BaseSource)
 	}
 	if options.Receipt != "" {
 		args = append(args, "--receipt="+options.Receipt)

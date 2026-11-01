@@ -52,5 +52,8 @@ arguments=("--stage=$stage" "--isolation=$isolation" "--receipt=$state/receipts/
 if [[ "$stage" == pre-push ]]; then
   [[ -n "${PRE_COMMIT_TO_REF:-}" ]] || { echo "stage: pre-push needs PRE_COMMIT_TO_REF, which prek sets" >&2; exit 2; }
   arguments+=("--to=$PRE_COMMIT_TO_REF" "--from=${PRE_COMMIT_FROM_REF:-}")
+  # The declared policy base, for a push that escalates. --from selects inputs and is never a base.
+  policy_base="$(git config --get bff-template.policy-base || true)"
+  if [[ -n "$policy_base" ]]; then arguments+=("--base=$policy_base" "--base-source=hook-config"); fi
 fi
 env -i "${keep[@]}" "$work/runner" "${arguments[@]}" </dev/null

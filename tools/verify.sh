@@ -8,6 +8,8 @@
 #                                     Spec Kit provenance check (CI never passes this)
 #   tools/verify.sh --bootstrap-only  fetch and verify the pinned toolchain, then stop
 #   tools/verify.sh --shard=<leg>     one leg of the policy, as one CI job runs it
+#   tools/verify.sh --base=<rev>      the policy base to compare with, resolved once. It says nothing
+#                                     about whether anyone reviewed that commit
 #
 # The whole run has one overall deadline, inside CI's job timeout. Each phase also has its own.
 #

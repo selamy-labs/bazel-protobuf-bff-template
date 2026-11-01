@@ -134,8 +134,13 @@ type Receipt struct {
 	TestedTree    string `json:"tested_tree"`
 	WorktreeDirty bool   `json:"worktree_dirty"`
 	PolicyDigest  string `json:"policy_digest"`
-	RegistryVer   string `json:"registry_version"`
-	Producer      string `json:"producer"`
+	// The policy base, how it was chosen, and why it could not be used. None of these claims review.
+	BaseRevision     string `json:"base_revision,omitempty"`
+	BaseSource       string `json:"base_source,omitempty"`
+	BaseRefusal      string `json:"base_refusal,omitempty"`
+	BasePolicyDigest string `json:"base_policy_digest,omitempty"`
+	RegistryVer      string `json:"registry_version"`
+	Producer         string `json:"producer"`
 	// Attempt is the hosted run attempt, and ClaimLayer says which kind of evidence this is.
 	Attempt        string            `json:"attempt,omitempty"`
 	ClaimLayer     string            `json:"claim_layer"`

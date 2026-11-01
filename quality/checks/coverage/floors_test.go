@@ -85,6 +85,23 @@ func TestCheckFindings(t *testing.T) {
 	}
 }
 
+// A report can name a file and still count nothing. That is no measurement, so a floor cannot pass on it.
+func TestAProfileWithNoCountableDataFails(t *testing.T) {
+	config := contract(t, nil)
+	files := []string{"src/a.go", "client/a.ts"}
+	client := "SF:client/a.js\nDA:1,1\nend_of_record\n"
+	if got := problems(t, config, files, client+ProfilePrefix+"example.com/m/src/a.go:1.1,2.2 1 1\n"); got != "" {
+		t.Fatalf("the control failed: %s", got)
+	}
+	got := problems(t, config, files, client+ProfilePrefix+"example.com/m/src/a.go:1.1,2.2 0 0\n")
+	if !strings.Contains(got, "go: src/a.go is absent from the report") {
+		t.Fatalf("a file with zero statements passed: %q", got)
+	}
+	if !strings.Contains(got, "go: no countable data") {
+		t.Fatalf("a profile with no data skipped its floor: %q", got)
+	}
+}
+
 func TestAbsentDataIsNeverCovered(t *testing.T) {
 	results, _ := contract(t, nil).Check([]string{"src/a.go", "src/b.go"}, measured(t, ProfilePrefix+"example.com/m/src/a.go:1.1,2.2 1 1\n"))
 	if results[0].Total != 1 {
@@ -94,17 +111,36 @@ func TestAbsentDataIsNeverCovered(t *testing.T) {
 
 func TestTruncatedReportsDoNotParse(t *testing.T) {
 	for name, text := range map[string]string{
-		"open record": "SF:a.js\nDA:1,1\n",
-		"two opens":   "SF:a.js\nSF:b.js\nend_of_record\n",
-		"bad line":    "SF:a.js\nDA:x,1\nend_of_record\n",
-		"orphan line": "DA:1,1\n",
-		"cut profile": ProfilePrefix + "example.com/m/a.go:1.1,2\n",
-		"orphan end":  "end_of_record\n",
-		"bad branch":  "SF:a.js\nBRDA:1,0\nend_of_record\n",
+		"open record":    "SF:a.js\nDA:1,1\n",
+		"two opens":      "SF:a.js\nSF:b.js\nend_of_record\n",
+		"bad line":       "SF:a.js\nDA:x,1\nend_of_record\n",
+		"orphan line":    "DA:1,1\n",
+		"cut profile":    ProfilePrefix + "example.com/m/a.go:1.1,2\n",
+		"orphan end":     "end_of_record\n",
+		"bad branch":     "SF:a.js\nBRDA:1,0\nend_of_record\n",
+		"branch count":   "SF:a.js\nBRDA:1,0,0,garbage\nend_of_record\n",
+		"negative count": "SF:a.js\nBRDA:1,0,0,-1\nend_of_record\n",
 	} {
 		if err := NewReport().Add("t", text); err == nil {
 			t.Errorf("%s was accepted", name)
 		}
+	}
+}
+
+func TestValidRecordsStayValid(t *testing.T) {
+	text := "TN:\nSF:a.js\nFN:1,f\nFNDA:1,f\nFNF:1\nFNH:1\nBRDA:1,0,0,-\nBRDA:1,0,1,0\nBRDA:2,0,0,3\nBRF:3\nBRH:1\nDA:1,1\nLF:1\nLH:1\nend_of_record\n"
+	report := NewReport()
+	if err := report.Add("t", text); err != nil {
+		t.Fatal(err)
+	}
+	hits := 0
+	for _, hit := range report.Branches["a.js"] {
+		if hit {
+			hits++
+		}
+	}
+	if hits != 1 || len(report.Branches["a.js"]) != 3 {
+		t.Fatalf("branches: %v", report.Branches["a.js"])
 	}
 }
 

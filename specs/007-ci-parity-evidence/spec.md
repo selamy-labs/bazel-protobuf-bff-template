@@ -110,9 +110,9 @@ Base and bootstrap
 - **FR-015**: A receipt MUST record the resolved base SHA and how it was chosen: `argument`, `hook-config` or
   `ci-event`. It MUST NOT claim the base was reviewed. Review and readiness are separate records.
 - **FR-015a**: A hook MUST read its policy base from the declared local setting, set by
-  `//tools/hooks:install -- --policy-base=<rev>` and by nothing implicit. A zero `--from` still escalates to
-  `full`. With the setting, that push is judged against it. Without it, `floors-from-base` refuses. A repository's
-  first CI push is a separate case, which M8 handles explicitly.
+  `//tools/hooks:install -- --policy-base=<rev>` and by nothing implicit. A zero `--from` or a policy change still
+  escalates to `full`. With the setting, that push is judged against it. Without it, `floors-from-base` refuses. An
+  ordinary push reads no base. A repository's first CI push is a separate case, which M8 handles explicitly.
 
 Floors and coverage
 
@@ -123,13 +123,14 @@ Floors and coverage
   `unenrolled source`. No move detection exists: a delete and add is judged as a deleted path and a new path, and the new
   path must be enrolled like any other.
 - **FR-017**: Each file in the measured source set MUST appear in the language's report. An absent file MUST
-  fail, and it MUST NOT count as covered or as not applicable. An `excludes` entry MUST carry a reason from the
+  fail, and it MUST NOT count as covered or as not applicable. A file whose data counts nothing is absent, and a
+  profile with no countable data fails rather than skipping its floor. An `excludes` entry MUST carry a reason from the
   allowed list. The evaluator enforces that a listed reason is present. Whether the reason is true of the file is a
   human review, and no tool here proves it. Executable code without data needs real data, or an explicit
   `unmeasured` boundary declared for review. Lacking a test is not a reason.
 - **FR-018**: Suppression additions MUST be judged by the base's pattern set.
-- **FR-019**: Coverage MUST be judged only after the Bazel invocation exits 0. Exit 3 with reports present is
-  `FAILED`. An empty, truncated or unparsable report is `FAILED`.
+- **FR-019**: Coverage MUST be judged only after the Bazel invocation exits 0, and the check MUST receive that
+  outcome from the runner, not infer it from summary lines. Any other exit with reports present is `FAILED`. An empty, truncated or unparsable report is `FAILED`.
 - **FR-020**: Go floors MUST use **statement coverage** from the raw Go profile, labeled `statements`.
   rules_go's LCOV `DA`, `LF` and `LH` values MUST NOT be reported as Go's percentage. Go code reachable only as a
   subprocess has no statement data, so it has a separate profile, labeled `block-span-lines`. Go branch coverage
