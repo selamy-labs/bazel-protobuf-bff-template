@@ -21,7 +21,7 @@ Prerequisites: the supported profile, and the wrapper `tools/bootstrap/bazel.sh`
 3. On a host with a container runtime, load the tarball and start it:
 
    ```bash
-   tools/bootstrap/bazel.sh build //bff/cmd/bff:image_tarball
+   tools/bootstrap/bazel.sh build --output_groups=+tarball //bff/cmd/bff:image_tarball
    docker load --input bazel-bin/bff/cmd/bff/image_tarball/tarball.tar
    docker run --rm --network none <the loaded image ID>
    ```
