@@ -13,7 +13,7 @@ One writer.
 | [x] T007 | T006 | `quality/RELEASING.md`; notes from the single rule catalog's diff; recorded tag mapping check | T071, FR-006, FR-008 | Fixtures: added, changed, removed, weakened; a changed mapping refused |
 | [x] T008 | T007 | Tag N, after the interface works, in a local bare remote | T071, FR-010 | Commit recorded |
 | [x] T009 | T008 | Smallest consumer: one Go package, its own policy; one canonical pin, and the deterministic step that syncs both adapters | T072, FR-002 | Separate clone; both adapters resolve one SHA |
-| [ ] T017 | T009 | Two repairs from independent review at `a988f2a`: the pin check fails closed; the notes read only inside the selected tree | FR-002, FR-006 | `pin_test`, `release_test`; each refused prek form valid under pinned prek; red before the code |
+| [x] T017 | T009 | Two repairs from independent review at `a988f2a`: the pin check fails closed; the notes read only inside the selected tree | FR-002, FR-006 | `pin_test`, `release_test`; each refused prek form valid under pinned prek; red before the code |
 | [ ] T018 | T017, root's wiring review | A new N, never a moved tag, and a new consumer anchor on it, proven on the real consumer | T071, FR-010 | Commit recorded; anchor controls |
 | [ ] T010 | T018 | Consumer anchor C0: exit 11 control, then hold for independent targeted review. No descendant uses C0 as a base before it clears | FR-004 | Review |
 | [ ] T011 | T010 | Consumer verifier at N, on a descendant of the reviewed C0 still pinned to N, with `--base=C0`. C0 itself refuses, as its own base | SC-001 | Receipt |
@@ -32,3 +32,4 @@ One writer.
 - T009: the consumer, in its own repository. Its first commit is C0.
 - T010: was to hold at C0 for independent targeted review. T011 needs a descendant of the reviewed C0.
 - Review of `a988f2a` found two defects that `quality-v0.2.0` carries, so that tag and its C0 are withdrawn as a baseline. The tag and its record stay as they are. T017 repairs both, and T018 replaces T008 and T009's result.
+- T017: `8b57e2c`, `b71f78f`. T018 waits for the remaining wiring review, so that a further finding does not cost another release.
