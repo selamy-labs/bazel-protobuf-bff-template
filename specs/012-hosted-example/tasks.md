@@ -7,7 +7,7 @@
 ## Phase 1: Setup
 
 - [x] T001 Land spec, plan, research, matrix and the Well-Architected rows in `specs/012-hosted-example/`
-- [ ] T002 The versioned output contract with the infrastructure owner: `deploy/gcp/inputs/contract.schema.json` (project id, region, runtime identity, build identity, state bucket, artifact registry) and the agreed task ids on their side, recorded in research R1
+- [ ] T002 (the schema half landed: `contract.schema.json` published, referenced by the inputs schema and checked against the struct; the owner's task ids stay open until the infrastructure owner settles them) The versioned output contract with the infrastructure owner: `deploy/gcp/inputs/contract.schema.json` (project id, region, runtime identity, build identity, state bucket, artifact registry) and the agreed task ids on their side, recorded in research R1
 
 ## Phase 2: Probes (research)
 

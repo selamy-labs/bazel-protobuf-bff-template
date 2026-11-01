@@ -22,12 +22,14 @@ go_test(
     size = "small",
     srcs = ["inputs_test.go"],
     data = [
+        "contract.schema.json",
         "example.inputs.json",
         "inputs.schema.json",
         "//deploy/gcp:service/main.tf",
     ],
     embed = [":inputs"],
     env = {
+        "CONTRACT_SCHEMA": "$(rlocationpath contract.schema.json)",
         "EXAMPLE": "$(rlocationpath example.inputs.json)",
         "MAIN_TF": "$(rlocationpath //deploy/gcp:service/main.tf)",
         "SCHEMA": "$(rlocationpath inputs.schema.json)",

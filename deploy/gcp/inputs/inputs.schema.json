@@ -5,43 +5,68 @@
   "description": "The one typed funnel of the hosted example (spec 012 FR-003). Every value is declared here once; inner modules take required parameters and carry no defaults. Public copies of this file hold synthetic values only; the operator's real inputs, state, plans and evidence stay outside the repository.",
   "type": "object",
   "additionalProperties": false,
-  "required": ["version", "contract", "project", "region", "image", "runtime", "frontend", "bounds", "release"],
+  "required": [
+    "version",
+    "contract",
+    "project",
+    "region",
+    "image",
+    "runtime",
+    "frontend",
+    "bounds",
+    "release"
+  ],
   "properties": {
-    "version": { "const": 1, "description": "The schema version this file is written against." },
+    "version": {
+      "const": 1,
+      "description": "The schema version this file is written against."
+    },
     "contract": {
-      "type": "object",
-      "description": "The infrastructure owner's versioned output contract, consumed as inputs; no state is read across the boundary.",
-      "additionalProperties": false,
-      "required": ["version", "project_id", "region", "runtime_identity", "build_identity", "artifact_registry", "state_bucket"],
-      "properties": {
-        "version": { "const": 1 },
-        "project_id": { "type": "string", "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$", "description": "The dedicated project's id, created from the infrastructure owner's reviewed plan; never an existing workload project." },
-        "region": { "type": "string", "pattern": "^[a-z]+-[a-z]+[0-9]$" },
-        "runtime_identity": { "type": "string", "format": "email", "description": "The service identity the backend runs as; it holds no deploy or build permission." },
-        "build_identity": { "type": "string", "format": "email", "description": "The identity Cloud Build runs as; it holds no runtime permission." },
-        "artifact_registry": { "type": "string", "description": "The repository the image is promoted into, by digest." },
-        "state_bucket": { "type": "string", "description": "Named for the record only; this repository never reads it." }
-      }
+      "$ref": "contract.schema.json",
+      "description": "The infrastructure owner's versioned output contract, consumed as inputs; no state is read across the boundary."
     },
     "project": {
       "type": "object",
       "additionalProperties": false,
       "required": ["display_name", "parent", "owner_group", "billing_account_reference"],
       "properties": {
-        "display_name": { "type": "string", "minLength": 4, "maxLength": 30 },
-        "parent": { "type": "string", "pattern": "^(organizations|folders)/[0-9]+$" },
-        "owner_group": { "type": "string", "format": "email" },
-        "billing_account_reference": { "type": "string", "description": "An opaque reference the infrastructure owner resolves; the public example holds a synthetic value." }
+        "display_name": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 30
+        },
+        "parent": {
+          "type": "string",
+          "pattern": "^(organizations|folders)/[0-9]+$"
+        },
+        "owner_group": {
+          "type": "string",
+          "format": "email"
+        },
+        "billing_account_reference": {
+          "type": "string",
+          "description": "An opaque reference the infrastructure owner resolves; the public example holds a synthetic value."
+        }
       }
     },
-    "region": { "type": "string", "pattern": "^[a-z]+-[a-z]+[0-9]$" },
+    "region": {
+      "type": "string",
+      "pattern": "^[a-z]+-[a-z]+[0-9]$"
+    },
     "image": {
       "type": "object",
       "additionalProperties": false,
       "required": ["digest", "source_revision"],
       "properties": {
-        "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "The content digest spec 009's verifier recorded; the deployment refuses any other and never rebuilds." },
-        "source_revision": { "type": "string", "pattern": "^[0-9a-f]{40}$" }
+        "digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "The content digest spec 009's verifier recorded; the deployment refuses any other and never rebuilds."
+        },
+        "source_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        }
       }
     },
     "runtime": {
@@ -49,16 +74,34 @@
       "additionalProperties": false,
       "required": ["port", "allowed_origin", "verifier", "persistence"],
       "properties": {
-        "port": { "type": "integer", "minimum": 1, "maximum": 65535, "description": "The container port; the server reads PORT and binds 0.0.0.0 in production." },
-        "allowed_origin": { "type": "string", "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?$", "description": "One exact origin, no path, no wildcard." },
+        "port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "The container port; the server reads PORT and binds 0.0.0.0 in production."
+        },
+        "allowed_origin": {
+          "type": "string",
+          "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?$",
+          "description": "One exact origin, no path, no wildcard."
+        },
         "verifier": {
           "type": "object",
           "additionalProperties": false,
           "required": ["issuer", "audience", "jwks_url"],
           "properties": {
-            "issuer": { "type": "string", "format": "uri" },
-            "audience": { "type": "string", "minLength": 1 },
-            "jwks_url": { "type": "string", "format": "uri" }
+            "issuer": {
+              "type": "string",
+              "format": "uri"
+            },
+            "audience": {
+              "type": "string",
+              "minLength": 1
+            },
+            "jwks_url": {
+              "type": "string",
+              "format": "uri"
+            }
           }
         },
         "persistence": {
@@ -66,8 +109,14 @@
           "additionalProperties": false,
           "required": ["kind", "statement"],
           "properties": {
-            "kind": { "enum": ["managed-store", "memory"] },
-            "statement": { "type": "string", "minLength": 20, "description": "What survives a revision change, in words the evidence repeats; a one-instance limit is never a durability claim." }
+            "kind": {
+              "enum": ["managed-store", "memory"]
+            },
+            "statement": {
+              "type": "string",
+              "minLength": 20,
+              "description": "What survives a revision change, in words the evidence repeats; a one-instance limit is never a durability claim."
+            }
           }
         }
       }
@@ -77,21 +126,56 @@
       "additionalProperties": false,
       "required": ["host", "base_path", "rpc_base_url"],
       "properties": {
-        "host": { "enum": ["github-pages"] },
-        "base_path": { "type": "string", "pattern": "^/([a-z0-9-]+/)*$", "description": "The path the static site is served under; a project site has one." },
-        "rpc_base_url": { "type": "string", "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?$", "description": "The backend's origin, independent of the base path." }
+        "host": {
+          "enum": ["github-pages"]
+        },
+        "base_path": {
+          "type": "string",
+          "pattern": "^/([a-z0-9-]+/)*$",
+          "description": "The path the static site is served under; a project site has one."
+        },
+        "rpc_base_url": {
+          "type": "string",
+          "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?$",
+          "description": "The backend's origin, independent of the base path."
+        }
       }
     },
     "bounds": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["max_instances", "concurrency", "request_timeout_seconds", "budget_alert_amount", "budget_alert_currency"],
+      "required": [
+        "max_instances",
+        "concurrency",
+        "request_timeout_seconds",
+        "budget_alert_amount",
+        "budget_alert_currency"
+      ],
       "properties": {
-        "max_instances": { "type": "integer", "minimum": 1, "maximum": 10 },
-        "concurrency": { "type": "integer", "minimum": 1, "maximum": 80 },
-        "request_timeout_seconds": { "type": "integer", "minimum": 1, "maximum": 300 },
-        "budget_alert_amount": { "type": "number", "exclusiveMinimum": 0, "description": "An alert threshold, never a cap: the evidence says so." },
-        "budget_alert_currency": { "type": "string", "pattern": "^[A-Z]{3}$" }
+        "max_instances": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10
+        },
+        "concurrency": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 80
+        },
+        "request_timeout_seconds": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 300
+        },
+        "budget_alert_amount": {
+          "type": "number",
+          "exclusiveMinimum": 0,
+          "description": "An alert threshold, never a cap: the evidence says so."
+        },
+        "budget_alert_currency": {
+          "type": "string",
+          "pattern": "^[A-Z]{3}$"
+        }
       }
     },
     "release": {
@@ -99,9 +183,19 @@
       "additionalProperties": false,
       "required": ["serving_digest", "previous_digest", "cancel_in_flight"],
       "properties": {
-        "serving_digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$", "description": "The digest to serve; a rollback sets it to previous_digest and changes nothing else." },
-        "previous_digest": { "type": ["string", "null"], "pattern": "^sha256:[0-9a-f]{64}$" },
-        "cancel_in_flight": { "type": "boolean", "description": "When true, an in-flight deployment is cancelled and the previous revision keeps serving." }
+        "serving_digest": {
+          "type": "string",
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "description": "The digest to serve; a rollback sets it to previous_digest and changes nothing else."
+        },
+        "previous_digest": {
+          "type": ["string", "null"],
+          "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "cancel_in_flight": {
+          "type": "boolean",
+          "description": "When true, an in-flight deployment is cancelled and the previous revision keeps serving."
+        }
       }
     }
   }

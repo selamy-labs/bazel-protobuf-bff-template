@@ -332,3 +332,53 @@ func TestTheIdentitiesAndBindingsAreEnumerated(t *testing.T) {
 		}
 	}
 }
+
+// The contract the infrastructure owner publishes is the one the funnel consumes (spec 012 T002, R1): the
+// published schema's fields are the struct's, the inputs schema references it rather than restating it, and
+// the version is the one supported.
+func TestTheContractSchemaIsTheOneTheFunnelConsumes(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("CONTRACT_SCHEMA")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var published struct {
+		Required   []string                   `json:"required"`
+		Properties map[string]json.RawMessage `json:"properties"`
+	}
+	if err := json.Unmarshal(raw, &published); err != nil {
+		t.Fatal(err)
+	}
+	var fields []string
+	typ := reflect.TypeOf(Contract{})
+	for i := 0; i < typ.NumField(); i++ {
+		fields = append(fields, typ.Field(i).Tag.Get("json"))
+	}
+	if !reflect.DeepEqual(fields, published.Required) {
+		t.Errorf("struct fields %v, the published contract requires %v", fields, published.Required)
+	}
+	for _, field := range fields {
+		if _, ok := published.Properties[field]; !ok {
+			t.Errorf("the published contract lacks %s", field)
+		}
+	}
+	if !strings.Contains(string(published.Properties["version"]), `"const": 1`) {
+		t.Error("the published contract's version is not the one supported")
+	}
+	inputs, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("SCHEMA")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var funnel struct {
+		Properties struct {
+			Contract struct {
+				Ref string `json:"$ref"`
+			} `json:"contract"`
+		} `json:"properties"`
+	}
+	if err := json.Unmarshal(inputs, &funnel); err != nil {
+		t.Fatal(err)
+	}
+	if funnel.Properties.Contract.Ref != "contract.schema.json" {
+		t.Errorf("the inputs schema restates the contract instead of referencing it: %q", funnel.Properties.Contract.Ref)
+	}
+}

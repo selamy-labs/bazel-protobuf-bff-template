@@ -1,0 +1,51 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "bff-template/deploy/gcp/inputs/contract",
+  "title": "Infrastructure owner's output contract",
+  "description": "The versioned output contract the infrastructure owner publishes and this repository consumes as inputs (spec 012 FR-002, FR-004, research R1). The owner composes the project, bootstrap, billing, APIs, IAM and state in its own repository; no state is read across this boundary. A contract version this repository does not support is refused by validation. Public copies hold synthetic values only.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "project_id",
+    "region",
+    "runtime_identity",
+    "build_identity",
+    "artifact_registry",
+    "state_bucket"
+  ],
+  "properties": {
+    "version": {
+      "const": 1,
+      "description": "The contract version; the funnel supports exactly this one."
+    },
+    "project_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$",
+      "description": "The dedicated project's id, created from the infrastructure owner's reviewed plan; never an existing workload project."
+    },
+    "region": {
+      "type": "string",
+      "pattern": "^[a-z]+-[a-z]+[0-9]$",
+      "description": "The region every resource of the example lives in; the funnel refuses inputs that name another."
+    },
+    "runtime_identity": {
+      "type": "string",
+      "format": "email",
+      "description": "The service identity the backend runs as; it holds no deploy or build permission."
+    },
+    "build_identity": {
+      "type": "string",
+      "format": "email",
+      "description": "The identity Cloud Build runs as; it holds no runtime permission, and it is never the runtime identity."
+    },
+    "artifact_registry": {
+      "type": "string",
+      "description": "The repository the image is promoted into, by digest."
+    },
+    "state_bucket": {
+      "type": "string",
+      "description": "Named for the record only; this repository never reads it."
+    }
+  }
+}
