@@ -5,10 +5,14 @@ ARGS = [
     "$(rootpath //bff/cmd/bff-dev)",
     "$(rootpath //web/serve)",
     "$(rootpath //web/app:dist_dev)",
+    "$(rootpath //tools/dev/profile)",
+    "$(rootpath profile.json)",
 ]
 
 DATA = [
+    "profile.json",
     "//bff/cmd/bff-dev",
+    "//tools/dev/profile",
     "//web/app:dist_dev",
     "//web/serve",
 ]

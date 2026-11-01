@@ -4,6 +4,7 @@ GRAPHS = {
     "api": "//api:notes_connect_go",
     "app": "//bff/app",
     "identity": "//bff/identity",
+    "local": "//bff/adapters/store/local",
     "memory": "//bff/adapters/memory",
     "ports": "//bff/ports",
     "production": "//bff/cmd/bff",

@@ -1,29 +1,61 @@
 #!/usr/bin/env bash
-# Runs the app locally: the dev server and the page (specs/005-browser-client FR-009, spec 012 FR-020). The dev
-# server accepts any test identity, and listens only on loopback. The script needs only bash 3.2 and POSIX
-# tools, so a host without GNU coreutils can run the demo; the full verifier's host requirements stay its own.
+# Runs the whole stack locally: the dev server and the page (specs/005-browser-client FR-009, spec 012 FR-020 to
+# FR-022). The dev server accepts any test identity and listens only on loopback. The script needs only bash 3.2
+# and POSIX tools, so a host without GNU coreutils can run the demo; the full verifier's host requirements stay
+# its own.
 #
-#   bazel run //tools/dev
+#   tools/bootstrap/bazel.sh run //tools/dev            # start; Ctrl-C stops everything it started
+#   tools/bootstrap/bazel.sh run //tools/dev -- --reset  # clear the local notes, then start
 #
-# BFF_PORT and WEB_PORT choose the loopback ports (8080 and 5173). A port that is already in use is refused
-# before anything starts, by name. The first child to exit ends the demo, and both children are stopped.
+# The typed profile tools/dev/profile.json is the one place the demo's values are declared (ports, store, data
+# directory, identity, seed subject); BFF_PORT, WEB_PORT, BFF_STORE and BFF_DATA_DIR override one value each, and
+# the effective values are printed with their source. A missing, unknown or invalid value, or a port already in
+# use, is refused by name before anything starts. The first child to exit ends the demo, and both are stopped.
 set -euo pipefail
 bff="$1"
 web="$2"
 dist="$3"
-bff_port="${BFF_PORT:-8080}"
-web_port="${WEB_PORT:-5173}"
-for port in "$bff_port" "$web_port"; do
-  case "$port" in
-    ''|*[!0-9]*) echo "dev: a port must be a number, not '$port'; set BFF_PORT and WEB_PORT" >&2; exit 2 ;;
+profile_bin="$4"
+profile_file="$5"
+shift 5
+reset=false
+for argument in "$@"; do
+  case "$argument" in
+    --reset) reset=true ;;
+    *) echo "dev: unknown argument '$argument'; only --reset is accepted" >&2; exit 2 ;;
   esac
-  if [ "$port" -lt 1 ] || [ "$port" -gt 65535 ]; then echo "dev: port $port is out of range; set BFF_PORT and WEB_PORT" >&2; exit 2; fi
+done
+# The profile is validated once; its lines are `name="value" # from <source>`, safe to eval into these.
+bff_port=""; web_port=""; store=""; data_dir=""; identity=""; seed_subject=""
+effective="$("$profile_bin" --file "$profile_file" --env)" || exit 2
+eval "$effective"
+echo "dev: profile $profile_file ($identity)"
+printf '%s\n' "$effective" | sed 's/^/dev:   /'
+for port in "$bff_port" "$web_port"; do
   # A connect that succeeds means something already listens there; bash opens the socket itself, no tool needed.
   if (exec 3<>"/dev/tcp/127.0.0.1/$port") 2>/dev/null; then
     echo "dev: port $port on 127.0.0.1 is already in use; stop that process or set BFF_PORT and WEB_PORT" >&2
     exit 2
   fi
 done
+store_args=("--store=$store")
+if [ "$store" = local ]; then
+  case "$data_dir" in
+    /*) dir="$data_dir" ;;
+    *) dir="${BUILD_WORKSPACE_DIRECTORY:-$PWD}/$data_dir" ;;
+  esac
+  if $reset; then
+    if [ -e "$dir" ] && [ ! -d "$dir" ]; then echo "dev: $dir is not a directory; refusing to reset it" >&2; exit 2; fi
+    rm -rf "$dir"
+    echo "dev: reset: removed $dir"
+  fi
+  mkdir -p "$dir"
+  store_args+=("--data-dir=$dir")
+  echo "dev: notes persist in $dir until --reset"
+else
+  if $reset; then echo "dev: reset: the memory store holds nothing between runs"; fi
+  echo "dev: notes live in memory until the demo stops"
+fi
 origin="http://127.0.0.1:$web_port"
 children=()
 stop() {
@@ -32,11 +64,11 @@ stop() {
 trap stop EXIT
 trap 'exit 0' INT TERM
 
-"$bff" --addr="127.0.0.1:$bff_port" --allowed-origin="$origin" </dev/null &
+"$bff" --addr="127.0.0.1:$bff_port" --allowed-origin="$origin" "${store_args[@]}" </dev/null &
 children+=("$!")
 "$web" --root "$PWD/$dist" --port "$web_port" --bff-url "http://127.0.0.1:$bff_port" </dev/null &
 children+=("$!")
-echo "dev: open $origin (test identity; stop with Ctrl-C)"
+echo "dev: open $origin (test identity: sign in as any subject, for example '$seed_subject'; the server is http://127.0.0.1:$bff_port; stop with Ctrl-C)"
 # Wait for the first child to exit. `wait -n` would do it in one call, but it is bash 4.3; a poll keeps the same
 # semantics on bash 3.2, and the trap above stops the other child.
 while :; do

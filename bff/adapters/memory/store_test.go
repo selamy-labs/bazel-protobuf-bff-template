@@ -6,7 +6,12 @@ import (
 	"testing"
 
 	"example.com/bfftemplate/bff/ports"
+	"example.com/bfftemplate/bff/ports/porttest"
 )
+
+func TestContract(t *testing.T) {
+	porttest.Run(t, func(t *testing.T) ports.Store { return New() })
+}
 
 func TestOwnerScope(t *testing.T) {
 	store := New()

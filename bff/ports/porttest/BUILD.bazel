@@ -1,0 +1,12 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+# The contract every ports.Store keeps (spec 011 FR-011). Test code by use, so testonly: a production target
+# cannot depend on it.
+go_library(
+    name = "porttest",
+    testonly = True,
+    srcs = ["porttest.go"],
+    importpath = "example.com/bfftemplate/bff/ports/porttest",
+    visibility = ["//bff:__subpackages__"],
+    deps = ["//bff/ports"],
+)

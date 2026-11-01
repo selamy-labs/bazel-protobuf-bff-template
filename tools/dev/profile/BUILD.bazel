@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "profile_lib",
+    srcs = ["main.go"],
+    importpath = "example.com/bfftemplate/tools/dev/profile",
+)
+
+go_binary(
+    name = "profile",
+    embed = [":profile_lib"],
+    visibility = ["//tools/dev:__pkg__"],
+)
+
+go_test(
+    name = "profile_test",
+    size = "small",
+    srcs = ["main_test.go"],
+    embed = [":profile_lib"],
+)

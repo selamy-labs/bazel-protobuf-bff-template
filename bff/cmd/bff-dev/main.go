@@ -12,6 +12,8 @@ import (
 	"syscall"
 
 	"example.com/bfftemplate/bff/adapters/memory"
+	"example.com/bfftemplate/bff/adapters/store/local"
+	"example.com/bfftemplate/bff/ports"
 	"example.com/bfftemplate/bff/server"
 	"example.com/bfftemplate/bff/testing/faults"
 	testidentity "example.com/bfftemplate/bff/testing/identity"
@@ -20,17 +22,24 @@ import (
 func main() {
 	addr := flag.String("addr", "127.0.0.1:8080", "loopback listen address")
 	origin := flag.String("allowed-origin", "http://127.0.0.1:5173", "exact web origin")
+	storeKind := flag.String("store", "memory", "memory, or local with --data-dir")
+	dataDir := flag.String("data-dir", "", "the local store's directory")
 	flag.Parse()
+	store, err := openStore(*storeKind, *dataDir)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "bff-dev: %v\n", err)
+		os.Exit(2)
+	}
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	fmt.Fprintln(os.Stderr, "bff-dev: TEST IDENTITY: any caller can claim any subject; never deploy this binary")
-	err := server.Run(ctx, server.Config{
+	err = server.Run(ctx, server.Config{
 		Mode:          server.ModeDev,
 		Addr:          *addr,
 		AllowedOrigin: *origin,
 		Authenticator: testidentity.Authenticator{},
-		Store:         faults.Store{Next: memory.New()},
+		Store:         faults.Store{Next: store},
 		Logger:        slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 		Stdout:        os.Stdout,
 	})
@@ -38,5 +47,20 @@ func main() {
 		fmt.Fprintf(os.Stderr, "bff-dev: %v\n", err)
 		stop()
 		os.Exit(1)
+	}
+}
+
+// openStore is the one place the local demo's persistence is chosen (spec 012 FR-022).
+func openStore(kind, dir string) (ports.Store, error) {
+	switch kind {
+	case "memory":
+		return memory.New(), nil
+	case "local":
+		if dir == "" {
+			return nil, fmt.Errorf("--store=local needs --data-dir")
+		}
+		return local.Open(dir)
+	default:
+		return nil, fmt.Errorf("--store=%q is neither memory nor local", kind)
 	}
 }

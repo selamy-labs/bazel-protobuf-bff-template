@@ -1,0 +1,20 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+go_library(
+    name = "local",
+    srcs = ["store.go"],
+    importpath = "example.com/bfftemplate/bff/adapters/store/local",
+    visibility = ["//bff:__subpackages__"],
+    deps = ["//bff/ports"],
+)
+
+go_test(
+    name = "local_test",
+    size = "small",
+    srcs = ["store_test.go"],
+    embed = [":local"],
+    deps = [
+        "//bff/ports",
+        "//bff/ports/porttest",
+    ],
+)

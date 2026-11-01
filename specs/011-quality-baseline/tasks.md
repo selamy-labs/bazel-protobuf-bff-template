@@ -18,7 +18,7 @@
 - [ ] T007 [P] [US1] Q5 probe: `gobco` under Bazel with the adversarial fixtures (early return, implicit else, switch default, loop exit, short circuit, `select`), its reported constructs and gaps recorded; Playwright V8 coverage into the merger probed
 - [ ] T008 [P] [US1] Q7 probe: a Go mutation tool and Stryker under rules_js, runtime on `quality/runner` and `web/client` recorded with the pristine pass before any kill
 - [ ] T009 [P] [US1] Q6: `fast-check` under rules_js; property tests for the client's error mapping and transport, and for the runner's selectors in Go; Hypothesis through the pinned uv Python for the generators' invariants
-- [ ] T010 [P] [US1] Q8: a contract suite for `ports.Store` run against the memory fake, in `bff/ports/contract_test.go`
+- [x] T010 [P] [US1] Q8: a contract suite for `ports.Store` run against the memory fake and the local store, in `bff/ports/porttest/` (landed with spec 012 T019)
 - [ ] T011 [US1] Integrator: pin each tool the probes accepted, by checksum, with its provenance row and license read from the artifact
 
 ## Phase 3: User Story 2 - Budgets that cannot be met by weakening (Priority: P1)

@@ -19,5 +19,8 @@ go_test(
     size = "small",
     srcs = ["store_test.go"],
     embed = [":memory"],
-    deps = ["//bff/ports"],
+    deps = [
+        "//bff/ports",
+        "//bff/ports/porttest",
+    ],
 )

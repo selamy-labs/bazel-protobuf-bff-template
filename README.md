@@ -49,14 +49,18 @@ them, opt in to reduced isolation explicitly; the result is labeled `isolation: 
 tools/verify.sh --weak-isolation --base=e3b3b348587483ed1da10957766e32615aaabb01
 ```
 
-To run the app, then open <http://127.0.0.1:5173>:
+To bring the whole stack up locally and demo it (the real page, the real server, the generated client), then
+open the URL it prints:
 
 ```sh
 tools/bootstrap/bazel.sh run //tools/dev
 ```
 
-On a host that needs reduced isolation, add `--config=weak-isolation` after `run`. This command uses
-the development server, which accepts any test identity and listens only on loopback.
+On a host that needs reduced isolation, add `--config=weak-isolation` after `run`. The command uses the
+development server, which accepts any test identity and listens only on loopback; `tools/dev/profile.json` is
+the one place its ports, store and seed are declared, notes persist in a local directory until
+`-- --reset`, and a busy port or an invalid value is refused by name before anything starts. See
+[docs/local-demo.md](docs/local-demo.md) for the profile, persistence, restart, reset and the limitations.
 
 Other entry points:
 

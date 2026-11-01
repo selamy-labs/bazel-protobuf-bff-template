@@ -31,7 +31,7 @@
       "name": "go-entrypoints",
       "language": "go",
       "metric": "block-span-lines",
-      "include": "^(bff/cmd/bff-dev/main\\.go|quality/checks/ciparity/cmd/main\\.go|quality/checks/complexity/cmd/complexity/main\\.go|quality/checks/coverage/cmd/(floors|merger)/main\\.go|quality/checks/suppression/main\\.go|quality/proto/cmd/main\\.go|quality/release/cmd/main\\.go|quality/runner/cmd/main\\.go)$",
+      "include": "^(bff/cmd/bff-dev/main\\.go|quality/checks/ciparity/cmd/main\\.go|quality/checks/complexity/cmd/complexity/main\\.go|quality/checks/coverage/cmd/(floors|merger)/main\\.go|quality/checks/suppression/main\\.go|quality/proto/cmd/main\\.go|quality/release/cmd/main\\.go|quality/runner/cmd/main\\.go|tools/dev/profile/main\\.go)$",
       "floor": 70
     },
     { "name": "go-root", "language": "go", "metric": "statements", "include": "^bff/", "floor": 87 },
