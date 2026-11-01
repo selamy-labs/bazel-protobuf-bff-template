@@ -13,6 +13,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -270,33 +271,138 @@ func TestThePackagedBinaryRefusesToStart(t *testing.T) {
 	}
 }
 
+// ownedCopy writes a layout's bytes into new regular files under dir. Runfiles are links into Bazel's
+// inputs, read-only under the sandbox, so a copy that kept links would mutate those inputs or fail.
+func ownedCopy(t *testing.T, source, dir string) {
+	t.Helper()
+	err := filepath.WalkDir(source, func(name string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, err := filepath.Rel(source, name)
+		if err != nil {
+			return err
+		}
+		target := filepath.Join(dir, relative)
+		info, err := os.Stat(name) // follows a link to what it names
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		data, err := os.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		return os.WriteFile(target, data, 0o644)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+// corruptions are the ways a layer blob can stop matching its descriptor.
+var corruptions = map[string]func([]byte) []byte{
+	"a changed byte": func(data []byte) []byte { data[0] ^= 1; return data },
+	"added bytes":    func(data []byte) []byte { return append(data, 0) },
+}
+
+func corrupt(t *testing.T, source string, change func([]byte) []byte) {
+	t.Helper()
+	loaded, err := load(source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	root := t.TempDir()
+	ownedCopy(t, source, root)
+	path := filepath.Join(root, "blobs", "sha256", strings.TrimPrefix(loaded.layer.Digest, "sha256:"))
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, change(data), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := load(root); err == nil {
+		t.Fatal("a layer that does not match its digest was accepted")
+	}
+}
+
 // The witness must not pass on a layout that lies about its content.
 func TestALayoutThatDoesNotMatchItsDescriptorsIsRefused(t *testing.T) {
-	loaded := built(t)
-	hash := strings.TrimPrefix(loaded.layer.Digest, "sha256:")
-	for name, change := range map[string]func([]byte) []byte{
-		"a changed byte": func(data []byte) []byte { data[0] ^= 1; return data },
-		"added bytes":    func(data []byte) []byte { return append(data, 0) },
-	} {
-		t.Run(name, func(t *testing.T) {
-			root := t.TempDir()
-			if err := os.CopyFS(root, os.DirFS(layout(t))); err != nil {
-				t.Fatal(err)
-			}
-			path := filepath.Join(root, "blobs", "sha256", hash)
-			if err := os.Chmod(path, 0o644); err != nil {
-				t.Fatal(err)
-			}
-			data, err := os.ReadFile(path)
-			if err != nil {
-				t.Fatal(err)
-			}
-			if err := os.WriteFile(path, change(data), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			if _, err := load(root); err == nil {
-				t.Fatal("a layer that does not match its digest was accepted")
-			}
-		})
+	for name, change := range corruptions {
+		t.Run(name, func(t *testing.T) { corrupt(t, layout(t), change) })
 	}
+}
+
+// A layout reached through links into a read-only directory, as under the sandbox: the corruption lands on
+// the copy, the source stays as it was, and the refusal still holds.
+func TestCorruptionNeverReachesALinkedReadOnlySource(t *testing.T) {
+	source := filepath.Join(t.TempDir(), "source")
+	ownedCopy(t, layout(t), source)
+	before := sha256Dir(t, source)
+	linked := filepath.Join(t.TempDir(), "linked")
+	err := filepath.WalkDir(source, func(name string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		relative, _ := filepath.Rel(source, name)
+		target := filepath.Join(linked, relative)
+		if entry.IsDir() {
+			return os.MkdirAll(target, 0o755)
+		}
+		return os.Symlink(name, target)
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := filepath.WalkDir(source, func(name string, entry fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if entry.IsDir() {
+			return os.Chmod(name, 0o555)
+		}
+		return os.Chmod(name, 0o444)
+	}); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() {
+		_ = filepath.WalkDir(source, func(name string, entry fs.DirEntry, err error) error {
+			if err == nil && entry.IsDir() {
+				_ = os.Chmod(name, 0o755)
+			}
+			return nil
+		})
+	})
+	for name, change := range corruptions {
+		t.Run(name, func(t *testing.T) { corrupt(t, linked, change) })
+	}
+	if after := sha256Dir(t, source); after != before {
+		t.Fatal("the read-only source changed under the corruption test")
+	}
+}
+
+// sha256Dir hashes every regular file's bytes under dir, by relative path.
+func sha256Dir(t *testing.T, dir string) string {
+	t.Helper()
+	sum := sha256.New()
+	err := filepath.WalkDir(dir, func(name string, entry fs.DirEntry, err error) error {
+		if err != nil || entry.IsDir() {
+			return err
+		}
+		data, err := os.ReadFile(name)
+		if err != nil {
+			return err
+		}
+		relative, _ := filepath.Rel(dir, name)
+		sum.Write([]byte(relative))
+		sum.Write(data)
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	return hex.EncodeToString(sum.Sum(nil))
 }
