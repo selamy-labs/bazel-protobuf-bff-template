@@ -16,7 +16,7 @@ failures=0
 fail() { echo "FAIL $1" >&2; failures=$((failures + 1)); }
 
 tree="$work/tree"
-mkdir -p "$tree/tools/checks" "$tree/tools/bootstrap" "$tree/tools/policy" "$tree/tools/speckit" "$work/bin" \
+mkdir -p "$tree/tools/checks" "$tree/tools/bootstrap" "$tree/tools/policy" "$tree/tools/hooks" "$tree/tools/speckit" "$work/bin" \
   "$tree/api" "$tree/.github/workflows"
 cp tools/checks/verify_body.sh tools/checks/required_tests.txt tools/checks/test_evidence.sh "$tree/tools/checks/"
 sed 's/^deadline=[0-9]*$/deadline=20/' tools/verify.sh >"$tree/tools/verify.sh"
@@ -39,6 +39,7 @@ stub "$tree/tools/policy/workspace_policy.sh" workspace-policy
 stub "$tree/tools/policy/config_policy.sh" implicit-config
 stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
 stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
+stub "$tree/tools/hooks/e2e.sh" hook-e2e
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
 stub "$work/bin/SUPPRESSION" suppression-ban
 cat >"$work/bin/adapter" <<STUB

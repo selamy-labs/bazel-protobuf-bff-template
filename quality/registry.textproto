@@ -269,6 +269,17 @@ checks {
   witness: "toolchain-fixtures"
 }
 checks {
+  id: "hook-e2e"
+  selector { include_vendored: true include_fixtures: true }
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 1200
+  exclusive: true
+  command: ["tools/hooks/e2e.sh", "{list}", "{isolation}"]
+  witness: "hook-e2e"
+}
+checks {
   id: "speckit-provenance"
   tool: "UV"
   stages: [STAGE_FULL]
