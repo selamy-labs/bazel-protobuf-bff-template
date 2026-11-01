@@ -1,7 +1,8 @@
 # Contract: Canonical Check Registry and Runner
 
-The registry is the only place a quality rule is defined (constitution IV). Schema:
-`quality/proto/registry.proto`; instance: `quality/registry.textproto`. The instance is authoritative
+The catalog is the only place a reusable rule is defined (constitution IV), and a host's registry binds
+those rules and adds its own checks (spec 008 R8). Schema: `quality/proto/registry.proto`; catalog:
+`quality/rules.textproto`; this repository's registry: `quality/registry.textproto`. They are authoritative
 for ids, stages, class and witness. [Classification](../../../docs/quality/classification.md) explains
 the classes and lists the rules deliberately left out. M5's reasons are in
 [spec 006 research R11](../../006-quality-hooks/research.md).
@@ -12,7 +13,9 @@ the classes and lists the rules deliberately left out. M5's reasons are in
 | --- | --- | --- |
 | Content | `secrets`, `suppression-ban`, `typos`, `format-go`, `format-ts`, `format-proto`, `lint-proto`, `format-starlark`, `shellcheck`, `actionlint`, `zizmor` | pre-commit, full |
 | Pushed commit | `tests`, `dependency-rules`, `proto-breaking` | pre-push, full |
-| Full only | `e2e-browser`, `test-inventory`, `sandbox-evidence`, `workspace-policy`, `implicit-config`, `bazelrc-policy`, `toolchain-fixtures`, `hook-e2e`, `speckit-provenance`, `coverage-floor`, `floors-from-base` | full |
+| Full only | `e2e-browser`, `test-inventory`, `sandbox-evidence`, `workspace-policy`, `implicit-config`, `bazelrc-policy`, `toolchain-fixtures`, `hook-e2e`, `speckit-provenance`, `coverage-floor`, `floors-from-base`, `catalog-definitions` | full |
+
+`quality-pin` is in the catalog for consumers. This repository does not bind it, because it uses `local_path_override`.
 
 `contract-consumers` waits for upstream #28. `floors-from-base` needs a policy base: see spec 007 R6.
 
@@ -23,8 +26,18 @@ bazel run //:quality -- --stage=<pre-commit|commit-msg|pre-push|full>
                         [--isolation=<full|weakened>] [--offline] [--receipt=<path>]
                         [--rerun=<command>] [--jobs=<n>] [--slots=<n>] [--deadline=<duration>]
                         [--from=<rev>] [--to=<rev>] [--inner] [--bazel-startup=<option>] [--shard=<leg>]
-                        [--base=<rev>] [--base-source=<argument|hook-config|ci-event>]
+                        [--base=<rev>] [--base-source=<argument|hook-config|ci-event>] [--list]
 ```
+
+`quality_binary` fixes what a host names: `--catalog`, `--registry`, `--registry-path`, `--contract`, `--bazel`
+and the tools. `--list` prints each resolved check as id, witness, leg and kind. The base's digest reads the
+registry at `--registry-path`, and a base is refused if it lacks the file at `--contract`. Whether it has an
+evaluator is decided by building `@bff_template_quality//checks/coverage:floors` at the base, and a failed build
+is a named refusal, exit 11.
+
+A binding only appends: `args` to a native rule's command, `context` to its selector, and `targets` to a Bazel
+rule, which has none of its own. It cannot change a rule's stages, class or command. `{contract}` and `{bazel}`
+expand to the host's paths.
 
 `--from` is the selection range. `--base` is the policy base, resolved once, and neither fills in for
 the other (spec 007 R6). A check with `needs_base` is refused by name when no base is usable, and the

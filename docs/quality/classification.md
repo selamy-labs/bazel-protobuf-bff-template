@@ -1,6 +1,7 @@
 # Check classification
 
-`quality/registry.textproto` is the only list of checks. Each entry carries its own class, stages and
+`quality/rules.textproto` defines the reusable rules, and `quality/registry.textproto` binds them and adds this
+repository's own checks. Together they are the only list of checks. Each entry carries its own class, stages and
 witness, so this page explains the classes and does not repeat that list.
 
 ## Classes

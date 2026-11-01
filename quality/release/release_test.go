@@ -130,6 +130,24 @@ func TestAStrongerEntryIsNotFlagged(t *testing.T) {
 	wants(t, text, "| `other` | entry changed |  |")
 }
 
+func TestTheModuleVersionMatchesTheCatalog(t *testing.T) {
+	root := tree(t, "1.2.3", catalogText, rulesText)
+	write := func(text string) {
+		t.Helper()
+		if err := os.WriteFile(filepath.Join(root, "MODULE.bazel"), []byte(text), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	write(`module(name = "m", version = "1.2.3")`)
+	if _, err := Load(root); err != nil {
+		t.Fatal(err)
+	}
+	write(`module(name = "m", version = "1.2.4")`)
+	if _, err := Load(root); err == nil {
+		t.Fatal("a catalog and module on different versions passed")
+	}
+}
+
 func TestAMissingDefinitionFails(t *testing.T) {
 	root := tree(t, "1", catalogText, rulesText)
 	if err := os.Remove(filepath.Join(root, "adapters/native.sh")); err != nil {

@@ -9,7 +9,7 @@ user-facing behavior and limits are in [docs/quality/hooks.md](../../../docs/qua
 ## prek configuration shape (`prek.toml`, M5 T056)
 
 - One local hook per stage.
-- `language = "system"`, entry `tools/hooks/stage.sh <stage>`, which scrubs the environment, keeps the
+- `language = "system"`, entry `tools/hooks/stage.sh <stage> --bazel=<wrapper>`, which scrubs the environment, keeps the
   index Git named, builds `//:quality` and starts it.
 - `pass_filenames = false`; the runner derives its own input set (below).
 - `require_serial = true`.

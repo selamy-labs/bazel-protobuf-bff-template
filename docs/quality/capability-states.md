@@ -30,7 +30,7 @@ validator.
 | TypeScript lint and format | yes | yes | yes | see [m5](../evidence/m5.md) | no | no | `//web:eslint_test`, `format-ts` |
 | Coverage floors, base-built policy, CI legs | yes | yes | locally; the workflow has never run | see [m6](../evidence/m6.md) | no | no | `coverage-floor`, `floors-from-base`, `//:ci_parity_test` |
 | Hosted CI | yes | workflow only | no | no | no | no | Operator gate |
-| Consumer path and quality-pin upgrade | yes | no | no | no | no | no | M7 |
+| Consumer path and quality-pin upgrade | yes | yes | locally, on `file://` | see the evidence record for M7 | no | no | Spec 008 |
 | Provenance and license inventory | yes | partly | no | no | no | no | M8 |
 | Public release | yes | no | no | no | no | no | Operator gate |
 
@@ -49,7 +49,7 @@ validator.
 | --- | --- |
 | Hosted CI has never run, and no remote exists | Operator gate |
 | A repository's first hosted push has no base, and a proposal controls its own workflow | M8, operator gate, upstream #26 |
-| The quality module assumes host paths, so no separate consumer can pin it yet, and the interface is not stable | M7 |
+| The quality interface is not stable until 1.0.0 is declared | M7 |
 | macOS is unverified. The browser tests cannot run there, and stock macOS has no `flock` | Open |
 | The authoring host runs only with weakened isolation. Full isolation is observed in independent runs, which [m5](../evidence/m5.md) and [m6](../evidence/m6.md) name | Independent review of each final revision |
 | Browser code has no coverage data, and Go has no branch data | Open, stated in `quality/coverage_floors.json` |

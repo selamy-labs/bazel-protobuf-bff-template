@@ -33,6 +33,11 @@ func Load(root string) (*registrypb.Registry, error) {
 	if err := (prototext.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, catalog); err != nil {
 		return nil, fmt.Errorf("%s: %w", root, err)
 	}
+	if module, err := os.ReadFile(filepath.Join(root, "MODULE.bazel")); err == nil {
+		if want := `version = "` + catalog.GetVersion() + `"`; !strings.Contains(string(module), want) {
+			return nil, fmt.Errorf("%s: MODULE.bazel lacks %s", root, want)
+		}
+	}
 	for _, rule := range catalog.GetChecks() {
 		if len(rule.GetDefinition()) == 0 {
 			return nil, fmt.Errorf("%s: rule %s names no definition", root, rule.GetId())

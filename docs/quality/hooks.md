@@ -24,7 +24,7 @@ nothing. It works in linked worktrees and honors `core.hooksPath`.
 | `pre-push` | The pushed commit, in a private detached worktree with its own output base, under that commit's own policy | `pre-push` entries and tests. A change to a policy input, or an unknown base, escalates to `full` |
 | `full` | The whole repository | Every registry entry. Run `tools/verify.sh --base=<commit>`. `prek run --hook-stage manual` names no base, so it stops at exit 11 |
 
-The registry, `quality/registry.textproto`, says what each stage runs. There is no second list. To
+The registry, `quality/registry.textproto`, with the rules it binds from `quality/rules.textproto`, says what each stage runs. There is no second list. To
 rerun a stage by hand, use the command each failure prints.
 
 ## When a hook refuses
@@ -33,7 +33,7 @@ A failure names the check, the file and the rerun command:
 
 ```text
 FAILED    format-go               0.0s
-    format-go src/app.go (rerun: tools/hooks/stage.sh pre-commit)
+    format-go src/app.go (rerun: prek run --stage pre-commit)
 ```
 
 `bootstrap ERROR` is different. It means the runner did not build, so no check ran, and it says
