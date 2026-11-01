@@ -48,7 +48,8 @@ function Development({ baseUrl }: { baseUrl: string }): ReactElement {
 }
 
 async function start(): Promise<void> {
-  const response = await fetch("/config.json");
+  // Relative to the page, so a site under a base path reads its own configuration (spec 012 FR-019).
+  const response = await fetch("config.json");
   const { bffUrl } = (await response.json()) as { bffUrl: string };
   const root = document.getElementById("root");
   if (root === null) {

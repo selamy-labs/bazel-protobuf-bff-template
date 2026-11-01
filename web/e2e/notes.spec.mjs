@@ -9,7 +9,7 @@ const test = base.extend({
   // Each worker has its own server, so tests share nothing with other runs.
   stack: [
     async ({}, use) => {
-      const stack = await startStack();
+      const stack = await startStack("/");
       await use(stack);
       await stack.stop();
     },
@@ -124,7 +124,7 @@ for (const subject of ["fault-secret", "fault-panic"]) {
 }
 
 test("a stopped server is unavailable and a restart is not assumed", async ({ page }) => {
-  const stack = await startStack();
+  const stack = await startStack("/");
   await page.goto(stack.origin);
   await stack.stopServer();
   await createNote(page, "a");
@@ -250,7 +250,7 @@ test("a second submit does not create a second note", async ({ notes }) => {
 });
 
 test("the browser blocks a disallowed origin", async ({ page, stack }) => {
-  const other = await serve(process.env.WEB_DIST, 0);
+  const other = await serve(process.env.WEB_DIST, 0, "/");
   other.setBffUrl(stack.bffUrl);
   await page.goto(other.origin);
   await createNote(page, "a");

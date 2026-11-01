@@ -33,6 +33,7 @@
 //web/e2e:defect_e2e_test e2e
 //web/e2e:local_stack_e2e_test e2e
 //web/e2e:notes_e2e_test e2e
+//web/e2e:hosted_e2e_test e2e
 //web/lint:eslint_test build-test
 //web/lint:eslint_witness_test build-test
 @bff_template_quality//checks/complexity:complexity_test build-test

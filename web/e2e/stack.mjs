@@ -32,13 +32,9 @@ export function browserLaunchOptions() {
   };
 }
 
-function ready(child) {
+function ready(child, errors) {
   return new Promise((resolve, reject) => {
     let output = "";
-    let errors = "";
-    child.stderr.on("data", (chunk) => {
-      errors += chunk;
-    });
     child.stdout.on("data", (chunk) => {
       output += chunk;
       const newline = output.indexOf("\n");
@@ -46,12 +42,17 @@ function ready(child) {
         resolve(JSON.parse(output.slice(0, newline)));
       }
     });
-    child.once("exit", (code) => reject(new Error(`the server exited with ${code}: ${errors}`)));
+    child.once("exit", (code) =>
+      reject(new Error(`the server exited with ${code}: ${errors.text}`)),
+    );
   });
 }
 
-export async function startStack() {
-  const site = await serve(required("WEB_DIST"), 0);
+// basePath is where the page is served, "/" or a site's path (spec 012 FR-019); the backend is always on its
+// own origin. The backend's stderr is kept, so a test can read what it logged.
+export async function startStack(basePath) {
+  const site = await serve(required("WEB_DIST"), 0, basePath);
+  const errors = { text: "" };
   const server = spawn(
     path.resolve(required("BFF_BIN")),
     ["--addr=127.0.0.1:0", `--allowed-origin=${site.origin}`, "--store=memory"],
@@ -59,12 +60,17 @@ export async function startStack() {
       stdio: ["ignore", "pipe", "pipe"],
     },
   );
-  const { addr } = await ready(server);
+  server.stderr.on("data", (chunk) => {
+    errors.text += chunk;
+  });
+  const { addr } = await ready(server, errors);
   const bffUrl = `http://${addr}`;
   site.setBffUrl(bffUrl);
   return {
     origin: site.origin,
+    basePath,
     bffUrl,
+    log: () => errors.text,
     stopServer: async () => {
       server.removeAllListeners("exit");
       const exited = new Promise((resolve) => server.once("exit", resolve));

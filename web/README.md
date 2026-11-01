@@ -13,12 +13,12 @@ This is the browser client: one form and one lookup that call the BFF through th
 
 ## Layout
 
-| Path | Role |
-| --- | --- |
-| `client` | Generated-client transport, credential source, error mapping |
-| `app` | React page and the two web builds |
-| `serve` | Static server for local use and tests, including `/config.json` |
-| `e2e` | Playwright specs and the broken-mapping witness |
+| Path     | Role                                                                                       |
+| -------- | ------------------------------------------------------------------------------------------ |
+| `client` | Generated-client transport, credential source, error mapping                               |
+| `app`    | React page and the two web builds                                                          |
+| `serve`  | Static server for local use and tests, under a required base path, including `config.json` |
+| `e2e`    | Playwright specs and the broken-mapping witness                                            |
 
 ## Run it
 

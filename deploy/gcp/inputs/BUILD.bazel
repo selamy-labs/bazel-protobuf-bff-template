@@ -7,7 +7,10 @@ exports_files(
         "testdata/cancel.inputs.json",
         "testdata/rollback.inputs.json",
     ],
-    visibility = ["//deploy:__subpackages__"],
+    visibility = [
+        "//deploy:__subpackages__",
+        "//web/e2e:__pkg__",
+    ],
 )
 
 go_library(

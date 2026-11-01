@@ -66,7 +66,8 @@ trap 'exit 0' INT TERM
 
 "$bff" --addr="127.0.0.1:$bff_port" --allowed-origin="$origin" "${store_args[@]}" </dev/null &
 children+=("$!")
-"$web" --root "$PWD/$dist" --port "$web_port" --bff-url "http://127.0.0.1:$bff_port" </dev/null &
+# The local demo is served at the root; the hosted example's base path is the hosted inputs' value, not this one.
+"$web" --root "$PWD/$dist" --port "$web_port" --base-path / --bff-url "http://127.0.0.1:$bff_port" </dev/null &
 children+=("$!")
 echo "dev: open $origin (test identity: sign in as any subject, for example '$seed_subject'; the server is http://127.0.0.1:$bff_port; stop with Ctrl-C)"
 # Wait for the first child to exit. `wait -n` would do it in one call, but it is bash 4.3; a poll keeps the same

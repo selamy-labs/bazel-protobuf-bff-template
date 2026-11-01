@@ -42,6 +42,43 @@ playwright.playwright_test(
     },
 )
 
+# The example's inputs, copied into this package: a js_test carries only output-tree files from another package.
+genrule(
+    name = "example_inputs",
+    testonly = True,
+    srcs = ["//deploy/gcp/inputs:example.inputs.json"],
+    outs = ["example.inputs.json"],
+    cmd = "cp $< $@",
+)
+
+# The hosted shape, locally (spec 012 FR-019, T014): the page under the example's base path, the backend on
+# another origin, the preflight, a foreign origin, announced errors, a reload, the backend's log.
+playwright.playwright_test(
+    name = "hosted_e2e_test",
+    size = "medium",
+    args = [
+        "test",
+        "--config",
+        "web/e2e/playwright.config.mjs",
+        "hosted.spec.mjs",
+    ],
+    data = BROWSER_DATA + [
+        "hosted.spec.mjs",
+        "playwright.config.mjs",
+        "stack.mjs",
+        ":example_inputs",
+        "//:node_modules/@playwright/test",
+        "//bff/cmd/bff-dev",
+        "//web/app:dist_dev",
+        "//web/serve:serve_lib",
+    ],
+    env = BROWSER_ENV | {
+        "BFF_BIN": "$(rootpath //bff/cmd/bff-dev)",
+        "EXAMPLE_INPUTS": "$(rootpath :example_inputs)",
+        "WEB_DIST": "$(rootpath //web/app:dist_dev)",
+    },
+)
+
 # The whole stack through the one command (spec 012 FR-020 to FR-023): the real launcher, a real browser, a
 # restart and a reset. The launcher's own runfiles come along, and DEV_ARGS names them as `bazel run` would.
 playwright.playwright_test(
