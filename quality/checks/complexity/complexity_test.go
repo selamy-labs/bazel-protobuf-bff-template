@@ -2,6 +2,7 @@ package complexity
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -61,6 +62,70 @@ func TestMeasurementMatchesTheTools(t *testing.T) {
 	}
 	if got := measured[1].Values; got[Cognitive] != 0 || got[Cyclomatic] != 1 {
 		t.Errorf("plain: %v", got)
+	}
+}
+
+// deepBody is ten nested ifs: cognitive 55 and cyclomatic 11 for a declaration, by the tools' own counts.
+func deepBody() string {
+	body := ""
+	for i := 0; i < 10; i++ {
+		body += strings.Repeat("\t", i+1) + fmt.Sprintf("if x > %d {\n", i)
+	}
+	body += strings.Repeat("\t", 11) + "return 1\n"
+	for i := 9; i >= 0; i-- {
+		body += strings.Repeat("\t", i+1) + "}\n"
+	}
+	return body
+}
+
+// TestPackageLevelLiteralsAreMeasured is the regression for an independent control that planted the same ten
+// nested ifs in a map callback and saw the file pass with no function measured.
+func TestPackageLevelLiteralsAreMeasured(t *testing.T) {
+	cases := map[string]struct {
+		source string
+		names  []string
+	}{
+		"a declaration":          {"package p\n\nfunc Deep(x int) int {\n" + deepBody() + "\treturn 0\n}\n", []string{"Deep"}},
+		"a variable":             {"package p\n\nvar Deep = func(x int) int {\n" + deepBody() + "\treturn 0\n}\n", []string{"Deep"}},
+		"a map callback":         {"package p\n\nvar callbacks = map[string]func(int) int{\"deep\": func(x int) int {\n" + deepBody() + "\treturn 0\n}}\n", []string{"callbacks[\"deep\"]"}},
+		"a slice element":        {"package p\n\nvar handlers = []func(int) int{func(x int) int {\n" + deepBody() + "\treturn 0\n}}\n", []string{"handlers[0]"}},
+		"a struct field":         {"package p\n\ntype T struct{ Run func(int) int }\n\nvar cfg = T{Run: func(x int) int {\n" + deepBody() + "\treturn 0\n}}\n", []string{"cfg[Run]"}},
+		"a constructor argument": {"package p\n\nfunc wrap(f func(int) int) func(int) int { return f }\n\nvar wrapped = wrap(func(x int) int {\n" + deepBody() + "\treturn 0\n})\n", []string{"wrap", "wrapped(0)"}},
+	}
+	b := budgets(t, `{"measured_at": "test", "ceilings": {"cognitive": 20, "cyclomatic": 10}}`)
+	for name, c := range cases {
+		measured, err := MeasureFile("a.go", []byte(c.source))
+		if err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+		var names []string
+		for _, m := range measured {
+			names = append(names, m.Name)
+		}
+		if strings.Join(names, ",") != strings.Join(c.names, ",") {
+			t.Errorf("%s: measured %v, want %v", name, names, c.names)
+		}
+		deep := measured[len(measured)-1]
+		if deep.Values[Cognitive] != 55 || deep.Values[Cyclomatic] != 11 {
+			t.Errorf("%s: %s measured %v, want cognitive 55 and cyclomatic 11", name, deep.Name, deep.Values)
+		}
+		_, problems, err := b.Check([]string{"a.go"}, sources(map[string]string{"a.go": c.source}))
+		if err != nil || len(problems) != 2 || !strings.Contains(problems[0], deep.Name+": cognitive 55 is over its ceiling 20") {
+			t.Errorf("%s: problems %v, err %v", name, problems, err)
+		}
+	}
+	// A closure inside a package-level literal is part of that literal's measure, and a literal inside a declared
+	// function is part of that function's, so neither is listed twice; a file with no function is still a measurement.
+	nestedSource := "package p\n\nvar outer = func() func() int {\n\treturn func() int {\n\t\tif true {\n\t\t\treturn 1\n\t\t}\n\t\treturn 0\n\t}\n}\n\nfunc Decl() func() int { return func() int { return 2 } }\n"
+	measured, err := MeasureFile("a.go", []byte(nestedSource))
+	if err != nil || len(measured) != 2 || measured[0].Name != "Decl" || measured[1].Name != "outer" || measured[1].Values[Cognitive] != 2 {
+		t.Errorf("nested: %+v %v", measured, err)
+	}
+	if measured, err := MeasureFile("a.go", []byte("package p\n\nvar x = 1\n\nvar y = []int{1, 2}\n")); err != nil || len(measured) != 0 {
+		t.Errorf("no function: %+v %v", measured, err)
+	}
+	if _, problems, err := b.Check([]string{"a.go"}, sources(map[string]string{"a.go": "package p\n\nvar simple = func() int { return 0 }\n"})); err != nil || len(problems) != 0 {
+		t.Errorf("restored control: %v %v", problems, err)
 	}
 }
 

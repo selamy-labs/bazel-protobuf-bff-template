@@ -75,6 +75,7 @@ P
   git add -A; git -c user.name=a -c user.email=a@example.com commit -q -m one
 }
 failures=0
+full_hash="0000000000000000000000000000000000000000000000000000000000000001"
 # replace <file> <old> <new>: one literal replacement, so no pattern language touches the fixtures.
 bt='`'
 replace() { local content; content="$(cat "$1")"; printf '%s\n' "${content/"$2"/"$3"}" >"$1"; }
@@ -98,7 +99,10 @@ fresh; printf 'packages: [\n' >pnpm-lock.yaml; git add -A; expect "a malformed l
 fresh; printf '{}\n' >package.json; git add -A; expect "a package.json with no package is an error" 2
 fresh; mkdir -p other; printf '# Copyright (c) 1999 Another\n' >other/x.c; git add -A; expect "a foreign copyright outside an enrolled path" 1; grep -q 'other/x.c carries' "$T/out" || { echo "FAIL path not named"; failures=$((failures + 1)); }
 fresh; printf '# SPDX-License-Identifier: MIT\n' >docs/note.md; git add -A; expect "a license marker in documentation is not a vendored file" 0
-fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | reviewed: MIT-style notice; evidence: copyright file, sha256 0123abcd, 10 bytes; scope: test-time only; by a reviewer, 2026-11-01 |"; expect "a reviewed decision with its evidence, scope and reviewer is counted, not unresolved" 0; grep -q 'measurement: inventory .* 0 licenses unresolved, 1 reviewed decisions' "$T/out" || { echo "FAIL reviewed decision not counted"; failures=$((failures + 1)); }
-fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | reviewed: MIT-style notice, trust me |"; expect "a reviewed decision without evidence, scope and reviewer" 1; grep -q 'needs its evidence hash' "$T/out" || { echo "FAIL the missing evidence is not named"; failures=$((failures + 1)); }
+fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | reviewed: MIT-style notice; evidence: copyright file, sha256 0000000000000000000000000000000000000000000000000000000000000001, 10 bytes; scope: test-time only; by a reviewer, 2026-11-01 |"; expect "a reviewed decision with a complete evidence hash, scope and reviewer is counted, not unresolved" 0; grep -q 'measurement: inventory .* 0 licenses unresolved, 1 reviewed decisions' "$T/out" || { echo "FAIL reviewed decision not counted"; failures=$((failures + 1)); }
+fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | reviewed: MIT-style notice, trust me |"; expect "a reviewed decision without evidence, scope and reviewer" 1; grep -q 'complete 64-hex sha256' "$T/out" || { echo "FAIL the missing evidence is not named"; failures=$((failures + 1)); }
+for bad in "sha256 " "sha256 f" "sha256 0123abcd" "sha256 ${full_hash}0" "sha256 ${full_hash%?}g"; do
+  fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | reviewed: MIT-style notice; evidence: copyright file, ${bad}; scope: test-time only; by a reviewer, 2026-11-01 |"; expect "a reviewed decision whose hash is blank, short, overlong or not hex (${bad%% *} ${#bad} chars)" 1
+done
 fresh; expect "restored control passes" 0
 echo "inventory fixture failures: $failures"; exit "$failures"

@@ -65,7 +65,7 @@ awk -F'|' '
     if (sep || lic < 0) next
     if (cell[lic] == "") print cell[0] ": empty license cell"
     else if (tolower(cell[lic]) ~ /unknown/ && tolower(cell[lic]) !~ /^unresolved:/) print cell[0] ": license is neither a name nor an explicit unresolved finding"
-    else if (cell[lic] ~ /^reviewed:/ && (cell[lic] !~ /; evidence: .*sha256 [0-9a-f]+/ || cell[lic] !~ /; scope: / || cell[lic] !~ /; by /)) print cell[0] ": a reviewed decision needs its evidence hash, scope and reviewer"
+    else if (cell[lic] ~ /^reviewed:/ && (cell[lic] !~ /; evidence: .*(^|[^0-9A-Za-z])sha256 [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]($|[^0-9A-Za-z])/ || cell[lic] !~ /; scope: / || cell[lic] !~ /; by /)) print cell[0] ": a reviewed decision needs a complete 64-hex sha256 as evidence, a scope and a reviewer; a well-shaped hash proves nothing by itself"
     next
   }
   { inTable = 0 }

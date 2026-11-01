@@ -175,50 +175,118 @@ func (b *Budgets) limit(function string, metric Metric) (int, bool) {
 	return b.Ceilings[metric], false
 }
 
-// MeasureFile measures every function of one parsed Go file. Both tools read the same syntax tree.
+// MeasureFile measures every function of one parsed Go file: each declared function and method, and each
+// function literal that lives at package level, in a variable, a map, a slice or a struct literal, named by its
+// site. Both tools read the same syntax tree. A literal inside a function body belongs to that function and is
+// counted inside it by both measures, so it is not listed twice; a literal at package level belongs to no
+// function, and an independent control showed that leaving it out let it pass unmeasured.
 func MeasureFile(path string, source []byte) ([]Measurement, error) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, path, source, 0)
 	if err != nil {
 		return nil, err
 	}
-	byName := map[string]*Measurement{}
-	var ordered []*Measurement
-	record := func(name string, metric Metric, value int) {
-		m := byName[name]
-		if m == nil {
-			m = &Measurement{Path: path, Name: name, Values: map[Metric]int{}}
-			byName[name] = m
-			ordered = append(ordered, m)
-		}
-		m.Values[metric] = max(m.Values[metric], value)
+	result, err := declarations(path, file, gocognit.ComplexityStats(file, fset, nil))
+	if err != nil {
+		return nil, err
 	}
-	for _, stat := range gocognit.ComplexityStats(file, fset, nil) {
-		record(stat.FuncName, Cognitive, stat.Complexity)
-	}
-	for _, stat := range gocyclo.AnalyzeASTFile(file, fset, nil) {
-		record(stat.FuncName, Cyclomatic, stat.Complexity)
-	}
-	// Every declared function must have both values, or the measurement is not one.
-	declared := 0
-	for _, decl := range file.Decls {
-		if _, ok := decl.(*ast.FuncDecl); ok {
-			declared++
-		}
-	}
-	if len(ordered) < declared {
-		return nil, fmt.Errorf("%s: %d functions declared, %d measured", path, declared, len(ordered))
-	}
+	return append(result, packageLiterals(path, file)...), nil
+}
+
+// declarations pairs each declared function with gocognit's measurement of it, in declaration order, and adds
+// gocyclo's; a count that differs means a function was skipped, and the measurement is refused.
+func declarations(path string, file *ast.File, stats []gocognit.Stat) ([]Measurement, error) {
 	var result []Measurement
-	for _, m := range ordered {
-		for _, metric := range metrics {
-			if _, ok := m.Values[metric]; !ok {
-				return nil, fmt.Errorf("%s: %s has no %s value", path, m.Name, metric)
-			}
+	for _, decl := range file.Decls {
+		fn, ok := decl.(*ast.FuncDecl)
+		if !ok {
+			continue
 		}
-		result = append(result, *m)
+		if len(result) >= len(stats) {
+			return nil, fmt.Errorf("%s: %d functions declared, %d measured", path, len(result)+1, len(stats))
+		}
+		stat := stats[len(result)]
+		result = append(result, Measurement{Path: path, Name: stat.FuncName, Values: map[Metric]int{
+			Cognitive:  stat.Complexity,
+			Cyclomatic: gocyclo.Complexity(fn),
+		}})
+	}
+	if len(result) != len(stats) {
+		return nil, fmt.Errorf("%s: %d functions declared, %d measured", path, len(result), len(stats))
 	}
 	return result, nil
+}
+
+// packageLiterals measures the function literals under package-level variables.
+func packageLiterals(path string, file *ast.File) []Measurement {
+	var result []Measurement
+	for _, decl := range file.Decls {
+		gen, ok := decl.(*ast.GenDecl)
+		if !ok || gen.Tok != token.VAR {
+			continue
+		}
+		for _, spec := range gen.Specs {
+			value, ok := spec.(*ast.ValueSpec)
+			if !ok {
+				continue
+			}
+			for i, expr := range value.Values {
+				name := "_"
+				if i < len(value.Names) {
+					name = value.Names[i].Name
+				}
+				result = append(result, literals(path, name, expr)...)
+			}
+		}
+	}
+	return result
+}
+
+// literals measures every outermost function literal under a package-level value expression, named by its site:
+// the variable itself, an element by its key or index, or a field by its name. A literal nested inside one of
+// them is part of that literal's measure.
+func literals(path, site string, expr ast.Expr) []Measurement {
+	switch n := expr.(type) {
+	case *ast.FuncLit:
+		decl := &ast.FuncDecl{Name: ast.NewIdent(site), Type: n.Type, Body: n.Body}
+		return []Measurement{{Path: path, Name: site, Values: map[Metric]int{
+			Cognitive:  gocognit.Complexity(decl),
+			Cyclomatic: gocyclo.Complexity(n),
+		}}}
+	case *ast.ParenExpr:
+		return literals(path, site, n.X)
+	case *ast.CompositeLit:
+		var found []Measurement
+		for i, element := range n.Elts {
+			if kv, ok := element.(*ast.KeyValueExpr); ok {
+				found = append(found, literals(path, site+"["+key(kv.Key)+"]", kv.Value)...)
+				continue
+			}
+			found = append(found, literals(path, fmt.Sprintf("%s[%d]", site, i), element)...)
+		}
+		return found
+	case *ast.CallExpr:
+		var found []Measurement
+		for i, argument := range n.Args {
+			found = append(found, literals(path, fmt.Sprintf("%s(%d)", site, i), argument)...)
+		}
+		return found
+	case *ast.UnaryExpr:
+		return literals(path, site, n.X)
+	default:
+		return nil
+	}
+}
+
+func key(expr ast.Expr) string {
+	switch k := expr.(type) {
+	case *ast.BasicLit:
+		return k.Value
+	case *ast.Ident:
+		return k.Name
+	default:
+		return "?"
+	}
 }
 
 // Result is what a check measured.

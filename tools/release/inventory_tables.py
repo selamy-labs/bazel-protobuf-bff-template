@@ -13,8 +13,10 @@ decisions = {}
 for row in tsv(sys.argv[6]):
     if row[0].startswith("#"):
         continue
-    if len(row) != 5 or any(not cell.strip() for cell in row) or "sha256 " not in row[2]:
-        sys.exit("license decision for %r: five filled fields with a sha256 in the evidence are required" % row[0])
+    # The evidence must carry a complete sha256: 64 hex digits on their own word boundaries. A well-shaped hash
+    # is a necessary shape, not proof: it neither authenticates the reviewer nor proves what the artifact holds.
+    if len(row) != 5 or any(not cell.strip() for cell in row) or not re.search(r"(^|[^0-9A-Za-z])sha256 [0-9a-f]{64}($|[^0-9A-Za-z])", row[2]):
+        sys.exit("license decision for %r: five filled fields and a complete 64-hex sha256 in the evidence are required" % row[0])
     if row[0] in decisions:
         sys.exit("license decision for %r is listed twice" % row[0])
     decisions[row[0]] = row
