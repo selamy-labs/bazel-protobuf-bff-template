@@ -111,6 +111,22 @@ filegroup(name = "files", srcs = glob(["**"]), visibility = ["//visibility:publi
     urls = ["https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-headless-shell-linux64.zip"],
 )
 
+# OpenTofu and the GitHub provider, for the offline governance test only (spec 010 FR-009). Both are pinned by
+# the sha256 published with their releases, fetched at test time, and never run against a live account.
+http_archive(
+    name = "opentofu",
+    build_file_content = """exports_files(["tofu"], visibility = ["//visibility:public"])""",
+    sha256 = "723bebb0df8411daff1e5fc3862e28ff5581fe5634087f4c29a9aa41d78208b5",
+    urls = ["https://github.com/opentofu/opentofu/releases/download/v1.13.2/tofu_1.13.2_linux_amd64.zip"],
+)
+
+http_file(
+    name = "terraform_provider_github",
+    downloaded_file_path = "terraform-provider-github_6.13.0_linux_amd64.zip",
+    sha256 = "5dd05dee677f6ebdbed00cbb1b9be444ab2d1062d345cbc9ec50a47cb41b8622",
+    urls = ["https://github.com/integrations/terraform-provider-github/releases/download/v6.13.0/terraform-provider-github_6.13.0_linux_amd64.zip"],
+)
+
 browser_libs = use_repo_rule("//tools/browser:defs.bzl", "browser_libs")
 
 browser_libs(name = "browser_libs")

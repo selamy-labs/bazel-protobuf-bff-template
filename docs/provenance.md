@@ -105,6 +105,16 @@ the module lock and not redistributed.
 | tar.bzl | `tar.bzl` | 0.7.0 | Apache-2.0, read from the fetched module's LICENSE | tools | same |
 | platforms | `platforms` | 1.0.0 | Apache-2.0, read from the upstream `1.0.0` tag's LICENSE at bazelbuild/platforms; the registry's source archive (`sha256-M4TrHDB2JwT7445EAgThFBVAhsj8iowuPihEECjAGag=`) carries no LICENSE file, which stays an observation | tools | same |
 
+## Governance tooling (M8)
+
+Fetched at test time for the offline governance test, and never run against a live account. The licenses were
+read from the artifacts: OpenTofu's zip carries its LICENSE, and the provider's zip carries its LICENSE.
+
+| Item | Identifier | Version | License | Scope | Where pinned |
+| --- | --- | --- | --- | --- | --- |
+| OpenTofu | `opentofu` | 1.13.2 | MPL-2.0 | tools | `MODULE.bazel` (sha256) |
+| terraform-provider-github | `terraform_provider_github` | 6.13.0 | MIT | tools | `MODULE.bazel` (sha256), `governance/github/.terraform.lock.hcl` (h1) |
+
 ## This repository's own module
 
 | Item | Identifier | Version | License | Scope | Where pinned |

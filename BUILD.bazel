@@ -200,6 +200,23 @@ sh_test(
 )
 
 sh_test(
+    name = "governance_test",
+    size = "medium",
+    srcs = ["tools/release/governance_test.sh"],
+    args = [
+        "$(rootpath tools/release/governance.sh)",
+        "$(rootpath @opentofu//:tofu)",
+        "$(rootpath @terraform_provider_github//file)",
+        "governance/github",
+    ],
+    data = [
+        "tools/release/governance.sh",
+        "@opentofu//:tofu",
+        "@terraform_provider_github//file",
+    ] + glob(["governance/github/**"]),
+)
+
+sh_test(
     name = "registry_witness_test",
     size = "small",
     srcs = ["tools/checks/registry_witness_test.sh"],

@@ -11,6 +11,7 @@
 //:image_release_test build-test
 //:inventory_test build-test
 //:neutrality_test build-test
+//:governance_test build-test
 //bff/cmd:binaries_test build-test
 //bff/cmd:static_test build-test
 //bff/identity:identity_test build-test
