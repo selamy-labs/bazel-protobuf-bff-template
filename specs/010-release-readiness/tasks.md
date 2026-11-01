@@ -69,6 +69,17 @@ The final scan comes after everything it must cover: the inventory (T004 to T006
 - [ ] T020 [US5] Freeze one exact publication candidate after T017 and T018: name its revision, tree, export ref and holder in the packet; run the full verifier, both scans (private by opaque output) and the governance check at that revision; record them in `docs/evidence/m8.md`
 - [ ] T021 [US5] After creation and first push through the approved plan: qualify the standard hosted Linux runners from real runs, recording cold, cached, queue, wall, concurrency and disk per leg in `docs/budgets/`; the first push exits 11 for lack of a base, the first real PR green and the activation follow the runbook
 
+
+## Phase 8: User Story 6 - Distribution from the public repository (Priority: P2)
+
+**Goal**: the image by digest in the repository-linked package, the artifacts as tag-bound downloads, verified anonymously.
+
+**Independent Test**: the CI-parity policy declares the second workflow and its pinned structure; the publication is verified by a credentialless job.
+
+- [ ] T022 [US6] Extend `tools/ci/policy.json` and the CI-parity check to declare a second workflow `publish.yml`: trigger on tags of the trusted repository only, pinned action SHAs, `permissions` per job (`packages: write` and `contents: write` only where the job publishes, `{}` for the verifying job), no `pull_request_target`, no `workflow_run`, no cache; `//:ci_parity_test` fails on a drift
+- [ ] T023 [US6] Write `.github/workflows/publish.yml`: the full verifier at the tag, `bazel build //bff/cmd/bff:image` once, the digest read from the receipt's image measurement and compared with the built layout, `oci_push` to the repository-linked package with the job's token, the tarball, receipt, inventory and notices uploaded as release assets with a sha256 list; then a credentialless job that pulls by digest anonymously and checks the hashes
+- [ ] T024 [US6] After an authorized publication: read back the package's public visibility, the anonymous pull and the asset hashes; record in `docs/evidence/m8.md`; a pre-release only, no stable-release claim
+
 - T009: the generic scan is bound at `full`. The private scan is run at a freeze with the operator's marker file, never by CI, so `not-run` is its CI status by construction.
 - T011: the governance test is a required Bazel test rather than an opt-in registry stage, because the sandbox gives it no network and the pinned zips give it no fetch, which is stronger than an opt-in stage.
 

@@ -12,6 +12,7 @@
 - Q: Does public development wait for the whole quality baseline or a stable release? → A: No. Public development of the reviewed generic core is authorized by the human direction of 2026-11-01, after the existing disclosure, provenance, licensing and publication checks; it is not a blanket approval, and the operator gates for creation, push, settings, apply and activation stay recorded gates.
 - Q: Which status check does the ruleset require? → A: The workflow's aggregate job, `gate`, as `tools/ci/policy.json` names it. The configuration had said `aggregate`, which no run reports; the governance check now relates the three names and refuses a mismatch.
 - Q: What becomes of the packet's pending items? → A: Each becomes a reviewed concrete decision before publication: the commit identity, the holder line and every one of the 15 unresolved licenses. None is dropped silently.
+- Q: Where are artifacts hosted, and where does deployment run? → A: GitHub hosts the public CI, the repository-linked container package and the tag-bound downloadable artifacts, published later by a scoped workflow token on trusted source once permitted; GitHub Pages may serve the static frontend. Deployment is not GitHub Actions: continuous deployment runs on GCP Cloud Build into a dedicated BFF-owned project (spec 012), and the backend actually runs there.
 - Q: Which templates and runners? → A: The organization's public `.github` defaults are inherited, not copied; standard GitHub-hosted Linux runners only, measured from real runs after publication.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -84,6 +85,19 @@ The reviewed generic core and its synthetic example are developed in public: one
 2. **Given** the README, **When** a reader compares it with the evidence records, **Then** every milestone's state is one of implemented, independently accepted at a revision, hosted-unverified or unfinished, with no production or hosted claim.
 3. **Given** the export, **When** it is compared with the working tree, **Then** it holds the generic core, the synthetic application and the public documents only: no private backups, no unpublished working files, no operator records.
 
+### User Story 6 - The image and the artifacts are distributed from the public repository (Priority: P2)
+
+After the first hosted gate is green, a tag on the trusted source publishes the exact image spec 009 built, by digest, to the repository-linked container package, and the release artifacts (the OCI tarball, the receipt, the inventory, the notices) as tag-bound downloads with their hashes; anyone can pull the image by digest and download the artifacts without credentials.
+
+**Why this priority**: the hosted example (spec 012) deploys by digest from this package; it needs no rebuild and no private registry.
+
+**Independent Test**: offline, the publishing workflow is pinned and validated against the CI-parity policy; after an authorized publication, an anonymous digest-pinned pull and the asset hashes are verified by a credentialless job.
+
+**Acceptance Scenarios**:
+
+1. **Given** a tag on the trusted branch, **When** the workflow runs, **Then** it builds once, publishes that output by digest with the job's own scoped token, and no fork or `workflow_run` artifact enters.
+2. **Given** a published package, **When** it is pulled anonymously by digest, **Then** the digest equals the receipt's image measurement; the package's public visibility is read back, not assumed.
+
 ### Edge Cases
 
 - A marker file that exists and is empty: the private status is `not-run`, never `passed`.
@@ -127,6 +141,9 @@ The reviewed generic core and its synthetic example are developed in public: one
 - **SC-003**: The generic scan passes over the whole export, or each finding has a decision. The private result at the release candidate states literal absence and scope, or each finding has a decision.
 - **SC-004**: After the fetch phase, `tofu fmt`, `validate` and mock tests pass with no network and no credentials.
 - **SC-005**: Technical readiness can pass with release gates pending, and it says so. It claims no public approval.
+- **FR-013**: Distribution MUST use the public repository's own hosting: the repository-linked container package and tag-bound release assets, published by a workflow on the trusted source with its own narrowly scoped token, building once and publishing the exact output by digest; CI and fork jobs stay credentialless and without a private cache; no larger runner, no paid storage setting, no deployment from GitHub Actions. A second workflow MUST be declared in the CI-parity policy before it exists.
+- **FR-014**: After an authorized publication, a credentialless job MUST pull the image by digest anonymously and verify the asset hashes, and the package's public visibility MUST be read back; a declared workflow is never live proof. No stable-release claim follows from a published pre-release.
+- **SC-007**: A published pre-release is verified by an anonymous digest-pinned pull and by asset hashes, from a credentialless job, with the package's visibility read back.
 - **SC-006**: The publication candidate is one named revision: its full verifier, both scans and the governance check pass at that exact revision, and the README's milestone states match the evidence records row by row.
 
 ## Assumptions
@@ -140,5 +157,5 @@ The reviewed generic core and its synthetic example are developed in public: one
 - Nothing is published. Readiness is a recorded review, and publication stays an operator action outside this repository.
 - A scan finds what it knows. A marker list is only as complete as the operator's record, and the human review stays.
 - A required `gate` status does not close the proposal-controlled workflow gap (spec 007 R5). The required-workflow or ruleset choice stays explicitly open.
-- Provisioning and image packaging are separate: nothing here pushes or publishes the image.
+- Provisioning and image packaging are separate: nothing here applies anything; publishing the image is the declared workflow of US6, run only on the trusted source after the first hosted gate, and deployment is spec 012's, on GCP.
 - The configuration targets one repository. That is a limit on what it declares, tested offline. It is not a proof about what an operator's state or provider could address.

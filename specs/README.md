@@ -19,7 +19,8 @@ result holds only for the revision and profile its evidence names.
 | [009-bff-image](009-bff-image/) | M8a: BFF container image | M7 | Implemented and tested locally at `05d2545`; the artifact executed independently in a real runtime; independent source review pending. Evidence is in [m8a](../docs/evidence/m8a.md). Not deployed. |
 | [010-release-readiness](010-release-readiness/) | M8: public-release readiness and provisioning plan | M7, M8a | Accepted locally at `446e5c8` (2026-11-01) by an independent combined full. Public development is authorized after the existing checks; the required-check context was corrected after an audit; one exact candidate is frozen next. Evidence is in [m8](../docs/evidence/m8.md). Not published. |
 | [011-quality-baseline](011-quality-baseline/) | M9: quality baseline | M8 frozen | In progress. The Go complexity gate is enforced from this tree's measurement; every other control is at its measured state in [baseline](../docs/quality/baseline.md). Evidence is in [m9](../docs/evidence/m9.md). Closure needs every applicable control enforced and evidenced. |
-| None yet | M10, M11: optional profiles | M6, and M8a for M10 | Proposed. Each is created with `/speckit-specify` when it starts |
+| [012-hosted-example](012-hosted-example/) | M10: hosted example on GCP, frontend on Pages | M8, M8a, 010 US6 | Specified 2026-11-01. Offline tests and the reviewable plan first; every live step is a recorded gate. Nothing exists yet. |
+| None yet | M11: optional worker-integration conformance | M6 | Proposed. Created with `/speckit-specify` when it starts |
 
 Start with [design.md](001-bff-template-foundation/design.md) to review the package, then read
 [issue-map.md](001-bff-template-foundation/issue-map.md) and

@@ -19,4 +19,7 @@ External draft, revision 3, unchanged in direction. Spec 010. At landing `/speck
 | FR-010 | Review | order and gates named | a step that bypasses a gate → rejected | S | hum |
 | FR-011 | Recorded row | reviewer and the scanned revision | an empty row, or a candidate that differs from the scanned revision → not ready | S | hum |
 | FR-012 | Packet, private scan at the candidate, README review | one named candidate; markers absent by opaque output; README states match the evidence; inherited templates | a README claim with no evidence row, a pending item dropped, a private backup or operator record in the export → not ready | G/S | off, hum |
+| FR-013 | `//:ci_parity_test` over the declared second workflow | one build, publication by digest with the scoped token, no fork artifact, no cache, no deployment | an undeclared workflow, a broad permission, a `workflow_run` trigger, a cache step → fails | G | off |
+| FR-014 | the credentialless verification job; the visibility read-back | anonymous digest-pinned pull and asset hashes match | a mismatch, a private package → not published | G | live |
+| SC-007 | the same | verified pre-release | a stable claim → review rejects | S | live, hum |
 | SC-006 | the full verifier, both scans, `//:governance_test` at the candidate | all pass at one revision | any run at another revision → not the candidate's evidence | G | loc, off |

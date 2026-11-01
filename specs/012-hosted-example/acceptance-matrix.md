@@ -1,0 +1,42 @@
+# Acceptance matrix: hosted example
+
+Spec 012. Layers: off (offline tests), loc (the local verifier), hum (review), live (a hosted run behind a recorded gate). A document or a CI run is never live proof of IAM, recovery, availability or cost.
+
+| Req | Witness | Valid | Defect → expected | Class | Layer |
+| --- | --- | --- | --- | --- | --- |
+| FR-001 | the digest check in CD; `image_test` | the recorded release digest is deployed | another digest, or a rebuild → refused | G | off, live |
+| FR-002 | the input schema test | a dedicated project with every field typed | a reused project id → refused by validation | G | off |
+| FR-003 | the funnel's validation tests | omitted, invalid, precedence, provenance cases | a default inside an inner module → test fails | G | off |
+| FR-004 | the identity enumeration test | per-role identities, narrow bindings | a runtime identity with deploy permission, an unenumerated binding → fails | G | off |
+| FR-005 | the CD pipeline's offline test; the live record | Cloud Build from the trusted source with the sanctioned identity | a deployment from GitHub Actions, a key in source → review rejects | G/S | off, hum, live |
+| FR-006 | research R4 | the evaluation names what Cloud Run provides and lacks | a gap presented as provided → review rejects | S | hum |
+| FR-007 | the Pages build and the hosted journey | static frontend with its backend endpoint as input; the backend limitation stated | a static site presented as full stack → review rejects | S | hum, live |
+| FR-008 | the config tests | typed runtime inputs; synthetic examples; refusal without a verifier kept | a real value in an example → the scans or review reject | G/S | off, hum |
+| FR-009 | the rollback and cancellation witnesses | digests before and after recorded | a rollback that changes more than the digest → test fails | G | off, live |
+| FR-010 | the bounds enumeration test | bounds enumerated; no monetary cap claimed | a missing bound → fails; a cap claim → review rejects | G/S | off, hum |
+| FR-011 | `neutrality`, review | no private value in public source | a real identifier → the scans fail | G | off |
+| FR-012 | `//deploy/gcp:tests` | format, validate, mock tests offline | each planted defect → fails | G | off |
+| FR-013 | the packet | every live step a recorded gate | a step without a gate → review rejects | S | hum |
+| FR-014 | `docs/evidence/m10.md` | endpoint, identity, digest, flow, rollback, cost | a claim without a live row → review rejects | S | live, hum |
+| FR-015 | the verifier tests; `binaries_test` | the token's subject; four refusals | a dev identity in the production binary → fails | G | off |
+| FR-016 | `bundle_test`; the hosted journey | sign-in present; test identity absent | the test identity in the bundle → fails | G | off, live |
+| FR-017 | the contract suite; restart and isolation tests | the managed adapter passes the same suite | a note lost across a restart, another owner's read → fails | G | off, live |
+| FR-018 | the config tests | `PORT` read, `0.0.0.0` in production, loopback in dev | a non-default port ignored → fails | G | off |
+| FR-019 | `web/e2e/hosted.spec.*` | base path and RPC base URL independent; the nine cases | a foreign origin accepted, a token in a log → fails | G | off, live |
+| FR-020 | `//tools/dev:dev_test`, `docs/local-demo.md` | one command, typed profile, URLs printed | a port in use or an invalid value → refused before start, named | G | off |
+| FR-021 | `config_test`, `bundle_test` | local sign-in usable; production refusal and bundle inspection unchanged | the test identity in the production bundle, production starting without a verifier → fails | G | off |
+| FR-022 | the contract suite over the local store; the restart and reset witnesses | stated semantics hold | a note lost where survival is stated, a reset that touches more → fails | G | off |
+| FR-023 | `docs/evidence/m10.md` | revision, command, startup time, logs, limitations on Linux | a macOS or offline claim without its run → review rejects | S | hum |
+| FR-024 | `tools/dev/record.sh`, the README, review after publication | one small GIF of the real local stack, labeled local, regenerable with the revision named | a mocked or hosted claim, stock imagery, a stale recording after a material UI change → review rejects | S | loc, hum |
+| SC-006 | `web/e2e/local-stack.spec.*` | the whole flow on a fresh checkout | any step failing → not demoable | G | loc |
+
+## Well-Architected rows (per component; control or gap; owner; command; evidence)
+
+| Pillar | Component | Control or gap | Owner, task | Command | Evidence |
+| --- | --- | --- | --- | --- | --- |
+| Operational excellence | CD, rollback, evidence | gap until T012, T015, T017 | BFF | the offline tests; the live record | `docs/evidence/m10.md` |
+| Security and privacy | identities, IAM, verifier, origin, redaction | gap until T004, T007, T014; the server's refusal and exact origin exist (`server_test`) | BFF; Infrastructure for IAM | the enumeration test; the verifier tests; the journey | live IAM read-back, not the plan |
+| Reliability | restart, persistence, rollback | gap until T008, T015; no availability claim | BFF | the restart test; the rollback witness | live, not CI |
+| Cost | bounds, budget alert, measured run | gap until T016, T017; no cap claim | BFF; Infrastructure for billing | the bounds test; the measured cost | the live record |
+| Performance | instance and concurrency bounds, measured latency of the flow | gap until T017 | BFF | the measured journey | the live record |
+| Sustainability | scale-to-zero, region choice, one image | gap until T011, T017 | BFF | the inputs; the measured run | the live record |

@@ -421,7 +421,7 @@ strict; parallel-safe pairs are marked.
 | M8a | BFF container image | M7 | FR-034, SC-010 | #30 |
 | M8 | Public-release readiness and repository provisioning plan | M7, M8a | FR-032, FR-033 | #31 |
 | M9 | Quality baseline: every control measured, budgets that only ratchet stricter, gates with planted defects; mandatory for initiative closure (amendment of 2026-11-01) | M8 frozen | FR-019, FR-020, FR-026 | — |
-| M10 | Optional GCP deployment profile | M6, M8a (optional) | FR-030 | #30 |
+| M10 | Hosted example: a dedicated BFF-owned GCP project, Cloud Build CD, the spec 009 image by digest, a real verifier and store behind the ports, the static frontend on Pages; required by the direction of 2026-11-01, and never a requirement on template users | M8, M8a, and spec 010 US6 for the package | FR-030, spec 012 | #30 |
 | M11 | Optional worker-integration conformance | M6 (optional) | FR-031 | #29 |
 
 The **first implementation slice** is M1 → M4 with the minimal M5/M6 gates needed to keep them
