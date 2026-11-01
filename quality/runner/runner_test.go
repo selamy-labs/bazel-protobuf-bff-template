@@ -1073,3 +1073,74 @@ func TestRegistryClosedValues(t *testing.T) {
 		t.Fatalf("a valid threshold was rejected: %v", err)
 	}
 }
+
+func manyLines(id string, count int) string {
+	return native(id, fmt.Sprintf(`i=1; while [ $i -le %d ]; do echo "distinctive-line-$i"; i=$((i+1)); done; exit 1`, count))
+}
+
+func TestOmittedDiagnosticsCanBeRetrieved(t *testing.T) {
+	h := committed(newHarness(t))
+	options := h.options(manyLines("noisy", 51), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(t.TempDir(), "evidence", "r.json")
+	if code := h.run(options); code != ExitFailed {
+		t.Fatalf("exit %d", code)
+	}
+	out := h.out.String()
+	if strings.Contains(out, "distinctive-line-51\n") || strings.Contains(out, "distinctive-line-51 ") {
+		t.Fatalf("the terminal bound broke:\n%s", out)
+	}
+	if !strings.Contains(out, "distinctive-line-50 ") {
+		t.Fatalf("line 50 is within the bound:\n%s", out)
+	}
+	receipt := receiptOf(t, options.ReceiptPath)
+	retained := receipt.Checks[0].Log
+	if retained == "" || !strings.Contains(out, "… 1 more (see "+retained+")") {
+		t.Fatalf("the terminal must name the retained file %q:\n%s", retained, out)
+	}
+	data, err := os.ReadFile(retained)
+	if err != nil {
+		t.Fatalf("the advertised location is dead: %v", err)
+	}
+	if !bytes.Contains(data, []byte("distinctive-line-51\n")) {
+		t.Fatalf("line 51 is not at the advertised location:\n%s", data)
+	}
+	info, err := os.Stat(retained)
+	if err != nil || info.Mode().Perm() != 0o600 {
+		t.Fatalf("a retained log stays private: %v %v", info, err)
+	}
+	stale := retained
+	h.write("real.go", "package again\n")
+	options = h.options(native("noisy", "exit 0"), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(filepath.Dir(filepath.Dir(stale)), "r.json")
+	h.run(options)
+	if _, err := os.Stat(stale); err == nil {
+		t.Fatal("an earlier run's log survived the next run")
+	}
+}
+
+func TestRetainedLogIsBounded(t *testing.T) {
+	saved := maxRetainedLog
+	maxRetainedLog = 200
+	defer func() { maxRetainedLog = saved }()
+	h := committed(newHarness(t))
+	options := h.options(manyLines("noisy", 500), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	h.run(options)
+	retained := receiptOf(t, options.ReceiptPath).Checks[0].Log
+	data, err := os.ReadFile(retained)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if int64(len(data)) > maxRetainedLog+200 || !bytes.Contains(data, []byte("truncated")) {
+		t.Fatalf("%d bytes:\n%s", len(data), data)
+	}
+}
+
+func TestWithoutAReceiptTheOnlyPointerIsTheRerun(t *testing.T) {
+	h := committed(newHarness(t))
+	options := h.options(manyLines("noisy", 51), registrypb.Stage_STAGE_FULL)
+	h.run(options)
+	if out := h.out.String(); !strings.Contains(out, "… 1 more (rerun: rerun-me)") || strings.Contains(out, "(see ") {
+		t.Fatalf("a dead pointer:\n%s", out)
+	}
+}

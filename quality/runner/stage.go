@@ -64,6 +64,9 @@ func StageName(stage registrypb.Stage) string {
 // grace, it adds at most this plus 9 s after the stage's work and cleanup.
 var bookkeepingBudget = 30 * time.Second
 
+// maxRetainedLog bounds one check's retained output.
+var maxRetainedLog int64 = 1 << 20
+
 // DefaultJobs is the contract's pool bound.
 func DefaultJobs() int { return max(1, min(4, runtime.NumCPU()/2)) }
 
@@ -84,6 +87,7 @@ func Run(ctx context.Context, options Options) (int, error) {
 	defer func() { _ = os.RemoveAll(scratch) }()
 	if options.ReceiptPath != "" {
 		_ = os.Remove(options.ReceiptPath)
+		_ = os.RemoveAll(logsDirectory(options.ReceiptPath))
 	}
 	git := Git{Dir: options.Root, Env: options.Env}
 	workdir := filepath.Join(scratch, "snapshot")
@@ -127,6 +131,18 @@ func Run(ctx context.Context, options Options) (int, error) {
 	return code, nil
 }
 
+// readBounded reads a log only as far as a retained copy could hold, because a check's output has
+// no limit of its own.
+func readBounded(path string) string {
+	file, err := os.Open(path)
+	if err != nil {
+		return ""
+	}
+	defer func() { _ = file.Close() }()
+	data, _ := io.ReadAll(io.LimitReader(file, maxRetainedLog+1))
+	return string(data)
+}
+
 type execution struct {
 	options Options
 	scratch string
@@ -141,13 +157,16 @@ func (e *execution) record(result Result, check *registrypb.Check) {
 	result.Blocking = check.GetClassification() == registrypb.Classification_CLASSIFICATION_GUARANTEE
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	e.results = append(e.results, result)
-	receipt := e.options.ReceiptPath
-	if receipt == "" {
-		receipt = "the output above"
+	if e.options.ReceiptPath != "" && result.output != "" && result.State != Passed {
+		if path, err := RetainLog(logsDirectory(e.options.ReceiptPath), result.Check, result.output); err == nil {
+			result.Log = path
+		}
 	}
-	PrintResult(e.options.Stdout, result, e.options.Rerun, receipt)
+	e.results = append(e.results, result)
+	PrintResult(e.options.Stdout, result, e.options.Rerun)
 }
+
+func logsDirectory(receipt string) string { return strings.TrimSuffix(receipt, ".json") + ".logs" }
 
 func (e *execution) run(ctx context.Context) []Result {
 	var pool, exclusive, after []planned
@@ -270,8 +289,7 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 	checkCtx, cancel := context.WithTimeout(ctx, time.Duration(plan.check.GetTimeoutSeconds())*time.Second)
 	defer cancel()
 	code, runErr := supervised(checkCtx, argv, e.inputs.Root, e.options.Env, log)
-	output, _ := os.ReadFile(logPath)
-	result.output = string(output)
+	result.output = readBounded(logPath)
 	switch {
 	case runErr == nil:
 	case checkCtx.Err() == nil:

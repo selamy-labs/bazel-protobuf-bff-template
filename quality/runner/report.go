@@ -45,6 +45,8 @@ type Result struct {
 	Seconds    float64 `json:"seconds"`
 	Blocking   bool    `json:"blocking"`
 	Inputs     int     `json:"inputs"`
+	// Log is the retained output of a check that did not pass, beside the receipt.
+	Log        string  `json:"log,omitempty"`
 	Reason     string  `json:"reason,omitempty"`
 	NoEvidence bool    `json:"no_evidence,omitempty"`
 	EmptyInput bool    `json:"empty_input,omitempty"`
@@ -81,8 +83,9 @@ func ExitCode(results []Result) int {
 var located = regexp.MustCompile(`^(\S+?):(\d+)(?::(\d+))?:\s*(.*)$`)
 
 // Diagnostics renders output in the contract's line format, at most MaxDiagnostics lines. A line
-// with no position keeps its text, because a repair loop can still use it.
-func Diagnostics(check, output, rerun, receipt string) []string {
+// with no position keeps its text, because a repair loop can still use it. Lines beyond the bound are
+// pointed to only where they exist: the retained log if there is one, or else the rerun command.
+func Diagnostics(check, output, rerun, retained string) []string {
 	var lines []string
 	for line := range strings.Lines(output) {
 		line = strings.TrimRight(line, "\r\n")
@@ -106,7 +109,11 @@ func Diagnostics(check, output, rerun, receipt string) []string {
 		rendered = append(rendered, fmt.Sprintf("%s %s (rerun: %s)", check, line, rerun))
 	}
 	if len(lines) > len(shown) {
-		rendered = append(rendered, fmt.Sprintf("… %d more (see %s)", len(lines)-len(shown), receipt))
+		pointer := "rerun: " + rerun
+		if retained != "" {
+			pointer = "see " + retained
+		}
+		rendered = append(rendered, fmt.Sprintf("… %d more (%s)", len(lines)-len(shown), pointer))
 	}
 	if len(rendered) == 0 {
 		rendered = append(rendered, fmt.Sprintf("%s the check failed and printed nothing (rerun: %s)", check, rerun))
@@ -159,8 +166,22 @@ func WriteReceipt(path string, receipt *Receipt) error {
 	return os.Rename(temporary, path)
 }
 
+// RetainLog keeps a failed check's output beside the receipt, so the terminal's bound hides nothing
+// for good. It holds what the terminal would have shown in full, so it carries the same redaction,
+// and it is private to this user. Size is bounded, and a cut says so.
+func RetainLog(directory, check, output string) (string, error) {
+	if err := os.MkdirAll(directory, 0o700); err != nil {
+		return "", err
+	}
+	path := filepath.Join(directory, check+".log")
+	if int64(len(output)) > maxRetainedLog {
+		output = output[:maxRetainedLog] + fmt.Sprintf("\n[truncated at %d bytes; rerun the check for the rest]\n", maxRetainedLog)
+	}
+	return path, os.WriteFile(path, []byte(output), 0o600)
+}
+
 // PrintResult writes one check's line and, if it blocks or failed, its diagnostics.
-func PrintResult(out io.Writer, result Result, rerun, receipt string) {
+func PrintResult(out io.Writer, result Result, rerun string) {
 	label := string(result.State)
 	switch result.State {
 	case Passed:
@@ -176,7 +197,7 @@ func PrintResult(out io.Writer, result Result, rerun, receipt string) {
 	if result.State == Passed || result.State == Skipped || result.State == NotApplicable {
 		return
 	}
-	for _, line := range Diagnostics(result.Check, result.output, rerun, receipt) {
+	for _, line := range Diagnostics(result.Check, result.output, rerun, result.Log) {
 		_, _ = fmt.Fprintln(out, "    "+line)
 	}
 }
