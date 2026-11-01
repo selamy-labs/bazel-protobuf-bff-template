@@ -41,6 +41,14 @@ STUB
 stub "$tree/tools/policy/workspace_policy.sh" workspace-policy
 stub "$tree/tools/policy/config_policy.sh" implicit-config
 stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
+mkdir -p "$tree/tools/release"
+cat >"$tree/tools/release/inventory.sh" <<STUB
+#!/usr/bin/env bash
+[[ "\$(cat "$work/fail" 2>/dev/null)" == inventory ]] && { echo "stub failure: inventory"; exit 1; }
+echo "measurement: inventory 1 rows, 0 licenses unresolved"
+exit 0
+STUB
+chmod +x "$tree/tools/release/inventory.sh"
 # image-release is a summary check, so its stand-in prints the measurement a real run would.
 cat >"$tree/tools/checks/image_release.sh" <<STUB
 #!/usr/bin/env bash

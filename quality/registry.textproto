@@ -191,6 +191,19 @@ checks {
   witness: "hook-e2e"
 }
 checks {
+  id: "inventory"
+  shard: "policy"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 120
+  allow_empty: true
+  summary: true
+  command: ["tools/release/inventory.sh", "{root}", "{YQ}"]
+  witness: "//:inventory_test"
+}
+
+checks {
   id: "image-release"
   shard: "policy"
   stages: [STAGE_FULL]
