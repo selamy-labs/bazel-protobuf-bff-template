@@ -45,6 +45,40 @@ run "the_origin_port_and_bounds_come_from_the_funnel" {
   }
 }
 
+# Rollback as an input (spec 012 FR-009): the same configuration with the previous digest serving. The image
+# is the previous digest; every other declared value is unchanged.
+run "a_rollback_changes_only_the_digest" {
+  command = plan
+
+  variables {
+    inputs_file = "../inputs/testdata/rollback.inputs.json"
+  }
+
+  assert {
+    condition     = google_cloud_run_v2_service.bff.template[0].containers[0].image == "example-region1-docker.example.invalid/example-bff-hosted-000000/bff@sha256:2222222222222222222222222222222222222222222222222222222222222222"
+    error_message = "a rollback serves the previous digest"
+  }
+  assert {
+    condition     = google_cloud_run_v2_service.bff.template[0].service_account == "bff-runtime@example.invalid" && google_cloud_run_v2_service.bff.template[0].scaling[0].max_instance_count == 2 && google_cloud_run_v2_service.bff.template[0].max_instance_request_concurrency == 20 && google_cloud_run_v2_service.bff.template[0].timeout == "30s" && google_cloud_run_v2_service.bff.template[0].containers[0].ports[0].container_port == 8080
+    error_message = "a rollback changes nothing but the digest"
+  }
+}
+
+# Cancellation as an input: the plan is the same, and the pipeline's cancel step is what keeps it from being
+# applied, which the offline witness checks structurally.
+run "a_cancellation_leaves_the_declared_service_as_it_is" {
+  command = plan
+
+  variables {
+    inputs_file = "../inputs/testdata/cancel.inputs.json"
+  }
+
+  assert {
+    condition     = google_cloud_run_v2_service.bff.template[0].containers[0].image == "example-region1-docker.example.invalid/example-bff-hosted-000000/bff@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    error_message = "a cancellation changes nothing in the declared service"
+  }
+}
+
 run "the_browser_may_call_and_the_application_verifies" {
   command = plan
 

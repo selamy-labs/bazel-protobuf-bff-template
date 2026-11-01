@@ -4,15 +4,16 @@
 # The provider comes from a mirror assembled from the pinned zip and the lock's hash, so nothing is fetched.
 # Nothing here applies anything.
 #
-#   offline.sh <tofu> <provider zip> <service dir> <inputs file> <validator>
+#   offline.sh <tofu> <provider zip> <service dir> <inputs file> <validator> <rollback inputs> <cancel inputs> <pipeline>
 #
 # Exit 0 passed, 1 a finding, 11 nothing could be judged.
 set -euo pipefail
-tofu="$1"; zip="$2"; service="$3"; inputs="$4"; validator="$5"
+tofu="$1"; zip="$2"; service="$3"; inputs="$4"; validator="$5"; rollback="$6"; cancel="$7"; pipeline="$8"
 refuse() { echo "offline: $1" >&2; exit 11; }
 [[ -x "$tofu" ]] || refuse "no tofu at $tofu"
 [[ -f "$zip" ]] || refuse "no provider zip at $zip"
 [[ -x "$validator" ]] || refuse "no inputs validator at $validator"
+[[ -f "$rollback" && -f "$cancel" && -f "$pipeline" ]] || refuse "the rollback inputs, the cancel inputs or the pipeline is missing"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 # The one funnel first: a refusal here is a finding, before any plan. As in the pipeline, the plan reads the
@@ -38,6 +39,19 @@ CLI
 mkdir -p "$work/deploy/gcp/inputs"
 cp -rL "$service" "$work/deploy/gcp/service"
 cp "$work/effective.inputs.json" "$work/deploy/gcp/inputs/example.inputs.json"
+# The rollback and the cancellation inputs pass the same funnel before the mock tests read them (FR-009).
+mkdir -p "$work/deploy/gcp/inputs/testdata"
+"$validator" --effective "$work/deploy/gcp/inputs/testdata/rollback.inputs.json" "$rollback" >/dev/null || { echo "offline: the rollback inputs are refused"; exit 1; }
+"$validator" --effective "$work/deploy/gcp/inputs/testdata/cancel.inputs.json" "$cancel" >"$work/cancel.out" || { echo "offline: the cancel inputs are refused"; exit 1; }
+grep -q '^release.cancel_in_flight=true # from ' "$work/cancel.out" || { echo "offline: the funnel did not carry the cancellation"; exit 1; }
+# The pipeline honors the cancellation: the cancel step reads the funnel's line, comes before anything is
+# promoted, and every step that promotes, plans or applies stops at the marker.
+grep -q "grep -q '^release.cancel_in_flight=true ' /workspace/validate.out" "$pipeline" || { echo "offline: the pipeline does not read the cancellation from the funnel"; exit 1; }
+order="$(grep -oE '^  - id: [a-z-]+' "$pipeline" | sed 's/^  - id: //' | tr '\n' ' ')"
+[[ "$order" == "validate-inputs cancel-in-flight promote-by-digest plan apply-behind-the-gate record " ]] || { echo "offline: the pipeline's steps are [$order], not the enumerated order"; exit 1; }
+for step in promote-by-digest plan apply-behind-the-gate; do
+  awk -v step="$step" '$0 ~ "^  - id: "step"$" {inside=1; next} inside && /^  - id: / {exit} inside && /\[\[ ! -e \/workspace\/cancelled \]\]/ {found=1} END {exit !found}' "$pipeline" || { echo "offline: the step $step ignores a cancellation"; exit 1; }
+done
 config="$work/deploy/gcp/service"
 export HOME="$work/home" TF_PLUGIN_CACHE_DIR="" TF_CLI_CONFIG_FILE="$work/cli.tfrc" HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 NO_PROXY="" GOOGLE_APPLICATION_CREDENTIALS="" GOOGLE_CREDENTIALS="" CLOUDSDK_CONFIG="$work/home" TF_INPUT=0
 mkdir -p "$HOME"
@@ -58,5 +72,5 @@ nodes="$(grep -oE '"(\[root\] )?google_[a-z0-9_]+\.[A-Za-z0-9_-]+( \(expand\))?"
 grep -qE '^\s*project\s*=\s*jsondecode\(file\(var\.inputs_file\)\)\.contract\.project_id\s*$' "$config/versions.tf" || { echo "offline: the provider is not bound to the funnel's project"; exit 1; }
 grep -qE '^\s*region\s*=\s*jsondecode\(file\(var\.inputs_file\)\)\.contract\.region\s*$' "$config/versions.tf" || { echo "offline: the provider is not bound to the funnel's region"; exit 1; }
 "$tofu" -chdir="$config" test -no-color -var "inputs_file=../inputs/example.inputs.json" >"$work/test.out" 2>&1 || { cat "$work/test.out"; echo "offline: a mock test failed"; exit 1; }
-grep -q "3 passed, 0 failed" "$work/test.out" || { cat "$work/test.out"; echo "offline: not every mock test ran"; exit 1; }
+grep -q "5 passed, 0 failed" "$work/test.out" || { cat "$work/test.out"; echo "offline: not every mock test ran"; exit 1; }
 echo "offline: the service module validates and its mock tests pass offline against the synthetic inputs; nothing applied"

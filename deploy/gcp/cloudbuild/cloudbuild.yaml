@@ -1,7 +1,9 @@
 # Continuous deployment on Cloud Build (spec 012 FR-005, FR-009): promote the exact image by digest and roll the
 # service to it; nothing is built here. The trigger that runs this is connected to the trusted source only and
 # runs as the contract's build identity, which holds no runtime permission. Rollback is the same pipeline with
-# the previous digest in the inputs; cancellation is the platform's, and the previous revision keeps serving.
+# the previous digest in the inputs; cancellation is an input too: when the effective inputs say so, every other
+# in-flight deployment of this trigger is cancelled, nothing below is applied, and the revision serving now keeps
+# serving. Nothing here has ever run.
 #
 # Substitutions come from the validated inputs file through the trigger; none has a default here.
 steps:
@@ -13,7 +15,23 @@ steps:
       - |
         # The one funnel first: a refusal here ends the deployment before anything is touched. The trigger names
         # the operator's file; the effective document, with every value's source printed, is what the plan reads.
-        bazel run //deploy/gcp/inputs:validate -- --effective /workspace/effective.inputs.json "${_INPUTS_FILE}"
+        bazel run //deploy/gcp/inputs:validate -- --effective /workspace/effective.inputs.json "${_INPUTS_FILE}" | tee /workspace/validate.out
+
+  - id: cancel-in-flight
+    name: "${_TOOLS_IMAGE}"
+    entrypoint: bash
+    args:
+      - -ceu
+      - |
+        # Cancellation as an input (spec 012 FR-009): the other in-flight deployments of this trigger are
+        # cancelled, a marker stops every step below from promoting, planning or applying, and the previous
+        # revision keeps serving. The record step still says what happened.
+        if grep -q '^release.cancel_in_flight=true ' /workspace/validate.out; then
+          gcloud builds list --ongoing --format='value(id)' \
+            --filter="substitutions.TRIGGER_NAME=${TRIGGER_NAME} AND id!=${BUILD_ID}" | xargs -r gcloud builds cancel
+          touch /workspace/cancelled
+          echo "cancelled: the previous revision keeps serving; nothing below applies"
+        fi
 
   - id: promote-by-digest
     name: "${_TOOLS_IMAGE}"
@@ -21,6 +39,7 @@ steps:
     args:
       - -ceu
       - |
+        [[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }
         # Copy the published image into the contract's registry by digest; crane preserves the digest, and a
         # digest that does not exist at the source ends the deployment. Nothing is built or rebuilt.
         crane copy "${_SOURCE_IMAGE}@${_SERVING_DIGEST}" "${_ARTIFACT_REGISTRY}@${_SERVING_DIGEST}"
@@ -32,6 +51,7 @@ steps:
     args:
       - -ceu
       - |
+        [[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }
         cd deploy/gcp/service
         tofu init -input=false -lockfile=readonly
         tofu plan -input=false -var "inputs_file=/workspace/effective.inputs.json" -out=/workspace/service.tfplan
@@ -43,6 +63,7 @@ steps:
     args:
       - -ceu
       - |
+        [[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }
         # The gate: the trigger's approval setting is the operator's recorded approval; without it this step never
         # runs. Nothing here applies on its own authority.
         cd deploy/gcp/service
@@ -54,10 +75,12 @@ steps:
     args:
       - -ceu
       - |
-        # The deployment record: the digest served before and after, the endpoint, the identity, the build id.
+        # The deployment record: the digest served before and after, the endpoint, the identity, the build id,
+        # and whether this run cancelled instead of deploying.
+        cancelled=false; [[ ! -e /workspace/cancelled ]] || cancelled=true
         gcloud run services describe bff --region "${_REGION}" --format=json > /workspace/service.after.json
-        printf '{"build":"%s","serving_digest":"%s","previous_digest":"%s","source_revision":"%s"}\n' \
-          "${BUILD_ID}" "${_SERVING_DIGEST}" "${_PREVIOUS_DIGEST}" "${COMMIT_SHA}" > /workspace/deployment.json
+        printf '{"build":"%s","serving_digest":"%s","previous_digest":"%s","source_revision":"%s","cancelled":%s}\n' \
+          "${BUILD_ID}" "${_SERVING_DIGEST}" "${_PREVIOUS_DIGEST}" "${COMMIT_SHA}" "$cancelled" > /workspace/deployment.json
 
 options:
   logging: CLOUD_LOGGING_ONLY

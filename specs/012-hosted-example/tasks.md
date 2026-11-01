@@ -32,8 +32,8 @@
 
 ## Phase 5: User Story 2 and 3 - Rollback, cancellation, bounds (Priority: P1, P2)
 
-- [ ] T015 [US2] Rollback and cancellation as inputs of the same configuration, witnessed by the digests before and after in the evidence record
-- [ ] T016 [US3] Cost bounds as typed inputs enumerated by a test; the identities and bindings enumerated by a test; the evaluation and the concrete packet of inputs and gates (project id availability, creation authority, billing choice, region, auth provider, cost bound, apply approval) for the operator and the infrastructure owner, outside the repository
+- [x] T015 [US2] (offline: the rollback inputs serve the previous digest and change nothing else, the cancel inputs change nothing in the declared service and the pipeline's cancel step keeps every later step from promoting, planning or applying, each with a planted defect; the digests before and after are in the evidence record; the live witness is T017's) Rollback and cancellation as inputs of the same configuration, witnessed by the digests before and after in the evidence record
+- [x] T016 [US3] (the bounds and the identities enumerated by `inputs_test`; the packet with its inputs and gates for the operator and the infrastructure owner is outside the repository, in the M10 packet) Cost bounds as typed inputs enumerated by a test; the identities and bindings enumerated by a test; the evaluation and the concrete packet of inputs and gates (project id availability, creation authority, billing choice, region, auth provider, cost bound, apply approval) for the operator and the infrastructure owner, outside the repository
 
 ## Phase 6: User Story 5 - The local whole-stack demo (Priority: P1; needs no cloud)
 

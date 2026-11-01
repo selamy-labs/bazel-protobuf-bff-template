@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "contract": {
+    "version": 1,
+    "project_id": "example-bff-hosted-000000",
+    "region": "example-region1",
+    "runtime_identity": "bff-runtime@example.invalid",
+    "build_identity": "bff-build@example.invalid",
+    "artifact_registry": "example-region1-docker.example.invalid/example-bff-hosted-000000/bff",
+    "state_bucket": "example-bff-hosted-000000-state"
+  },
+  "project": {
+    "display_name": "BFF hosted example",
+    "parent": "organizations/000000000000",
+    "owner_group": "bff-owners@example.invalid",
+    "billing_account_reference": "synthetic-reference-resolved-by-the-infrastructure-owner"
+  },
+  "region": "example-region1",
+  "image": {
+    "digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "source_revision": "0000000000000000000000000000000000000000"
+  },
+  "runtime": {
+    "port": 8080,
+    "allowed_origin": "https://example-owner.github.example.invalid",
+    "verifier": {
+      "issuer": "https://issuer.example.invalid/",
+      "audience": "bff-hosted-example",
+      "jwks_url": "https://issuer.example.invalid/.well-known/jwks.json"
+    },
+    "persistence": {
+      "kind": "managed-store",
+      "statement": "a note survives a revision change and a restart; it is read by its owner only"
+    }
+  },
+  "frontend": {
+    "host": "github-pages",
+    "base_path": "/bazel-protobuf-bff-template/",
+    "rpc_base_url": "https://bff.example.invalid"
+  },
+  "bounds": {
+    "max_instances": 2,
+    "concurrency": 20,
+    "request_timeout_seconds": 30,
+    "budget_alert_amount": 10,
+    "budget_alert_currency": "USD"
+  },
+  "release": {
+    "serving_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000",
+    "previous_digest": null,
+    "cancel_in_flight": true
+  }
+}

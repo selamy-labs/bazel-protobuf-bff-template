@@ -14,10 +14,16 @@ sh_test(
         "deploy/gcp/service",
         "$(rootpath //deploy/gcp/inputs:example.inputs.json)",
         "$(rootpath //deploy/gcp/inputs:validate)",
+        "$(rootpath //deploy/gcp/inputs:testdata/rollback.inputs.json)",
+        "$(rootpath //deploy/gcp/inputs:testdata/cancel.inputs.json)",
+        "$(rootpath cloudbuild/cloudbuild.yaml)",
     ],
     data = [
+        "cloudbuild/cloudbuild.yaml",
         "tests/offline.sh",
         "//deploy/gcp/inputs:example.inputs.json",
+        "//deploy/gcp/inputs:testdata/cancel.inputs.json",
+        "//deploy/gcp/inputs:testdata/rollback.inputs.json",
         "//deploy/gcp/inputs:validate",
         "@opentofu//:tofu",
         "@terraform_provider_google//file",
@@ -25,4 +31,9 @@ sh_test(
         ["service/**"],
         exclude = ["service/.terraform/**"],
     ),
+)
+
+exports_files(
+    ["service/main.tf"],
+    visibility = ["//deploy:__subpackages__"],
 )

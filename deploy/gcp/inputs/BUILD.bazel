@@ -2,7 +2,11 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 
 # The hosted example's one typed funnel (spec 012 FR-003): every value declared once, validated before any plan.
 exports_files(
-    ["example.inputs.json"],
+    [
+        "example.inputs.json",
+        "testdata/cancel.inputs.json",
+        "testdata/rollback.inputs.json",
+    ],
     visibility = ["//deploy:__subpackages__"],
 )
 
@@ -20,10 +24,12 @@ go_test(
     data = [
         "example.inputs.json",
         "inputs.schema.json",
+        "//deploy/gcp:service/main.tf",
     ],
     embed = [":inputs"],
     env = {
         "EXAMPLE": "$(rlocationpath example.inputs.json)",
+        "MAIN_TF": "$(rlocationpath //deploy/gcp:service/main.tf)",
         "SCHEMA": "$(rlocationpath inputs.schema.json)",
     },
 )
