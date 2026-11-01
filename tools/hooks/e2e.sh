@@ -22,8 +22,10 @@ user="${USER:-$(id -un)}"
 work="$(mktemp -d)"
 repo="$work/repo"
 remote="$work/remote.git"
+control=""
 cleanup() {
   local base
+  if [[ -n "$control" ]]; then kill "$control" 2>/dev/null || true; fi
   if [[ -x "$repo/tools/bootstrap/bazel.sh" ]]; then
     (cd "$repo" && tools/bootstrap/bazel.sh shutdown) </dev/null >/dev/null 2>&1 || true
     for base in "$XDG_CACHE_HOME"/bff-template/push/*; do
@@ -59,6 +61,19 @@ step() { # step <command...>: output in $work/out, exit code in $rc
 in_repo() { git -C "$repo" "$@"; }
 needs() { grep -qF -- "$1" "$work/out" || die "${2:-the output does not name '$1'}"; }
 result() { "$YQ" -p=json -o=json -r ".checks[] | select(.check == \"$2\") | .result" "$1"; }
+start_of() { awk '{print $22}' "/proc/$1/stat" 2>/dev/null || true; } # With the PID, one exact process
+descendants_named() { # descendants_named <root pid> <text>: processes under that one holding the text
+  ps -eo pid=,ppid=,args= | awk -v root="$1" -v text="$2" '
+    { parent[$1] = $2; line[$1] = $0; order[NR] = $1 }
+    END {
+      for (i = 1; i <= NR; i++) {
+        if (index(line[order[i]], text) == 0) continue
+        for (p = order[i]; (p in parent) && p + 0 > 1; p = parent[p]) {
+          if (p + 0 == root + 0) { print order[i]; break }
+        }
+      }
+    }'
+}
 
 flags=()
 install_flags=()
@@ -225,10 +240,31 @@ owned=("$XDG_CACHE_HOME"/bff-template/push/*/server/server.pid.txt)
 [[ ${#owned[@]} -eq 1 && -f "${owned[0]}" ]] || die "expected one private server, found ${#owned[@]}"
 private="$(<"${owned[0]}")"
 kill -0 "$private" 2>/dev/null || die "control failed: the private server was not running, so this proves nothing"
-step env "BUILD_WORKSPACE_DIRECTORY=$repo" "$work/runner" --stage=pre-push --deadline=45s "--to=$to" "--from=$from" "--isolation=$isolation"
+# Ownership is the process tree of this run's private server, never a name: the same command elsewhere
+# on the host is not this run's. The control is such a process, and it must outlive this case.
+sleep 287 </dev/null >/dev/null 2>&1 &
+control=$!
+BUILD_WORKSPACE_DIRECTORY="$repo" "$work/runner" --stage=pre-push --deadline=60s "--to=$to" "--from=$from" \
+  "--isolation=$isolation" </dev/null >"$work/out" 2>&1 &
+pushing=$!
+own=""
+while kill -0 "$pushing" 2>/dev/null; do
+  own="$(descendants_named "$private" 'sleep 287')"
+  if [[ -n "$own" ]]; then break; fi
+  sleep 0.2
+done
+rc=0
+wait "$pushing" || rc=$?
+[[ -n "$own" ]] || die "control failed: this run's slow test never started, so this proves nothing"
 [[ $rc -eq 10 ]] || die "a pre-push deadline exited $rc, not 10"
 needs "pre-push deadline passed"
 if kill -0 "$private" 2>/dev/null; then die "the private server outlived the deadline"; fi
 kill -0 "$server" 2>/dev/null || die "the checkout's server was stopped too"
-if pgrep -f 'sleep 287' >/dev/null; then die "the slow test outlived the deadline"; fi
+for pid in $own; do
+  if [[ -d "/proc/$pid" ]]; then die "this run's slow test $pid outlived the deadline"; fi
+done
+[[ -n "$(start_of "$control")" ]] || die "an unrelated process with the same command did not survive"
+kill "$control"
+wait "$control" || true
+control=""
 echo "ok   hook-e2e a pre-push deadline stopped only the private server"
