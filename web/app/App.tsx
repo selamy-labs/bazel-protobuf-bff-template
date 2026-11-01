@@ -1,5 +1,9 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
 
+/** The inputs in page order, by the validation path each shows. */
+const inputPaths = ["note.title", "note.body", "name"] as const;
+type InputPath = (typeof inputPaths)[number];
+
 import { describe, toFailure, type Failure } from "../client/errors.js";
 import { latest, Requests } from "../client/lifecycle.js";
 import type { NotesClient } from "../client/transport.js";
@@ -74,6 +78,21 @@ export function App({ client }: { client: NotesClient }): ReactElement {
     const owned = requests.current;
     return () => owned.dispose();
   }, []);
+  // A mutation is never duplicated: the guard is a ref, so a second submit in the same tick sees it.
+  const mutating = useRef(false);
+
+  // After a validation failure, focus goes to the first field in page order that has a message.
+  const inputs = useRef<Record<InputPath, HTMLInputElement | HTMLTextAreaElement | null>>({
+    "note.title": null,
+    "note.body": null,
+    name: null,
+  });
+  useEffect(() => {
+    const first = inputPaths.find((path) => fieldError(view, path) !== undefined);
+    if (first !== undefined) {
+      inputs.current[first]?.focus();
+    }
+  }, [view]);
 
   async function run(
     operation: "create" | "open",
@@ -93,22 +112,27 @@ export function App({ client }: { client: NotesClient }): ReactElement {
     }
   }
 
-  // A mutation is never duplicated: while anything is in flight, Create waits. A read may be
-  // superseded: a newer Open cancels the older one, whose result is then ignored.
+  // While anything is in flight, Create waits. A read may be superseded: a newer Open cancels the
+  // older one, whose result is then ignored. The buttons stay focusable, so keyboard focus is kept.
   const creating = view.state === "loading" && view.operation === "create";
   const loading = view.state === "loading";
 
   function create(event: FormEvent): void {
     event.preventDefault();
-    if (loading) {
+    if (loading || mutating.current) {
       return;
     }
-    void run("create", (signal) => client.createNote({ note: { title, body } }, { signal }));
+    mutating.current = true;
+    void run("create", (signal) =>
+      client.createNote({ note: { title, body } }, { signal }),
+    ).finally(() => {
+      mutating.current = false;
+    });
   }
 
   function open(event: FormEvent): void {
     event.preventDefault();
-    if (creating) {
+    if (creating || mutating.current) {
       return;
     }
     void run("open", (signal) => client.getNote({ name }, { signal }));
@@ -129,6 +153,9 @@ export function App({ client }: { client: NotesClient }): ReactElement {
           <input
             name="title"
             value={title}
+            ref={(element) => {
+              inputs.current["note.title"] = element;
+            }}
             aria-describedby="title-error"
             onChange={(event) => {
               setTitle(event.target.value);
@@ -142,6 +169,9 @@ export function App({ client }: { client: NotesClient }): ReactElement {
           <textarea
             name="body"
             value={body}
+            ref={(element) => {
+              inputs.current["note.body"] = element;
+            }}
             aria-describedby="body-error"
             onChange={(event) => {
               setBody(event.target.value);
@@ -150,7 +180,7 @@ export function App({ client }: { client: NotesClient }): ReactElement {
           />
         </label>
         <FieldMessage id="body-error" text={fieldError(view, "note.body")} />
-        <button type="submit" disabled={loading}>
+        <button type="submit" aria-disabled={loading}>
           Create note
         </button>
       </form>
@@ -160,6 +190,9 @@ export function App({ client }: { client: NotesClient }): ReactElement {
           <input
             name="name"
             value={name}
+            ref={(element) => {
+              inputs.current.name = element;
+            }}
             placeholder="notes/…"
             aria-describedby="name-error"
             onChange={(event) => {
@@ -169,7 +202,7 @@ export function App({ client }: { client: NotesClient }): ReactElement {
           />
         </label>
         <FieldMessage id="name-error" text={fieldError(view, "name")} />
-        <button type="submit" disabled={creating}>
+        <button type="submit" aria-disabled={creating}>
           Open note
         </button>
       </form>

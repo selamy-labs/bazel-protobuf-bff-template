@@ -23,6 +23,7 @@ same change that alters any of them.
 | Fakes with contract tests | partial | the fake's own tests | no contract suite | n/a | none | T010 |
 | Config-driven behavior | gap | none | defaults not inventoried | none | none | T019 to T021 |
 | Focused tests | partial | review | not measured | n/a | none | review |
+| Accessibility | partial | `notes_e2e_test`: keyboard-only completion, the focus ring's computed outline, focus recovery to the first invalid field, accessible descriptions, the accessibility tree by role and name at `bed02b7` | structure, names, keyboard and focus only; no contrast, no screen-reader run, no full audit claimed | n/a | none | T026 done; a full audit is an open adoption decision |
 | Feature, failure, recovery, integration acceptance | enforced | the end-to-end, failure, hook and image witnesses | per milestone | n/a | none | done |
 | Independent exact-revision verification | enforced | review at each milestone's SHA | evidence records; M8 at `446e5c8` | n/a | none | done |
 | Archive before cleanup | enforced for the future | `//:archive_ref_test` (27 controls), `//:archive_handoff_test` (9 controls) | prevention only: a named ref bundled, verified and restored to the exact commit and tree; a bare object id, a link, an existing or late-arriving destination and a damaged bundle refused; eligibility recorded only behind a verified archive. Nothing recovers `8ad7470` | n/a | none | done; cleanup custody stays with the lifecycle owner |

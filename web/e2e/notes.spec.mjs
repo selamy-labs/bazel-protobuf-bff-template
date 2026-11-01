@@ -157,6 +157,84 @@ test("a render error shows the boundary's message, not a blank page", async ({ p
   await expect(page.getByRole("button", { name: "Create note" })).toHaveCount(0);
 });
 
+/** Where keyboard focus is, and whether the browser paints it: the focus ring's computed outline. */
+const focused = (page) =>
+  page.evaluate(() => {
+    const element = document.activeElement;
+    const style = element === null ? null : getComputedStyle(element);
+    return {
+      label: element?.labels?.[0]?.textContent?.trim() ?? element?.textContent?.trim() ?? "",
+      visible: style !== null && style.outlineStyle !== "none" && style.outlineWidth !== "0px",
+    };
+  });
+
+test("the keyboard alone creates a note and opens it, with focus visible throughout", async ({
+  notes,
+}) => {
+  await notes.keyboard.press("Tab");
+  expect(await focused(notes)).toEqual({
+    label: "Test identity: development only, never deployed",
+    visible: true,
+  });
+  await notes.keyboard.press("Tab");
+  expect((await focused(notes)).label).toBe("Title");
+  await notes.keyboard.type("By keyboard");
+  await notes.keyboard.press("Tab");
+  expect((await focused(notes)).label).toBe("Body");
+  await notes.keyboard.type("no pointer");
+  await notes.keyboard.press("Tab");
+  expect(await focused(notes)).toEqual({ label: "Create note", visible: true });
+  await notes.keyboard.press("Enter");
+  await expect(notes.getByRole("heading", { name: "By keyboard" })).toBeVisible();
+  // Focus stays on the button through the call: it was never disabled.
+  expect((await focused(notes)).label).toBe("Create note");
+  const name = await notes.getByTestId("note-name").textContent();
+  await notes.keyboard.press("Tab");
+  expect((await focused(notes)).label).toBe("Name");
+  await notes.keyboard.type(name);
+  await notes.keyboard.press("Tab");
+  expect(await focused(notes)).toEqual({ label: "Open note", visible: true });
+  await notes.keyboard.press("Enter");
+  await expect(notes.getByTestId("note-body")).toHaveText("no pointer");
+});
+
+test("after a validation error, focus returns to the first invalid field, which names its message", async ({
+  notes,
+}) => {
+  await notes.getByLabel("Body").focus();
+  await notes.keyboard.type("a body alone");
+  await notes.keyboard.press("Tab");
+  await notes.keyboard.press("Enter");
+  const title = notes.getByRole("textbox", { name: "Title" });
+  await expect(title).toBeFocused();
+  await expect(title).toHaveAccessibleDescription("title is required");
+  expect((await focused(notes)).visible).toBe(true);
+  // Correcting the field clears its message, and the description with it.
+  await notes.keyboard.type("Titled");
+  await expect(notes.getByTestId("title-error")).toHaveCount(0);
+  await expect(title).toHaveAccessibleDescription("");
+});
+
+test("every control has a role and a name in the accessibility tree", async ({ notes }) => {
+  await expect(notes.locator("body")).toMatchAriaSnapshot(`
+    - complementary:
+      - textbox /Test identity/
+    - main:
+      - heading "Notes" [level=1]
+      - form "New note":
+        - textbox "Title"
+        - textbox "Body"
+        - button "Create note"
+      - form "Open note":
+        - textbox "Name"
+        - button "Open note"
+  `);
+  await notes.getByLabel("Name").fill("tasks/1");
+  await notes.getByRole("button", { name: "Open note" }).click();
+  await expect(notes.getByRole("alert")).toBeVisible();
+  await expect(notes.getByLabel("Name")).toHaveAccessibleDescription(/does not match/);
+});
+
 test("a second submit does not create a second note", async ({ notes }) => {
   await identify(notes, "ana");
   let creates = 0;
