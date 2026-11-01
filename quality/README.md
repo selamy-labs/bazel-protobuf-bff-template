@@ -14,7 +14,7 @@ depends on the application that uses it.
 - [specs/002 research.md](../specs/002-hermetic-skeleton/research.md) describes the M1 pins and
   checks.
 
-## Contents (0.2.0)
+## Contents (0.2.1)
 
 | Path | What it is |
 | --- | --- |

@@ -5,7 +5,7 @@
 # path. A host's registry names the rules it uses, and a release's notes are a diff of this file
 # (spec 008 R8, FR-006). A witness names where the rule's defect and corrected cases live in this
 # module's source repository.
-version: "0.2.0"
+version: "0.2.1"
 
 tools { name: "ACTIONLINT" version_args: "--version" }
 tools { name: "BUILDIFIER" version_args: "--version" }
