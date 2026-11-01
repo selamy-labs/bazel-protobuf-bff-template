@@ -1,16 +1,36 @@
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
+# The whole-stack witness in //web/e2e runs the launcher from its runfiles. A js_test may carry only output-tree
+# files from another package as data, so the launcher and the profile it reads are copied into the output tree
+# here, and the sh_binary and its test use the same copies.
+genrule(
+    name = "dev_sh",
+    srcs = ["dev.sh"],
+    outs = ["dev.copy.sh"],
+    cmd = "cp $< $@",
+    executable = True,
+    visibility = ["//web/e2e:__pkg__"],
+)
+
+genrule(
+    name = "profile_json",
+    srcs = ["profile.json"],
+    outs = ["profile.copy.json"],
+    cmd = "cp $< $@",
+    visibility = ["//web/e2e:__pkg__"],
+)
+
 ARGS = [
     "$(rootpath //bff/cmd/bff-dev)",
     "$(rootpath //web/serve)",
     "$(rootpath //web/app:dist_dev)",
     "$(rootpath //tools/dev/profile)",
-    "$(rootpath profile.json)",
+    "$(rootpath :profile_json)",
 ]
 
 DATA = [
-    "profile.json",
+    ":profile_json",
     "//bff/cmd/bff-dev",
     "//tools/dev/profile",
     "//web/app:dist_dev",
@@ -21,7 +41,7 @@ DATA = [
 sh_binary(
     name = "dev",
     testonly = True,
-    srcs = ["dev.sh"],
+    srcs = [":dev_sh"],
     args = ARGS,
     data = DATA,
     env = {"BAZEL_BINDIR": "."},
@@ -32,6 +52,6 @@ sh_test(
     name = "dev_test",
     size = "small",
     srcs = ["dev_test.sh"],
-    args = ["$(rootpath dev.sh)"] + ARGS,
-    data = DATA + ["dev.sh"],
+    args = ["$(rootpath :dev_sh)"] + ARGS,
+    data = DATA + [":dev_sh"],
 )

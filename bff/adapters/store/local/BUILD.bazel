@@ -4,7 +4,10 @@ go_library(
     name = "local",
     srcs = ["store.go"],
     importpath = "example.com/bfftemplate/bff/adapters/store/local",
-    visibility = ["//bff:__subpackages__"],
+    visibility = [
+        "//bff:__subpackages__",
+        "//web/e2e:__pkg__",
+    ],
     deps = ["//bff/ports"],
 )
 

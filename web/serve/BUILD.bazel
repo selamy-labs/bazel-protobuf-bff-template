@@ -10,7 +10,10 @@ js_binary(
     name = "serve",
     data = [":serve_lib"],
     entry_point = "serve.mjs",
-    visibility = ["//tools/dev:__pkg__"],
+    visibility = [
+        "//tools/dev:__pkg__",
+        "//web/e2e:__pkg__",
+    ],
 )
 
 js_library(

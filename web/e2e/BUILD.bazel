@@ -42,6 +42,35 @@ playwright.playwright_test(
     },
 )
 
+# The whole stack through the one command (spec 012 FR-020 to FR-023): the real launcher, a real browser, a
+# restart and a reset. The launcher's own runfiles come along, and DEV_ARGS names them as `bazel run` would.
+playwright.playwright_test(
+    name = "local_stack_e2e_test",
+    size = "large",
+    args = [
+        "test",
+        "--config",
+        "web/e2e/playwright.config.mjs",
+        "local-stack.spec.mjs",
+    ],
+    data = BROWSER_DATA + [
+        "local-stack.spec.mjs",
+        "playwright.config.mjs",
+        "stack.mjs",
+        "//:node_modules/@playwright/test",
+        "//bff/cmd/bff-dev",
+        "//tools/dev:dev_sh",
+        "//tools/dev:profile_json",
+        "//tools/dev/profile",
+        "//web/app:dist_dev",
+        "//web/serve",
+    ],
+    env = BROWSER_ENV | {
+        "DEV_SH": "$(rootpath //tools/dev:dev_sh)",
+        "DEV_ARGS": "$(rootpath //bff/cmd/bff-dev) $(rootpath //web/serve) $(rootpath //web/app:dist_dev) $(rootpath //tools/dev/profile) $(rootpath //tools/dev:profile_json)",
+    },
+)
+
 # The defect witness (spec 005 research R5): the same specs against a server whose error mapping is
 # broken in one place. The chain repeats only what must be rebuilt around the edited file.
 genrule(
@@ -97,6 +126,8 @@ go_binary(
     deps = [
         ":defect_server",
         "//bff/adapters/memory",
+        "//bff/adapters/store/local",
+        "//bff/ports",
         "//bff/testing/faults",
         "//bff/testing/identity",
     ],
