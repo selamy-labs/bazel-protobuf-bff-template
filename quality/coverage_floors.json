@@ -16,6 +16,7 @@
     { "pattern": "\\.test\\.(ts|mjs)$", "reason": "test-code" },
     { "pattern": "^api/testdata/", "reason": "test-data" },
     { "pattern": "^quality/checks/suppression/testdata/", "reason": "test-data" },
+    { "pattern": "^quality/analysis/u1000/testdata/", "reason": "test-data" },
     { "pattern": "^bff/ports/store\\.go$", "reason": "interfaces-only" },
     { "pattern": "^bff/cmd/bff/verifier\\.go$", "reason": "no-statements" },
     { "pattern": "^api/tools\\.go$", "reason": "build-tag-tools" },
@@ -36,11 +37,47 @@
       "include": "^(bff/cmd/bff-dev/main\\.go|deploy/gcp/inputs/cmd/validate/main\\.go|quality/checks/ciparity/cmd/main\\.go|quality/checks/complexity/cmd/complexity/main\\.go|quality/checks/coverage/cmd/(floors|merger)/main\\.go|quality/checks/suppression/main\\.go|quality/proto/cmd/main\\.go|quality/release/cmd/main\\.go|quality/runner/cmd/main\\.go)$",
       "floor": 70
     },
-    { "name": "go-root", "language": "go", "metric": "statements", "include": "^bff/", "floor": 87 },
-    { "name": "go-tools", "language": "go", "metric": "statements", "include": "^tools/dev/profile/", "floor": 74 },
-    { "name": "go-deploy", "language": "go", "metric": "statements", "include": "^deploy/gcp/inputs/[^/]+\\.go$", "floor": 98 },
-    { "name": "go-quality", "language": "go", "metric": "statements", "include": "^quality/", "floor": 75 },
-    { "name": "ts-client", "language": "typescript", "metric": "compiled-js-lines", "include": "^web/client/", "floor": 100 },
-    { "name": "web-browser", "language": "typescript", "metric": "unmeasured", "include": "^web/(app|serve)/", "floor": 0 }
+    {
+      "name": "go-root",
+      "language": "go",
+      "metric": "statements",
+      "include": "^bff/",
+      "floor": 87
+    },
+    {
+      "name": "go-tools",
+      "language": "go",
+      "metric": "statements",
+      "include": "^tools/dev/profile/",
+      "floor": 74
+    },
+    {
+      "name": "go-deploy",
+      "language": "go",
+      "metric": "statements",
+      "include": "^deploy/gcp/inputs/[^/]+\\.go$",
+      "floor": 98
+    },
+    {
+      "name": "go-quality",
+      "language": "go",
+      "metric": "statements",
+      "include": "^quality/",
+      "floor": 75
+    },
+    {
+      "name": "ts-client",
+      "language": "typescript",
+      "metric": "compiled-js-lines",
+      "include": "^web/client/",
+      "floor": 100
+    },
+    {
+      "name": "web-browser",
+      "language": "typescript",
+      "metric": "unmeasured",
+      "include": "^web/(app|serve)/",
+      "floor": 0
+    }
   ]
 }
