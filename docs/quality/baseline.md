@@ -21,7 +21,7 @@ same change that alters any of them.
 | Property tests | partial | existing Go tests | Go only | n/a | none | T009 |
 | Mutation testing | partial | none; named mutants by hand at M5 and M6 | not measured | none | none | T008 |
 | Fakes with contract tests | partial | the fake's own tests | no contract suite | n/a | none | T010 |
-| Config-driven behavior | gap | none | defaults not inventoried | none | none | T019 to T021 |
+| Config-driven behavior | partial | none; the inventory in [defaults](defaults.md) | 38 default sites at `e6fe228`: 14 composition, 4 input, 8 contract, 12 scattered (the development server's copies of the profile's values, the transport and server bounds, the memory store's bound, the static server's test port, the runner's bounds, the release catalog's line bound) | n/a | test-only packages | T020 (each scattered row), T021 |
 | Focused tests | partial | review | not measured | n/a | none | review |
 | Accessibility | partial | `notes_e2e_test`: keyboard-only completion, the focus ring's computed outline, focus recovery to the first invalid field, accessible descriptions, the accessibility tree by role and name at `bed02b7` | structure, names, keyboard and focus only; no contrast, no screen-reader run, no full audit claimed | n/a | none | T026 done; a full audit is an open adoption decision |
 | Feature, failure, recovery, integration acceptance | enforced | the end-to-end, failure, hook and image witnesses | per milestone | n/a | none | done |

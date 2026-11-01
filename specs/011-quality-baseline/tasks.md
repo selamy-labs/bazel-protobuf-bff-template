@@ -34,7 +34,7 @@
 
 ## Phase 5: User Story 4 - Config-driven behavior (Priority: P2)
 
-- [ ] T019 [P] [US4] Q10 inventory: every default in first-party Go and TypeScript by its site and boundary, in `docs/quality/defaults.md`; each either at the composition or input boundary or named as scattered with an owner
+- [x] T019 [P] [US4] (38 rows in `docs/quality/defaults.md` at `e6fe228`: 14 at a composition, 4 at an input boundary, 8 contract constants, 12 scattered, each scattered one with its owner under T020) Q10 inventory: every default in first-party Go and TypeScript by its site and boundary, in `docs/quality/defaults.md`; each either at the composition or input boundary or named as scattered with an owner
 - [ ] T020 [US4] One versioned typed schema per configurable surface, with validation, precedence and effective-value provenance; focused compatibility-preserving moves of each scattered default, each with omitted, invalid, precedence, alternative and fallback tests
 - [ ] T021 [US4] A config-only behavior-change witness per surface, and the bypass controls: a setting that would weaken a security, quality, spend or invariant contract is refused; OpenFeature probed before any pin, adopted only where runtime evaluation fits, with its boundary fallback source named
 
