@@ -50,6 +50,8 @@ new_repo() {
   if [[ ! -e "$dir/.git" ]]; then git -C "$dir" init -q -b main; fi
   cp "$source_root/prek.toml" "$source_root/.gitleaks.toml" "$source_root/_typos.toml" "$dir/"
   cp "$source_root/tools/hooks/stage.sh" "$dir/tools/hooks/"
+  # The complexity budgets are a policy input the check reads from the snapshot (spec 011 FR-004).
+  cp "$(dirname "$registry")/complexity_budgets.json" "$dir/quality/"
   cp "$source_root/tools/hooks/fixture_bazel.sh" "$dir/tools/bootstrap/bazel.sh"
   printf '%s\n' "$runner" "$catalog" "$registry" "$adapter" "$source_root" "${tools[@]}" >"$dir/tools/bootstrap/bazel.config"
   echo vendored >"$dir/tools/speckit/vendored.txt"
@@ -144,6 +146,20 @@ printf 'package src\n\nvar x = 1\n' >"$r/src/lint.go"
 git -C "$r" add src/lint.go
 commit "$r" -q -m corrected
 accepted "the corrected suppression"
+
+# A function over the complexity ceiling is a real check's rejection, named with its numbers (spec 011).
+{
+  printf 'package src\n\nfunc Deep(a []int) int {\n\tn := 0\n'
+  for i in $(seq 12); do printf '\tfor _, v := range a {\n\t\tif v > %d {\n\t\t\tn++\n\t\t}\n\t}\n' "$i"; done
+  printf '\treturn n\n}\n'
+} >"$r/src/deep.go"
+git -C "$r" add src/deep.go
+commit "$r" -q -m complexity
+rejected "a function over the complexity ceiling" "complexity" "src/deep.go Deep: cognitive 36 is over its ceiling 20"
+printf 'package src\n\nfunc Deep(a []int) int { return len(a) }\n' >"$r/src/deep.go"
+git -C "$r" add src/deep.go
+commit "$r" -q -m corrected
+accepted "the corrected complexity"
 
 printf 'syntax = "proto3";\nmessage {\n' >"$r/api/a/v1/note2.proto"
 git -C "$r" add api/a/v1/note2.proto

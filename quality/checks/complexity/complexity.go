@@ -233,7 +233,7 @@ func (r Result) String() string {
 }
 
 // Check judges every listed file. Problems name the function and both numbers. A list that measures no
-// function is an error, never a pass. read gives each path's source.
+// Go file is an error, never a pass. read gives each path's source.
 func (b *Budgets) Check(paths []string, read func(string) ([]byte, error)) (Result, []string, error) {
 	result := Result{Max: map[Metric]int{}}
 	var problems []string
@@ -256,8 +256,9 @@ func (b *Budgets) Check(paths []string, read func(string) ([]byte, error)) (Resu
 		result.Files++
 		problems = append(problems, b.judge(measured, &result)...)
 	}
-	if result.Functions == 0 {
-		return result, nil, errors.New("no function was measured")
+	// A measured file with no function is a measurement; a list that measures no file is not one.
+	if result.Files == 0 {
+		return result, nil, errors.New("no Go file was measured")
 	}
 	return result, problems, nil
 }

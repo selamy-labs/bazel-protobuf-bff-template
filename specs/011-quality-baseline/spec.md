@@ -13,6 +13,9 @@
 - Q: Which direction is a weakening for a budget? → A: Per metric. A complexity maximum weakens by rising, a coverage or mutation minimum by falling; each metric has a positive control that moves it stricter and passes, and a negative one that moves it weaker and is refused.
 - Q: Does "nothing is requalified twice" skip any check? → A: No. Only a repeat qualification of an unchanged revision is not repeated; the checks on changed code, on integrations and the final full verifier run as always, and a receipt holds for its own revision only.
 - Q: Is the archive path a maintained cleanup path? → A: No. It is a primitive plus a handoff that records eligibility behind a verified archive and authorizes nothing; custody of any cleanup stays with the lifecycle owner, and the 2026-11-01 loss stays unrecovered.
+- Q: Can a condition-coverage tool stand in for Go branch outcomes? → A: Only as a named sub-metric. gobco 1.3.4 has `-branch`, and on a Go 1.27 fixture it reported Condition 2/2 and Branch 2/2 while native statements were 50% and the `select` cases were never called: it does not measure `select`, so no complete Go branch claim and no waiver follows from it.
+- Q: Does the archive control recover the lost object? → A: No. Prevention and recovery are separate: the controls passing changes nothing about `8ad7470`, which stays unrecovered.
+- Q: Is config-driven behavior part of the baseline? → A: Yes, by the human baseline of 2026-11-01: typed, versioned configuration with defaults only once at the composition boundary, required inner parameters, defined precedence and effective-value provenance, and no bypass configuration for security, quality, spend or invariants.
 - Q: Which Python is first-party here? → A: The generators in `tools/release` and `tools/pins`. Vendored Spec Kit code is not first-party.
 
 ## User Scenarios & Testing *(mandatory)*
@@ -57,6 +60,20 @@ A worker takes one slice, owns only its new files, delivers a measured result, a
 
 1. **Given** two slices in progress, **When** their diffs are compared, **Then** no file is touched by both.
 
+### User Story 4 - Behavior is driven by typed configuration, with defaults in one place (Priority: P2)
+
+A maintainer reads one versioned schema to know every configurable behavior, where its default is set, which source wins when several are given, and where an effective value came from; no inner function carries a silent tuning default.
+
+**Why this priority**: scattered defaults are untestable behavior; the baseline of 2026-11-01 names them.
+
+**Independent Test**: the inventory of defaults names each one with its boundary; omitted, invalid, precedence, alternative and fallback cases have tests; a behavior change made by configuration alone has a witness.
+
+**Acceptance Scenarios**:
+
+1. **Given** a configurable behavior, **When** its value is omitted, **Then** the default applies once at the composition or input boundary, and the inner parameter is required.
+2. **Given** two sources for one value, **When** both are set, **Then** the documented precedence decides, and the effective value records its source.
+3. **Given** a security, quality, spend or invariant contract, **When** configuration is read, **Then** no setting bypasses it.
+
 ### Edge Cases
 
 - A tool that cannot be pinned by checksum is not adopted; the control stays a gap with the reason.
@@ -84,6 +101,8 @@ A worker takes one slice, owns only its new files, delivers a measured result, a
 - **FR-014**: Nothing here weakens an existing gate or introduces a second quality framework. Requalification without a change is not repeated, but the required checks on changed code, on integrations and the final independent full verifier run as always; a green result at one revision is never the receipt of another.
 - **FR-015**: Git maintenance that could drop objects MUST be preceded by the archive primitive, run by the lifecycle owner: a named ref bundled, the bundle verified, and a fresh isolated fetch that resolves the exact commit and tree; a cleanup-eligibility record exists only behind a verified archive and authorizes nothing by itself, so a failed archive leaves no record and cleanup stays ineligible by construction. No cleanup step exists inside the primitive or its handoff, and neither is a maintained cleanup path: custody of any cleanup stays with the owner who reads the record.
 
+- **FR-016**: Configurable behavior MUST be declared in a versioned typed schema with validation, precedence and effective-value provenance; a default MUST be set once at the top composition or input boundary and inner parameters MUST be required; scattered defaults MUST be inventoried and moved by focused compatibility-preserving changes, each with omitted, invalid, precedence, alternative and fallback tests and a witness that configuration alone changes the behavior; runtime evaluation MUST use OpenFeature only where it fits, with an explicit boundary fallback source; security, quality, spend and invariant contracts MUST NOT be bypassable by configuration.
+
 ### Key Entities
 
 - **Control row**: control, state, gate, measured value with revision, threshold with source, exclusions with reasons, owner, task.
@@ -97,7 +116,8 @@ A worker takes one slice, owns only its new files, delivers a measured result, a
 - **SC-002**: Every budget has a measurement older than itself, and no budget ever moves toward leniency in history.
 - **SC-003**: Every slice's diff touches only its own new files plus the integrator's shared files, verified by path.
 - **SC-004**: The full verifier passes at the candidate with every new gate bound, and an independent review verifies it at that exact revision.
-- **SC-005**: The archive path has a representative failed-archive control that shows cleanup ineligible, and a successful named-ref archive with a fresh restore of the exact commit and tree; until both run, the 2026-11-01 loss stays recorded as unrecovered.
+- **SC-005**: The archive primitive has a representative failed-archive control that shows cleanup ineligible, a late-arriving destination refused, and a successful named-ref archive with a fresh restore of the exact commit and tree. These prevent a future loss; they recover nothing, and the 2026-11-01 loss stays recorded as unrecovered whatever they show.
+- **SC-006**: Every configurable behavior is in the schema with one default site, and the inventory of scattered defaults reaches zero or names each remaining one with its owner.
 
 ## Assumptions
 

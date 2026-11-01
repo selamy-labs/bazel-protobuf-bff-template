@@ -32,7 +32,8 @@ validator.
 | Hosted CI | yes | workflow only | no | no | no | no | Operator gate |
 | Consumer path and quality-pin upgrade | yes | yes | locally, on `file://` | see [m7](../evidence/m7.md) | no | no | Spec 008 |
 | Container image | yes | yes | locally | see [m8a](../evidence/m8a.md); independent review pending | no | no | `//bff/cmd/bff:image_test`, spec 009 |
-| Provenance and license inventory, neutrality scans, provisioning plan | yes | yes | locally | see [m8](../evidence/m8.md); 16 licenses unresolved | no | no | `inventory`, `neutrality`, `//:governance_test` |
+| Provenance and license inventory, neutrality scans, provisioning plan | yes | yes | locally and independently | see [m8](../evidence/m8.md); accepted locally at `446e5c8` by an independent full; 15 licenses unresolved; the required-check context corrected after an audit | no | no | `inventory`, `neutrality`, `//:governance_test` |
+| Quality baseline | yes | complexity for Go only | locally | see [m9](../evidence/m9.md) | no | no | `complexity`, spec 011 |
 | Public release | yes | no | no | no | no | no | Operator gate |
 
 ## Profiles that do not apply
@@ -54,8 +55,8 @@ validator.
 | macOS is unverified. The browser tests cannot run there, and stock macOS has no `flock` | Open |
 | The authoring host runs only with weakened isolation. Full isolation is observed in independent runs, which [m5](../evidence/m5.md) and [m6](../evidence/m6.md) name | Independent review of each final revision |
 | Browser code has no coverage data, and Go has no branch data | Open, stated in `quality/coverage_floors.json` |
-| Complexity is not measured. No numeric threshold is imported from another project | Open. It needs a language-qualified analyzer and a baseline of this repository's own |
-| Duplication is not measured | Open, with complexity |
+| Complexity is measured and gated for Go from this repository's own baseline; TypeScript is not measured | Spec 011 T006 |
+| Duplication is measured for Go by an independent advisory run, zero pairs; not gated, and not measured for TypeScript or Python | Spec 011 T004 |
 | Property tests exist for Go only | Open (spec 006 keeps parent T028 scope) |
 | Mutation testing is not adopted. Named mutants are run by hand and recorded as evidence | Open |
 | The shared hook stage contract is unreleased | Upstream (relentless-ci-python #25, relentless-ci-typescript #20) |

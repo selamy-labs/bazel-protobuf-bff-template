@@ -15,5 +15,8 @@ External draft, revision 3, unchanged in direction. Spec 010. At landing `/speck
 | FR-008 | Packet | identity and proposed ref listed; work not blocked | a rewrite with no finding or refusal → review rejects | S | hum |
 | FR-009 | Offline `tofu` after the fetch phase | format, validate, mock tests pass, with network and credentials off | a second target, an `import` block, an owner or name other than the configured one, or a changed resource graph → test fails; any apply path → review rejects | G/S | off, hum |
 | FR-009a | Offline `tofu` | ruleset disabled by default; the activation input enables it | enabled by default → test fails | G | off |
+| FR-009b | `//:governance_test` | the required check equals the policy's gate and the workflow's job name | a context naming no job, a blank context, a renamed policy gate or a renamed workflow job → fails | G | off |
 | FR-010 | Review | order and gates named | a step that bypasses a gate → rejected | S | hum |
 | FR-011 | Recorded row | reviewer and the scanned revision | an empty row, or a candidate that differs from the scanned revision → not ready | S | hum |
+| FR-012 | Packet, private scan at the candidate, README review | one named candidate; markers absent by opaque output; README states match the evidence; inherited templates | a README claim with no evidence row, a pending item dropped, a private backup or operator record in the export → not ready | G/S | off, hum |
+| SC-006 | the full verifier, both scans, `//:governance_test` at the candidate | all pass at one revision | any run at another revision → not the candidate's evidence | G | loc, off |

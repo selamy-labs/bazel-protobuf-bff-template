@@ -1,5 +1,6 @@
 exports_files(
     [
+        "complexity_budgets.json",
         "multitool.lock.json",
         "registry.textproto",
         "rules.textproto",

@@ -110,6 +110,9 @@ func TestNothingMeasuredIsAnErrorAndExcludedFilesAreCounted(t *testing.T) {
 	if result.Excluded != 1 || result.Files != 0 {
 		t.Errorf("result %+v", result)
 	}
+	if result, _, err := b.Check([]string{"a.go"}, sources(map[string]string{"a.go": "package p\n\nvar x = 1\n"})); err != nil || result.Files != 1 || result.Functions != 0 {
+		t.Errorf("a file with no function is a measurement: %+v %v", result, err)
+	}
 	if _, _, err := b.Check([]string{"a.go"}, sources(map[string]string{"a.go": "package p\n\nfunc broken( {\n"})); err == nil {
 		t.Error("a file that does not parse passed")
 	}
@@ -200,7 +203,7 @@ func TestBinaryExitCodes(t *testing.T) {
 		t.Errorf("planted defect: exit %d\n%s", code, out)
 	}
 	write("list", "")
-	if code, out := run(t, "check", "--root="+root, "--list="+filepath.Join(root, "list")); code != 2 || !strings.Contains(out, "no function was measured") {
+	if code, out := run(t, "check", "--root="+root, "--list="+filepath.Join(root, "list")); code != 2 || !strings.Contains(out, "no Go file was measured") {
 		t.Errorf("empty list: exit %d\n%s", code, out)
 	}
 	if code, _ := run(t, "check", "--root="+root); code != 2 {

@@ -22,4 +22,6 @@ never claimed. Each negative needs its positive first; a measurement that produc
 | FR-015 | `//:archive_ref_test`, `//:archive_handoff_test` | a named ref bundled, verified, restored to the exact commit and tree; an eligibility record only then | a bare object id → refused with no bundle; a truncated bundle → the fresh restore fails; a failed archive → no record | G | off |
 | SC-001 | the control table at closure | every applicable control enforced and evidenced | an applicable gap → an owned open task, not closure | S | hum |
 | SC-004 | the full verifier, independent review | pass at the exact candidate | a differing revision → not accepted | G/S | loc, hum |
-| SC-005 | the archive controls | both the failed-archive and the named-ref restore controls run | until both run, the 2026-11-01 loss stays unrecovered | G | off |
+| FR-016 | the defaults inventory, the configuration tests, the config-only witness | one schema, one default site per value, provenance recorded | a silent inner default, an unrecorded precedence, a bypass setting → test or review rejects | G/S | off, hum |
+| SC-005 | the archive controls | the failed-archive, late-destination and named-ref restore controls run | a cleanup eligibility without a verified archive → refused. These controls prevent; they do not and cannot recover `8ad7470`, which stays unrecovered | G | off |
+| SC-006 | the defaults inventory | zero scattered defaults, or each named with an owner | an unnamed default → review rejects | S | hum |

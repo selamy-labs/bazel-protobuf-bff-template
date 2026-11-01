@@ -5,6 +5,15 @@
 **Status**: Implemented and tested locally. Current status is in the [index](../README.md)
 **Input**: M8. Parent: spec 001 US7, FR-032, FR-033, SC-009; tasks T076 to T080; upstream #31. Name, public visibility and the MIT license are already approved. Closed throughout: creation, publication, settings, Apps, access, apply, destroy, merge, paid runs. Lands after M8a (spec 009), so that its inventory and scans cover the image.
 
+## Clarifications
+
+### Session 2026-11-01
+
+- Q: Does public development wait for the whole quality baseline or a stable release? → A: No. Public development of the reviewed generic core is authorized by the human direction of 2026-11-01, after the existing disclosure, provenance, licensing and publication checks; it is not a blanket approval, and the operator gates for creation, push, settings, apply and activation stay recorded gates.
+- Q: Which status check does the ruleset require? → A: The workflow's aggregate job, `gate`, as `tools/ci/policy.json` names it. The configuration had said `aggregate`, which no run reports; the governance check now relates the three names and refuses a mismatch.
+- Q: What becomes of the packet's pending items? → A: Each becomes a reviewed concrete decision before publication: the commit identity, the holder line and every one of the 15 unresolved licenses. None is dropped silently.
+- Q: Which templates and runners? → A: The organization's public `.github` defaults are inherited, not copied; standard GitHub-hosted Linux runners only, measured from real runs after publication.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - A reviewer can see where everything came from (Priority: P1)
@@ -61,6 +70,20 @@ A reader of the runbook sees the order of creation, first push, first green and 
 
 1. **Given** the runbook, **When** a reader follows it, **Then** no step bypasses a gate, and the first push's refusal is expected and explained.
 
+### User Story 5 - Public development begins on the reviewed core (Priority: P1)
+
+The reviewed generic core and its synthetic example are developed in public: one frozen candidate is exported as `main`, the README says exactly what is implemented, independently accepted, hosted-unverified and unfinished, and the open quality work is visible as open work, with no production claim.
+
+**Why this priority**: the human direction of 2026-11-01 asks for public development on standard hosted capacity, and every publication check that exists still applies.
+
+**Independent Test**: the candidate's revision, tree, export ref and holder are named in the packet; the private scan at that exact candidate reports the 20 markers absent by opaque output; the README's claims match the evidence records; the governance configuration's required check names the workflow's gate.
+
+**Acceptance Scenarios**:
+
+1. **Given** the candidate, **When** the packet is read, **Then** the proposed ref, the commit id, the tree, the holder and the exported scope are named, and the pending items are reviewed decisions.
+2. **Given** the README, **When** a reader compares it with the evidence records, **Then** every milestone's state is one of implemented, independently accepted at a revision, hosted-unverified or unfinished, with no production or hosted claim.
+3. **Given** the export, **When** it is compared with the working tree, **Then** it holds the generic core, the synthetic application and the public documents only: no private backups, no unpublished working files, no operator records.
+
 ### Edge Cases
 
 - A marker file that exists and is empty: the private status is `not-run`, never `passed`.
@@ -83,8 +106,10 @@ A reader of the runbook sees the order of creation, first push, first green and 
 - **FR-008**: The configured commit identity and a concrete proposed release ref MUST be listed in an external release packet. Technical and local readiness MUST NOT wait for publication decisions. The pending public identity is a listed release gate: the generic scan neither approves it nor depends on an operator-private file. History is preserved unless a scan finding or an explicit identity refusal justifies a rewrite, and none is planned. A rewrite would update references to mapped commits here, and not external dependency commits, action pins or checksums.
 - **FR-009**: `governance/github/` MUST declare one configured target and its initial ruleset, with pinned tools, in fresh isolated state, with no imports or adoption. Offline tests MUST pin the allowed owner, name and resource graph. Format, validate and mock tests MUST pass with networking and credentials unavailable, after pinned tools and the provider schema are fetched into an owned cache. No apply path exists in CI or a script, and an operator reviews the plan before any apply.
 - **FR-009a**: The initial ruleset MUST be declared disabled, until an activation input is changed and applied by the operator through the same configuration. No manual setting is a workaround.
+- **FR-009b**: The ruleset's required status check MUST name the workflow's aggregate job as the CI-parity policy names it, and the governance check MUST relate the three and fail on a mismatch, so that activation can never require a check no run reports.
 - **FR-010**: The runbook MUST order creation, first push, first green and ruleset activation, name each operator gate, and cover the first push's refusal.
 - **FR-011**: `docs/public-release-review.md` MUST be executed and recorded with reviewer and revision.
+- **FR-012**: Public development MUST start from one frozen exact candidate: its revision, tree, export ref and holder named in the packet, its private scan reporting the markers absent by opaque output, its README accurate about implemented, independently accepted, hosted-unverified and unfinished states, and its export holding only the generic core, the synthetic application and the public documents. Each pending packet item MUST be a reviewed decision, and the inherited organization defaults for issue and pull-request templates MUST be used unless shown insufficient. Hosted runners MUST be the standard hosted Linux runners, and their behavior MUST be measured from real runs, not claimed.
 
 ### Key Entities
 
@@ -102,6 +127,7 @@ A reader of the runbook sees the order of creation, first push, first green and 
 - **SC-003**: The generic scan passes over the whole export, or each finding has a decision. The private result at the release candidate states literal absence and scope, or each finding has a decision.
 - **SC-004**: After the fetch phase, `tofu fmt`, `validate` and mock tests pass with no network and no credentials.
 - **SC-005**: Technical readiness can pass with release gates pending, and it says so. It claims no public approval.
+- **SC-006**: The publication candidate is one named revision: its full verifier, both scans and the governance check pass at that exact revision, and the README's milestone states match the evidence records row by row.
 
 ## Assumptions
 

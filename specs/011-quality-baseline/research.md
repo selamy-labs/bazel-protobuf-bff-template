@@ -19,7 +19,7 @@ Each entry is answered by a probe or by an independent measurement at a named re
 
 ## R4 Coverage (Q5)
 
-- Go's cover tool reports statements, not branch outcomes, and does not probe inside `&&` and `||`; `gobco` reports condition coverage with an explicit `select` gap. Decision: probe `gobco` with adversarial fixtures and accept only the constructs it reports, named as such; Go branch outcomes stay a blocking owned task until measured; browser coverage through Playwright's V8 coverage into the existing merger; floors unchanged and only rising.
+- Go's cover tool reports statements, not branch outcomes, and does not probe inside `&&` and `||`. Root's probe of gobco 1.3.4 under Go 1.27 (`m9-go-branch-probe-result.json`, synthetic fixture, no Bazel integration): the tool has `-branch`; on the fixture it reported Condition 2/2 and Branch 2/2 while native statements were 50% and the `select` cases were never executed. It can be qualified only as a branch sub-metric that does not measure `select`; it is never a complete Go branch claim and never a waiver. Decision: probe `gobco` with adversarial fixtures and accept only the constructs it reports, named as such; Go branch outcomes stay a blocking owned task until measured; browser coverage through Playwright's V8 coverage into the existing merger; floors unchanged and only rising.
 
 ## R5 Property tests (Q6)
 
@@ -35,7 +35,12 @@ Each entry is answered by a probe or by an independent measurement at a named re
 
 ## R8 The archive primitive (FR-015)
 
-- `git bundle verify` reads only the header; a truncated bundle passes it and fails a fresh clone, so the restore is the proof. The primitive owns a temporary directory, removes nothing unowned, refuses links and existing outputs, computes the digest and mode inside the owned directory before publication, publishes with `ln -T` so a directory or link that arrived at the destination meanwhile is refused rather than entered, and reports nothing unless the published path is the owned bundle; the handoff records eligibility only behind a verified archive. An independent output control found the earlier text entering a late-arriving directory and reporting an archive with an empty digest; that case is now a control. 27 primitive and 9 handoff controls pass externally; the 2026-11-01 loss stays unrecovered.
+- `git bundle verify` reads only the header; a truncated bundle passes it and fails a fresh clone, so the restore is the proof. The primitive owns a temporary directory, removes nothing unowned, refuses links and existing outputs, computes the digest and mode inside the owned directory before publication, publishes with `ln -T` so a directory or link that arrived at the destination meanwhile is refused rather than entered, and reports nothing unless the published path is the owned bundle; the handoff records eligibility only behind a verified archive. An independent output control found the earlier text entering a late-arriving directory and reporting an archive with an empty digest; that case is now a control. 27 primitive and 9 handoff controls pass externally. They are prevention for the future; they recover nothing, and the 2026-11-01 loss stays unrecovered regardless of what they show.
+
+## R10 Config-driven behavior (Q10)
+
+- The human baseline of 2026-11-01 adds typed, versioned configuration: one schema, defaults once at the composition or input boundary, required inner parameters, precedence, validation, effective-value provenance, OpenFeature only where runtime evaluation fits, and no bypass of security, quality, spend or invariant contracts.
+- Where this tree stands: the server's `Config` validates its mode, authenticator, store and origin at the boundary (`bff/server`); the quality runner takes its paths from the registry and the binary's arguments; the checks read policy inputs from files with unknown fields refused. Scattered defaults are not inventoried yet. The probe at landing inventories every default in first-party Go and TypeScript by its site, then decides schema placement by focused changes. No framework is added; a library is probed before a pin like every other tool.
 
 ## R9 The budget comparator and its base
 

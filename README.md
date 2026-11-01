@@ -8,8 +8,9 @@ toolchains, code generation and tests. The aim is shared, versioned quality chec
 way in Git hooks, in the local verifier and in CI. The local hooks and the one check registry exist, and a
 separate repository consumes the checks at `quality-v1.0.0` by one pin; hosted CI has never run.
 
-**Status: M1 to M7 are implemented and independently reviewed at their revisions; M8a's image is built,
-tested and executed independently; M8 and the quality baseline are in progress.** The app works:
+**Status: M1 to M8 are implemented and independently accepted at their revisions, locally; M8a's image is built,
+tested and executed independently; hosted CI has never run, and nothing is published; the quality baseline (M9) is
+open, with the Go complexity gate enforced and every other control at its measured state.** The app works:
 `CreateNote` and `GetNote` run from a React page through a Go server, tested in a pinned browser. The
 [specification index](specs/README.md) is the one authority on each milestone's status, the evidence
 pages under [docs/evidence](docs/evidence/) list what has and has not been observed at which revision,
@@ -92,4 +93,5 @@ tools/speckit/bootstrap.sh verify
 ## Owner
 
 Proposed: Sélamy Labs, pending the operator's approval of the public identity, recorded in the external
-release packet. No public repository exists. See research R-14.
+release packet. No public repository exists yet; public development of this reviewed core is authorized after
+the existing publication checks, and one exact candidate is frozen for it. See research R-14.

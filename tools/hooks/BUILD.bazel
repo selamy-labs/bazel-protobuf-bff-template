@@ -22,6 +22,7 @@ sh_test(
         "//:docs/quality/hooks.md",
         "//:prek.toml",
         "//:quality",
+        "@bff_template_quality//:complexity_budgets.json",
         "@bff_template_quality//:registry.textproto",
         "@bff_template_quality//:rules.textproto",
         "@bff_template_quality//adapters:native.sh",
