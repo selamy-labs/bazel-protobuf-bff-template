@@ -57,13 +57,26 @@ type Debt struct {
 	Values   map[Metric]int `json:"values"`
 }
 
+// Language is another language's ceilings, measured and enforced by that language's own tool. This check
+// measures nothing in it; Compare judges its direction like every other budget.
+type Language struct {
+	MeasuredAt string         `json:"measured_at"`
+	Ceilings   map[Metric]int `json:"ceilings"`
+}
+
+// typescriptMetrics is what ESLint's `complexity` rule measures (web/lint). Cognitive waits on a pinned rule.
+var typescriptMetrics = []Metric{Cyclomatic}
+
 // Budgets is the policy input.
 type Budgets struct {
 	// MeasuredAt is the revision the values were measured at. It names the measurement; nothing reads it.
 	MeasuredAt string         `json:"measured_at"`
 	Ceilings   map[Metric]int `json:"ceilings"`
-	Excludes   []Exclude      `json:"excludes"`
-	Debt       []Debt         `json:"debt"`
+	// TypeScript is the ceilings the lint configuration reads (spec 011 FR-004): optional, so a budgets file
+	// from before it still loads; once present it may only fall, and it may not go.
+	TypeScript *Language `json:"typescript"`
+	Excludes   []Exclude `json:"excludes"`
+	Debt       []Debt    `json:"debt"`
 }
 
 // Load reads and validates a budgets file.
@@ -100,6 +113,19 @@ func (b *Budgets) prepareCeilings(path string) error {
 	for metric := range b.Ceilings {
 		if !slices.Contains(metrics, metric) {
 			return fmt.Errorf("%s: unknown metric %q", path, metric)
+		}
+	}
+	if b.TypeScript == nil {
+		return nil
+	}
+	for _, metric := range typescriptMetrics {
+		if value, ok := b.TypeScript.Ceilings[metric]; !ok || value < 1 {
+			return fmt.Errorf("%s: the typescript %s ceiling must be a positive integer", path, metric)
+		}
+	}
+	for metric := range b.TypeScript.Ceilings {
+		if !slices.Contains(typescriptMetrics, metric) {
+			return fmt.Errorf("%s: unknown typescript metric %q", path, metric)
 		}
 	}
 	return nil
@@ -338,6 +364,7 @@ func Compare(base, proposal *Budgets) []string {
 			problems = append(problems, fmt.Sprintf("the %s ceiling rises from %d to %d", metric, base.Ceilings[metric], proposal.Ceilings[metric]))
 		}
 	}
+	problems = append(problems, compareTypeScript(base.TypeScript, proposal.TypeScript)...)
 	known := map[string]Debt{}
 	for _, debt := range base.Debt {
 		known[debt.Function] = debt
@@ -361,6 +388,23 @@ func Compare(base, proposal *Budgets) []string {
 	for _, exclude := range proposal.Excludes {
 		if !patterns[exclude.Pattern] {
 			problems = append(problems, fmt.Sprintf("exclude %q is new", exclude.Pattern))
+		}
+	}
+	return problems
+}
+
+// compareTypeScript: a section that appears is stricter; one that goes, or a ceiling that rises, is refused.
+func compareTypeScript(base, proposal *Language) []string {
+	if base == nil {
+		return nil
+	}
+	if proposal == nil {
+		return []string{"the typescript ceilings were removed"}
+	}
+	var problems []string
+	for _, metric := range typescriptMetrics {
+		if proposal.Ceilings[metric] > base.Ceilings[metric] {
+			problems = append(problems, fmt.Sprintf("the typescript %s ceiling rises from %d to %d", metric, base.Ceilings[metric], proposal.Ceilings[metric]))
 		}
 	}
 	return problems

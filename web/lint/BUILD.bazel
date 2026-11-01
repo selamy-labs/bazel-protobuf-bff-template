@@ -22,10 +22,14 @@ eslint_bin.eslint_test(
         "//web/client:lint_srcs",
         "//web/e2e:lint_srcs",
         "//web/serve:lint_srcs",
+        "@bff_template_quality//:complexity_budgets.json",
     ],
+    env = {"COMPLEXITY_BUDGETS": "$(rootpath @bff_template_quality//:complexity_budgets.json)"},
+    no_copy_to_bin = ["@bff_template_quality//:complexity_budgets.json"],
 )
 
-# The TypeScript complexity budget's planted control (spec 011 FR-005): one over the ceiling refused, at it accepted.
+# The TypeScript complexity budget's planted control (spec 011 FR-005): one over the ceiling refused, at it
+# accepted, the ceiling read from the budgets the base comparator judges.
 js_test(
     name = "eslint_complexity_witness_test",
     size = "small",
@@ -34,8 +38,11 @@ js_test(
         "eslint.config.mjs",
         "//:node_modules/eslint",
         "//:node_modules/typescript-eslint",
+        "@bff_template_quality//:complexity_budgets.json",
     ],
     entry_point = "complexity.test.mjs",
+    env = {"COMPLEXITY_BUDGETS": "$(rootpath @bff_template_quality//:complexity_budgets.json)"},
+    no_copy_to_bin = ["@bff_template_quality//:complexity_budgets.json"],
 )
 
 js_test(

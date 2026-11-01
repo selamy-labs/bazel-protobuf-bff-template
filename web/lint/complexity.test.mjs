@@ -1,15 +1,12 @@
 // The TypeScript complexity budget's planted control (spec 011 FR-002, FR-005): the pinned ESLint with the
 // repository's own configuration refuses a function one over the ceiling and accepts one at it, and the ceiling
-// is the measured maximum, which only falls.
+// is the budgets' measured value. Its direction is the base comparator's (`complexity-from-base`).
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { ESLint } from "eslint";
 
-import config from "./eslint.config.mjs";
-
-// The measured maximum cyclomatic complexity over the first-party TypeScript and JavaScript at a287ed7: 51
-// functions in 21 files, the largest a browser journey at 12 and the error mapping at 11.
-const ceiling = 12;
+import config, { ceiling } from "./eslint.config.mjs";
 
 const eslint = new ESLint({ overrideConfigFile: true, overrideConfig: config });
 const complexityReports = async (text) =>
@@ -24,7 +21,11 @@ const withComplexity = (n) =>
     (_, i) => `  if (x === ${i}) {\n    x += ${i};\n  }\n`,
   ).join("")}  return x;\n}\n`;
 
-test("the configuration carries the measured ceiling", () => {
+test("the configuration carries the budgets' ceiling, a measured positive integer", () => {
+  const budgets = JSON.parse(readFileSync(process.env.COMPLEXITY_BUDGETS, "utf8"));
+  assert.equal(ceiling, budgets.typescript.ceilings.cyclomatic);
+  assert.match(budgets.typescript.measured_at, /^[0-9a-f]{40}$/);
+  assert.ok(Number.isInteger(ceiling) && ceiling > 0);
   const rule = config
     .flatMap((c) => Object.entries(c.rules ?? {}))
     .find(([id]) => id === "complexity");

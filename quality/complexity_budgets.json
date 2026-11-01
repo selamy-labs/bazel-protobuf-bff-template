@@ -4,6 +4,10 @@
     "cognitive": 20,
     "cyclomatic": 19
   },
+  "typescript": {
+    "measured_at": "a287ed7e6c5402e68150899eec46a7ce614364f6",
+    "ceilings": { "cyclomatic": 12 }
+  },
   "excludes": [
     { "pattern": "_test\\.go$", "reason": "test-code" },
     { "pattern": "\\.pb\\.go$", "reason": "generated" },

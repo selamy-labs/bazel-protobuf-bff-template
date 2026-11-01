@@ -32,6 +32,7 @@ func budgets(t *testing.T, text string) *Budgets {
 }
 
 const base = `{"measured_at": "test", "ceilings": {"cognitive": 2, "cyclomatic": 2},
+ "typescript": {"measured_at": "test", "ceilings": {"cyclomatic": 2}},
  "excludes": [{"pattern": "_test\\.go$", "reason": "test-code"}],
  "debt": [{"function": "a.go nested", "owner": "t", "values": {"cognitive": 6, "cyclomatic": 6}}]}`
 
@@ -193,12 +194,15 @@ func TestNothingMeasuredIsAnErrorAndExcludedFilesAreCounted(t *testing.T) {
 
 func TestLoadRefusesBudgetsThatAreNotMeasurementsOrNotDebt(t *testing.T) {
 	for name, text := range map[string]string{
-		"debt not above the ceiling": `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "debt": [{"function": "a.go f", "owner": "t", "values": {"cognitive": 5}}]}`,
-		"exclude without a reason":   `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "excludes": [{"pattern": "x"}]}`,
-		"debt without an owner":      `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "debt": [{"function": "a.go f", "values": {"cognitive": 6}}]}`,
-		"missing ceiling":            `{"ceilings": {"cognitive": 5}}`,
-		"unknown field":              `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "waiver": true}`,
-		"unknown metric":             `{"ceilings": {"cognitive": 5, "cyclomatic": 5, "lines": 1}}`,
+		"debt not above the ceiling":     `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "debt": [{"function": "a.go f", "owner": "t", "values": {"cognitive": 5}}]}`,
+		"exclude without a reason":       `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "excludes": [{"pattern": "x"}]}`,
+		"debt without an owner":          `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "debt": [{"function": "a.go f", "values": {"cognitive": 6}}]}`,
+		"missing ceiling":                `{"ceilings": {"cognitive": 5}}`,
+		"unknown field":                  `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "waiver": true}`,
+		"unknown metric":                 `{"ceilings": {"cognitive": 5, "cyclomatic": 5, "lines": 1}}`,
+		"typescript without its ceiling": `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "typescript": {"ceilings": {}}}`,
+		"typescript ceiling of zero":     `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "typescript": {"ceilings": {"cyclomatic": 0}}}`,
+		"unknown typescript metric":      `{"ceilings": {"cognitive": 5, "cyclomatic": 5}, "typescript": {"ceilings": {"cyclomatic": 5, "cognitive": 5}}}`,
 	} {
 		path := filepath.Join(t.TempDir(), "b.json")
 		if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
@@ -224,6 +228,9 @@ func TestCompareRefusesEveryLeniencyAndPassesEveryStrictness(t *testing.T) {
 		{"a debt entry goes", strings.Replace(base, `[{"function": "a.go nested", "owner": "t", "values": {"cognitive": 6, "cyclomatic": 6}}]`, `[]`, 1), ""},
 		{"a debt entry appears", strings.Replace(base, `"debt": [`, `"debt": [{"function": "b.go g", "owner": "t", "values": {"cognitive": 3}}, `, 1), `debt "b.go g" is new; a budget is measured, not granted`},
 		{"an exclusion appears", strings.Replace(base, `"excludes": [`, `"excludes": [{"pattern": "^legacy/", "reason": "old"}, `, 1), `exclude "^legacy/" is new`},
+		{"the typescript ceiling falls", strings.Replace(base, `"typescript": {"measured_at": "test", "ceilings": {"cyclomatic": 2}}`, `"typescript": {"measured_at": "test", "ceilings": {"cyclomatic": 1}}`, 1), ""},
+		{"the typescript ceiling rises", strings.Replace(base, `"typescript": {"measured_at": "test", "ceilings": {"cyclomatic": 2}}`, `"typescript": {"measured_at": "test", "ceilings": {"cyclomatic": 3}}`, 1), "the typescript cyclomatic ceiling rises from 2 to 3"},
+		{"the typescript ceilings go", strings.Replace(base, ` "typescript": {"measured_at": "test", "ceilings": {"cyclomatic": 2}},`, ``, 1), "the typescript ceilings were removed"},
 	}
 	for _, c := range cases {
 		problems := Compare(before, budgets(t, c.text))
@@ -236,6 +243,11 @@ func TestCompareRefusesEveryLeniencyAndPassesEveryStrictness(t *testing.T) {
 	}
 	if problems := Compare(before, before); len(problems) != 0 {
 		t.Errorf("an unchanged file was refused: %v", problems)
+	}
+	// A base from before the typescript section judges nothing about it, and a section that appears is stricter.
+	without := budgets(t, strings.Replace(base, ` "typescript": {"measured_at": "test", "ceilings": {"cyclomatic": 2}},`, ``, 1))
+	if problems := Compare(without, before); len(problems) != 0 {
+		t.Errorf("the typescript section appearing was refused: %v", problems)
 	}
 }
 
