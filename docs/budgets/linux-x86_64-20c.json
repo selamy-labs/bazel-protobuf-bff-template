@@ -10,5 +10,6 @@
   "warm_nochange": {"n": 5, "p50_s": 20.1, "p95_s": 20.2, "peak_pss_mb": 1062, "failed_runs": 0},
   "warm_edited": {"n": 5, "p50_s": 19.4, "p95_s": 19.8, "peak_pss_mb": 1149, "failed_runs": 0},
   "no_download": {"n": 1, "p50_s": 18.3, "p95_s": 18.3, "peak_pss_mb": 1166, "failed_runs": 0},
+  "qualification": "Added later; no figure above changed. This sampler joined newline-free Bazel pid files, so peak_pss_mb is unreliable wherever two servers were alive, and no figure here is a memory promise. The revision predates hook-e2e, so the current full run costs more. See docs/evidence/m5.md.",
   "limits": "bootstrap includes downloads, so its time depends on the link. warm_nochange reruns every test but reuses build outputs; warm_edited rebuilds one Go package and its dependents. no_download skips networked provenance and proves only that Bazel fetched nothing and proxy-honoring tools reached no network; it is not a network-isolation claim. Peak memory is sampled PSS of the verifier and Bazel server process trees every 0.5 s and can miss short spikes."
 }

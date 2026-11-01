@@ -59,7 +59,8 @@ step() { # step <command...>: output in $work/out, exit code in $rc
   "$@" </dev/null >"$work/out" 2>&1 || rc=$?
 }
 in_repo() { git -C "$repo" "$@"; }
-needs() { grep -qF -- "$1" "$work/out" || die "${2:-the output does not name '$1'}"; }
+in_checkout() { (cd "$repo" && "$@"); }
+needs() { grep -qF -- "$1" "$work/out" || die "${2:-the output does not name: $1}"; }
 result() { "$YQ" -p=json -o=json -r ".checks[] | select(.check == \"$2\") | .result" "$1"; }
 start_of() { awk '{print $22}' "/proc/$1/stat" 2>/dev/null || true; } # With the PID, one exact process
 descendants_named() { # descendants_named <root pid> <text>: processes under that one holding the text
@@ -123,7 +124,7 @@ git init -q --bare -b main "$remote"
 in_repo remote add origin "$remote"
 in_repo push -q --no-verify origin main
 
-step bash -c 'cd "$1" && shift && tools/bootstrap/bazel.sh run --noshow_progress "$@"' _ "$repo" "${flags[@]}" //tools/hooks:install "${install_flags[@]}"
+step in_checkout tools/bootstrap/bazel.sh run --noshow_progress "${flags[@]}" //tools/hooks:install "${install_flags[@]}"
 [[ $rc -eq 0 ]] || die "the installation failed"
 [[ "$(in_repo config bff-template.isolation)" == "$isolation" ]] || die "installed the wrong isolation"
 
@@ -191,7 +192,7 @@ step in_repo commit -q -m 'after the repair'
 echo "ok   hook-e2e a broken bootstrap is an ERROR and an untracked file is not read"
 
 # 4. A deadline beside an independent producer on the same server.
-step bash -c 'cd "$1" && shift && tools/bootstrap/bazel.sh run --noshow_progress "--script_path=$1" "${@:2}"' _ "$repo" "$work/runner" "${flags[@]}" //:quality
+step in_checkout tools/bootstrap/bazel.sh run --noshow_progress "--script_path=$work/runner" "${flags[@]}" //:quality
 [[ $rc -eq 0 ]] || die "the runner did not build"
 base="$(cd "$repo" && tools/bootstrap/bazel.sh info output_base </dev/null 2>/dev/null)"
 server="$(<"$base/server/server.pid.txt")"
@@ -242,7 +243,7 @@ private="$(<"${owned[0]}")"
 kill -0 "$private" 2>/dev/null || die "control failed: the private server was not running, so this proves nothing"
 # Ownership is the process tree of this run's private server, never a name: the same command elsewhere
 # on the host is not this run's. The control is such a process, and it must outlive this case.
-sleep 287 </dev/null >/dev/null 2>&1 &
+sleep 287 >/dev/null 2>&1 &
 control=$!
 BUILD_WORKSPACE_DIRECTORY="$repo" "$work/runner" --stage=pre-push --deadline=60s "--to=$to" "--from=$from" \
   "--isolation=$isolation" </dev/null >"$work/out" 2>&1 &

@@ -32,8 +32,8 @@ control: the same setup must pass before a rejection earns credit.
 
 | SC | Witness | Status |
 | --- | --- | --- |
-| SC-001 | `fixtures_test` | Pending |
-| SC-002 | `fixtures_test`, 20 runs | Pending |
-| SC-003 | `runner_test` | Pending |
-| SC-004 | `docs/budgets/` | Pending |
-| SC-005 | `verify.sh` receipt | Pending |
+| SC-001 | `fixtures_test` | Passed locally, `weakened`; review pending |
+| SC-002 | `fixtures_test`, 20 runs | Passed locally, `weakened`, 20 of 20 runs; review pending |
+| SC-003 | `runner_test` | Passed locally; review pending |
+| SC-004 | `docs/budgets/` | Measured at `7366549`, `weakened`; see `docs/evidence/m5.md` |
+| SC-005 | `verify.sh` receipt | See `docs/evidence/m5.md` |

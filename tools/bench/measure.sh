@@ -22,16 +22,17 @@
 #   pre_push_edited:        warm, a comment appended to one Go package.
 #   pre_push_exported:      warm, a new exported constant appended to that package.
 #   pre_push_runtime:       warm, a new init function in that package, which the linker keeps in every
-#                           importer, so this changes what runs. Its package test must run each time.
+#                           importer, so this changes what runs. Its test result must update each time.
 #   pre_push_rejected:      warm, a test in that package made to fail. Each run must be rejected, for
 #                           that test.
 #   pre_push_docs_only:     warm, a documentation edit. Bazel's test cache answers, so this is the floor of
 #                           the stage and never reported as feedback on edited code.
-# These names say what was edited, not what that caused. What each push really did is recorded beside
-# its times: spawned actions from the receipt, and tests that ran, seen as test.xml files the push
-# rewrote in the private output base. Bazel leaves those alone for a cached result, and caching stays
-# on as in any ordinary push. An edited sample that spawned nothing is refused as a cache hit. A
-# rejected sample must show the package's own test ran, which is the control for that probe.
+# These names say what was edited, not what that caused. Beside its times, each push records spawned
+# actions from the receipt and the test.xml files whose path or modification time it changed in the
+# private output base (the tests_run fields). That is a proxy, not a cache-aware record of execution, and
+# a rewritten result alone does not prove a fresh run. Caching stays on, as in any ordinary push. An
+# edited sample that spawned nothing is refused as a cache hit. A rejected sample must update the
+# package's own result, which is the control for that probe.
 #
 # Peak memory is the highest sampled sum of proportional set size (PSS) over the verifier's process
 # tree and the Bazel server's tree, every 0.5 s. PSS divides shared pages among their sharers, so
@@ -372,7 +373,7 @@ stage_scenarios() {
   "pre_push_rejected_work": $(work_record rejected),
   "pre_push_docs_only": $(stats "$work/push_docs"),
   "pre_push_docs_only_work": $(work_record docs),
-  "limits": "Times are a whole git commit or git push through the real hooks, including prek. failed_runs equals n on the rejected scenarios by construction. pre_commit_N staged N new Go files, so it exercises the content checks that apply to Go and nothing for other languages. pre_push_docs_only edits no build input of a test and is the stage's floor, not feedback on edited code. Scenario names say what was edited. The *_work records say what happened: spawned actions from each receipt, and tests that ran, seen as test.xml files the push rewrote, with caching on. A result that Bazel's cache answered is not a test run, so a time with tests_run 0 is a compile or cache time and not feedback on behavior. A spawned action can be a compile alone. pre_push_runtime is the only passing scenario required to run a test, so it is the feedback number for a change in behavior, for this one package and its dependents. Install and first runs include downloads when the host's download cache is empty, so they depend on the link. Peak memory is sampled PSS of the command's and Bazel servers' process trees every 0.1 s and can miss short spikes."
+  "limits": "Times are a whole git commit or git push through the real hooks, including prek. failed_runs equals n on the rejected scenarios by construction. pre_commit_N staged N new Go files, so it exercises the content checks that apply to Go and nothing for other languages. pre_push_docs_only edits no build input of a test and is the stage's floor, not feedback on edited code. Scenario names say what was edited. The *_work records say what was seen: spawned actions from each receipt, and tests_run, a count of test.xml files whose path or modification time the push changed, with caching on. That count is a proxy, not a cache-aware record of execution. A time with tests_run 0 is a compile or cache time and not feedback on behavior. A spawned action can be a compile alone. pre_push_runtime is the only passing scenario required to update a test result; each sample adds a new retained init function, and its result is scoped to that edit of one package and its dependents. Install and first runs have too few samples to set a cold contract. Install and first runs include downloads when the host's download cache is empty, so they depend on the link. Peak memory is sampled PSS of the command's and Bazel servers' process trees every 0.1 s and can miss short spikes."
 }
 JSON
   echo "measure: wrote $out" >&2

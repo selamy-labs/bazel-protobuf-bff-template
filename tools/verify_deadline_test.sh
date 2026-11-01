@@ -21,7 +21,18 @@ elapsed=$(($(date +%s) - start))
 grep -qF 'overall deadline' "$work/out" || { echo "FAIL no diagnostic" >&2; cat "$work/out" >&2; exit 1; }
 [[ $elapsed -lt 30 ]] || { echo "FAIL took ${elapsed}s" >&2; exit 1; }
 child="$(cat "$work/child")"
-if kill -0 "$child" 2>/dev/null; then
+# The signal has gone out, but a dying process stays visible for a moment and a zombie still answers
+# kill -0, so a loaded host needs a bounded wait. A child that escaped would still be here at its end.
+running() {
+  local state
+  state="$(ps -o stat= -p "$1" 2>/dev/null || true)"
+  [[ -n "$state" && "$state" != Z* ]]
+}
+for _ in $(seq 1 50); do
+  if ! running "$child"; then break; fi
+  sleep 0.1
+done
+if running "$child"; then
   kill "$child"
   echo "FAIL the hung child outlived the deadline" >&2
   exit 1

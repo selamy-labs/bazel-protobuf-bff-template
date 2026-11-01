@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Defect, corrected and tamper fixtures for the native checks (specs/002-hermetic-skeleton T006,
-# T026, T027, T034). Cases run through tools/checks/native.sh, the verifier's own invocation, and
+# T026, T027, T034). Cases run through quality/adapters/native.sh, the verifier's own invocation, and
 # a failure only counts when it names the intended reason. Defects are generated here so the
 # repository's own scans never see them.
 set -euo pipefail

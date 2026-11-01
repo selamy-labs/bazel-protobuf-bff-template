@@ -117,27 +117,27 @@ scenarios; the deliberately broken variant fails.
 
 ### Tests for User Story 3 ⚠️ write first
 
-- [ ] T043 [P] [US3] Hook fixture harness in temp repos covering every fixture in `contracts/hook-stages.md` (incl. untracked-file, failing/corrected push, malformed config) in `quality/hooks/fixtures_test.sh`
-- [ ] T044 [P] [US3] Runner tests: exit codes and Bazel-code translation, diagnostic format, 50-line bound, deadline handling (Bazel client SIGINT/shutdown, native process group, `setsid` child reaped via subreaper), closed stdin, zero-input GUARANTEE at `full` → exit 12 in `quality/runner/runner_test.go`
-- [ ] T045 [P] [US3] Registry validation tests (duplicate id, missing `full`, SIGNAL with failing threshold, GUARANTEE without fixtures, missing classification) in `quality/registry/validate_test.go`
-- [ ] T046 [P] [US3] Defect + corrected fixture per GUARANTEE check in `quality/fixtures/<check-id>/`
-- [ ] T047 [P] [US3] Suppression pattern fixtures per language (Go, TS, proto, Starlark, shell) in `quality/fixtures/suppression-ban/`; re-witness every S002 and S005 spelling, including multi-line and quoted forms, with the pinned ESLint and coverage tool once they exist
+- [x] T043 [P] [US3] Hook fixture harness in temp repos covering every fixture in `contracts/hook-stages.md` (incl. untracked-file, failing/corrected push, malformed config) in `quality/hooks/fixtures_test.sh`
+- [x] T044 [P] [US3] Runner tests: exit codes and Bazel-code translation, diagnostic format, 50-line bound, deadline handling (Bazel client SIGINT/shutdown, native process group, `setsid` child reaped via subreaper), closed stdin, zero-input GUARANTEE at `full` → exit 12 in `quality/runner/runner_test.go`
+- [x] T045 [P] [US3] Registry validation tests (duplicate id, missing `full`, SIGNAL with failing threshold, GUARANTEE without fixtures, missing classification) in `quality/registry/validate_test.go`
+- [x] T046 [P] [US3] Defect + corrected fixture per GUARANTEE check in `quality/fixtures/<check-id>/`
+- [ ] T047 [P] [US3] Suppression pattern fixtures per language (Go, TS, proto, Starlark, shell) in `quality/fixtures/suppression-ban/`; re-witness every S002 and S005 spelling, including multi-line and quoted forms, with the pinned ESLint and coverage tool once they exist **Open:** S002 is re-witnessed; S005 waits for the coverage tool in M6.
 
 ### Implementation for User Story 3
 
-- [ ] T048 [P] [US3] Guarantee-vs-signal table and human-review list in `docs/quality/classification.md`
-- [ ] T049 [P] [US3] Accurate bypass documentation (`--no-verify`, `SKIP`/`PREK_SKIP`) in `docs/quality/hooks.md`
-- [ ] T050 [US3] Registry schema `quality/proto/registry.proto` and instance `quality/registry.textproto`
-- [ ] T051 [US3] Runner stage selection: staged-blob input for pre-commit, pushed-commit worktree for pre-push (`PRE_COMMIT_TO_REF`), NUL-safe paths, in `quality/runner/select.go`
-- [ ] T052 [US3] One Bazel invocation per stage, bounded native pool, deadlines, subreaper in `quality/runner/exec.go`
-- [ ] T053 [US3] Diagnostics and JSON receipt writer in `quality/runner/report.go`
-- [ ] T054 [US3] Adapters mapping registry entries to pinned tools in `quality/adapters/{go,ts,proto,docs,shell}/`
-- [ ] T055 [US3] Move T012 checks into the registry and delete their standalone targets (adopt-and-delete)
-- [ ] T056 [US3] `prek.toml` with one hook per stage (`full` as prek `manual`), prek pinned via multitool; cite the py#25/ts#20 contract revision followed
-- [ ] T057 [US3] `//tools/hooks:install` thin wrapper over pinned `prek install` (legacy-hook handling verified by fixture, `core.hooksPath`, worktrees); no custom chaining
-- [ ] T058 [US3] Policy-change escalation to `full` at pre-push only in `quality/runner/select.go`
-- [ ] T091 [US3] Go analyzers (`lint-go`): `nogo` under rules_go 0.64.2 cannot read Go 1.27 export data (spec 004 research R7). Move to a rules_go release that can, once it meets the 14-day pin rule, and enable vet then staticcheck. **Witness**: a vet finding in a fixture fails the Go build, and its corrected counterpart passes
-- [ ] T059 [US3] Checkpoint: fixtures pass; measure stage budgets cold/warm (1, 50, 500 files) into `docs/budgets/`. **Witness** SC-005, SC-006
+- [x] T048 [P] [US3] Guarantee-vs-signal table and human-review list in `docs/quality/classification.md`
+- [x] T049 [P] [US3] Accurate bypass documentation (`--no-verify`, `SKIP`/`PREK_SKIP`) in `docs/quality/hooks.md`
+- [x] T050 [US3] Registry schema `quality/proto/registry.proto` and instance `quality/registry.textproto`
+- [x] T051 [US3] Runner stage selection: staged-blob input for pre-commit, pushed-commit worktree for pre-push (`PRE_COMMIT_TO_REF`), NUL-safe paths, in `quality/runner/select.go`
+- [x] T052 [US3] One Bazel invocation per stage, bounded native pool, deadlines, subreaper in `quality/runner/exec.go`
+- [x] T053 [US3] Diagnostics and JSON receipt writer in `quality/runner/report.go`
+- [x] T054 [US3] Adapters mapping registry entries to pinned tools in `quality/adapters/{go,ts,proto,docs,shell}/`
+- [x] T055 [US3] Move T012 checks into the registry and delete their standalone targets (adopt-and-delete)
+- [x] T056 [US3] `prek.toml` with one hook per stage (`full` as prek `manual`), prek pinned via multitool; cite the py#25/ts#20 contract revision followed
+- [x] T057 [US3] `//tools/hooks:install` thin wrapper over pinned `prek install` (legacy-hook handling verified by fixture, `core.hooksPath`, worktrees); no custom chaining
+- [x] T058 [US3] Policy-change escalation to `full` at pre-push only in `quality/runner/select.go`
+- [x] T091 [US3] Go analyzers (`lint-go`): `nogo` under rules_go 0.64.2 cannot read Go 1.27 export data (spec 004 research R7). Move to a rules_go release that can, once it meets the 14-day pin rule, and enable vet then staticcheck. **Witness**: a vet finding in a fixture fails the Go build, and its corrected counterpart passes
+- [x] T059 [US3] Checkpoint: fixtures pass; measure stage budgets cold/warm (1, 50, 500 files) into `docs/budgets/`. **Witness** SC-005, SC-006
 
 ---
 
