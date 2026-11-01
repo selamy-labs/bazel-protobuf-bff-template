@@ -9,11 +9,11 @@ the classes and lists the rules deliberately left out. M5's reasons are in
 
 ## Checks
 
-| Group | ids | Stages |
-| --- | --- | --- |
-| Content | `secrets`, `suppression-ban`, `typos`, `format-go`, `format-ts`, `format-proto`, `lint-proto`, `format-starlark`, `shellcheck`, `actionlint`, `zizmor` | pre-commit, full |
-| Pushed commit | `tests`, `dependency-rules`, `proto-breaking` | pre-push, full |
-| Full only | `e2e-browser`, `test-inventory`, `sandbox-evidence`, `workspace-policy`, `implicit-config`, `bazelrc-policy`, `toolchain-fixtures`, `hook-e2e`, `speckit-provenance`, `coverage-floor`, `floors-from-base`, `catalog-definitions` | full |
+| Group         | ids                                                                                                                                                                                                                               | Stages           |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| Content       | `secrets`, `suppression-ban`, `typos`, `format-go`, `format-ts`, `format-proto`, `lint-proto`, `format-starlark`, `shellcheck`, `actionlint`, `zizmor`                                                                            | pre-commit, full |
+| Pushed commit | `tests`, `dependency-rules`, `proto-breaking`                                                                                                                                                                                     | pre-push, full   |
+| Full only     | `e2e-browser`, `test-inventory`, `sandbox-evidence`, `workspace-policy`, `implicit-config`, `bazelrc-policy`, `toolchain-fixtures`, `hook-e2e`, `speckit-provenance`, `coverage-floor`, `floors-from-base`, `catalog-definitions` | full             |
 
 `quality-pin` is in the catalog for consumers. This repository does not bind it, because it uses `local_path_override`.
 
@@ -56,23 +56,23 @@ derives its input set itself (see hook-stages.md). It never receives a filename 
 
 **Exit codes.** The runner's exit codes are deliberately disjoint from Bazel's:
 
-| Code | Meaning |
-| --- | --- |
-| `0` | every check is non-blocking |
-| `1` | at least one check `FAILED` |
-| `2` | usage or configuration error, or a `bootstrap ERROR` |
-| `10` | `TIMED_OUT` or `CANCELLED` |
+| Code | Meaning                                                                                                                        |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `0`  | every check is non-blocking                                                                                                    |
+| `1`  | at least one check `FAILED`                                                                                                    |
+| `2`  | usage or configuration error, or a `bootstrap ERROR`                                                                           |
+| `10` | `TIMED_OUT` or `CANCELLED`                                                                                                     |
 | `11` | baseline or evidence unavailable, including a refused policy base, or a receipt that cannot name what was tested (fail closed) |
-| `12` | a `GUARANTEE` check had zero inputs at `full` without `allow_empty` |
+| `12` | a `GUARANTEE` check had zero inputs at `full` without `allow_empty`                                                            |
 
 Bazel exit codes are translated explicitly:
 
-| Bazel code | Runner result |
-| --- | --- |
-| `3` (tests failed) | `FAILED` |
-| `4` (no tests) on an affected set | `NOT_APPLICABLE` |
-| `8` (interrupted) | `CANCELLED` |
-| anything else non-zero | `ERROR`, with Bazel's message |
+| Bazel code                        | Runner result                 |
+| --------------------------------- | ----------------------------- |
+| `3` (tests failed)                | `FAILED`                      |
+| `4` (no tests) on an affected set | `NOT_APPLICABLE`              |
+| `8` (interrupted)                 | `CANCELLED`                   |
+| anything else non-zero            | `ERROR`, with Bazel's message |
 
 A result that contradicts its own exit code is an `ERROR`, never a pass.
 
@@ -119,5 +119,22 @@ a private retained log (below), so the omitted lines can be retrieved.
 - A failed check's output, up to 1 MiB, is kept mode `0600` in a marked per-run directory beside the
   receipt. The next run on that receipt trims those directories under the lock, so that at most 5
   remain, and removes only marked ones.
+
+**Bounds**: the runner's bounds are fixed by this contract, not configurable (spec 011 FR-016); each exists for
+the reason beside it, and a change to one is a change to this contract.
+
+| Bound                      | Value                               | Reason                                                                              |
+| -------------------------- | ----------------------------------- | ----------------------------------------------------------------------------------- |
+| client grace               | 10 s                                | how long an interrupted Bazel client may take to stop before it is killed, once     |
+| server grace               | 5 s                                 | how long a Bazel server may take to leave after the client, polled every 50 ms      |
+| termination grace          | 2 s                                 | how long a supervised check may take after `TERM` before `KILL`                     |
+| bookkeeping                | 30 s, plus 9 s for a helper         | the receipt is written within a bound, so a hung helper cannot hold a result        |
+| retained log               | 1 MiB per failed check, 5 runs kept | a failed check's output is retrievable, and the directory cannot grow without bound |
+| captured stderr            | 2048 bytes                          | a helper's cause is reported within a bound, never its whole stream                 |
+| diagnostics                | 50 lines per check                  | the terminal stays readable; the rest is in the retained log                        |
+| measurements               | 32 per check, 200 bytes each        | a summary is bounded, so a receipt stays comparable                                 |
+| slot poll                  | 100 ms                              | how often a waiting heavy stage asks again for a slot                               |
+| output scanner             | 1 MiB per line                      | a Bazel line longer than this is a defect, not a buffer to grow                     |
+| release catalog diagnostic | 20 lines                            | the release check names its first findings and counts the rest                      |
 
 **Side effects**: the runner never writes to the index or the working tree.

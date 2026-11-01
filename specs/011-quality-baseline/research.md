@@ -41,6 +41,7 @@ Each entry is answered by a probe or by an independent measurement at a named re
 
 - The human baseline of 2026-11-01 adds typed, versioned configuration: one schema, defaults once at the composition or input boundary, required inner parameters, precedence, validation, effective-value provenance, OpenFeature only where runtime evaluation fits, and no bypass of security, quality, spend or invariant contracts.
 - Where this tree stands: the server's `Config` validates its mode, authenticator, store and origin at the boundary (`bff/server`); the quality runner takes its paths from the registry and the binary's arguments; the checks read policy inputs from files with unknown fields refused. Scattered defaults are not inventoried yet. The probe at landing inventories every default in first-party Go and TypeScript by its site, then decides schema placement by focused changes. No framework is added; a library is probed before a pin like every other tool.
+- Decision at T021 (2026-11-01): OpenFeature is not adopted and nothing is pinned, because no behavior in this tree is evaluated at run time: every value is read once at start, from a composition or a typed input file, and a change is a restart. If a runtime-evaluated behavior ever appears, its boundary fallback source is the same input file, and the provider is probed then. The surfaces and their configuration-only witnesses and bypass controls are in [docs/quality/defaults.md](../../docs/quality/defaults.md).
 
 ## R11 Python applicability (Q11)
 
