@@ -28,8 +28,8 @@ first.
 | FR-018 | Real Git fixtures | no new suppression | suppression added per language; pattern set edited → fails | G | off |
 | FR-019 | Real tools | exit 0 | exit 3 with reports, empty report, truncated report → `FAILED`; removed test lowers number → fails | G | off, loc |
 | FR-020 | Report fixtures, real profile | `statements` from the raw profile; Go branch shown `unmeasured` | LCOV value as Go percentage, missing `.cover`, `unmeasured` shown as met or not applicable → rejected | G | off |
-| FR-020a | Real tools | a TS test yields line data for `web/client` | empty report, `(empty-report)` placeholder → `FAILED`; a removed TS test lowers the number | G | off, loc |
-| FR-020b | Reconciliation in research | file-by-file table | any unexplained file → no floor set | S | hum |
+| FR-020a | Real tools | a TS test yields line data for each `web/client` file; `web-browser` shown `unmeasured` | empty report, `(empty-report)` placeholder, a client file absent → `FAILED`; a removed TS test lowers the number | G | off, loc |
+| FR-020b | Research R7 | each Go difference has a cause | an unexplained file → no floor set | S | hum |
 | FR-021 | Real tools | both modules present | filter loses the quality module, or `external/` mapping removed → fails | G | off, loc |
 | FR-022 | Doc assertions, `fresh_clone.sh` | `--base` documented | bare command passes, or a stale command in README → fails | G | off, loc |
 | FR-023 | Real-registry tests | new input escalates and changes the digest | input outside the list → red | G | off |

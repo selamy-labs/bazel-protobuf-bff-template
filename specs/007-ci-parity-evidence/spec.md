@@ -130,12 +130,13 @@ Floors and coverage
 - **FR-019**: Coverage MUST be judged only after the Bazel invocation exits 0. Exit 3 with reports present is
   `FAILED`. An empty, truncated or unparseable report is `FAILED`.
 - **FR-020**: Go floors MUST use **statement coverage** from the raw Go profile, labeled `statements`.
-  rules_go's LCOV `DA`, `LF` and `LH` values MUST NOT be reported as Go's percentage or used as a floor. Go branch
-  coverage is `unmeasured`, because the tool does not produce it. `unmeasured` is never `met` and never not
+  rules_go's LCOV `DA`, `LF` and `LH` values MUST NOT be reported as Go's percentage. Go code reachable only as a
+  subprocess has no statement data, so it has a separate profile, labeled `block-span-lines`. Go branch coverage
+  is `unmeasured`, because the tool does not produce it. `unmeasured` is never `met` and never not
   applicable, and it is listed in the receipt and in capability states.
-- **FR-020a**: TypeScript coverage is required, for code with real consumers. It MUST come from a real report,
-  through the native path or a mature pinned tool under the pin-age and provenance rules. An empty or placeholder
-  report MUST fail, and it MUST NOT be accepted as M6's result.
+- **FR-020a**: TypeScript coverage is required, for code with real consumers. `web/client` MUST be measured from a
+  real report, labeled `compiled-js-lines`, with branches shown apart. An empty or placeholder report MUST fail.
+  Browser-only code is an explicit `unmeasured` boundary for review, and it is not counted as covered.
 - **FR-020b**: Before any floor is set, the Go report and the raw profile MUST be reconciled, file by file.
 - **FR-021**: Each of the root and quality modules MUST have its own profile, with the module's files
   demonstrably present in its report.

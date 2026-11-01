@@ -75,8 +75,8 @@ Consequences to accept or refuse:
   `binaries_test` and the browser tests passed instrumented in the probe.
 - Configuration moves into `.bazelrc` under `coverage`, so `tools/policy/bazelrc.allow` changes, which is reviewed
   policy: both generators, `--instrumentation_filter`.
-- Open: `nogo` under instrumentation. The probe built and passed, but no planted vet defect was run under `coverage`.
-  T002 must do that before `tests` is claimed unchanged.
+- `nogo` still judges under `coverage`: a planted `Sprintf` defect failed the build by analysis, and the clean control
+  passed.
 
 **Bootstrap is not a check invocation.** Only `floors-from-base` builds from a base, by `bazel build` of one fixed
 target in a private worktree and output base. It is the analogue of `verify_body.sh` building the runner. It runs no
@@ -229,20 +229,49 @@ at the pin. Go branch coverage is `unmeasured`.
 `bff/…` and `external/bff_template_quality+/…`. So the canonical repository form works at this pin. The merger maps the
 `external/` prefix to `quality/`. Without that entry the quality module silently disappears, so a named mutant removes it.
 
-**Absent files.** Several sources never appear: `bff/ports/store.go` holds only interfaces, `quality/runner/cmd` has no test of
-its own, and testdata under `quality/checks/suppression/testdata` is matched by a broad include. So the source set comes from
-Git, not the report (FR-017). An exclusion needs a factual reason: interfaces only, generated, or test data. An executable file
-with no data is a gap to close with real data, or an explicit `unmeasured` boundary declared for review. It is never excluded for
-lacking a test, and absent data is never counted as covered.
+**Reconciliation (T002).** Each Go difference has a cause:
 
-**Instrumented subprocesses.** Tests that run instrumented binaries as data produce extra records, some of it repeated: `ci_parity_test`
-has 86 `SF` entries. A merge must take the union of lines per file. Whether a subprocess's lines should count at all is open
-for T002: the `.cover` profile holds only the test process, which is one more reason to floor on it.
+| Difference | Files | Cause |
+| --- | --- | --- |
+| LCOV only | Five `main.go` files, of `bff/cmd/bff-dev`, `ciparity/cmd`, `suppression`, `proto/cmd`, `runner/cmd` | They run as subprocesses of other tests. The raw profile holds the test process only |
+| LCOV only | `registry.pb.go` under `bazel-out` | Generated and untracked, so outside any source set |
+| In neither | `bff/ports/store.go` | Interfaces only |
+| In neither | `bff/cmd/bff/verifier.go` | One `var` declaration, no statement |
+| In neither | `api/tools.go`, `quality/analysis/tools.go` | `//go:build tools` imports |
+| In neither | `quality/runner/supervise_other.go` | `//go:build !linux`, not compiled here |
 
-**TypeScript.** `//web/client:errors_test` wrote an empty report, and `//web/lint:eslint_test` wrote `(empty-report)` placeholders for
-three `web/client` files. Neither is coverage, and neither is an acceptable end state: this code has real consumers. T002 tries Node's
-V8 coverage first. If a bounded attempt fails, M6 adopts a mature pinned tool under the pin-age and provenance rules. It does not settle
-for `unmeasured`.
+The 72% and 75% quality figures differed by a path match and by those subprocess files, and neither is used. So profiles are
+planned as follows, and each file is in exactly one row. Numbers come from the anchor's measurement.
+
+| Profile | Metric | Source | Files |
+| --- | --- | --- | --- |
+| `go-root`, `go-quality` | `statements` | Raw profile | Go sources under `bff/` and `quality/`, except below |
+| `go-entrypoints` | `block-span-lines`, labeled, never called statements | LCOV `DA` | The five subprocess `main.go` files, by path |
+| `ts-client` | `compiled-js-lines`, with branches shown apart | Node's LCOV | `web/client/*.ts`, except tests |
+| `web-browser` | `unmeasured`, an explicit boundary for review | None. The browser scenarios run this code, and no line data exists | `web/app/App.tsx`, `web/app/main.tsx`, `web/serve/serve.mjs` |
+
+Excludes carry a factual reason: `interfaces-only`, `no-statements`, `build-tag-tools`, `other-platform`, `test-data`, `test-tooling`.
+Lacking a test is not a reason, and absent data is never counted as covered. `web/client/transport.ts` is executable and has no
+unit test, so it gets one (T013); excluding it is not an option.
+
+**Instrumented subprocesses.** Tests that run instrumented binaries add repeated records: `ci_parity_test` has 86 `SF` entries. Merges take
+the union of lines per file. Statement profiles ignore them, so a subprocess cannot inflate a statement floor.
+
+**TypeScript (T002).** An earlier empty report was partly this probe's own fault, because its merger read only `*.dat`. After that was fixed:
+
+| Attempt | Outcome |
+| --- | --- |
+| rules_js c8 path, `js_test` default | Runs. Its merger is the rule's own, unaffected by Bazel's flags, but its manifest lists `.ts` and V8 reports `.js`, so c8 keeps nothing. `eslint_test` shows `(empty-report)` |
+| Same, with a `js_library` of the compiled `.js` | Manifest stays `.ts`-only |
+| Node's `run({coverage: true})`, with source maps | Node cannot find the mapped `.ts` in runfiles, and the test exits 1 |
+| Node's `run({coverage: true})`, no source maps | Works. `errors.js`: 75 of 75 lines, 31 of 32 branches, 5 of 5 functions |
+
+Decision: a small test entry calls Node's own runner and writes LCOV to `COVERAGE_OUTPUT_FILE`, which rules_js lets a test own. No new pin,
+no `tsconfig` change. The metric is lines of compiled JS, `compiled-js-lines`, so it maps to a `.ts` file by name and not by line number. Node's
+`run` coverage is the pinned Node 24.22's API, and a fixture guards it at that pin. No mature third-party tool is needed.
+
+**S005 gap found.** Node's own marker, `node:coverage ignore`, is not in S005's pattern. Adopting Node's coverage makes that spelling real, so
+T014 adds it to the pattern set, with defect and corrected cases, before the anchor.
 
 **After failures.** Whole3 left 17 non-empty reports beside 2 failed tests, so a report is not a pass (FR-019).
 
