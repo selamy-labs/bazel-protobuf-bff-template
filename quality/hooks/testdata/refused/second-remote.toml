@@ -1,0 +1,9 @@
+[[repos]]
+repo = "file:///tmp/fixture/quality.git"
+rev = "1111111111111111111111111111111111111111"
+hooks = [{ id = "pre-commit" }]
+
+[[repos]]
+repo = "file:///tmp/elsewhere.git"
+rev = "1111111111111111111111111111111111111111"
+hooks = [{ id = "other" }]

@@ -1,0 +1,14 @@
+[[repos]]
+repo = "file:///tmp/fixture/quality.git"
+rev = "1111111111111111111111111111111111111111"
+hooks = [{ id = "pre-commit" }]
+
+[[ repos ]]
+repo = "local"
+
+[[repos.hooks]]
+id = "extra"
+name = "extra"
+language = "system"
+entry = "true"
+pass_filenames = false

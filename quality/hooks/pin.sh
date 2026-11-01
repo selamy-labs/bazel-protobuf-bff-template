@@ -5,6 +5,15 @@
 #   pin.sh check [MODULE.bazel] [prek.toml]   both adapters name one remote and one full SHA
 #   pin.sh sync  [MODULE.bazel] [prek.toml]   writes prek's rev from MODULE.bazel
 #
+# A shell has no TOML parser, and a search for a forbidden line misses its other legal spellings. So both
+# modes accept only the form below, line by line, and refuse anything else. Blank lines and whole-line
+# comments may appear anywhere. A host's own checks go in its registry, not in a second repository.
+#
+#   [[repos]]
+#   repo = "<remote>"
+#   rev = "<full SHA>"
+#   hooks = [{ id = "<id>", args = ["<arg>"] }]     or that list with one hook on each line
+#
 # With `bazel run` it works in the checkout. As a rule it runs from the repository root.
 set -euo pipefail
 if [[ -n "${BUILD_WORKSPACE_DIRECTORY:-}" ]]; then cd "$BUILD_WORKSPACE_DIRECTORY"; fi
@@ -12,6 +21,41 @@ mode="${1:?usage: pin.sh check|sync [MODULE.bazel] [prek.toml]}"
 module="${2:-MODULE.bazel}"
 prek="${3:-prek.toml}"
 fail() { echo "quality-pin: $1" >&2; exit 1; }
+text='"[^"\\]*"'
+hook="\\{ id = $text(, args = \\[$text(, $text)*\\])? \\}"
+
+# Sets prek_repo and prek_rev, or refuses the file.
+read_prek() {
+  local number=0 state=header hooks=0 line
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    number=$((number + 1))
+    if [[ "$line" =~ ^[[:space:]]*(#.*)?$ ]]; then continue; fi
+    case "$state" in
+      header) [[ "$line" == '[[repos]]' ]] && state=repo || state=refused ;;
+      repo)
+        if [[ "$line" =~ ^repo\ =\ \"([^\"\\]*)\"$ ]]; then prek_repo="${BASH_REMATCH[1]}"; state=rev; else state=refused; fi
+        ;;
+      rev)
+        if [[ "$line" =~ ^rev\ =\ \"([^\"\\]*)\"$ ]]; then prek_rev="${BASH_REMATCH[1]}"; state=hooks; else state=refused; fi
+        ;;
+      hooks)
+        if [[ "$line" == 'hooks = [' ]]; then state=list
+        elif [[ "$line" =~ ^hooks\ =\ \[$hook\]$ ]]; then state=end
+        else state=refused; fi
+        ;;
+      list)
+        if [[ "$line" =~ ^\ +$hook,$ ]]; then hooks=$((hooks + 1))
+        elif [[ "$line" == ']' && "$hooks" -gt 0 ]]; then state=end
+        else state=refused; fi
+        ;;
+      end) fail "$prek line $number follows the one pinned repository, and a second one or any other setting is refused" ;;
+    esac
+    if [[ "$state" == refused ]]; then
+      fail "$prek line $number is not in the form the pin check reads (see hooks/pin.sh), so it cannot say the pin holds"
+    fi
+  done <"$prek"
+  [[ "$state" == end ]] || fail "$prek stops before its one repository is complete"
+}
 
 [[ -f "$module" ]] || fail "$module does not exist"
 [[ -f "$prek" ]] || fail "$prek does not exist"
@@ -25,22 +69,20 @@ commit="$(sed -nE 's/^ *commit = "([^"]*)",?$/\1/p' <<<"$block")"
 remote="$(sed -nE 's/^ *remote = "([^"]*)",?$/\1/p' <<<"$block")"
 [[ "$commit" =~ ^[0-9a-f]{40}$ ]] || fail "git_override's commit '$commit' is not a full SHA"
 [[ -n "$remote" ]] || fail "git_override names no remote"
-if grep -Eq '^repo = "local"' "$prek"; then fail "$prek has a local hook, which is not the pinned one"; fi
+while IFS= read -r line; do
+  [[ "$line" == 'git_override(' || "$line" == ')' || "$line" =~ ^\ +(module_name|commit|remote|strip_prefix)\ =\ \"[^\"\\]*\",?$ ]] ||
+    fail "$module's git_override sets more than the pin: '$line'"
+done <<<"$block"
+read_prek
+[[ "$prek_repo" == "$remote" ]] || fail "$prek's repository '$prek_repo' is not git_override's remote $remote"
 
 case "$mode" in
   check)
-    count="$(grep -cF "repo = \"$remote\"" "$prek" || true)"
-    [[ "$count" == 1 ]] || fail "$prek has $count repositories at $remote, and needs one"
-    rev="$(awk -v want="repo = \"$remote\"" '$0 == want {getline line; print line}' "$prek" | sed -nE 's/^rev = "([^"]*)"$/\1/p')"
-    [[ "$rev" == "$commit" ]] || fail "prek's rev '$rev' differs from git_override's commit $commit; run the pin target's sync"
+    [[ "$prek_rev" == "$commit" ]] || fail "prek's rev '$prek_rev' differs from git_override's commit $commit; run the pin target's sync"
     ;;
   sync)
-    grep -qF "repo = \"$remote\"" "$prek" || fail "$prek has no repository at $remote"
     updated="$(mktemp "$prek.XXXXXX")"
-    awk -v want="repo = \"$remote\"" -v commit="$commit" '
-      found && /^rev = / { print "rev = \"" commit "\""; found = 0; next }
-      $0 == want { found = 1 }
-      { print }' "$prek" >"$updated"
+    awk -v commit="$commit" '/^rev = / { print "rev = \"" commit "\""; next } { print }' "$prek" >"$updated"
     chmod --reference="$prek" "$updated"
     mv "$updated" "$prek"
     echo "quality-pin: prek's rev is $commit"

@@ -1,0 +1,6 @@
+[[repos]]
+repo = "file:///tmp/fixture/quality.git"
+rev = "1111111111111111111111111111111111111111"
+hooks = [
+  { id = "pre-commit", language = "system", entry = "true" },
+]

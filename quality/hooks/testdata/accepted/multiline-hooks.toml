@@ -1,0 +1,10 @@
+# The quality pin.
+
+[[repos]]
+repo = "file:///tmp/fixture/quality.git"
+# Written by the sync.
+rev = "1111111111111111111111111111111111111111"
+hooks = [
+  { id = "pre-commit", args = ["--bazel=tools/bazel.sh"] },
+  { id = "pre-push", args = ["--bazel=tools/bazel.sh", "--other"] },
+]

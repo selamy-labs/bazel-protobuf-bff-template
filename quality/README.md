@@ -82,6 +82,11 @@ After changing the pin:
 ```
 
 The `quality-pin` rule fails if the two adapters differ, or if `local_path_override` or a local hook stands in.
+It reads only the form shown above, and refuses anything else by line, so `prek.toml` holds that one repository,
+each hook sets only `id` and `args`, and `git_override` sets only the four keys shown. Blank lines and whole-line
+comments are fine. A host's own checks go in its registry. A hook that overrides its entry never reaches the
+rule at commit time, so `tools/verify.sh` is what catches it. The rule reads these two files, so a
+`--override_module` flag or rc line is outside it.
 A host that builds with `--config=weak-isolation` passes it to the `run` above as well.
 
 The interface is not stable until it is declared so in [RELEASING.md](RELEASING.md).
