@@ -413,6 +413,12 @@ rc=0
 "$script" --stage=full --deadline=120s "--receipt=$work/full.json" </dev/null >"$work/out" 2>&1 || rc=$?
 rejected "the full policy catches the bypassed secret" "secrets" "src/bypassed.txt"
 [[ "$(state_of "$work/full.json" secrets)" == FAILED ]] || fail "full did not record secrets as FAILED"
+# A hosted run is the same policy, one leg per job, so that leg must catch it too. It runs with no base
+# here, and the secret is still a finding beside the refusal.
+rc=0
+"$script" --stage=full --shard=policy --deadline=120s "--receipt=$work/leg.json" </dev/null >"$work/out" 2>&1 || rc=$?
+rejected "the CI leg catches the bypassed secret" "secrets" "src/bypassed.txt"
+[[ "$(state_of "$work/leg.json" secrets)" == FAILED ]] || fail "the policy leg did not record secrets as FAILED"
 
 # --- The policy base at pre-push. prek gives a new branch its fork point as --from, so an ordinary first
 # push stays narrow and needs no base. A policy change, or a push with no base in reach, widens to `full`,

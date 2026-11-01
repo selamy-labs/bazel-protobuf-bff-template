@@ -24,7 +24,8 @@ and is not something this repository automates.
       required account.
 - [ ] Docs make no claim of live enforcement (branch protection, billing, deployment) without
       platform readback.
-- [ ] A fresh clone on a clean host passes `tools/verify.sh` with no credentials (T014).
+- [ ] A fresh clone on a clean host passes `tools/verify.sh --base=<commit>` with no credentials (T014). A rewritten public history changes every SHA, so re-anchor first (spec 007 R6).
+- [ ] A repository's first hosted push has no base. Decide how the first CI run is handled (spec 007 R6).
 - [ ] The review result is recorded below with the revision and the reviewer.
 
 ## Hard rule for private references

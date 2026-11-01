@@ -32,6 +32,8 @@ user-facing behavior and limits are in [docs/quality/hooks.md](../../../docs/qua
 3. **Pre-push checks the pushed commit, not the working tree.**
    - It runs in `$(git rev-parse --git-common-dir)/bff-template/push-worktree`, a detached worktree
      reused across pushes with its own warm output base.
+   - A push that widens to `full` is compared with the declared `bff-template.policy-base` setting, and never
+     with `--from`. With no setting it exits 11 (spec 007 FR-015a).
    - prek evaluates only the first pushed ref. A multi-ref push is a documented limit. CI judges pull
      requests, merge groups and `main`; a branch with neither gets no hosted run.
 4. **Paths are passed NUL-delimited** end to end. This covers renames, deletions and paths that

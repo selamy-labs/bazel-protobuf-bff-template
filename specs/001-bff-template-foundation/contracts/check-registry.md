@@ -23,7 +23,14 @@ bazel run //:quality -- --stage=<pre-commit|commit-msg|pre-push|full>
                         [--isolation=<full|weakened>] [--offline] [--receipt=<path>]
                         [--rerun=<command>] [--jobs=<n>] [--slots=<n>] [--deadline=<duration>]
                         [--from=<rev>] [--to=<rev>] [--inner] [--bazel-startup=<option>] [--shard=<leg>]
+                        [--base=<rev>] [--base-source=<argument|hook-config|ci-event>]
 ```
+
+`--from` is the selection range. `--base` is the policy base, resolved once, and neither fills in for
+the other (spec 007 R6). A check with `needs_base` is refused by name when no base is usable, and the
+other checks still run. When a selected check sets `needs_coverage`, the stage's one Bazel invocation
+is `coverage`, and it still gives every test result. A check with `summary` keeps its bounded
+`measurement: ` lines in the receipt.
 
 `--shard=<leg>` runs one leg of `full`, and only with `--stage=full`. Each check is owned by one leg in
 the registry, or is a postcondition that runs after the Bazel invocation of every leg that has one
@@ -42,7 +49,7 @@ derives its input set itself (see hook-stages.md). It never receives a filename 
 | `1` | at least one check `FAILED` |
 | `2` | usage or configuration error, or a `bootstrap ERROR` |
 | `10` | `TIMED_OUT` or `CANCELLED` |
-| `11` | baseline or evidence unavailable, or a receipt that cannot name what was tested (fail closed) |
+| `11` | baseline or evidence unavailable, including a refused policy base, or a receipt that cannot name what was tested (fail closed) |
 | `12` | a `GUARANTEE` check had zero inputs at `full` without `allow_empty` |
 
 Bazel exit codes are translated explicitly:

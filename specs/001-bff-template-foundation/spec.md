@@ -335,7 +335,9 @@ Optional profiles, provenance and governance
 ### Measurable Outcomes
 
 - **SC-001**: On a clean supported host, a new adopter goes from clone to a passing full verification
-  and a working example in one documented command, with zero credentials entered.
+  and a working example in one documented command, with zero credentials entered. That command names a
+  policy base, `tools/verify.sh --base=<reviewed commit>` (spec 007 FR-022). With no base it runs every
+  other check and exits 11, naming the fix.
 - **SC-002**: 100% of example RPCs have a production browser caller and at least one success and one
   failure end-to-end scenario.
 - **SC-003**: 100% of the synthetic breaking schema changes in the fixture set are rejected and

@@ -27,13 +27,13 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [x] T016 | T015 | Declared `bff-template.policy-base`, installer, `stage.sh`; first push of a topic branch | FR-012, FR-015a | | `fixtures_test` |
 | [ ] T017 | T016 | **Anchor commit**: `floors-from-base` and `coverage-floor` registered, first floors from reconciled measurement; record the exit 11 control and targeted evidence. **Hold for independent targeted review** | FR-011, FR-016 | T062, T063 | Review |
 | [x] T018 | T017 | Base through `fresh_clone.sh` and CI; bounded measurement summary in the receipt; `escalate` and digest cases | FR-020, FR-022, FR-023 | T062 | `runner_test`, `policy_base_test`, `parity_test` |
-| [ ] T019 | T018 | README, parent SC-001, contracts, hook limits | FR-022 | SC-001 | Doc assertions |
-| [ ] T020 | T018 | S005 re-witness against the pinned tools; closes or restates parent T047 | FR-027 | T047 | Suppression fixtures |
-| [ ] T021 | T018 | Bypassed-hook commit fails a CI-equivalent run | FR-027 | T070 | `fixtures_test` |
+| [x] T019 | T018 | README, parent SC-001, contracts, hook limits | FR-022 | SC-001 | Doc assertions |
+| [x] T020 | T018 | S005 re-witness against the pinned tools; closes or restates parent T047 | FR-027 | T047 | Suppression fixtures |
+| [x] T021 | T018 | Bypassed-hook commit fails a CI-equivalent run | FR-027 | T070 | `fixtures_test` |
 | [x] T022 | T009 | Trigger sentence narrowed | FR-026 | | Doc assertion |
-| [ ] T023 | T019–T022 | `docs/quality/evidence.md`: separate claims; gaps for T067, T068, FR-023, SC-007 | US5 | T069 | Review |
-| [ ] T024 | T023 | Reconcile capability states, classification, parent ledger; cheap checks | all | T070 | Review |
-| [ ] T025 | T024 | Reproduce R6 flows exactly, with negatives | SC-004 | | Logs |
+| [x] T023 | T019–T022 | `docs/quality/evidence.md`: separate claims; gaps for T067, T068, FR-023, SC-007 | US5 | T069 | Review |
+| [x] T024 | T023 | Reconcile capability states, classification, parent ledger; cheap checks | all | T070 | Review |
+| [ ] T025 | T024 | Reproduce R6 flows exactly, with negatives; a real compiled-base positive, and the combined negative: lowered floor plus replaced evaluator and patterns | SC-004 | | Logs |
 | [ ] T026 | T025 | Freeze; normal and hostile gates with `--base`; measure once; hold for independent acceptance | SC-002 | T070 | Receipts |
 
 Remain open by design: parent T067 and T068, blocked on upstream releases.
@@ -54,3 +54,5 @@ Remain open by design: parent T067 and T068, blocked on upstream releases.
 - T017: the commit after `f4bb2aa`. Review of `f4bb2aa` found two more, reproduced red first: the base digest used the
   proposal's definition, and `compare` dropped enrollment. `from_base_test` uses a fake base Bazel and evaluator: it proves custody
   and wiring, not that a compiled base rejects a replaced evaluator. T025 proves that composition with a real base.
+- T018: `33e6a55`, on the accepted anchor `e3b3b34`. Review of the anchor found that a passed `coverage-floor` left no measurements in the receipt; red first.
+- T019 to T024: the commit after `33e6a55`. T020 closes parent T047: the pinned Node witness is in the [evidence record](../../docs/evidence/m6.md).

@@ -121,7 +121,7 @@ scenarios; the deliberately broken variant fails.
 - [x] T044 [P] [US3] Runner tests: exit codes and Bazel-code translation, diagnostic format, 50-line bound, deadline handling (Bazel client SIGINT/shutdown, native process group, `setsid` child reaped via subreaper), closed stdin, zero-input GUARANTEE at `full` → exit 12 in `quality/runner/runner_test.go`
 - [x] T045 [P] [US3] Registry validation tests (duplicate id, missing `full`, SIGNAL with failing threshold, GUARANTEE without fixtures, missing classification) in `quality/registry/validate_test.go`
 - [x] T046 [P] [US3] Defect + corrected fixture per GUARANTEE check in `quality/fixtures/<check-id>/`
-- [ ] T047 [P] [US3] Suppression pattern fixtures per language (Go, TS, proto, Starlark, shell) in `quality/fixtures/suppression-ban/`; re-witness every S002 and S005 spelling, including multi-line and quoted forms, with the pinned ESLint and coverage tool once they exist **Open:** S002 is re-witnessed; S005 waits for the coverage tool in M6.
+- [x] T047 [P] [US3] Suppression pattern fixtures per language (Go, TS, proto, Starlark, shell) in `quality/fixtures/suppression-ban/`; re-witness every S002 and S005 spelling, including multi-line and quoted forms, with the pinned ESLint and coverage tool once they exist S005 re-witnessed against the pinned Node in spec 007 T020.
 
 ### Implementation for User Story 3
 
@@ -149,19 +149,19 @@ scenarios; the deliberately broken variant fails.
 
 ### Tests for User Story 4 ⚠️ write first
 
-- [ ] T060 [P] [US4] Base-built evaluator fixtures: proposal lowers a coverage floor, adds a suppression, edits the suppression pattern set, or replaces the evaluator code → `floors-from-base` still fails; positive: floor raised, unrelated tool update passes; in `quality/fixtures/floors-from-base/`
-- [ ] T061 [P] [US4] CI shard/aggregate fixtures: one shard skipped, cancelled, or failed-then-rerun-succeeded (latest attempt counts), receipt missing → gate result as documented, in `quality/fixtures/aggregate/`
+- [x] T060 [P] [US4] Base-built evaluator fixtures: proposal lowers a coverage floor, adds a suppression, edits the suppression pattern set, or replaces the evaluator code → `floors-from-base` still fails; positive: floor raised, unrelated tool update passes; in `quality/fixtures/floors-from-base/`
+- [x] T061 [P] [US4] CI shard/aggregate fixtures: one shard skipped, cancelled, or failed-then-rerun-succeeded (latest attempt counts), receipt missing → gate result as documented, in `quality/fixtures/aggregate/`
 
 ### Implementation for User Story 4
 
-- [ ] T062 [US4] CI `policy` shard: build `//quality/...` from a worktree at `base_revision`, run it against the proposal tree, read-only permissions, no secrets, in `.github/workflows/ci.yml` and `quality/policy/from_base.sh`
-- [ ] T063 [US4] Coverage floors that only rise vs base in `quality/checks/coverage_floor.go` and `quality/coverage_floors.json`
-- [ ] T064 [US4] Complete CI as registry shards only (`//quality:run --stage=full --shard=build-test|e2e|coverage|policy`), read-only permissions, aggregate `gate` on latest attempts; in `.github/workflows/ci.yml`
-- [ ] T065 [US4] Per-job receipts (contracts/evidence-receipt.md) uploaded with `if-no-files-found: error`
-- [ ] T066 [US4] Parity check: every CI policy step is a `--stage=full --shard=` call, union of shards == `full`, no inline policy commands, in `quality/checks/ci_parity_test.sh`
+- [x] T062 [US4] CI `policy` shard: build `//quality/...` from a worktree at `base_revision`, run it against the proposal tree, read-only permissions, no secrets, in `.github/workflows/ci.yml` and `quality/policy/from_base.sh`
+- [x] T063 [US4] Coverage floors that only rise vs base in `quality/checks/coverage_floor.go` and `quality/coverage_floors.json`
+- [x] T064 [US4] Complete CI as registry shards only (`//quality:run --stage=full --shard=build-test|e2e|coverage|policy`), read-only permissions, aggregate `gate` on latest attempts; in `.github/workflows/ci.yml`
+- [x] T065 [US4] Per-job receipts (contracts/evidence-receipt.md) uploaded with `if-no-files-found: error`
+- [x] T066 [US4] Parity check: every CI policy step is a `--stage=full --shard=` call, union of shards == `full`, no inline policy commands, in `quality/checks/ci_parity_test.sh`
 - [ ] T067 [US4] **Blocked on py#26 release**: adopt the shared policy-diff/trusted-baseline contract and its fixtures (removed check/stage, narrowed scope, tampering, stale/self-issued authorization, authorized exception, malformed evidence); delete any interim code it supersedes
 - [ ] T068 [US4] **Blocked on py#27 release**: adopt the shared evidence validator and its fixtures (running producer, truncated report, omitted leg, old revision, contradictory, moved branch, review receipt vs self-assertion); closes FR-023/SC-007. Until then record the gap in `docs/quality/evidence.md`
-- [ ] T069 [US4] Document separate claims (offline / local / hosted CI / human approval / deployment) in `docs/quality/evidence.md`
+- [x] T069 [US4] Document separate claims (offline / local / hosted CI / human approval / deployment) in `docs/quality/evidence.md`
 - [ ] T070 [US4] Checkpoint (M6 exit = aggregate + receipts + base-built floors): T060/T061 pass; bypassed-hook commit fails in CI-equivalent run. SC-007 is not an M6 exit criterion
 
 ---

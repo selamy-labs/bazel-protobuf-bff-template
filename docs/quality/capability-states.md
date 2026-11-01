@@ -20,7 +20,7 @@ validator.
 | Capability | Specified | Implemented | Executed | Passed | Required | After integration | Witness |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Pinned toolchain and hermetic bootstrap | yes | yes | yes | yes, M1 to M4 | no | no | `tools/bootstrap/fresh_clone.sh`, `toolchain-fixtures` |
-| Canonical verifier | yes | yes | yes | yes, M1 to M4; M5 in [m5](../evidence/m5.md) | no | no | `tools/verify.sh` |
+| Canonical verifier | yes | yes | yes | yes, M1 to M4; M5 and M6 in the evidence records | no | no | `tools/verify.sh --base=<commit>` |
 | Contract and generated code | yes | yes | yes | yes, M2 to M4 | no | no | `//api:schema_probes_test`, `proto-breaking` |
 | Go BFF | yes | yes | yes | yes, M3 to M4 | no | no | `tests` |
 | Browser client | yes | yes | yes | yes, M4 | no | no | `e2e-browser` |
@@ -28,8 +28,8 @@ validator.
 | Lifecycle hooks | yes | yes | yes | see [m5](../evidence/m5.md) | no | no | `//tools/hooks:fixtures_test`, `hook-e2e` |
 | Go analyzers | yes | yes | yes | see [m5](../evidence/m5.md) | no | no | `analysis-fixture` in `toolchain-fixtures` |
 | TypeScript lint and format | yes | yes | yes | see [m5](../evidence/m5.md) | no | no | `//web:eslint_test`, `format-ts` |
-| Coverage floors, base-built policy, CI legs | yes | yes | in progress | no | no | no | M6, spec 007 |
-| Hosted CI | yes | workflow only | no | no | no | no | M6, then an operator gate |
+| Coverage floors, base-built policy, CI legs | yes | yes | locally; the workflow has never run | see [m6](../evidence/m6.md) | no | no | `coverage-floor`, `floors-from-base`, `//:ci_parity_test` |
+| Hosted CI | yes | workflow only | no | no | no | no | Operator gate |
 | Consumer path and quality-pin upgrade | yes | no | no | no | no | no | M7 |
 | Provenance and license inventory | yes | partly | no | no | no | no | M8 |
 | Public release | yes | no | no | no | no | no | Operator gate |
@@ -47,16 +47,17 @@ validator.
 
 | Gap | Owner |
 | --- | --- |
-| Hosted CI has never run, and no remote exists | M6, then an operator gate |
+| Hosted CI has never run, and no remote exists | Operator gate |
+| A repository's first hosted push has no base, and a proposal controls its own workflow | M8, operator gate, upstream #26 |
+| The quality module assumes host paths, so no separate consumer can pin it yet, and the interface is not stable | M7 |
 | macOS is unverified. The browser tests cannot run there, and stock macOS has no `flock` | Open |
-| The authoring host runs M5 only with weakened isolation. Full isolation was observed independently, at a revision before the receipt repair ([m5](../evidence/m5.md)) | Independent qualified Linux review of the final revision |
+| The authoring host runs only with weakened isolation. Full isolation is observed in independent runs, which [m5](../evidence/m5.md) and [m6](../evidence/m6.md) name | Independent review of each final revision |
 | Browser code has no coverage data, and Go has no branch data | Open, stated in `quality/coverage_floors.json` |
 | Complexity is not measured. No numeric threshold is imported from another project | Open. It needs a language-qualified analyzer and a baseline of this repository's own |
 | Duplication is not measured | Open, with complexity |
 | Property tests exist for Go only | Open (spec 006 keeps parent T028 scope) |
 | Mutation testing is not adopted. Named mutants are run by hand and recorded as evidence | Open |
-| The S005 coverage-marker spellings are not re-witnessed against a coverage tool | M6 |
 | The shared hook stage contract is unreleased | Upstream (relentless-ci-python #25, relentless-ci-typescript #20) |
 | Policy-diff, the evidence validator, the contract analyzer and the worker profile are unreleased | Upstream (#26, #27, #28, #29) |
-| Local policy and evaluator can be edited together until a base-built policy exists | M6 and upstream #26 |
+| Local policy beyond coverage profiles and suppressions can be edited together with its evaluator | Upstream #26 |
 | Debian package licenses and transitive npm licenses are not enumerated | M8 (parent T077) |

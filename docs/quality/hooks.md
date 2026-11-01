@@ -22,7 +22,7 @@ nothing. It works in linked worktrees and honors `core.hooksPath`.
 | `pre-commit` | The staged blobs, from the index Git names, so `git commit -a` and `git commit <path>` are judged on what they will commit | Content checks only. No build and no tests |
 | `commit-msg` | Nothing | No check is registered, so no hook is installed |
 | `pre-push` | The pushed commit, in a private detached worktree with its own output base, under that commit's own policy | `pre-push` entries and tests. A change to a policy input, or an unknown base, escalates to `full` |
-| `full` | The whole repository | Every registry entry. Run `tools/verify.sh`, or `prek run --hook-stage manual` |
+| `full` | The whole repository | Every registry entry. Run `tools/verify.sh --base=<commit>`. `prek run --hook-stage manual` names no base, so it stops at exit 11 |
 
 The registry, `quality/registry.textproto`, says what each stage runs. There is no second list. To
 rerun a stage by hand, use the command each failure prints.
@@ -82,5 +82,10 @@ operator opens it.
 - **A deadline leaves a shared server running.** After a deadline the runner stops its own Bazel client
   and nothing else, because another build may own the checkout's server. That server exits at its
   normal idle bound. Only the private push server is stopped, and only under its exclusive lock.
-- **The first push to an empty remote has no base,** so it escalates to `full`.
+- **A push that widens to `full` needs a declared policy base.** A policy change or a zero `--from` widens a
+  push. Set the base once with `tools/bootstrap/bazel.sh run //tools/hooks:install -- --policy-base=<commit>`, which
+  stores what you give it in local Git config. Without it, that push exits 11 and names this command. An ordinary
+  push reads no base. prek gives a new branch its fork point as `--from`, so its first push stays narrow.
+- **`--from` is not a policy base.** It selects what changed, and nothing compares with it.
+- **The first push to an empty remote has no base in reach,** so it widens to `full`, and it needs the setting too.
 - **macOS is unverified.** It has process groups only, with no child subreaper.

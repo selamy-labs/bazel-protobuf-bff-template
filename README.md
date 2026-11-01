@@ -27,15 +27,22 @@ change a verdict. It does trust its own caches under `$HOME/.cache`: Bazel does 
 extracted install base.
 
 ```sh
-tools/verify.sh
+tools/verify.sh --base=e3b3b348587483ed1da10957766e32615aaabb01
 ```
+
+`--base` names the policy base: the commit whose evaluator judges this tree's coverage floors and
+suppressions, so a change cannot approve its own weakening. Here it is the first independently reviewed
+checker commit. Naming a commit proves nothing about its review, so name one you trust. Without `--base` the
+verifier still runs every other check, then exits 11 and says so. A commit cannot be its own base. See
+[hooks](docs/quality/hooks.md) for the setting a push uses, and [evidence](docs/quality/evidence.md) for what a
+passing run does and does not claim.
 
 The command fails closed if the host cannot provide namespace sandboxing, for example on
 Ubuntu 24.04 with the default AppArmor policy. The preflight prints the fixes. If you can't apply
 them, opt in to reduced isolation explicitly; the result is labeled `isolation: weakened`:
 
 ```sh
-tools/verify.sh --weak-isolation
+tools/verify.sh --weak-isolation --base=e3b3b348587483ed1da10957766e32615aaabb01
 ```
 
 To run the app, then open <http://127.0.0.1:5173>:

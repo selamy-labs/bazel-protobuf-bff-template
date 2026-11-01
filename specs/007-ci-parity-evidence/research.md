@@ -148,7 +148,8 @@ as the documented bypass. A push that does not escalate never reads the setting.
 A repository's very first CI push is different: `github.event.before` is all zeros and no ancestor exists at all. That is
 bootstrap, not a topic branch, and M8 handles it explicitly.
 
-**Anchor.** The commit that adds the evaluator has a base without it. At the anchor, `floors-from-base` refuses, exit 11, and
+**Anchor.** The anchor is the first independently reviewed checker and floors commit, `e3b3b34`. Its ancestors `21aafbc` and `f4bb2aa` hold evaluator code and were not reviewed as anchors; reviewed M5
+`e0a12ac` holds none, and the anchor has no reviewed base. At the anchor, `floors-from-base` refuses, exit 11, and
 all other checks run. That result is recorded as the anchor's negative control, with a separate independent review of that
 SHA. Every later commit can name it. The final M6 revision is therefore never the anchor. Nothing reads the anchor from the
 tested tree.
@@ -194,7 +195,8 @@ tools/verify.sh            # exit 11, every other check run: recorded as the con
 tools/verify.sh --base=C0  # PASSED
 ```
 
-The consumer's evaluator comes from `C0`'s pin of the quality module, so an upgrade is itself judged by the older pin.
+The consumer's evaluator would come from `C0`'s pin of the quality module, so an upgrade is itself judged by the older pin. This flow is intent, not yet possible: the runner looks for the
+evaluator and registry at `quality/...` in the tree, and a pinning consumer has no such directory. M7 owns that decoupling, and no stable interface is claimed before it.
 
 **Bases elsewhere.**
 
@@ -234,7 +236,7 @@ at the pin. Go branch coverage is `unmeasured`.
 
 | Difference | Files | Cause |
 | --- | --- | --- |
-| LCOV only | Five `main.go` files, of `bff/cmd/bff-dev`, `ciparity/cmd`, `suppression`, `proto/cmd`, `runner/cmd` | They run as subprocesses of other tests. The raw profile holds the test process only |
+| LCOV only | The `main.go` files of `bff/cmd/bff-dev`, `ciparity/cmd`, `suppression`, `proto/cmd`, `runner/cmd`, and later the `merger` and `floors` commands, seven in all | They run as subprocesses of other tests. The raw profile holds the test process only |
 | LCOV only | `registry.pb.go` under `bazel-out` | Generated and untracked, so outside any source set |
 | In neither | `bff/ports/store.go` | Interfaces only |
 | In neither | `bff/cmd/bff/verifier.go` | One `var` declaration, no statement |
@@ -247,7 +249,7 @@ planned as follows, and each file is in exactly one row. Numbers come from the a
 | Profile | Metric | Source | Files |
 | --- | --- | --- | --- |
 | `go-root`, `go-quality` | `statements` | Raw profile | Go sources under `bff/` and `quality/`, except below |
-| `go-entrypoints` | `block-span-lines`, labeled, never called statements | LCOV `DA` | The five subprocess `main.go` files, by path |
+| `go-entrypoints` | `block-span-lines`, labeled, never called statements | LCOV `DA` | The seven subprocess `main.go` files, by path |
 | `ts-client` | `compiled-js-lines`, with branches shown apart | Node's LCOV | `web/client/*.ts`, except tests |
 | `web-browser` | `unmeasured`, an explicit boundary for review | None. The browser scenarios run this code, and no line data exists | `web/app/App.tsx`, `web/app/main.tsx`, `web/serve/serve.mjs` |
 

@@ -19,6 +19,7 @@ depends on the application that uses it.
 | Path | What it is |
 | --- | --- |
 | `checks/suppression` | The `suppression-ban` Go check. Its stable codes S001–S012 are defined in `rules.go`, and each code has a defect and a corrected fixture. |
+| `checks/coverage` | The coverage merger, and `floors`: `check` judges a run against `quality/coverage_floors.json`, and `compare`, built from a base, judges a tree's contract. |
 | `checks/ciparity` | Validates a workflow against a closed allowlist policy. Unknown keys fail. |
 | `proto` | The canonical `buf.yaml` and the compatibility baseline reader, which reads a declared commit from Git objects and fails closed. |
 | `registry.textproto`, `proto` | The one list of checks and its schema. |
@@ -29,8 +30,9 @@ depends on the application that uses it.
 
 ## How to use
 
-In this repository, the root `MODULE.bazel` consumes the module with `local_path_override`. Other
-repositories pin an immutable commit with `git_override`.
+In this repository, the root `MODULE.bazel` consumes the module with `local_path_override`. Pinning it from
+another repository with `git_override` is planned for M7, and it does not work yet: the module still assumes
+host paths such as `quality/registry.textproto`. The interface is not stable.
 
 The consumer chooses the Go SDK version, as this repository's root module does.
 
