@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "release",
+    srcs = ["release.go"],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/release",
+    deps = [
+        "//proto:registrypb",
+        "@org_golang_google_protobuf//encoding/prototext",
+        "@org_golang_google_protobuf//proto",
+    ],
+)
+
+go_test(
+    name = "release_test",
+    size = "small",
+    srcs = ["release_test.go"],
+    embed = [":release"],
+)
+
+go_binary(
+    name = "release_bin",
+    srcs = ["cmd/main.go"],
+    out = "release",
+    visibility = ["//visibility:public"],
+    deps = [":release"],
+)

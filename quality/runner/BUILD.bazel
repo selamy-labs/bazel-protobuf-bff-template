@@ -9,6 +9,7 @@ go_library(
         "push.go",
         "registry.go",
         "report.go",
+        "resolve.go",
         "select.go",
         "slots.go",
         "snapshot.go",
@@ -22,6 +23,7 @@ go_library(
     deps = [
         "//proto:registrypb",
         "@org_golang_google_protobuf//encoding/prototext",
+        "@org_golang_google_protobuf//proto",
     ],
 )
 
@@ -29,11 +31,18 @@ go_test(
     name = "runner_test",
     size = "medium",
     srcs = ["runner_test.go"],
-    data = ["//:registry.textproto"],
+    data = [
+        "//:registry.textproto",
+        "//:rules.textproto",
+    ],
     embed = [":runner"],
-    env = {"REGISTRY": "$(rlocationpath //:registry.textproto)"},
+    env = {
+        "CATALOG": "$(rlocationpath //:rules.textproto)",
+        "REGISTRY": "$(rlocationpath //:registry.textproto)",
+    },
     deps = [
         "//proto:registrypb",
         "@org_golang_google_protobuf//encoding/prototext",
+        "@org_golang_google_protobuf//proto",
     ],
 )

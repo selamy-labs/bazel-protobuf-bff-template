@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # Judges a `bazel test` log rather than its exit code (specs/002-hermetic-skeleton T032).
 #
-#   test_evidence.sh inventory <log> <required list> [leg]  the tests that passed are exactly the
-#                                                     list, or that leg's rows of it
+#   test_evidence.sh inventory <log> <leg> <required list>  the tests that passed are exactly the
+#                                                     list, or with a leg named, that leg's rows
 #   test_evidence.sh sandbox <log> <full|weakened>    actions really ran in the claimed sandbox
 #
 # A test tagged manual, filtered out or incompatible never appears as PASSED, so it fails here
@@ -12,10 +12,10 @@ mode="$1"
 log="$2"
 case "$mode" in
   inventory)
-    required="$(awk -v leg="${4:-}" '!/^#/ && (leg == "" || $2 == leg) {print $1}' "$3" | LC_ALL=C sort)"
+    required="$(awk -v leg="$3" '!/^#/ && (leg == "" || $2 == leg) {print $1}' "$4" | LC_ALL=C sort)"
     passed="$(awk '$2 == "PASSED" {print $1}' "$log" | LC_ALL=C sort -u)"
     if [[ "$passed" != "$required" ]]; then
-      echo "test-inventory: passed tests differ from tools/checks/required_tests.txt (< required, > passed):" >&2
+      echo "test-inventory: passed tests differ from $4 (< required, > passed):" >&2
       diff <(echo "$required") <(echo "$passed") >&2 || true
       exit 1
     fi

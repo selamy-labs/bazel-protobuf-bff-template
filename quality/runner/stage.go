@@ -35,6 +35,8 @@ type Options struct {
 	Root       string
 	Adapter    string
 	Bazel      string
+	// Contract, RegistryPath and Wrapper are the host's paths, relative to its root.
+	Contract, RegistryPath, Wrapper string
 	// BazelStartup holds startup options, for a run on an isolated output base.
 	BazelStartup []string
 	Tools        map[string]string
@@ -220,7 +222,7 @@ func (e *execution) resolveBase(ctx context.Context, git Git) Base {
 	if err != nil {
 		return Base{Source: e.options.BaseSource, Refusal: "the tested commit cannot be named"}
 	}
-	base := ResolveBase(ctx, git, e.options.Base, e.options.BaseSource, strings.TrimSpace(string(head)))
+	base := ResolveBase(ctx, git, e.options.Base, e.options.BaseSource, strings.TrimSpace(string(head)), e.options.Contract)
 	if base.Refusal == "" && e.options.Offline && needed {
 		return Base{Source: e.options.BaseSource, Refusal: "building the base's evaluator needs the network"}
 	}
@@ -307,6 +309,7 @@ func (e *execution) expand(plan planned) ([]string, error) {
 	pairs := []string{
 		"{adapter}", e.options.Adapter, "{list}", list, "{list_nl}", listNL, "{root}", e.inputs.Root,
 		"{bazel_log}", e.log, "{isolation}", e.options.Isolation, "{shard}", e.options.Shard, "{base}", e.base.Revision, "{bazel_exit}", e.bazelExit,
+		"{contract}", e.options.Contract, "{bazel}", e.options.Wrapper,
 	}
 	for name, path := range e.options.Tools {
 		pairs = append(pairs, "{"+name+"}", path)
@@ -541,7 +544,7 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 		receipt.Problems = append(receipt.Problems, "policy base: "+e.base.Refusal)
 	}
 	if e.base.Revision != "" {
-		digest, err := BaseOwnPolicyDigest(ctx, git, e.base.Revision)
+		digest, err := BaseOwnPolicyDigest(ctx, git, e.base.Revision, e.options.RegistryPath)
 		if err != nil {
 			receipt.Problems = append(receipt.Problems, "base policy digest: "+err.Error())
 		}

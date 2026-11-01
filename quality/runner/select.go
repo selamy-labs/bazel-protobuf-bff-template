@@ -124,16 +124,21 @@ func compact(sorted []string) []string {
 }
 
 func (i *Inputs) loadManifests(registry *registrypb.Registry) error {
-	vendored, err := manifest(filepath.Join(i.Root, registry.GetVendoredManifest()))
-	if err != nil {
-		return fmt.Errorf("inventory: %w", err)
+	i.Vendored = map[string]bool{}
+	if path := registry.GetVendoredManifest(); path != "" {
+		vendored, err := manifest(filepath.Join(i.Root, path))
+		if err != nil {
+			return fmt.Errorf("inventory: %w", err)
+		}
+		i.Vendored = vendored
 	}
-	i.Vendored = vendored
 	i.Fixtures = map[string]bool{}
-	if fixtures, err := manifest(filepath.Join(i.Root, registry.GetFixtureManifest())); err == nil {
-		i.Fixtures = fixtures
-	} else if !os.IsNotExist(unwrapPath(err)) {
-		return fmt.Errorf("inventory: %w", err)
+	if path := registry.GetFixtureManifest(); path != "" {
+		if fixtures, err := manifest(filepath.Join(i.Root, path)); err == nil {
+			i.Fixtures = fixtures
+		} else if !os.IsNotExist(unwrapPath(err)) {
+			return fmt.Errorf("inventory: %w", err)
+		}
 	}
 	return nil
 }

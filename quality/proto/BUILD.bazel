@@ -37,6 +37,7 @@ go_library(
     importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb",
     visibility = [
         "//checks/ciparity:__pkg__",
+        "//release:__subpackages__",
         "//runner:__subpackages__",
     ],
     deps = [

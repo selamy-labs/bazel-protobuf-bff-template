@@ -17,8 +17,9 @@ import (
 // PushOptions is the orchestrating half of pre-push. It runs in the checkout, moves a private
 // worktree to the pushed commit, and leaves the verdict to that commit's own runner.
 type PushOptions struct {
-	Root     string
-	Bazel    string
+	Root string
+	// Wrapper is the host's Bazel wrapper, relative to the root, as the pushed commit holds it.
+	Wrapper  string
 	Env      []string
 	From, To string
 	// Base and BaseSource pass through to the pushed commit's runner. From selects inputs, and is
@@ -96,7 +97,7 @@ func RunPush(ctx context.Context, options PushOptions) (int, error) {
 		build = append(build, "--repository_disable_download")
 	}
 	build = append(build, "--noshow_progress", "//:quality")
-	pushed := filepath.Join(worktree, "tools", "bootstrap", "bazel.sh")
+	pushed := filepath.Join(worktree, options.Wrapper)
 	if _, err := os.Stat(pushed); err != nil {
 		return ExitConfig, configErrorf("bootstrap ERROR: the pushed commit %s has no pinned Bazel wrapper; no check ran", options.To)
 	}

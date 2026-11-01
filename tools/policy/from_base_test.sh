@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Witness for tools/policy/from_base.sh (spec 007 FR-011, FR-013). Real Git, real flock, the real script.
+# Witness for the module's from_base.sh (spec 007 FR-011, FR-013). Real Git, real flock, the real script.
 # Only the base's Bazel is a stub, and it is committed at the base, so running the proposal's copy
 # shows up as a poisoned result.
 #
-#   tools/policy/from_base_test.sh
+#   tools/policy/from_base_test.sh <from_base.sh>
 set -euo pipefail
-script="$PWD/tools/policy/from_base.sh"
+script="$PWD/$1"
 work="$(mktemp -d)"
 trap 'rm -rf "${work:?}"' EXIT
 export HOME="$work/home" XDG_CACHE_HOME="$work/cache" PATH=/usr/bin:/bin
@@ -43,7 +43,8 @@ echo proposal >"$repo/marker"
 git -C "$repo" add -A
 git -C "$repo" commit -q -m proposal
 
-run() { rc=0; bash "$script" "$base" "$repo" "${1:-full}" </dev/null >"$work/out" 2>&1 || rc=$?; }
+contract=quality/coverage_floors.json
+run() { rc=0; bash "$script" "$base" "$repo" "${1:-full}" "$contract" tools/bootstrap/bazel.sh </dev/null >"$work/out" 2>&1 || rc=$?; }
 worktree="$repo/.git/bff-template/base-worktree"
 
 run
@@ -94,10 +95,24 @@ for _ in $(seq 1 50); do
   sleep 0.1
 done
 rc=0
-bash "$work/short.sh" "$base" "$repo" full </dev/null >"$work/out" 2>&1 || rc=$?
+bash "$work/short.sh" "$base" "$repo" full "$contract" tools/bootstrap/bazel.sh </dev/null >"$work/out" 2>&1 || rc=$?
 [[ $rc -eq 11 ]] || fail "a held worktree: exit $rc, want 11"
 grep -qF 'another run holds the base worktree' "$work/out" || fail "no cause named"
 wait "$holder"
+
+# A host names its own paths, and the base's evaluator is told only when it differs from the default an
+# older evaluator knows.
+run
+grep -qx -- '--contract=quality/coverage_floors.json' "$work/floors" && fail "the default contract was named to an older evaluator"
+contract=policy/contract.json
+run
+[[ $rc -eq 0 ]] || fail "a host's contract: exit $rc"
+grep -qx -- '--contract=policy/contract.json' "$work/floors" || fail "the host's contract did not reach the evaluator"
+contract=quality/coverage_floors.json
+rc=0
+bash "$script" "$base" "$repo" full "$contract" tools/none.sh </dev/null >"$work/out" 2>&1 || rc=$?
+[[ $rc -eq 11 ]] || fail "a base with no wrapper: exit $rc, want 11"
+grep -qF 'no Bazel wrapper at tools/none.sh' "$work/out" || fail "the missing wrapper was not named"
 
 [[ $failures -eq 0 ]] && echo "ok   from-base"
 exit "$failures"

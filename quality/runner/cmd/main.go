@@ -64,7 +64,12 @@ func run() int {
 	tools := toolFlag{}
 	flags := flag.NewFlagSet("quality", flag.ContinueOnError)
 	stageName := flags.String("stage", "", "pre-commit, commit-msg, pre-push or full")
-	registryPath := flags.String("registry", "", "registry textproto")
+	registryPath := flags.String("registry", "", "the host's registry textproto")
+	catalogPath := flags.String("catalog", "", "the module's rule catalog; empty if the registry binds no rule")
+	hostRegistry := flags.String("registry-path", "", "the registry's path in the repository")
+	contract := flags.String("contract", "", "the coverage contract's path in the repository")
+	wrapper := flags.String("bazel", "", "the host's Bazel wrapper, relative to the repository root")
+	list := flags.Bool("list", false, "print each resolved check as id, witness, leg and kind, and stop")
 	adapter := flags.String("adapter", "", "the native adapter")
 	isolation := flags.String("isolation", "full", "full or weakened")
 	offline := flags.Bool("offline", false, "use only fetched artifacts")
@@ -85,9 +90,23 @@ func run() int {
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		return runner.ExitConfig
 	}
+	registry, err := runner.LoadBound(*catalogPath, *registryPath)
+	if err != nil {
+		return fail(err)
+	}
+	if *list {
+		for _, check := range registry.GetChecks() {
+			fmt.Printf("%s\t%s\t%s\t%s\n", check.GetId(), check.GetWitness(), check.GetShard(), check.GetKind())
+		}
+		return runner.ExitOK
+	}
 	stage, known := runner.StageNames[*stageName]
 	if !known {
 		fmt.Fprintf(os.Stderr, "quality: unknown stage %q\n", *stageName)
+		return runner.ExitConfig
+	}
+	if *hostRegistry == "" || *contract == "" || *wrapper == "" {
+		fmt.Fprintln(os.Stderr, "quality: --registry-path, --contract and --bazel name the host's paths, and each is required")
 		return runner.ExitConfig
 	}
 	if *isolation != "full" && *isolation != "weakened" {
@@ -97,10 +116,6 @@ func run() int {
 	root := os.Getenv("BUILD_WORKSPACE_DIRECTORY")
 	if root == "" {
 		root, _ = os.Getwd()
-	}
-	registry, err := runner.LoadRegistry(*registryPath)
-	if err != nil {
-		return fail(err)
 	}
 	if *shard != "" && (stage != registrypb.Stage_STAGE_FULL || !slices.Contains(registry.GetShards(), *shard)) {
 		fmt.Fprintf(os.Stderr, "quality: %q is not a leg of full\n", *shard)
@@ -117,7 +132,7 @@ func run() int {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 	env := environment(root, tools, runfiles)
-	bazel := filepath.Join(root, "tools", "bootstrap", "bazel.sh")
+	bazel := filepath.Join(root, *wrapper)
 	limit := deadlines[stage]
 	if *deadline > 0 {
 		limit = *deadline
@@ -129,7 +144,7 @@ func run() int {
 	cache = filepath.Join(cache, "bff-template")
 	if stage == registrypb.Stage_STAGE_PRE_PUSH && !*inner {
 		code, err := runner.RunPush(ctx, runner.PushOptions{
-			Root: root, Bazel: bazel, Env: env, From: *from, To: *to, Base: *base, BaseSource: *baseSource, Isolation: *isolation,
+			Root: root, Wrapper: *wrapper, Env: env, From: *from, To: *to, Base: *base, BaseSource: *baseSource, Isolation: *isolation,
 			Offline: *offline, CacheDir: cache, Receipt: *receipt, Deadline: limit, Stdout: os.Stdout,
 		})
 		if err != nil {
@@ -139,12 +154,12 @@ func run() int {
 	}
 	options := runner.Options{
 		Registry: registry, Stage: stage, Requested: stage, Shard: *shard, Base: *base, BaseSource: *baseSource, Root: root, Adapter: adapterPath, Bazel: bazel,
-		BazelStartup: startup,
-		Tools:        tools, Env: env, Isolation: *isolation, Offline: *offline, ReceiptPath: *receipt,
+		BazelStartup: startup, Contract: *contract, RegistryPath: *hostRegistry, Wrapper: *wrapper,
+		Tools: tools, Env: env, Isolation: *isolation, Offline: *offline, ReceiptPath: *receipt,
 		Rerun: *rerun, Jobs: *jobs, Deadline: limit, Stdout: os.Stdout,
 	}
 	if options.Rerun == "" {
-		options.Rerun = "tools/hooks/stage.sh " + *stageName
+		options.Rerun = "prek run --stage " + *stageName
 	}
 	git := runner.Git{Dir: root, Env: env}
 	if stage == registrypb.Stage_STAGE_PRE_PUSH {

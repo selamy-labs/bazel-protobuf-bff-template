@@ -3,7 +3,9 @@
 # of the policy base, with the base's own Bazel wrapper and configuration, and runs it against the
 # tested tree. Nothing in the tested tree builds or configures it.
 #
-#   tools/policy/from_base.sh <resolved base SHA> <tested root> <full|weakened>
+#   from_base.sh <resolved base SHA> <tested root> <full|weakened> <contract path> <Bazel wrapper>
+#
+# The contract and wrapper paths are the host's. The evaluator comes from the module the base pins.
 #
 # Exit 0 passes, 1 is a finding, and 11 means nothing could be judged. The build is one fixed target
 # in a private output base. It runs no test and is not a check invocation. The runner's supervisor
@@ -12,6 +14,8 @@ set -euo pipefail
 base="$1"
 root="$2"
 isolation="$3"
+contract="$4"
+wrapper="$5"
 wait_seconds=120
 unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE
 refuse() { echo "floors-from-base: $1" >&2; exit 11; }
@@ -44,7 +48,8 @@ fi
 
 flags=(--noshow_progress)
 if [[ "$isolation" == weakened ]]; then flags+=(--config=weak-isolation); fi
-if ! (cd "$worktree" && tools/bootstrap/bazel.sh "--output_base=$output_base" --max_idle_secs=60 build "${flags[@]}" \
+[[ -x "$worktree/$wrapper" ]] || refuse "the base has no Bazel wrapper at $wrapper"
+if ! (cd "$worktree" && "$wrapper" "--output_base=$output_base" --max_idle_secs=60 build "${flags[@]}" \
   @bff_template_quality//checks/coverage:floors) </dev/null >"$log" 2>&1; then
   tail -n 20 "$log" >&2
   refuse "the base's evaluator did not build"
@@ -52,8 +57,11 @@ fi
 floors="$worktree/bazel-bin/external/bff_template_quality+/checks/coverage/floors_/floors"
 [[ -x "$floors" ]] || refuse "the base's evaluator did not build: $floors is missing"
 
+# An evaluator older than --contract knows this one path, so that path is left to its default.
+named=()
+if [[ "$contract" != quality/coverage_floors.json ]]; then named=("--contract=$contract"); fi
 rc=0
-"$floors" compare "--base-root=$worktree" "--root=$root" </dev/null || rc=$?
+"$floors" compare "--base-root=$worktree" "--root=$root" "${named[@]}" </dev/null || rc=$?
 case "$rc" in
   0 | 1) exit "$rc" ;;
   *) refuse "the base's evaluator could not judge this tree (exit $rc)" ;;

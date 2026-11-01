@@ -23,14 +23,6 @@ type Base struct {
 	Refusal string
 }
 
-// The evaluator's own source. A base without it cannot judge anything.
-const evaluatorPath = "quality/checks/coverage/cmd/floors/main.go"
-
-const contractPath = "quality/coverage_floors.json"
-
-// The base's own registry defines what counts as the base's policy inputs.
-const baseRegistryPath = "quality/registry.textproto"
-
 func malformedRevision(named string) bool {
 	return strings.HasPrefix(named, "-") || strings.Contains(named, "..") ||
 		strings.ContainsFunc(named, func(r rune) bool { return unicode.IsSpace(r) || unicode.IsControl(r) })
@@ -39,11 +31,13 @@ func malformedRevision(named string) bool {
 // ResolveBase resolves a named revision once and applies every test to the resolved SHA, so no
 // spelling of the tested commit gets past them. A different commit with the same tree is accepted:
 // nothing changed, so nothing weakened, and a differing tree would authenticate nothing.
-func ResolveBase(ctx context.Context, git Git, named, source, tested string) Base {
+// A base without the host's contract has nothing to compare with. Whether it has an evaluator is decided
+// by building it, because a consumer's evaluator comes from the pin at that commit (spec 008 R8).
+func ResolveBase(ctx context.Context, git Git, named, source, tested, contract string) Base {
 	refuse := func(reason string) Base { return Base{Source: source, Refusal: reason} }
 	if named == "" {
 		return refuse("no policy base was named (rerun with --base=<commit>; for hooks, " +
-			"tools/bootstrap/bazel.sh run //tools/hooks:install -- --policy-base=<commit>)")
+			"run the install target with --policy-base=<commit>)")
 	}
 	if malformedRevision(named) {
 		return refuse("malformed revision " + quoted(named))
@@ -64,10 +58,8 @@ func ResolveBase(ctx context.Context, git Git, named, source, tested string) Bas
 	if _, err := git.Run(ctx, nil, "merge-base", "--is-ancestor", sha, tested); err != nil {
 		return refuse(sha + " is not an ancestor of the tested commit")
 	}
-	for _, path := range []string{evaluatorPath, contractPath} {
-		if _, err := git.Run(ctx, nil, "cat-file", "-e", sha+":"+path); err != nil {
-			return refuse("the base has no evaluator: " + sha + " lacks " + path)
-		}
+	if _, err := git.Run(ctx, nil, "cat-file", "-e", sha+":"+contract); err != nil {
+		return refuse("the base has no coverage contract: " + sha + " lacks " + contract)
 	}
 	return Base{Revision: sha, Source: source}
 }
@@ -76,25 +68,25 @@ func quoted(text string) string { return "'" + text + "'" }
 
 // baseEscalate reads a base's own definition of its policy inputs. Fields a later schema added are
 // ignored, because a base can be older or newer than this runner.
-func baseEscalate(ctx context.Context, git Git, revision string) ([]string, error) {
-	text, err := git.Run(ctx, nil, "show", revision+":"+baseRegistryPath)
+func baseEscalate(ctx context.Context, git Git, revision, path string) ([]string, error) {
+	text, err := git.Run(ctx, nil, "show", revision+":"+path)
 	if err != nil {
-		return nil, fmt.Errorf("the base has no %s: %w", baseRegistryPath, err)
+		return nil, fmt.Errorf("the base has no %s: %w", path, err)
 	}
 	registry := &registrypb.Registry{}
 	if err := (prototext.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(text, registry); err != nil {
-		return nil, fmt.Errorf("the base's %s does not parse: %w", baseRegistryPath, err)
+		return nil, fmt.Errorf("the base's %s does not parse: %w", path, err)
 	}
 	if len(registry.GetEscalate()) == 0 {
-		return nil, fmt.Errorf("the base's %s names no policy inputs", baseRegistryPath)
+		return nil, fmt.Errorf("the base's %s names no policy inputs", path)
 	}
 	return registry.GetEscalate(), nil
 }
 
 // BaseOwnPolicyDigest is a commit's policy digest by that commit's own definition, so nothing in the
 // tested tree can change it. It is identity metadata, not a judgment of the proposal.
-func BaseOwnPolicyDigest(ctx context.Context, git Git, revision string) (string, error) {
-	policy, err := baseEscalate(ctx, git, revision)
+func BaseOwnPolicyDigest(ctx context.Context, git Git, revision, registry string) (string, error) {
+	policy, err := baseEscalate(ctx, git, revision, registry)
 	if err != nil {
 		return "", err
 	}

@@ -1,0 +1,19 @@
+# The lifecycle stages as a pinned remote repository (spec 008 FR-002). This is prek's remote-hook
+# interface, and not the shared stage contract of relentless-ci-python#25, which is unreleased. A host
+# names its Bazel wrapper in the hook's args, and provides //:quality.
+- id: pre-commit
+  name: staged content
+  language: script
+  entry: tools/hooks/stage.sh pre-commit
+  pass_filenames: false
+  always_run: true
+  require_serial: true
+  stages: [pre-commit]
+- id: pre-push
+  name: the pushed commit
+  language: script
+  entry: tools/hooks/stage.sh pre-push
+  pass_filenames: false
+  always_run: true
+  require_serial: true
+  stages: [pre-push]

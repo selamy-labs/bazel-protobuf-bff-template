@@ -1,0 +1,35 @@
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
+exports_files(
+    [
+        "install.sh",
+        "pin.sh",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+sh_binary(
+    name = "install",
+    srcs = ["install.sh"],
+    args = ["$(rootpath //tools:prek)"],
+    data = ["//tools:prek"],
+    visibility = ["//visibility:public"],
+)
+
+sh_binary(
+    name = "pin",
+    srcs = [
+        "install.sh",
+        "pin.sh",
+    ],
+    visibility = ["//visibility:public"],
+)
+
+sh_test(
+    name = "pin_test",
+    size = "small",
+    srcs = ["pin_test.sh"],
+    args = ["$(rootpath pin.sh)"],
+    data = ["pin.sh"],
+)

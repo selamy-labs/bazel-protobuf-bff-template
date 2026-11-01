@@ -1,16 +1,20 @@
 #!/usr/bin/env bash
-# One lifecycle stage, as prek calls it (spec 006 T012):
+# One lifecycle stage, as prek calls it (spec 006 T012). This repository calls it directly, and a
+# consumer through .pre-commit-hooks.yaml at the pinned commit:
 #
-#   tools/hooks/stage.sh <pre-commit|commit-msg|pre-push>
+#   tools/hooks/stage.sh <pre-commit|commit-msg|pre-push> --bazel=<the host's Bazel wrapper>
+#
+# It needs //:quality in the host.
 #
 # The environment is scrubbed as tools/verify.sh scrubs it, keeping only the index Git named, because
 # `git commit -a` and `git commit <path>` commit a temporary index. A hook-only isolation choice lives
 # in Git configuration, set by //tools/hooks:install, so it cannot arrive from the environment.
 set -euo pipefail
-stage="${1:?usage: stage.sh <stage>}"
+stage="${1:?usage: stage.sh <stage> --bazel=<wrapper>}"
 # The runner derives its own inputs. A filename here means the prek configuration is wrong, and prek
 # would split a large commit into batches and judge each alone.
-[[ $# -eq 1 ]] || { echo "stage: takes no filenames; check pass_filenames in prek.toml" >&2; exit 2; }
+[[ $# -eq 2 && "$2" == --bazel=?* ]] || { echo "stage: takes --bazel=<wrapper> and no filenames; check pass_filenames in prek.toml" >&2; exit 2; }
+bazel="${2#--bazel=}"
 root="$(git rev-parse --show-toplevel)"
 cd "$root"
 common="$(git rev-parse --path-format=absolute --git-common-dir)"
@@ -40,7 +44,7 @@ if [[ "$isolation" == weakened ]]; then flags+=(--config=weak-isolation); fi
 
 # Building the runner is not a verdict on anything staged: a failure here says so, and exits with the
 # runner's configuration code, not its rejection code.
-if ! env -i "${keep[@]}" tools/bootstrap/bazel.sh run "${flags[@]}" "--script_path=$work/runner" \
+if ! env -i "${keep[@]}" "$bazel" run "${flags[@]}" "--script_path=$work/runner" \
   --noshow_progress --ui_event_filters=-info,-stdout,-stderr //:quality </dev/null >"$work/bootstrap.log" 2>&1; then
   tail -n 15 "$work/bootstrap.log" >&2
   echo "bootstrap ERROR: the quality runner did not build, so no check ran. This is not a verdict on" >&2

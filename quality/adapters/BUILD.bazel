@@ -1,4 +1,8 @@
 exports_files(
-    ["native.sh"],
+    [
+        "from_base.sh",
+        "native.sh",
+        "test_evidence.sh",
+    ],
     visibility = ["//visibility:public"],
 )

@@ -14,6 +14,8 @@ adapter="$PWD/$2"
 shift 2
 source_root="$PWD"
 registry="$PWD/${REGISTRY:?}"
+catalog="$PWD/${CATALOG:?}"
+install="$PWD/${INSTALL:?}"
 tools=()
 pinned_prek=""
 yq=""
@@ -49,7 +51,7 @@ new_repo() {
   cp "$source_root/prek.toml" "$source_root/.gitleaks.toml" "$source_root/_typos.toml" "$dir/"
   cp "$source_root/tools/hooks/stage.sh" "$dir/tools/hooks/"
   cp "$source_root/tools/hooks/fixture_bazel.sh" "$dir/tools/bootstrap/bazel.sh"
-  printf '%s\n' "$runner" "$registry" "$adapter" "$source_root" "${tools[@]}" >"$dir/tools/bootstrap/bazel.config"
+  printf '%s\n' "$runner" "$catalog" "$registry" "$adapter" "$source_root" "${tools[@]}" >"$dir/tools/bootstrap/bazel.config"
   echo vendored >"$dir/tools/speckit/vendored.txt"
   echo fixture >"$dir/quality/checks/suppression/testdata/fixture.txt"
   (cd "$dir" && sha256sum tools/speckit/vendored.txt >tools/speckit/scaffold.sha256)
@@ -58,7 +60,7 @@ new_repo() {
   printf 'syntax = "proto3";\n\npackage a.v1;\n\nmessage Note {\n  string title = 1;\n}\n' >"$dir/api/a/v1/note.proto"
   git -C "$dir" add -A
   git -C "$dir" commit -q -m base
-  (cd "$dir" && BUILD_WORKSPACE_DIRECTORY="$dir" bash "$source_root/tools/hooks/install.sh" "$prek" >/dev/null)
+  (cd "$dir" && BUILD_WORKSPACE_DIRECTORY="$dir" bash "$install" "$prek" >/dev/null)
 }
 
 commit() { # commit <dir> <git commit arguments...>: output in $work/out, exit code in $rc
@@ -99,7 +101,7 @@ new_repo "$r"
 : >"$work/foreign" # The base commit ran it before the install; only what follows counts.
 hooks=("$r/.git/hooks/pre-commit" "$r/.git/hooks/pre-push" "$r/.git/hooks/pre-commit.legacy")
 before="$(sha256sum "${hooks[@]}")"
-(cd "$r" && BUILD_WORKSPACE_DIRECTORY="$r" bash "$source_root/tools/hooks/install.sh" "$pinned_prek" >/dev/null) ||
+(cd "$r" && BUILD_WORKSPACE_DIRECTORY="$r" bash "$install" "$pinned_prek" >/dev/null) ||
   fail "a second install failed"
 if [[ "$(sha256sum "${hooks[@]}")" == "$before" ]]; then
   pass "a second install changes nothing"
@@ -447,7 +449,7 @@ checks {
 }
 REGISTRY
 cp "$work/base.textproto" "$t/quality/registry.textproto"
-sed -i "2s|.*|$work/base.textproto|" "$t/tools/bootstrap/bazel.config"
+sed -i "3s|.*|$work/base.textproto|" "$t/tools/bootstrap/bazel.config"
 git -C "$t" add -A
 git -C "$t" commit -q --no-verify -m evaluator
 topic_remote="$work/topic.git"
@@ -487,10 +489,10 @@ if git -C "$topic_remote" rev-parse -q --verify refs/heads/policy >/dev/null; th
 if grep -qF 'compared with' "$work/out"; then fail "something stood in for the base"; fi
 
 rc=0
-(cd "$t" && BUILD_WORKSPACE_DIRECTORY="$t" bash "$source_root/tools/hooks/install.sh" "$pinned_prek" --policy-base= >/dev/null 2>&1) || rc=$?
+(cd "$t" && BUILD_WORKSPACE_DIRECTORY="$t" bash "$install" "$pinned_prek" --policy-base= >/dev/null 2>&1) || rc=$?
 [[ $rc -eq 2 ]] || fail "an empty --policy-base: exit $rc, want 2"
 [[ -z "$(git -C "$t" config --get bff-template.policy-base || true)" ]] || fail "an empty value was stored"
-(cd "$t" && BUILD_WORKSPACE_DIRECTORY="$t" bash "$source_root/tools/hooks/install.sh" "$pinned_prek" --policy-base=main >/dev/null) ||
+(cd "$t" && BUILD_WORKSPACE_DIRECTORY="$t" bash "$install" "$pinned_prek" --policy-base=main >/dev/null) ||
   fail "installing a policy base failed"
 [[ "$(git -C "$t" config --get bff-template.policy-base)" == main ]] || fail "the setting holds what was given, unresolved"
 
@@ -505,14 +507,14 @@ git -C "$topic_remote" rev-parse -q --verify refs/heads/policy >/dev/null || fai
 zero="$(printf '0%.0s' {1..40})"
 pushed="$(git -C "$t" rev-parse HEAD)"
 rc=0
-(cd "$t" && PRE_COMMIT_FROM_REF="$zero" PRE_COMMIT_TO_REF="$pushed" tools/hooks/stage.sh pre-push) </dev/null >"$work/out" 2>&1 || rc=$?
+(cd "$t" && PRE_COMMIT_FROM_REF="$zero" PRE_COMMIT_TO_REF="$pushed" tools/hooks/stage.sh pre-push --bazel=tools/bootstrap/bazel.sh) </dev/null >"$work/out" 2>&1 || rc=$?
 accepted "a zero --from with a declared base"
 [[ "$(of_receipt stage)" == full ]] || fail "a zero --from must widen to full"
 [[ "$(of_receipt base_source)" == hook-config ]] || fail "a zero --from lost the declared base"
 
 git -C "$t" config --unset bff-template.policy-base
 rc=0
-(cd "$t" && PRE_COMMIT_FROM_REF="$zero" PRE_COMMIT_TO_REF="$pushed" tools/hooks/stage.sh pre-push) </dev/null >"$work/out" 2>&1 || rc=$?
+(cd "$t" && PRE_COMMIT_FROM_REF="$zero" PRE_COMMIT_TO_REF="$pushed" tools/hooks/stage.sh pre-push --bazel=tools/bootstrap/bazel.sh) </dev/null >"$work/out" 2>&1 || rc=$?
 [[ $rc -eq 11 ]] || fail "a zero --from with no declared base: exit $rc, want 11"
 grep -qF 'no policy base was named' "$work/out" || fail "the zero --from refusal named no cause"
 

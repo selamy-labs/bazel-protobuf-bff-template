@@ -1,12 +1,9 @@
-load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tools/hooks:tools.bzl", "QUALITY_TOOLS")
 
-sh_binary(
+alias(
     name = "install",
-    srcs = ["install.sh"],
-    args = ["$(rootpath @bff_template_quality//tools:prek)"],
-    data = ["@bff_template_quality//tools:prek"],
+    actual = "@bff_template_quality//hooks:install",
 )
 
 sh_test(
@@ -19,7 +16,6 @@ sh_test(
     ] + ["%s=$(rootpath %s)" % (name, label) for name, label in sorted(QUALITY_TOOLS.items())],
     data = sorted(QUALITY_TOOLS.values()) + [
         "fixture_bazel.sh",
-        "install.sh",
         "stage.sh",
         "//:.gitleaks.toml",
         "//:_typos.toml",
@@ -27,10 +23,14 @@ sh_test(
         "//:prek.toml",
         "//:quality",
         "@bff_template_quality//:registry.textproto",
+        "@bff_template_quality//:rules.textproto",
         "@bff_template_quality//adapters:native.sh",
+        "@bff_template_quality//hooks:install.sh",
     ],
     env = {
+        "CATALOG": "$(rootpath @bff_template_quality//:rules.textproto)",
         "HOOKS_DOC": "$(rootpath //:docs/quality/hooks.md)",
+        "INSTALL": "$(rootpath @bff_template_quality//hooks:install.sh)",
         "REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)",
     },
 )

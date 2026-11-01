@@ -2,6 +2,7 @@ exports_files(
     [
         "multitool.lock.json",
         "registry.textproto",
+        "rules.textproto",
     ],
     visibility = ["//visibility:public"],
 )

@@ -1,7 +1,7 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
+load("@bff_template_quality//:defs.bzl", "quality_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
-load("@rules_go//go:def.bzl", "go_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 load("//tools/hooks:tools.bzl", "QUALITY_TOOLS")
@@ -94,19 +94,14 @@ sh_test(
 
 TOOLS = QUALITY_TOOLS
 
-# The one runner, with this repository's pinned tools (spec 006 FR-004). The label differs from the
-# contract's first draft because quality/ is its own module.
-go_binary(
+# The one runner, bound to this repository's registry, paths and tools (spec 006 FR-004, spec 008 R8).
+quality_binary(
     name = "quality",
-    args = [
-        "--registry=$(rootpath @bff_template_quality//:registry.textproto)",
-        "--adapter=$(rootpath @bff_template_quality//adapters:native.sh)",
-    ] + ["--tool=%s=$(rootpath %s)" % (name, label) for name, label in sorted(TOOLS.items())],
-    data = sorted(TOOLS.values()) + [
-        "@bff_template_quality//:registry.textproto",
-        "@bff_template_quality//adapters:native.sh",
-    ],
-    embed = ["@bff_template_quality//runner/cmd"],
+    bazel = "tools/bootstrap/bazel.sh",
+    contract = "quality/coverage_floors.json",
+    registry = "@bff_template_quality//:registry.textproto",
+    registry_path = "quality/registry.textproto",
+    tools = QUALITY_TOOLS,
     visibility = ["//visibility:public"],
 )
 
@@ -134,7 +129,8 @@ sh_test(
     name = "from_base_test",
     size = "small",
     srcs = ["tools/policy/from_base_test.sh"],
-    data = ["tools/policy/from_base.sh"],
+    args = ["$(rootpath @bff_template_quality//adapters:from_base.sh)"],
+    data = ["@bff_template_quality//adapters:from_base.sh"],
 )
 
 sh_test(
@@ -151,25 +147,38 @@ sh_test(
     args = ["$(rootpath :quality)"],
     data = [
         "tools/checks/required_tests.txt",
-        "tools/checks/test_evidence.sh",
         "tools/checks/verify_body.sh",
         "tools/verify.sh",
         ":quality",
         "@bff_template_quality//:registry.textproto",
+        "@bff_template_quality//:rules.textproto",
+        "@bff_template_quality//adapters:from_base.sh",
+        "@bff_template_quality//adapters:test_evidence.sh",
+        "@bff_template_quality//hooks:pin.sh",
     ],
-    env = {"REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)"},
+    env = {
+        "CATALOG": "$(rootpath @bff_template_quality//:rules.textproto)",
+        "EVIDENCE": "$(rootpath @bff_template_quality//adapters:test_evidence.sh)",
+        "REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)",
+    },
 )
 
 sh_test(
     name = "registry_witness_test",
     size = "small",
     srcs = ["tools/checks/registry_witness_test.sh"],
+    args = ["$(rootpath :quality)"],
     data = [
         "tools/checks/native_fixtures_test.sh",
         "tools/checks/required_tests.txt",
+        ":quality",
         "@bff_template_quality//:registry.textproto",
+        "@bff_template_quality//:rules.textproto",
     ],
-    env = {"REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)"},
+    env = {
+        "CATALOG": "$(rootpath @bff_template_quality//:rules.textproto)",
+        "REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)",
+    },
 )
 
 sh_test(

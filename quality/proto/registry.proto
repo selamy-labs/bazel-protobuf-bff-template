@@ -69,7 +69,7 @@ message Check {
   // Zero inputs at `full` is not an error for this check.
   bool allow_empty = 8;
   // KIND_NATIVE: argv. {adapter}, {list}, {list_nl}, {root}, {bazel_log}, {bazel_exit}, {isolation},
-  // {shard} and {base} expand, as does {NAME} for a Tool.
+  // {shard}, {base}, {contract} and {bazel} expand, as does {NAME} for a Tool.
   repeated string command = 9;
   // KIND_BAZEL: target patterns.
   repeated string targets = 10;
@@ -97,6 +97,25 @@ message Check {
   // Prints what it measured on lines starting `measurement: `. The runner keeps those lines in the
   // receipt, within a bound, whatever the result. Nothing else of a tool's output is kept on a pass.
   bool summary = 20;
+  // Catalog only: the files or directories of this module that define what the rule does, beyond this
+  // entry. The rule's behavior stays there, and release notes compare them between two releases, so a
+  // change inside a rule shows even when this entry does not change (spec 008 FR-006).
+  repeated string definition = 21;
+}
+
+// A host's use of one catalog rule. Plain data: each field appends to the rule, and nothing here can
+// change what the rule is (spec 008 R8).
+message RuleBinding {
+  // The rule's id in the catalog.
+  string id = 1;
+  // The host's leg. Empty for a postcondition, or when the host declares no legs.
+  string shard = 2;
+  // Host paths and options, appended to a KIND_NATIVE rule's command.
+  repeated string args = 3;
+  // Host paths the rule reads besides its inputs.
+  repeated string context = 4;
+  // KIND_BAZEL: the host's target patterns.
+  repeated string targets = 5;
 }
 
 // A pinned tool, as the root target passes it in NAME=path form.
@@ -106,8 +125,10 @@ message Tool {
   repeated string version_args = 2;
 }
 
+// One schema, two uses. The module's catalog holds version, tools and checks. A host's registry holds
+// the rest, and its own checks.
 message Registry {
-  // The semantic version of the quality module.
+  // The catalog's semantic version, which is the quality module's.
   string version = 1;
   // RE2 patterns: a pushed change to one of these paths escalates pre-push to full.
   repeated string escalate = 2;
@@ -118,4 +139,6 @@ message Registry {
   repeated Check checks = 6;
   // The legs that partition full. Empty means the policy is not split.
   repeated string shards = 7;
+  // The catalog rules this host uses.
+  repeated RuleBinding rules = 8;
 }

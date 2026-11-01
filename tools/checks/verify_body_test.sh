@@ -9,6 +9,7 @@
 set -euo pipefail
 runner="$PWD/$1"
 registry="$PWD/${REGISTRY:?}"
+catalog="$PWD/${CATALOG:?}"
 required="$PWD/tools/checks/required_tests.txt"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -20,7 +21,7 @@ fail() { echo "FAIL $1" >&2; failures=$((failures + 1)); }
 tree="$work/tree"
 mkdir -p "$tree/tools/checks" "$tree/tools/bootstrap" "$tree/tools/policy" "$tree/tools/hooks" "$tree/tools/speckit" "$work/bin" \
   "$tree/api" "$tree/.github/workflows"
-cp tools/checks/verify_body.sh tools/checks/required_tests.txt tools/checks/test_evidence.sh "$tree/tools/checks/"
+cp tools/checks/verify_body.sh tools/checks/required_tests.txt "$tree/tools/checks/"
 sed 's/^deadline=[0-9]*$/deadline=20/' tools/verify.sh >"$tree/tools/verify.sh"
 sed -i 's/--kill-after=60/--kill-after=1/; s/^receipt_wait=[0-9]*$/receipt_wait=3/' "$tree/tools/checks/verify_body.sh"
 
@@ -43,7 +44,8 @@ stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
 stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
 stub "$tree/tools/hooks/e2e.sh" hook-e2e
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
-stub "$tree/tools/policy/from_base.sh" floors-from-base
+stub "$work/bin/FROM_BASE" floors-from-base
+stub "$work/bin/RELEASE" catalog-definitions
 stub "$work/bin/SUPPRESSION" suppression-ban
 stub "$work/bin/FLOORS" coverage-floor
 sed -i '$i echo "measurement: stub: 100.0% statements (1 of 1), floor 0.0%, branches unmeasured"' "$work/bin/FLOORS"
@@ -63,12 +65,14 @@ echo isolation=full
 STUB
 tools=()
 while read -r name; do
-  if [[ "$name" != SUPPRESSION && "$name" != FLOORS ]]; then
+  if [[ "$name" == TEST_EVIDENCE ]]; then
+    cp "$PWD/${EVIDENCE:?}" "$work/bin/$name"
+  elif [[ "$name" != SUPPRESSION && "$name" != FLOORS && "$name" != FROM_BASE && "$name" != RELEASE ]]; then
     printf '#!/bin/sh\necho "1.0"\n' >"$work/bin/$name"
     chmod +x "$work/bin/$name"
   fi
   tools+=("--tool=$name=$work/bin/$name")
-done < <(sed -nE 's/^tools \{ name: "([A-Z_]+)".*/\1/p' "$registry")
+done < <(sed -nE 's/^tools \{ name: "([A-Z_]+)".*/\1/p' "$registry" "$catalog" | grep -vx PIN)
 cat >"$tree/tools/bootstrap/bazel.sh" <<STUB
 #!/usr/bin/env bash
 case "\$1" in
@@ -79,8 +83,8 @@ case "\$1" in
     fi
     for arg in "\$@"; do
       if [[ "\$arg" == --script_path=* ]]; then
-        printf '#!/bin/sh\nexport BUILD_WORKSPACE_DIRECTORY="%s"\nexec "%s" "--registry=%s" "--adapter=%s" %s "\$@"\n' \
-          "$tree" "$runner" "$registry" "$work/bin/adapter" "${tools[*]}" >"\${arg#*=}"
+        printf '#!/bin/sh\nexport BUILD_WORKSPACE_DIRECTORY="%s"\nexec "%s" "--catalog=%s" "--registry=%s" --registry-path=quality/registry.textproto --contract=quality/coverage_floors.json --bazel=tools/bootstrap/bazel.sh "--adapter=%s" %s "\$@"\n' \
+          "$tree" "$runner" "$catalog" "$registry" "$work/bin/adapter" "${tools[*]}" >"\${arg#*=}"
         chmod +x "\${arg#*=}"
       fi
     done
@@ -137,7 +141,7 @@ state() { # the state of one check in the receipt
   grep -A1 "\"check\": \"$1\"" "$receipt" | sed -nE 's/.*"result": "([A-Z_]+)".*/\1/p' | head -1
 }
 
-mapfile -t expected < <(sed -nE 's/^  id: "([a-z0-9-]+)"/\1/p' "$registry")
+mapfile -t expected < <("$runner" --list "--catalog=$catalog" "--registry=$registry" | cut -f1)
 [[ ${#expected[@]} -ge 20 ]] || fail "read only ${#expected[@]} check ids"
 
 : >"$work/fail"

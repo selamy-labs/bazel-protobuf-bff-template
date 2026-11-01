@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/encoding/prototext"
+	"google.golang.org/protobuf/proto"
 
 	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb"
 )
@@ -73,11 +74,7 @@ func TestRegistryValidation(t *testing.T) {
 }
 
 func TestRealRegistry(t *testing.T) {
-	path := filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("REGISTRY"))
-	registry, err := LoadRegistry(path)
-	if err != nil {
-		t.Fatal(err)
-	}
+	registry := realRegistry(t)
 	stages := map[registrypb.Stage]int{}
 	for _, check := range registry.GetChecks() {
 		for _, stage := range check.GetStages() {
@@ -240,6 +237,7 @@ func (h *harness) options(body string, stage registrypb.Stage) Options {
 	registry := h.registry(body)
 	return Options{
 		Registry: registry, Stage: stage, Requested: stage, Root: h.dir, Adapter: "/bin/true", Bazel: h.bazel,
+		Contract: testContract, RegistryPath: testRegistryPath, Wrapper: "bazel.sh",
 		Env: gitEnv(), Isolation: "full", Rerun: "rerun-me", Jobs: 2, Deadline: 30 * time.Second, Stdout: &h.out,
 		Inputs: func(ctx context.Context, git Git, _ string) (*Inputs, error) { return Discover(ctx, git, registry) },
 	}
@@ -837,11 +835,118 @@ func TestEscalation(t *testing.T) {
 
 func realRegistry(t *testing.T) *registrypb.Registry {
 	t.Helper()
-	registry, err := LoadRegistry(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("REGISTRY")))
+	source := os.Getenv("TEST_SRCDIR")
+	registry, err := LoadBound(filepath.Join(source, os.Getenv("CATALOG")), filepath.Join(source, os.Getenv("REGISTRY")))
 	if err != nil {
 		t.Fatal(err)
 	}
 	return registry
+}
+
+func TestResolveAppendsAndNeverChangesARule(t *testing.T) {
+	catalog := &registrypb.Registry{}
+	const text = `
+version: "1.2.3"
+tools { name: "USED" version_args: "--version" }
+tools { name: "UNUSED" }
+tools { name: "HELPER" }
+checks {
+  id: "native" tool: "USED" selector { context: "own" }
+  stages: [STAGE_FULL] classification: CLASSIFICATION_GUARANTEE kind: KIND_NATIVE timeout_seconds: 9
+  command: ["{USED}", "{list}", "{HELPER}"] witness: "w"
+}
+checks {
+  id: "bazel" stages: [STAGE_FULL] classification: CLASSIFICATION_GUARANTEE kind: KIND_BAZEL timeout_seconds: 9 witness: "w"
+}
+checks {
+  id: "bare" stages: [STAGE_FULL] classification: CLASSIFICATION_GUARANTEE kind: KIND_NATIVE timeout_seconds: 9
+  command: ["x"] witness: "w"
+}
+`
+	if err := prototext.Unmarshal([]byte(text), catalog); err != nil {
+		t.Fatal(err)
+	}
+	before := prototext.Format(catalog)
+	host := &registrypb.Registry{
+		Shards: []string{"a"},
+		Rules: []*registrypb.RuleBinding{
+			{Id: "native", Shard: "a", Args: []string{"host.toml"}, Context: []string{"host.toml"}},
+			{Id: "bazel", Shard: "a", Targets: []string{"//..."}},
+		},
+		Checks: []*registrypb.Check{{Id: "own", Shard: "a", Stages: []registrypb.Stage{registrypb.Stage_STAGE_FULL},
+			Classification: registrypb.Classification_CLASSIFICATION_GUARANTEE, Kind: registrypb.Kind_KIND_NATIVE,
+			TimeoutSeconds: 9, Command: []string{"own"}, Witness: "w"}},
+	}
+	resolved, problems := Resolve(catalog, host)
+	if len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	if problems := Validate(resolved); len(problems) > 0 {
+		t.Fatal(problems)
+	}
+	if prototext.Format(catalog) != before {
+		t.Error("resolving changed the catalog")
+	}
+	if resolved.GetVersion() != "1.2.3" || len(resolved.GetRules()) != 0 || len(resolved.GetChecks()) != 3 {
+		t.Fatalf("resolved: %v", resolved)
+	}
+	native := resolved.GetChecks()[0]
+	if got := strings.Join(native.GetCommand(), " "); got != "{USED} {list} {HELPER} host.toml" {
+		t.Errorf("command: %s", got)
+	}
+	if got := strings.Join(native.GetSelector().GetContext(), " "); got != "own host.toml" {
+		t.Errorf("context: %s", got)
+	}
+	if native.GetShard() != "a" || resolved.GetChecks()[1].GetTargets()[0] != "//..." {
+		t.Errorf("binding not applied: %v", resolved.GetChecks())
+	}
+	var tools []string
+	for _, tool := range resolved.GetTools() {
+		tools = append(tools, tool.GetName())
+	}
+	if got := strings.Join(tools, " "); got != "USED HELPER" {
+		t.Errorf("tools: %s, and a tool no bound rule runs must not be asked for", got)
+	}
+
+	refused := map[string]*registrypb.RuleBinding{
+		"is not in the catalog":   {Id: "absent"},
+		"takes targets, not args": {Id: "bazel", Args: []string{"x"}},
+		"takes args, not targets": {Id: "native", Targets: []string{"//..."}},
+		"reads no context":        {Id: "bare", Context: []string{"x"}},
+	}
+	for want, binding := range refused {
+		if _, problems := Resolve(catalog, &registrypb.Registry{Rules: []*registrypb.RuleBinding{binding}}); !strings.Contains(strings.Join(problems, ";"), want) {
+			t.Errorf("%s: got %v", want, problems)
+		}
+	}
+	if _, problems := Resolve(catalog, &registrypb.Registry{Rules: []*registrypb.RuleBinding{{Id: "bare"}, {Id: "bare"}}}); !strings.Contains(strings.Join(problems, ";"), "bound twice") {
+		t.Errorf("a rule bound twice: %v", problems)
+	}
+	duplicate := &registrypb.Registry{Rules: []*registrypb.RuleBinding{{Id: "bare"}}, Checks: []*registrypb.Check{{Id: "bare"}}}
+	if resolved, problems := Resolve(catalog, duplicate); len(problems) > 0 || !strings.Contains(strings.Join(Validate(resolved), ";"), `duplicate check id "bare"`) {
+		t.Error("a host check with a rule's id must be refused")
+	}
+	for name, change := range map[string]func(*registrypb.Check){
+		"names a leg":   func(check *registrypb.Check) { check.Shard = "a" },
+		"names targets": func(check *registrypb.Check) { check.Targets = []string{"//x"} },
+	} {
+		spoiled := proto.Clone(catalog).(*registrypb.Registry)
+		change(spoiled.GetChecks()[0])
+		if _, problems := Resolve(spoiled, &registrypb.Registry{}); !strings.Contains(strings.Join(problems, ";"), name) {
+			t.Errorf("%s: got %v", name, problems)
+		}
+	}
+}
+
+func TestDiscoverNeedsNoManifests(t *testing.T) {
+	h := committed(newHarness(t))
+	inputs, err := Discover(context.Background(), Git{Dir: h.dir, Env: gitEnv()}, &registrypb.Registry{})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(inputs.Vendored) != 0 || len(inputs.Fixtures) != 0 {
+		t.Fatalf("a host with no manifests has nothing enrolled: %v %v", inputs.Vendored, inputs.Fixtures)
+	}
 }
 
 // The real registry over real commits with a known base: each file that shapes a verdict widens the
@@ -1362,13 +1467,18 @@ func TestRealCoverageFloorDeclaresASummary(t *testing.T) {
 	t.Fatal("coverage-floor is not registered")
 }
 
-// baseRepository holds a commit with the evaluator's paths, then a later commit on top.
+// A host's paths, as a host names them.
+const (
+	testContract     = "policy/contract.json"
+	testRegistryPath = "policy/registry.textproto"
+)
+
+// baseRepository holds a commit with the host's contract, then a later commit on top.
 func baseRepository(t *testing.T) (h *harness, evaluator, head string) {
 	t.Helper()
 	h = committed(newHarness(t))
-	h.write(evaluatorPath, "package main\n")
-	h.write(contractPath, "{}\n")
-	h.write(baseRegistryPath, `escalate: "^real\\.go$"`+"\n")
+	h.write(testContract, "{}\n")
+	h.write(testRegistryPath, `escalate: "^real\\.go$"`+"\n")
 	h.git("add", "-A")
 	h.git("commit", "-q", "-m", "evaluator")
 	evaluator = strings.TrimSpace(h.git("rev-parse", "HEAD"))
@@ -1385,7 +1495,7 @@ func TestResolveBase(t *testing.T) {
 	git := Git{Dir: h.dir, Env: gitEnv()}
 	ctx := context.Background()
 	for _, named := range []string{evaluator, "reviewed", "HEAD~1", "HEAD^"} {
-		if got := ResolveBase(ctx, git, named, "argument", head); got.Revision != evaluator || got.Refusal != "" {
+		if got := ResolveBase(ctx, git, named, "argument", head, testContract); got.Revision != evaluator || got.Refusal != "" {
 			t.Errorf("%s: %+v", named, got)
 		}
 	}
@@ -1408,16 +1518,16 @@ func TestResolveBase(t *testing.T) {
 		"here":         "a commit cannot be its own base",
 		"HEAD~0":       "a commit cannot be its own base",
 		unrelated:      "not an ancestor",
-		root:           "the base has no evaluator",
+		root:           "the base has no coverage contract",
 	}
 	for named, want := range refusals {
-		got := ResolveBase(ctx, git, named, "argument", head)
+		got := ResolveBase(ctx, git, named, "argument", head, testContract)
 		if got.Revision != "" || !strings.Contains(got.Refusal, want) {
 			t.Errorf("%q: want %q, got %+v", named, want, got)
 		}
 	}
 	// A descendant is an existing commit, and it is still not an ancestor.
-	if got := ResolveBase(ctx, git, head, "argument", evaluator); !strings.Contains(got.Refusal, "not an ancestor") {
+	if got := ResolveBase(ctx, git, head, "argument", evaluator, testContract); !strings.Contains(got.Refusal, "not an ancestor") {
 		t.Errorf("a descendant: %+v", got)
 	}
 }
@@ -1431,7 +1541,7 @@ func TestResolveBaseAcceptsADifferentCommitWithTheSameTree(t *testing.T) {
 	if strings.TrimSpace(h.git("rev-parse", head+"^{tree}")) != strings.TrimSpace(h.git("rev-parse", "HEAD^{tree}")) {
 		t.Fatal("control: the trees differ")
 	}
-	got := ResolveBase(context.Background(), Git{Dir: h.dir, Env: gitEnv()}, head, "argument", empty)
+	got := ResolveBase(context.Background(), Git{Dir: h.dir, Env: gitEnv()}, head, "argument", empty, testContract)
 	if got.Revision != head || got.Refusal != "" {
 		t.Fatalf("got %+v", got)
 	}
@@ -1443,7 +1553,7 @@ func TestShallowHistoryIsRefused(t *testing.T) {
 	if out, err := exec.Command("git", "clone", "-q", "--depth=1", "file://"+h.dir, clone).CombinedOutput(); err != nil {
 		t.Fatalf("%v: %s", err, out)
 	}
-	got := ResolveBase(context.Background(), Git{Dir: clone, Env: gitEnv()}, "HEAD", "argument", "x")
+	got := ResolveBase(context.Background(), Git{Dir: clone, Env: gitEnv()}, "HEAD", "argument", "x", testContract)
 	if !strings.Contains(got.Refusal, "history is shallow") {
 		t.Fatalf("got %+v", got)
 	}
@@ -1524,10 +1634,10 @@ func TestUnreadableBaseRegistryIsAProblem(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			h, _, _ := baseRepository(t)
 			if text == "" {
-				h.git("rm", "-q", "--cached", baseRegistryPath)
-				_ = os.Remove(filepath.Join(h.dir, baseRegistryPath))
+				h.git("rm", "-q", "--cached", testRegistryPath)
+				_ = os.Remove(filepath.Join(h.dir, testRegistryPath))
 			} else {
-				h.write(baseRegistryPath, text)
+				h.write(testRegistryPath, text)
 				h.git("add", "-A")
 			}
 			h.git("commit", "-q", "--amend", "--allow-empty", "-m", "base under test")

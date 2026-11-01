@@ -1,9 +1,11 @@
 # proto-file: proto/registry.proto
 # proto-message: template.quality.v1.Registry
 #
-# The one list of checks (spec 006 FR-001). See docs/quality/classification.md.
-version: "0.1.0"
-
+# This repository's policy (spec 006 FR-001, spec 008 R8). `rules` binds rules from the module's catalog,
+# rules.textproto, and `checks` are this repository's own. See docs/quality/classification.md.
+#
+# This file and coverage_floors.json are this repository's host files. They sit under quality/ so an
+# accepted base can still read them, and no consumer of the module reads either.
 vendored_manifest: "tools/speckit/scaffold.sha256"
 fixture_manifest: "quality/checks/suppression/testdata/fixtures.sha256"
 
@@ -28,96 +30,42 @@ shards: "build-test"
 shards: "e2e"
 shards: "policy"
 
-tools { name: "ACTIONLINT" version_args: "--version" }
 tools { name: "BASELINE" }
 tools { name: "BUF" version_args: "--version" }
 tools { name: "BUF_CONFIG_FILE" }
-tools { name: "BUILDIFIER" version_args: "--version" }
-# Built from the checkout for coverage-floor. floors-from-base builds its own from the base.
-tools { name: "FLOORS" }
-tools { name: "GITLEAKS" version_args: "--version" }
-tools { name: "GOFMT" }
 tools { name: "PREK" version_args: "--version" }
-tools { name: "PRETTIER" }
-tools { name: "SHELLCHECK" version_args: "--version" }
-tools { name: "SUPPRESSION" }
-tools { name: "TYPOS" version_args: "--version" }
+tools { name: "RELEASE" }
 tools { name: "UV" version_args: "--version" }
 tools { name: "VALIDATE_PROTO_FILE" }
 tools { name: "YQ" version_args: "--version" }
-tools { name: "ZIZMOR" version_args: "--version" }
 
-# --- Fast content checks, at pre-commit and full.
-
-checks {
-  id: "secrets"
-  shard: "policy"
-  tool: "GITLEAKS"
-  selector { include_vendored: true include_fixtures: true context: ".gitleaks.toml" }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: ["{adapter}", "secrets", "{list}", ".gitleaks.toml"]
-  witness: "//:native_fixtures_test"
-}
-checks {
+# Rules from the catalog, each with this repository's leg and paths.
+rules { id: "secrets" shard: "policy" args: [".gitleaks.toml"] context: ".gitleaks.toml" }
+rules {
   id: "suppression-ban"
   shard: "policy"
-  tool: "SUPPRESSION"
-  selector {
-    include_vendored: true
-    include_fixtures: true
-    context: "tools/speckit/scaffold.sha256"
-    context: "quality/checks/suppression/testdata/fixtures.sha256"
-  }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: [
-    "{SUPPRESSION}", "-root", "{root}", "-paths", "{list}",
+  args: [
     "-exempt", "tools/speckit/scaffold.sha256",
     "-exempt", "quality/checks/suppression/testdata/fixtures.sha256"
   ]
-  witness: "//:native_fixtures_test"
+  context: "tools/speckit/scaffold.sha256"
+  context: "quality/checks/suppression/testdata/fixtures.sha256"
 }
-checks {
-  id: "typos"
-  shard: "policy"
-  tool: "TYPOS"
-  selector { include_fixtures: true context: "_typos.toml" }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: ["{adapter}", "typos", "{list_nl}", "_typos.toml"]
-  witness: "//:native_fixtures_test"
-}
-checks {
-  id: "format-go"
-  shard: "policy"
-  tool: "GOFMT"
-  selector { include: "\\.go$" }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: ["{adapter}", "format-go", "{list}"]
-  witness: "//:native_fixtures_test"
-}
-checks {
-  id: "format-ts"
-  shard: "policy"
-  tool: "PRETTIER"
-  selector { include: "\\.(ts|tsx|mjs)$" }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: ["{adapter}", "format-ts", "{list}"]
-  witness: "//:native_fixtures_test"
-}
+rules { id: "typos" shard: "policy" args: ["_typos.toml"] context: "_typos.toml" }
+rules { id: "format-go" shard: "policy" }
+rules { id: "format-ts" shard: "policy" }
+rules { id: "format-starlark" shard: "policy" }
+rules { id: "shellcheck" shard: "policy" }
+rules { id: "actionlint" shard: "policy" }
+rules { id: "zizmor" shard: "policy" }
+rules { id: "tests" shard: "build-test" targets: ["//...", "@bff_template_quality//..."] }
+rules { id: "coverage-floor" shard: "build-test" }
+rules { id: "floors-from-base" shard: "policy" }
+rules { id: "test-inventory" args: ["tools/checks/required_tests.txt"] }
+rules { id: "sandbox-evidence" }
+
+# --- This repository's own checks.
+
 checks {
   id: "format-proto"
   shard: "policy"
@@ -142,67 +90,7 @@ checks {
   command: ["{adapter}", "lint-proto", "api"]
   witness: "//api:schema_probes_test"
 }
-checks {
-  id: "format-starlark"
-  shard: "policy"
-  tool: "BUILDIFIER"
-  selector { include: "(^|/)(BUILD|BUILD\\.bazel|MODULE\\.bazel|REPO\\.bazel)$" include: "\\.bzl$" }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: ["{adapter}", "format-starlark", "{list}"]
-  witness: "//:native_fixtures_test"
-}
-checks {
-  id: "shellcheck"
-  shard: "policy"
-  tool: "SHELLCHECK"
-  selector { include: "\\.(sh|bash)$" shell_scripts: true }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: ["{adapter}", "shellcheck", "{list}"]
-  witness: "//:native_fixtures_test"
-}
-checks {
-  id: "actionlint"
-  shard: "policy"
-  tool: "ACTIONLINT"
-  selector { include: "^\\.github/workflows/[^/]+\\.ya?ml$" }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: ["{adapter}", "actionlint", "{list}"]
-  witness: "//:native_fixtures_test"
-}
-checks {
-  id: "zizmor"
-  shard: "policy"
-  tool: "ZIZMOR"
-  selector { include: "^\\.github/workflows/[^/]+\\.ya?ml$" }
-  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 300
-  command: ["{adapter}", "zizmor", "{list}"]
-  witness: "//:native_fixtures_test"
-}
 
-# --- Checks over the pushed commit.
-
-checks {
-  id: "tests"
-  shard: "build-test"
-  stages: [STAGE_PRE_PUSH, STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_BAZEL
-  timeout_seconds: 1500
-  targets: ["//...", "@bff_template_quality//..."]
-  witness: "//:verify_body_test"
-}
 checks {
   id: "dependency-rules"
   shard: "build-test"
@@ -226,8 +114,6 @@ checks {
   witness: "//api:schema_probes_test"
 }
 
-# --- The full policy only.
-
 checks {
   id: "e2e-browser"
   shard: "e2e"
@@ -237,54 +123,6 @@ checks {
   timeout_seconds: 1500
   targets: ["//web/e2e/..."]
   witness: "//web/e2e:defect_e2e_test"
-}
-checks {
-  id: "coverage-floor"
-  tool: "FLOORS"
-  stages: [STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 120
-  after_bazel: true
-  needs_coverage: true
-  summary: true
-  shard: "build-test"
-  command: ["{FLOORS}", "check", "--root={root}", "--log={bazel_log}", "--testlogs={root}/bazel-testlogs", "--bazel-exit={bazel_exit}"]
-  witness: "@bff_template_quality//checks/coverage:coverage_test"
-}
-checks {
-  id: "floors-from-base"
-  stages: [STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 900
-  exclusive: true
-  needs_base: true
-  shard: "policy"
-  command: ["tools/policy/from_base.sh", "{base}", "{root}", "{isolation}"]
-  witness: "//:from_base_test"
-}
-checks {
-  id: "test-inventory"
-  postcondition: true
-  stages: [STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 60
-  after_bazel: true
-  command: ["tools/checks/test_evidence.sh", "inventory", "{bazel_log}", "tools/checks/required_tests.txt", "{shard}"]
-  witness: "//:verify_body_test"
-}
-checks {
-  id: "sandbox-evidence"
-  postcondition: true
-  stages: [STAGE_FULL]
-  classification: CLASSIFICATION_GUARANTEE
-  kind: KIND_NATIVE
-  timeout_seconds: 60
-  after_bazel: true
-  command: ["tools/checks/test_evidence.sh", "sandbox", "{bazel_log}", "{isolation}"]
-  witness: "//:verify_body_test"
 }
 checks {
   id: "workspace-policy"
@@ -307,6 +145,17 @@ checks {
   timeout_seconds: 60
   command: ["tools/policy/config_policy.sh", "{list}"]
   witness: "//:config_policy_test"
+}
+checks {
+  id: "catalog-definitions"
+  shard: "policy"
+  tool: "RELEASE"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 30
+  command: ["{RELEASE}", "notes", "quality", "quality"]
+  witness: "@bff_template_quality//release:release_test"
 }
 checks {
   id: "bazelrc-policy"

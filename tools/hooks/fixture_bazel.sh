@@ -7,15 +7,16 @@
 #   BAD_REGISTRY      `run` hands the runner this file as its registry
 #   BROKEN            `test` reports a failing test
 #
-# bazel.config, beside this file, lists: runner, registry, adapter, runfiles directory, tool flags.
+# bazel.config, beside this file, lists: runner, catalog, registry, adapter, runfiles directory, tool flags.
 set -euo pipefail
 config="$(dirname "${BASH_SOURCE[0]}")/bazel.config"
 mapfile -t values <"$config"
 runner="${values[0]}"
-registry="${values[1]}"
-adapter="${values[2]}"
-runfiles="${values[3]}"
-tools=("${values[@]:4}")
+catalog="${values[1]}"
+registry="${values[2]}"
+adapter="${values[3]}"
+runfiles="${values[4]}"
+tools=("${values[@]:5}")
 
 while [[ "${1:-}" == --output_base=* || "${1:-}" == --max_idle_secs=* ]]; do shift; done
 here="$(git rev-parse --show-toplevel)"
@@ -36,7 +37,8 @@ case "${1:-}" in
       printf 'export BUILD_WORKSPACE_DIRECTORY=%q\n' "$here"
       printf 'cd %q\n' "$runfiles"
       printf 'exec'
-      printf ' %q' "$runner" "--registry=$registry" "--adapter=$adapter" "${tools[@]}"
+      printf ' %q' "$runner" "--catalog=$catalog" "--registry=$registry" --registry-path=quality/registry.textproto \
+        --contract=quality/coverage_floors.json --bazel=tools/bootstrap/bazel.sh "--adapter=$adapter" "${tools[@]}"
       printf ' "$%s"\n' '@'
     } >"${script:?no --script_path}"
     chmod +x "$script"

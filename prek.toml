@@ -13,7 +13,7 @@ repo = "local"
 id = "pre-commit"
 name = "staged content"
 language = "system"
-entry = "tools/hooks/stage.sh pre-commit"
+entry = "tools/hooks/stage.sh pre-commit --bazel=tools/bootstrap/bazel.sh"
 pass_filenames = false
 always_run = true
 require_serial = true
@@ -23,7 +23,7 @@ stages = ["pre-commit"]
 id = "pre-push"
 name = "the pushed commit"
 language = "system"
-entry = "tools/hooks/stage.sh pre-push"
+entry = "tools/hooks/stage.sh pre-push --bazel=tools/bootstrap/bazel.sh"
 pass_filenames = false
 always_run = true
 require_serial = true

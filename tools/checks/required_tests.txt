@@ -25,7 +25,9 @@
 @bff_template_quality//checks/coverage:coverage_test build-test
 @bff_template_quality//checks/ciparity:ciparity_test build-test
 @bff_template_quality//checks/suppression:suppression_test build-test
+@bff_template_quality//hooks:pin_test build-test
 @bff_template_quality//proto:proto_test build-test
+@bff_template_quality//release:release_test build-test
 @bff_template_quality//runner:runner_test build-test
 //:bzlmod_policy_test build-test
 //:ci_parity_test build-test

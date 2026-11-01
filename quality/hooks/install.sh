@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs the hooks with the pinned prek (spec 006 T012, FR-015). Run it with
 #
-#   tools/bootstrap/bazel.sh run //tools/hooks:install [-- --weak-isolation] [--policy-base=<rev>]
+#   <bazel> run @bff_template_quality//hooks:install [-- --weak-isolation] [--policy-base=<rev>]
 #
 # --policy-base stores the revision a push that escalates to `full` is compared with, as given, in local
 # Git config. Nothing derives it, and naming it claims no review (spec 007 FR-015a).

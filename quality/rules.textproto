@@ -1,0 +1,226 @@
+# proto-file: proto/registry.proto
+# proto-message: template.quality.v1.Registry
+#
+# The rule catalog: the one definition of each rule a repository can bind. It holds no leg and no host
+# path. A host's registry names the rules it uses, and a release's notes are a diff of this file
+# (spec 008 R8, FR-006). A witness names where the rule's defect and corrected cases live in this
+# module's source repository.
+version: "0.2.0"
+
+tools { name: "ACTIONLINT" version_args: "--version" }
+tools { name: "BUILDIFIER" version_args: "--version" }
+tools { name: "FLOORS" }
+tools { name: "FROM_BASE" }
+tools { name: "GITLEAKS" version_args: "--version" }
+tools { name: "GOFMT" }
+tools { name: "PIN" }
+tools { name: "PRETTIER" }
+tools { name: "SHELLCHECK" version_args: "--version" }
+tools { name: "SUPPRESSION" }
+tools { name: "TEST_EVIDENCE" }
+tools { name: "TYPOS" version_args: "--version" }
+tools { name: "ZIZMOR" version_args: "--version" }
+
+checks {
+  id: "secrets"
+  definition: "adapters/native.sh"
+  definition: "multitool.lock.json"
+  tool: "GITLEAKS"
+  selector { include_vendored: true include_fixtures: true }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{adapter}", "secrets", "{list}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "suppression-ban"
+  definition: "checks/suppression/rules.go"
+  definition: "checks/suppression/scan.go"
+  tool: "SUPPRESSION"
+  selector {
+    include_vendored: true
+    include_fixtures: true
+  }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{SUPPRESSION}", "-root", "{root}", "-paths", "{list}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "typos"
+  definition: "adapters/native.sh"
+  definition: "multitool.lock.json"
+  tool: "TYPOS"
+  selector { include_fixtures: true }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{adapter}", "typos", "{list_nl}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "format-go"
+  definition: "adapters/native.sh"
+  tool: "GOFMT"
+  selector { include: "\\.go$" }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{adapter}", "format-go", "{list}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "format-ts"
+  definition: "adapters/native.sh"
+  tool: "PRETTIER"
+  selector { include: "\\.(ts|tsx|mjs)$" }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{adapter}", "format-ts", "{list}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "format-starlark"
+  definition: "adapters/native.sh"
+  definition: "multitool.lock.json"
+  tool: "BUILDIFIER"
+  selector { include: "(^|/)(BUILD|BUILD\\.bazel|MODULE\\.bazel|REPO\\.bazel)$" include: "\\.bzl$" }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{adapter}", "format-starlark", "{list}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "shellcheck"
+  definition: "adapters/native.sh"
+  definition: "multitool.lock.json"
+  tool: "SHELLCHECK"
+  selector { include: "\\.(sh|bash)$" shell_scripts: true }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{adapter}", "shellcheck", "{list}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "actionlint"
+  definition: "adapters/native.sh"
+  definition: "multitool.lock.json"
+  tool: "ACTIONLINT"
+  selector { include: "^\\.github/workflows/[^/]+\\.ya?ml$" }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{adapter}", "actionlint", "{list}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "zizmor"
+  definition: "adapters/native.sh"
+  definition: "multitool.lock.json"
+  tool: "ZIZMOR"
+  selector { include: "^\\.github/workflows/[^/]+\\.ya?ml$" }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  command: ["{adapter}", "zizmor", "{list}"]
+  witness: "//:native_fixtures_test"
+}
+
+checks {
+  id: "tests"
+  definition: "runner/bazel.go"
+  stages: [STAGE_PRE_PUSH, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_BAZEL
+  timeout_seconds: 1500
+  witness: "//:verify_body_test"
+}
+
+checks {
+  id: "coverage-floor"
+  definition: "checks/coverage"
+  tool: "FLOORS"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 120
+  after_bazel: true
+  needs_coverage: true
+  summary: true
+  command: ["{FLOORS}", "check", "--root={root}", "--contract={contract}", "--log={bazel_log}", "--testlogs={root}/bazel-testlogs", "--bazel-exit={bazel_exit}"]
+  witness: "@bff_template_quality//checks/coverage:coverage_test"
+}
+
+checks {
+  id: "floors-from-base"
+  definition: "adapters/from_base.sh"
+  definition: "checks/coverage"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 900
+  exclusive: true
+  needs_base: true
+  command: ["{FROM_BASE}", "{base}", "{root}", "{isolation}", "{contract}", "{bazel}"]
+  witness: "//:from_base_test"
+}
+
+checks {
+  id: "test-inventory"
+  definition: "adapters/test_evidence.sh"
+  postcondition: true
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 60
+  after_bazel: true
+  command: ["{TEST_EVIDENCE}", "inventory", "{bazel_log}", "{shard}"]
+  witness: "//:verify_body_test"
+}
+
+checks {
+  id: "sandbox-evidence"
+  definition: "adapters/test_evidence.sh"
+  postcondition: true
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 60
+  after_bazel: true
+  command: ["{TEST_EVIDENCE}", "sandbox", "{bazel_log}", "{isolation}"]
+  witness: "//:verify_body_test"
+}
+
+checks {
+  id: "quality-pin"
+  definition: "hooks/pin.sh"
+  tool: "PIN"
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 60
+  command: ["{PIN}", "check"]
+  witness: "@bff_template_quality//hooks:pin_test"
+}
