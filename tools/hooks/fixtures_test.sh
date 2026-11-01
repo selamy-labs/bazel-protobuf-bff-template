@@ -44,7 +44,8 @@ new_repo() {
   local dir="$1" prek="${2:-$pinned_prek}"
   mkdir -p "$dir/src" "$dir/api/a/v1" "$dir/tools/hooks" "$dir/tools/bootstrap" "$dir/tools/speckit" \
     "$dir/quality/checks/suppression/testdata"
-  git -C "$dir" rev-parse --git-dir >/dev/null 2>&1 || git -C "$dir" init -q -b main
+  # Only this directory counts: the test's temporary directory may sit inside another repository.
+  if [[ ! -e "$dir/.git" ]]; then git -C "$dir" init -q -b main; fi
   cp "$source_root/prek.toml" "$source_root/.gitleaks.toml" "$source_root/_typos.toml" "$dir/"
   cp "$source_root/tools/hooks/stage.sh" "$dir/tools/hooks/"
   cp "$source_root/tools/hooks/fixture_bazel.sh" "$dir/tools/bootstrap/bazel.sh"

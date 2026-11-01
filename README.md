@@ -8,10 +8,12 @@ toolchains, code generation and tests. The aim is shared, versioned quality chec
 way in Git hooks, in the local verifier and in CI. The local hooks and the one check registry exist;
 hosted CI has never run, and consumer distribution is not built yet.
 
-**Status: M1 to M4 exist locally.** The app works: `CreateNote` and `GetNote` run from a React page
-through a Go server, tested in a pinned browser. M1 to M3 passed independent local Linux
-verification. M4 awaits independent review, and [the evidence page](docs/evidence/m2-m4.md)
-lists what has and has not been observed. macOS and hosted CI are unverified. The repository is
+**Status: M1 to M5 exist locally.** The app works: `CreateNote` and `GetNote` run from a React page
+through a Go server, tested in a pinned browser. M1 to M4 passed independent local Linux review. M5,
+the check registry and Git hooks, awaits independent review. The evidence pages for
+[M2 to M4](docs/evidence/m2-m4.md) and [M5](docs/evidence/m5.md) list what has and has not been
+observed, and [capability states](docs/quality/capability-states.md) has the summary. macOS and hosted
+CI are unverified. The repository is
 local-only and unpublished, and it ships no identity provider, so the production server refuses to
 start until you add one ([bff/README.md](bff/README.md)).
 
