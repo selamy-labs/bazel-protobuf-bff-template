@@ -102,8 +102,8 @@ the module lock and not redistributed.
 | Item | Identifier | Version | License | Scope | Where pinned |
 | --- | --- | --- | --- | --- | --- |
 | rules_oci | `rules_oci` | 2.3.0 | Apache-2.0, read from the fetched module's LICENSE | tools | `MODULE.bazel.lock` |
-| tar.bzl | `tar.bzl` | 0.7.0 | Apache-2.0, read from the fetched module's LICENSE | tools | same |
-| platforms | `platforms` | 1.0.0 | Apache-2.0, read from the upstream `1.0.0` tag's LICENSE at bazelbuild/platforms; the registry's source archive (`sha256-M4TrHDB2JwT7445EAgThFBVAhsj8iowuPihEECjAGag=`) carries no LICENSE file, which stays an observation | tools | same |
+| tar.bzl | `tar.bzl` | 0.10.4, the version the lock resolves and the declared minimum | Apache-2.0, read from the fetched 0.10.4 module's LICENSE and from the upstream `v0.10.4` tag; registry source integrity `sha256-/qB+FxF78mT3i9T8UixrB6hDzc2Cxt++r6W9r/cK4Zg=` | tools | same |
+| platforms | `platforms` | 1.1.0, the version the lock resolves and the declared minimum | Apache-2.0, read from the upstream `1.1.0` tag's LICENSE at bazelbuild/platforms; the registry's 1.1.0 source archive (`sha256-261KI6vMphceR7ee3FO9akEGejt1+eixBGVrRZ/yUEY=`) is what Bazel fetched, and the fetched module directory carries no LICENSE file, which stays an observation | tools | same |
 
 ## Governance tooling (M8)
 
@@ -400,7 +400,7 @@ Every package in `tools/speckit/requirements.lock`, with the license from its wh
 | h11 | `h11` | 0.16.0 | MIT | `tools/speckit/requirements.lock` |
 | httpcore2 | `httpcore2` | 2.16.0 | BSD-3-Clause | `tools/speckit/requirements.lock` |
 | httpx2 | `httpx2` | 2.16.0 | BSD-3-Clause | `tools/speckit/requirements.lock` |
-| httpx2-jsfetch | `httpx2-jsfetch` | 1.0 | unresolved: the managed cache holds this wheel only as packed metadata, which no pinned tool here reads | `tools/speckit/requirements.lock` |
+| httpx2-jsfetch | `httpx2-jsfetch` | 1.0 | BSD-3-Clause, the License-Expression of the exact lock-matching wheel (sha256 cb916b707601e69a07721aabc8f3f6659be3a6893bc1ff5c6f9e02241df2da32), read by an independent reviewer without execution | `tools/speckit/requirements.lock` |
 | idna | `idna` | 3.20 | BSD-3-Clause | `tools/speckit/requirements.lock` |
 | json5 | `json5` | 0.17.3 | Apache-2.0 | `tools/speckit/requirements.lock` |
 | jsonschema | `jsonschema` | 4.26.0 | MIT | `tools/speckit/requirements.lock` |
@@ -418,7 +418,7 @@ Every package in `tools/speckit/requirements.lock`, with the license from its wh
 | pygments | `pygments` | 2.21.0 | BSD-2-Clause | `tools/speckit/requirements.lock` |
 | pyjwt | `pyjwt` | 2.15.1 | MIT | `tools/speckit/requirements.lock` |
 | python-multipart | `python-multipart` | 0.0.33 | Apache-2.0 | `tools/speckit/requirements.lock` |
-| pywin32 | `pywin32` | 312 | unresolved: a Windows-only lock entry, never fetched on the supported Linux profile | `tools/speckit/requirements.lock` |
+| pywin32 | `pywin32` | 312 | PSF, as the wheel metadata declares, with eight component license files (adodbapi, com, pythonwin, Scintilla, idle, win32, MAPIStubLibrary, isapi), read by an independent reviewer from the exact lock-matching Windows wheel (sha256 b457f6d628a47e8a7346ce22acb7e1a46a4a78b52e1d17e1af56871bd19a93bc) without execution; each component notice stands on its own; never fetched or run on the supported Linux profile | `tools/speckit/requirements.lock` |
 | pyyaml | `pyyaml` | 6.0.3 | MIT | `tools/speckit/requirements.lock` |
 | readchar | `readchar` | 4.2.2 | MIT Licence | `tools/speckit/requirements.lock` |
 | referencing | `referencing` | 0.37.0 | MIT | `tools/speckit/requirements.lock` |
