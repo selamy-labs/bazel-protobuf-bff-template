@@ -290,7 +290,7 @@ each tree, plus enrollment, which looks at one tree and needs no history. Worked
 | New file matched by `includes` | Allowed; it counts |
 | File deleted from the tree | Allowed; the percentage must still meet the floor |
 | File moved within `includes` | Allowed; the old path is gone and the new path is in the set |
-| File moved outside `includes`, by delete and add | The old path is simply gone. The new path fails as `unenrolled source` |
+| File moved outside `includes`, by delete and add | The old path is simply gone. The new path fails as `unenrolled source`, in `compare` too, so the base-built evaluator applies it |
 | File moved to a path an existing `excludes` entry matches | **Not detected.** Stated limit: entries stay narrow and reasoned |
 | File moved to a language with no profile | Not judged. `.go` and the TypeScript extensions all have profiles |
 | `excludes` gains a path matching a surviving file | Narrowing, fails |

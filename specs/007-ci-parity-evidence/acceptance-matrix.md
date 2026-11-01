@@ -21,9 +21,10 @@ first.
 | FR-013a | Real Git fixtures | different commit, same tree → compared and passes | a weakening commit whose tree differs only by a README edit still fails on its floor, so tree difference earns nothing | G | off |
 | FR-014 | `verify_body_test` | refusal beside every other check's result | other checks skipped, or result PASSED → test fails | G | off |
 | FR-015 | `runner_test` | SHA and `base_source` recorded | a `reviewed` field, or base missing → rejected | G | off |
+| FR-015b | `runner_test` | the same base gives its own digest under any proposal definition | the proposal's `escalate` changes the digest → test fails; base registry absent or malformed → problem, not PASSED, no digest | G | off |
 | FR-015a | `fixtures_test` | ordinary first push of a topic branch reads no base; with the setting, a policy-change first push and a zero `--from` both pass at `full`, `hook-config` in the receipt | setting unset → exit 11 naming the install command; a value resolving to the pushed commit → own base; installed with no value → nothing stored | G | off |
 | FR-016 | Real Git fixtures | rows allowed in R8 pass | floor lowered, profile removed, metric changed, each narrowing row → fails | G | off |
-| FR-016a | Real Git fixtures | delete and add within `includes` → passes | real `git rm` and add to a path outside every profile → fails, `unenrolled source`; a relocation into an existing exclude passes, asserted as the stated limit | G | off |
+| FR-016a | Real Git fixtures | delete and add within `includes` → passes | real `git rm` and add to a path outside every profile → `floors compare` and `floors check` both fail, `unenrolled source`; a relocation into an existing exclude passes, asserted as the stated limit | G | off |
 | FR-017 | Real Git fixtures | every measured file reported; each `excludes` entry has an allowed reason | file absent from report → fails, never counted as covered; an exclude with an empty or unlisted reason → rejected | G | off |
 | FR-017 | Review of `coverage_floors.json` | each stated reason is true of its files | a reason that does not hold, or a boundary drawn too wide → review rejects. No tool checks this | S | hum |
 | FR-018 | Real Git fixtures | no new suppression | suppression added per language; pattern set edited → fails | G | off |

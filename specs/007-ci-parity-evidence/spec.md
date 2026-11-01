@@ -109,6 +109,9 @@ Base and bootstrap
   PASSED. There is no flag, default or fallback that compares a tree with itself.
 - **FR-015**: A receipt MUST record the resolved base SHA and how it was chosen: `argument`, `hook-config` or
   `ci-event`. It MUST NOT claim the base was reviewed. Review and readiness are separate records.
+- **FR-015b**: `base_policy_digest` MUST use the base's own registry as the definition of its policy inputs. If that
+  registry cannot be read or parsed, the identity is unavailable, and the receipt cannot be PASSED. This is metadata about
+  the base, and no judgment of the proposal.
 - **FR-015a**: A hook MUST read its policy base from the declared local setting, set by
   `//tools/hooks:install -- --policy-base=<rev>` and by nothing implicit. A zero `--from` or a policy change still
   escalates to `full`. With the setting, that push is judged against it. Without it, `floors-from-base` refuses. An
@@ -120,7 +123,7 @@ Floors and coverage
   removed; a `metric` or `language` changed; narrowing of the measured source set. A file newly added to the
   measured set counts in the percentage. A new profile is allowed.
 - **FR-016a**: A tracked file of a profiled language that is neither measured nor excluded MUST fail, named as
-  `unenrolled source`. No move detection exists: a delete and add is judged as a deleted path and a new path, and the new
+  `unenrolled source`, by `check` and by the base-built `compare` alike. No move detection exists: a delete and add is judged as a deleted path and a new path, and the new
   path must be enrolled like any other.
 - **FR-017**: Each file in the measured source set MUST appear in the language's report. An absent file MUST
   fail, and it MUST NOT count as covered or as not applicable. A file whose data counts nothing is absent, and a

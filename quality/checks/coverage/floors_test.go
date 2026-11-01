@@ -248,13 +248,16 @@ func TestRelocationIsJudgedByEnrollment(t *testing.T) {
 	base := contract(t, nil)
 	config := contract(t, nil)
 	moved := []string{"src/a.go", "elsewhere/b.go"}
-	if got := Compare(base, []string{"src/a.go", "src/b.go"}, config, moved); len(got) != 0 {
-		t.Fatalf("Compare judged a move: %v", got)
+	if got := strings.Join(Compare(base, []string{"src/a.go", "src/b.go"}, config, moved), "\n"); !strings.Contains(got, "unenrolled source: elsewhere/b.go") {
+		t.Fatalf("the base-built comparison missed the new path: %s", got)
 	}
 	if got := problems(t, config, moved, goodReport); !strings.Contains(got, "unenrolled source: elsewhere/b.go") {
 		t.Fatalf("the new path was not named: %s", got)
 	}
 	limit := []string{"src/a.go", "kept/excluded/b.go"}
+	if got := Compare(base, []string{"src/a.go", "src/b.go"}, config, limit); len(got) != 0 {
+		t.Fatalf("the stated limit changed, so update the spec: %v", got)
+	}
 	if got := problems(t, config, limit, goodReport); strings.Contains(got, "kept/excluded") {
 		t.Fatalf("the stated limit changed, so update the spec: %s", got)
 	}

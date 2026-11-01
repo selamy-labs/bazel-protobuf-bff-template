@@ -4,8 +4,9 @@
 #   tools/verify.sh                   full policy at full isolation
 #   tools/verify.sh --weak-isolation  explicit opt-in for hosts without namespace sandboxing; every
 #                                     result is labeled `isolation: weakened`
-#   tools/verify.sh --offline         use only already-fetched artifacts and skip the networked
-#                                     Spec Kit provenance check (CI never passes this)
+#   tools/verify.sh --offline         use only already-fetched artifacts, skip the networked Spec Kit
+#                                     provenance check, and refuse floors-from-base. It never passes,
+#                                     and CI never uses it
 #   tools/verify.sh --bootstrap-only  fetch and verify the pinned toolchain, then stop
 #   tools/verify.sh --shard=<leg>     one leg of the policy, as one CI job runs it
 #   tools/verify.sh --base=<rev>      the policy base to compare with, resolved once. It says nothing

@@ -152,6 +152,37 @@ func TestFloorsCheckCommand(t *testing.T) {
 	}
 }
 
+// A delete and an add, as real Git commits, judged by the real command. There is no move detection:
+// the new path is enrolled like any other.
+func TestFloorsCompareJudgesARelocationByEnrollment(t *testing.T) {
+	base := repository(t, simple(50), map[string]string{"src/a.go": "package a\n", "src/b.go": "package a\n", "fixtures/keep.txt": "x\n"})
+	for name, test := range map[string]struct {
+		target string
+		code   int
+		want   string
+	}{
+		"inside a profile":         {"src/moved/b.go", 0, ""},
+		"into an existing exclude": {"fixtures/b.go", 0, ""},
+		"outside every profile":    {"elsewhere/b.go", 1, "unenrolled source: elsewhere/b.go"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			proposal := t.TempDir()
+			git(t, proposal, "clone", "-q", base, ".")
+			git(t, proposal, "rm", "-q", "src/b.go")
+			if err := os.MkdirAll(filepath.Dir(filepath.Join(proposal, test.target)), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			write(t, filepath.Join(proposal, test.target), "package a\n")
+			git(t, proposal, "add", "-A")
+			git(t, proposal, "commit", "-q", "-m", "relocate")
+			out, code := floors(t, "compare", "--base-root="+base, "--root="+proposal)
+			if code != test.code || !strings.Contains(out, test.want) {
+				t.Fatalf("exit %d, want %d with %q\n%s", code, test.code, test.want, out)
+			}
+		})
+	}
+}
+
 func TestFloorsCompareCommand(t *testing.T) {
 	// Split, so this file does not itself carry the directives it plants.
 	tsDirective, goDirective := "// @ts-"+"ignore\n", "//no"+"lint\n"

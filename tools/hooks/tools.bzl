@@ -6,6 +6,7 @@ QUALITY_TOOLS = {
     "BUF": "@bff_template_quality//tools:buf",
     "BUF_CONFIG_FILE": "@bff_template_quality//proto:buf.yaml",
     "BUILDIFIER": "@bff_template_quality//tools:buildifier",
+    "FLOORS": "@bff_template_quality//checks/coverage:floors",
     "GITLEAKS": "@bff_template_quality//tools:gitleaks",
     "GOFMT": "@go_sdk//:bin/gofmt",
     "PREK": "@bff_template_quality//tools:prek",

@@ -33,6 +33,8 @@ tools { name: "BASELINE" }
 tools { name: "BUF" version_args: "--version" }
 tools { name: "BUF_CONFIG_FILE" }
 tools { name: "BUILDIFIER" version_args: "--version" }
+# Built from the checkout for coverage-floor. floors-from-base builds its own from the base.
+tools { name: "FLOORS" }
 tools { name: "GITLEAKS" version_args: "--version" }
 tools { name: "GOFMT" }
 tools { name: "PREK" version_args: "--version" }
@@ -235,6 +237,31 @@ checks {
   timeout_seconds: 1500
   targets: ["//web/e2e/..."]
   witness: "//web/e2e:defect_e2e_test"
+}
+checks {
+  id: "coverage-floor"
+  tool: "FLOORS"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 120
+  after_bazel: true
+  needs_coverage: true
+  shard: "build-test"
+  command: ["{FLOORS}", "check", "--root={root}", "--log={bazel_log}", "--testlogs={root}/bazel-testlogs", "--bazel-exit={bazel_exit}"]
+  witness: "@bff_template_quality//checks/coverage:coverage_test"
+}
+checks {
+  id: "floors-from-base"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 900
+  exclusive: true
+  needs_base: true
+  shard: "policy"
+  command: ["tools/policy/from_base.sh", "{base}", "{root}", "{isolation}"]
+  witness: "//:from_base_test"
 }
 checks {
   id: "test-inventory"

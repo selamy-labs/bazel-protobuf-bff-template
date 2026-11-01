@@ -440,6 +440,7 @@ checks {
   witness: "//:test"
 }
 REGISTRY
+cp "$work/base.textproto" "$t/quality/registry.textproto"
 sed -i "2s|.*|$work/base.textproto|" "$t/tools/bootstrap/bazel.config"
 git -C "$t" add -A
 git -C "$t" commit -q --no-verify -m evaluator

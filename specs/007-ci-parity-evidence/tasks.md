@@ -37,3 +37,20 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [ ] T026 | T025 | Freeze; normal and hostile gates with `--base`; measure once; hold for independent acceptance | SC-002 | T070 | Receipts |
 
 Remain open by design: parent T067 and T068, blocked on upstream releases.
+
+## Execution record
+
+- T001, T002: plan `8b3c3c7`, probes `c19e962`, before production code.
+- T003: `ee8f29e`, red first through three unit tests.
+- T004 to T006: `9266a32`. Without `--shard`, behavior is unchanged.
+- T007 to T010, T022: `d8bfa82`. The gate's empty-result pass was found while reading it. No hosted run exists.
+- T011, T012: `811bdaa`. Two faults were found by a real `bazel coverage`, not by unit tests: `.bazelrc` parsing consumed
+  the filter's backslash, so the quality module was silently uninstrumented, and Bazel calls the report generator with
+  other arguments.
+- T013, T014: `21aafbc`.
+- T015, T016: `f4bb2aa`. Review of `21aafbc` found three defects, reproduced red first: a report that counts no statements
+  skipped the floor, the check could not see Bazel's real exit, and a malformed branch count read as a hit. The fixture
+  showed that prek gives a new branch a real `--from`, which corrected the plan.
+- T017: the commit after `f4bb2aa`. Review of `f4bb2aa` found two more, reproduced red first: the base digest used the
+  proposal's definition, and `compare` dropped enrollment. `from_base_test` uses a fake base Bazel and evaluator: it proves custody
+  and wiring, not that a compiled base rejects a replaced evaluator. T025 proves that composition with a real base.

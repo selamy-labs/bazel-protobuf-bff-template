@@ -33,7 +33,6 @@ go_test(
 go_binary(
     name = "floors",
     srcs = ["cmd/floors/main.go"],
-    pure = "on",
     visibility = ["//visibility:public"],
     deps = [
         ":coverage",
@@ -44,7 +43,6 @@ go_binary(
 go_binary(
     name = "merger",
     srcs = ["cmd/merger/main.go"],
-    pure = "on",
     visibility = ["//visibility:public"],
     deps = [":coverage"],
 )

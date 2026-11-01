@@ -32,11 +32,11 @@
       "language": "go",
       "metric": "block-span-lines",
       "include": "^(bff/cmd/bff-dev/main\\.go|quality/checks/ciparity/cmd/main\\.go|quality/checks/coverage/cmd/(floors|merger)/main\\.go|quality/checks/suppression/main\\.go|quality/proto/cmd/main\\.go|quality/runner/cmd/main\\.go)$",
-      "floor": 0
+      "floor": 70
     },
-    { "name": "go-root", "language": "go", "metric": "statements", "include": "^bff/", "floor": 0 },
-    { "name": "go-quality", "language": "go", "metric": "statements", "include": "^quality/", "floor": 0 },
-    { "name": "ts-client", "language": "typescript", "metric": "compiled-js-lines", "include": "^web/client/", "floor": 0 },
+    { "name": "go-root", "language": "go", "metric": "statements", "include": "^bff/", "floor": 87 },
+    { "name": "go-quality", "language": "go", "metric": "statements", "include": "^quality/", "floor": 75 },
+    { "name": "ts-client", "language": "typescript", "metric": "compiled-js-lines", "include": "^web/client/", "floor": 100 },
     { "name": "web-browser", "language": "typescript", "metric": "unmeasured", "include": "^web/(app|serve)/", "floor": 0 }
   ]
 }

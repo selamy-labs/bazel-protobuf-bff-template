@@ -1295,6 +1295,7 @@ func baseRepository(t *testing.T) (h *harness, evaluator, head string) {
 	h = committed(newHarness(t))
 	h.write(evaluatorPath, "package main\n")
 	h.write(contractPath, "{}\n")
+	h.write(baseRegistryPath, `escalate: "^real\\.go$"`+"\n")
 	h.git("add", "-A")
 	h.git("commit", "-q", "-m", "evaluator")
 	evaluator = strings.TrimSpace(h.git("rev-parse", "HEAD"))
@@ -1411,6 +1412,70 @@ func TestNamedBaseReachesTheCheckAndTheReceipt(t *testing.T) {
 	receipt := receiptOf(t, options.ReceiptPath)
 	if receipt.BaseRevision != evaluator || receipt.BaseSource != "hook-config" || receipt.BasePolicyDigest == "" {
 		t.Fatalf("receipt: %+v", receipt)
+	}
+}
+
+// The digest names the base's own policy inputs, by the base's own definition, whatever the proposal's
+// definition says. This is exact metadata about the base, and no judgment of the proposal.
+func TestBasePolicyDigestUsesTheBasesDefinition(t *testing.T) {
+	h, evaluator, _ := baseRepository(t)
+	git := Git{Dir: h.dir, Env: gitEnv()}
+	want, err := BasePolicyDigest(context.Background(), git, evaluator, []string{`^real\.go$`})
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := BasePolicyDigest(context.Background(), git, evaluator, []string{`^next\.txt$|^fixture\.go$`})
+	if err != nil || other == want {
+		t.Fatalf("control: two definitions must differ: %s %s %v", want, other, err)
+	}
+	digest := func(body string) string {
+		t.Helper()
+		options := h.options(body, registrypb.Stage_STAGE_FULL)
+		options.Base, options.BaseSource = evaluator, "argument"
+		options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+		if code := h.run(options); code != ExitOK {
+			t.Fatalf("exit %d\n%s", code, h.out.String())
+		}
+		return receiptOf(t, options.ReceiptPath).BasePolicyDigest
+	}
+	if got := digest(baseChecks()); got != want {
+		t.Fatalf("the positive control: got %s, want %s", got, want)
+	}
+	if got := digest(`escalate: "^fixture\\.go$"` + "\n" + baseChecks()); got != want {
+		t.Fatalf("the proposal's definition changed the base's digest: got %s, want %s", got, want)
+	}
+}
+
+func TestUnreadableBaseRegistryIsAProblem(t *testing.T) {
+	for name, text := range map[string]string{"absent": "", "malformed": "not a registry {"} {
+		t.Run(name, func(t *testing.T) {
+			h, _, _ := baseRepository(t)
+			if text == "" {
+				h.git("rm", "-q", "--cached", baseRegistryPath)
+				_ = os.Remove(filepath.Join(h.dir, baseRegistryPath))
+			} else {
+				h.write(baseRegistryPath, text)
+				h.git("add", "-A")
+			}
+			h.git("commit", "-q", "--amend", "--allow-empty", "-m", "base under test")
+			base := strings.TrimSpace(h.git("rev-parse", "HEAD"))
+			h.write("later.txt", "x\n")
+			h.git("add", "-A")
+			h.git("commit", "-q", "-m", "later")
+			options := h.options(baseChecks(), registrypb.Stage_STAGE_FULL)
+			options.Base, options.BaseSource = base, "argument"
+			options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+			if code := h.run(options); code != ExitNoEvidence {
+				t.Fatalf("exit %d\n%s", code, h.out.String())
+			}
+			receipt := receiptOf(t, options.ReceiptPath)
+			if receipt.Result == "PASSED" || !strings.Contains(strings.Join(receipt.Problems, "\n"), "base policy digest") {
+				t.Fatalf("receipt: %+v", receipt)
+			}
+			if receipt.BasePolicyDigest != "" {
+				t.Fatalf("a digest was recorded with no definition: %s", receipt.BasePolicyDigest)
+			}
+		})
 	}
 }
 

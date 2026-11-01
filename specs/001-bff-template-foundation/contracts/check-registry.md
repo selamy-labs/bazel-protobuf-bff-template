@@ -12,9 +12,9 @@ the classes and lists the rules deliberately left out. M5's reasons are in
 | --- | --- | --- |
 | Content | `secrets`, `suppression-ban`, `typos`, `format-go`, `format-ts`, `format-proto`, `lint-proto`, `format-starlark`, `shellcheck`, `actionlint`, `zizmor` | pre-commit, full |
 | Pushed commit | `tests`, `dependency-rules`, `proto-breaking` | pre-push, full |
-| Full only | `e2e-browser`, `test-inventory`, `sandbox-evidence`, `workspace-policy`, `implicit-config`, `bazelrc-policy`, `toolchain-fixtures`, `hook-e2e`, `speckit-provenance` | full |
+| Full only | `e2e-browser`, `test-inventory`, `sandbox-evidence`, `workspace-policy`, `implicit-config`, `bazelrc-policy`, `toolchain-fixtures`, `hook-e2e`, `speckit-provenance`, `coverage-floor`, `floors-from-base` | full |
 
-Later milestones add `coverage-floor`, `floors-from-base` (M6) and `contract-consumers` (upstream #28).
+`contract-consumers` waits for upstream #28. `floors-from-base` needs a policy base: see spec 007 R6.
 
 ## Runner interface
 

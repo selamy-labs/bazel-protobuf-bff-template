@@ -527,7 +527,7 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 	}
 	receipt.BaseRevision, receipt.BaseSource, receipt.BaseRefusal = e.base.Revision, e.base.Source, e.base.Refusal
 	if e.base.Revision != "" {
-		digest, err := BasePolicyDigest(ctx, git, e.base.Revision, options.Registry.GetEscalate())
+		digest, err := BaseOwnPolicyDigest(ctx, git, e.base.Revision)
 		if err != nil {
 			receipt.Problems = append(receipt.Problems, "base policy digest: "+err.Error())
 		}

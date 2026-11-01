@@ -33,7 +33,7 @@ These rules hold on every build, so a check of their own would judge nothing mor
 | Rule | Decision |
 | --- | --- |
 | Freshness of generated files | Nothing generated is committed, so it would judge nothing |
-| Coverage floors, base-built policy, CI shards | M6 |
+| Line or statement coverage of the browser app | No data exists. It is a declared `unmeasured` profile in `quality/coverage_floors.json`, for review |
 | Contract consumers | Waits for the upstream contract analyzer. Until then, a browser scenario per RPC is the evidence |
 | Complexity, duplication | Reviewed and not adopted. No numeric policy is imported; see [capability states](capability-states.md) |
 | Commit message rules | None adopted, so the stage has no check |

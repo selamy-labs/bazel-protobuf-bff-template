@@ -2,9 +2,14 @@ package runner
 
 import (
 	"context"
+	"fmt"
 	"regexp"
 	"strings"
 	"unicode"
+
+	"google.golang.org/protobuf/encoding/prototext"
+
+	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb"
 )
 
 // Base is the policy base of a run: what a tested commit is compared with. Naming one says nothing
@@ -22,6 +27,9 @@ type Base struct {
 const evaluatorPath = "quality/checks/coverage/cmd/floors/main.go"
 
 const contractPath = "quality/coverage_floors.json"
+
+// The base's own registry defines what counts as the base's policy inputs.
+const baseRegistryPath = "quality/registry.textproto"
 
 func malformedRevision(named string) bool {
 	return strings.HasPrefix(named, "-") || strings.Contains(named, "..") ||
@@ -66,7 +74,35 @@ func ResolveBase(ctx context.Context, git Git, named, source, tested string) Bas
 
 func quoted(text string) string { return "'" + text + "'" }
 
-// BasePolicyDigest is the policy digest of a commit, by the same rule as a receipt's own.
+// baseEscalate reads a base's own definition of its policy inputs. Fields a later schema added are
+// ignored, because a base can be older or newer than this runner.
+func baseEscalate(ctx context.Context, git Git, revision string) ([]string, error) {
+	text, err := git.Run(ctx, nil, "show", revision+":"+baseRegistryPath)
+	if err != nil {
+		return nil, fmt.Errorf("the base has no %s: %w", baseRegistryPath, err)
+	}
+	registry := &registrypb.Registry{}
+	if err := (prototext.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(text, registry); err != nil {
+		return nil, fmt.Errorf("the base's %s does not parse: %w", baseRegistryPath, err)
+	}
+	if len(registry.GetEscalate()) == 0 {
+		return nil, fmt.Errorf("the base's %s names no policy inputs", baseRegistryPath)
+	}
+	return registry.GetEscalate(), nil
+}
+
+// BaseOwnPolicyDigest is a commit's policy digest by that commit's own definition, so nothing in the
+// tested tree can change it. It is identity metadata, not a judgment of the proposal.
+func BaseOwnPolicyDigest(ctx context.Context, git Git, revision string) (string, error) {
+	policy, err := baseEscalate(ctx, git, revision)
+	if err != nil {
+		return "", err
+	}
+	return BasePolicyDigest(ctx, git, revision, policy)
+}
+
+// BasePolicyDigest is the policy digest of a commit under a given definition, by the same rule as a
+// receipt's own.
 func BasePolicyDigest(ctx context.Context, git Git, revision string, policy []string) (string, error) {
 	patterns := make([]*regexp.Regexp, 0, len(policy))
 	for _, pattern := range policy {

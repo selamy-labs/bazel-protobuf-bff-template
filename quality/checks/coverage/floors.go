@@ -163,7 +163,11 @@ func (c *Config) lcovPath(path string) string {
 // move detection. A deleted path is simply gone, and a new path must enroll like any other.
 func Compare(base *Config, baseFiles []string, proposal *Config, files []string) []string {
 	var problems []string
-	baseSets, sets := base.Enroll(baseFiles).Measured, proposal.Enroll(files).Measured
+	enrollment := proposal.Enroll(files)
+	baseSets, sets := base.Enroll(baseFiles).Measured, enrollment.Measured
+	for _, file := range enrollment.Unenrolled {
+		problems = append(problems, "unenrolled source: "+file+" is in no profile and no exclude")
+	}
 	for _, want := range base.Profiles {
 		index := slices.IndexFunc(proposal.Profiles, func(p Profile) bool { return p.Name == want.Name })
 		if index < 0 {

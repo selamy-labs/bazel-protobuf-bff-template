@@ -43,7 +43,9 @@ stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
 stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
 stub "$tree/tools/hooks/e2e.sh" hook-e2e
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
+stub "$tree/tools/policy/from_base.sh" floors-from-base
 stub "$work/bin/SUPPRESSION" suppression-ban
+stub "$work/bin/FLOORS" coverage-floor
 cat >"$work/bin/adapter" <<STUB
 #!/usr/bin/env bash
 if [[ "\$1" == "\$(cat "$work/hang" 2>/dev/null)" ]]; then
@@ -60,7 +62,7 @@ echo isolation=full
 STUB
 tools=()
 while read -r name; do
-  if [[ "$name" != SUPPRESSION ]]; then
+  if [[ "$name" != SUPPRESSION && "$name" != FLOORS ]]; then
     printf '#!/bin/sh\necho "1.0"\n' >"$work/bin/$name"
     chmod +x "$work/bin/$name"
   fi
@@ -82,7 +84,7 @@ case "\$1" in
       fi
     done
     ;;
-  test)
+  test | coverage)
     # Honor the plan, so a wrong subtraction shows up as a wrong inventory.
     keep="$work/kept"
     cp "$labels" "\$keep"
@@ -116,9 +118,18 @@ chmod +x "$work/bin/adapter" "$tree/tools/checks/"*.sh "$tree/tools/bootstrap/"*
 )
 GIT_CONFIG_GLOBAL=/dev/null git -C "$tree" init -q
 git -C "$tree" add -A
-GIT_CONFIG_GLOBAL=/dev/null git -C "$tree" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m base
+commit() { GIT_CONFIG_GLOBAL=/dev/null git -C "$tree" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q "$@"; }
+commit -m base
+# The policy base is an earlier commit that holds the evaluator's paths.
+mkdir -p "$tree/quality/checks/coverage/cmd/floors"
+touch "$tree/quality/checks/coverage/cmd/floors/main.go" "$tree/quality/coverage_floors.json"
+echo 'escalate: "^quality/"' >"$tree/quality/registry.textproto"
+git -C "$tree" add -A
+commit -m evaluator
+policy_base="$(git -C "$tree" rev-parse HEAD)"
+commit --allow-empty -m tested
 
-run() { HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" "$@" </dev/null >"$work/out" 2>&1; }
+run() { HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" "--base=$policy_base" "$@" </dev/null >"$work/out" 2>&1; }
 receipt="$tree/.verify/receipt.json"
 field() { grep -E "^  \"$1\": " "$receipt" | head -1 | sed -E 's/^[^:]*: *"?([^",]*)"?,?$/\1/'; }
 state() { # the state of one check in the receipt
@@ -168,9 +179,11 @@ sed -i 's/^exit 1$/echo isolation=full/' "$tree/tools/bootstrap/preflight.sh"
 
 rc=0
 run --offline || rc=$?
-[[ $rc -eq 0 ]] || { fail "offline run: exit $rc"; sed 's/^/  /' "$work/out" >&2; }
-[[ "$(field result)" == INCOMPLETE ]] || fail "an offline run must not report PASSED, got $(field result)"
+[[ $rc -eq 11 ]] || { fail "offline run: exit $rc, want 11"; sed 's/^/  /' "$work/out" >&2; }
+[[ "$(field result)" != PASSED ]] || fail "an offline run must not report PASSED"
 [[ "$(state speckit-provenance)" == SKIPPED ]] || fail "offline skip was not recorded"
+[[ "$(state floors-from-base)" == ERROR ]] || fail "an offline run must not build a base"
+grep -qF 'needs the network' "$receipt" || fail "the offline refusal named no cause"
 
 run --weak-isolation || true
 [[ "$(state sandbox-evidence)" == FAILED ]] || fail "a linux-sandbox summary under --weak-isolation must not match"
@@ -187,7 +200,7 @@ sed -i 's/^  run) exit 1 ;;$/  run)/; /^  never)$/d' "$tree/tools/bootstrap/baze
 lock="$receipt.lock"
 held() { ! flock -n "$lock" true; }
 same_as_sentinel() { [[ "$(cat "$1" 2>/dev/null)" == sentinel ]]; }
-second() { HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" </dev/null >"$work/second" 2>&1; }
+second() { HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" "--base=$policy_base" </dev/null >"$work/second" 2>&1; }
 
 echo format-go >"$work/hang"
 : >"$work/fail"
@@ -312,6 +325,15 @@ for postcondition in test-inventory sandbox-evidence; do
 done
 owned="$(sort "$union" | grep -vxE 'test-inventory|sandbox-evidence' | uniq -d)"
 [[ -z "$owned" ]] || fail "an owned check ran in two legs: $owned"
+
+# With no base, every other check still reports, and the run is exit 11 with no pass.
+rc=0
+HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" </dev/null >"$work/out" 2>&1 || rc=$?
+[[ $rc -eq 11 ]] || fail "no base: exit $rc, want 11"
+[[ "$(field result)" != PASSED ]] || fail "no base: the receipt says PASSED"
+[[ "$(state floors-from-base)" == ERROR ]] || fail "no base: floors-from-base is '$(state floors-from-base)'"
+[[ "$(state tests)" == PASSED && "$(state coverage-floor)" == PASSED ]] || fail "no base: other results were lost"
+grep -qF 'no policy base was named' "$work/out" "$receipt" || fail "no base: the cause was not named"
 
 # A leg's inventory is that leg's rows, so a target the leg did not run fails it.
 echo test-inventory >"$work/fail"
