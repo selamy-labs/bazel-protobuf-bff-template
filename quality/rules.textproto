@@ -9,6 +9,7 @@ version: "1.0.0"
 
 tools { name: "ACTIONLINT" version_args: "--version" }
 tools { name: "BUILDIFIER" version_args: "--version" }
+tools { name: "COMPLEXITY" }
 tools { name: "FLOORS" }
 tools { name: "FROM_BASE" }
 tools { name: "GITLEAKS" version_args: "--version" }
@@ -171,6 +172,20 @@ checks {
   summary: true
   command: ["{FLOORS}", "check", "--root={root}", "--contract={contract}", "--log={bazel_log}", "--testlogs={root}/bazel-testlogs", "--bazel-exit={bazel_exit}"]
   witness: "@bff_template_quality//checks/coverage:coverage_test"
+}
+
+checks {
+  id: "complexity"
+  definition: "checks/complexity"
+  tool: "COMPLEXITY"
+  selector { include: "\\.go$" }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 120
+  summary: true
+  command: ["{COMPLEXITY}", "check", "--root={root}", "--list={list}"]
+  witness: "@bff_template_quality//checks/complexity:complexity_test"
 }
 
 checks {

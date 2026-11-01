@@ -7,6 +7,7 @@ load("@rules_go//go:def.bzl", "go_binary")
 MODULE_TOOLS = {
     "ACTIONLINT": str(Label("//tools:actionlint")),
     "BUILDIFIER": str(Label("//tools:buildifier")),
+    "COMPLEXITY": str(Label("//checks/complexity:complexity_bin")),
     "FLOORS": str(Label("//checks/coverage:floors")),
     "FROM_BASE": str(Label("//adapters:from_base.sh")),
     "GITLEAKS": str(Label("//tools:gitleaks")),

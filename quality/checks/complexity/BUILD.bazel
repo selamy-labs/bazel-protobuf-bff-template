@@ -1,0 +1,27 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "complexity",
+    srcs = ["complexity.go"],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/complexity",
+    deps = [
+        "@com_github_fzipp_gocyclo//:gocyclo",
+        "@com_github_uudashr_gocognit//:gocognit",
+    ],
+)
+
+go_test(
+    name = "complexity_test",
+    size = "small",
+    srcs = ["complexity_test.go"],
+    data = [":complexity_bin"],
+    embed = [":complexity"],
+    env = {"COMPLEXITY": "$(rlocationpath :complexity_bin)"},
+)
+
+go_binary(
+    name = "complexity_bin",
+    srcs = ["cmd/complexity/main.go"],
+    visibility = ["//visibility:public"],
+    deps = [":complexity"],
+)

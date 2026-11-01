@@ -1,0 +1,19 @@
+{
+  "measured_at": "bc97dcb4f05089050ad768103655f7dd9c3b6e30",
+  "ceilings": {
+    "cognitive": 20,
+    "cyclomatic": 19
+  },
+  "excludes": [
+    { "pattern": "_test\\.go$", "reason": "test-code" },
+    { "pattern": "\\.pb\\.go$", "reason": "generated" },
+    { "pattern": "/testdata/", "reason": "test-data" }
+  ],
+  "debt": [
+    { "function": "quality/runner/cmd/main.go run", "owner": "integrator, spec 011 T014", "values": { "cognitive": 40, "cyclomatic": 34 } },
+    { "function": "quality/runner/registry.go validateCheck", "owner": "integrator, spec 011 T014", "values": { "cognitive": 33, "cyclomatic": 27 } },
+    { "function": "quality/release/release.go Notes", "owner": "integrator, spec 011 T014", "values": { "cognitive": 32, "cyclomatic": 21 } },
+    { "function": "quality/checks/coverage/floors.go (*Config).Check", "owner": "integrator, spec 011 T014", "values": { "cognitive": 31 } },
+    { "function": "quality/runner/stage.go Run", "owner": "integrator, spec 011 T014", "values": { "cognitive": 29, "cyclomatic": 20 } }
+  ]
+}

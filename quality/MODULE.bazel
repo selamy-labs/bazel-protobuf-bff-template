@@ -18,4 +18,4 @@ use_repo(multitool, "multitool")
 # Go 1.27 (spec 006 R1). Consumers inherit this selection.
 go_deps = use_extension("@gazelle//:extensions.bzl", "go_deps")
 go_deps.from_file(go_mod = "//:go.mod")
-use_repo(go_deps, "co_honnef_go_tools", "org_golang_google_protobuf")
+use_repo(go_deps, "co_honnef_go_tools", "com_github_fzipp_gocyclo", "com_github_uudashr_gocognit", "org_golang_google_protobuf")
