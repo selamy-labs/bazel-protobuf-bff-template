@@ -19,10 +19,7 @@ sh_binary(
 
 sh_binary(
     name = "pin",
-    srcs = [
-        "install.sh",
-        "pin.sh",
-    ],
+    srcs = ["pin.sh"],
     visibility = ["//visibility:public"],
 )
 
