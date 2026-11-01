@@ -7,6 +7,7 @@ Each entry is answered by a probe or by an independent measurement at a named re
 - `gocognit` v1.3.0 exports `Analyzer`, an `analysis.Analyzer`, read from pkg.go.dev on 2026-11-01; `gocyclo` v0.6.0 exports only a library API, so cyclomatic needs the smallest adapter in this repository.
 - Independent advisory measurement at `00a4c6b` over the 53 first-party non-test Go files: cyclomatic maximum 34 and cognitive maximum 40, both `quality/runner/cmd/main.go run`; named debt: `registry.go validateCheck` 27/33, `release.Notes` 21/32, `coverage.Config.Check` 15/31, `runner.Run` 20/29 (`m9-go-complexity-result.json`). The M5 figure of 27 was stale.
 - Decision: per-function ceilings at the measured value for the named debt, with an owner each; the new-function ceiling from the tools' documented defaults, verified at landing; a ceiling only falls; the base evaluator refuses a rise. TypeScript measured the same way before any budget.
+- TypeScript at T006: the pinned ESLint's `complexity` rule, run at threshold 1 over every first-party TypeScript and JavaScript file at `a287ed7`, reported 51 functions in 21 files with a maximum of 12 (a browser journey in `web/e2e/notes.spec.mjs`) and 11 for `toFailure`, the total mapping of error codes; the ceiling is 12 in the one lint configuration, enforced by the existing lint check at pre-commit and full, with a planted control. Cognitive complexity for TypeScript needs a rule package that is not pinned (`eslint-plugin-sonarjs` is the candidate): a pin for T011, probed then.
 
 ## R2 Duplication (Q1)
 

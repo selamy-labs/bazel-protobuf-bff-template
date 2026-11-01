@@ -24,6 +24,19 @@ eslint_bin.eslint_test(
     ],
 )
 
+# The TypeScript complexity budget's planted control (spec 011 FR-005): one over the ceiling refused, at it accepted.
+js_test(
+    name = "eslint_complexity_witness_test",
+    size = "small",
+    args = ["--test"],
+    data = [
+        "eslint.config.mjs",
+        "//:node_modules/eslint",
+        "//:node_modules/typescript-eslint",
+    ],
+    entry_point = "complexity.test.mjs",
+)
+
 js_test(
     name = "eslint_witness_test",
     size = "small",
