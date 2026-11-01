@@ -49,7 +49,8 @@ validator.
 | --- | --- |
 | Hosted CI has never run, and no remote exists | Operator gate |
 | A repository's first hosted push has no base, and a proposal controls its own workflow | M8, operator gate, upstream #26 |
-| The quality interface is not stable until 1.0.0 is declared | M7 |
+| The quality interface is stable only from the `quality-v1.0.0` tag, which goes on the commit an independent review accepts. Before that tag, 1.0.0 is a proposal | M7 |
+| A consumer's proposal can pin a module whose adapter judges nothing. The base's evaluator runs only if the adapter that calls it does, and that adapter comes from the proposal's pin. `floors-from-base` then passes without judging, and a person reading the pin change is the only control here | Upstream #26 |
 | macOS is unverified. The browser tests cannot run there, and stock macOS has no `flock` | Open |
 | The authoring host runs only with weakened isolation. Full isolation is observed in independent runs, which [m5](../evidence/m5.md) and [m6](../evidence/m6.md) name | Independent review of each final revision |
 | Browser code has no coverage data, and Go has no branch data | Open, stated in `quality/coverage_floors.json` |

@@ -168,10 +168,10 @@ scenarios; the deliberately broken variant fails.
 
 ## Phase 7: User Story 5 — Second consumer and upgrade (Priority: P3) — M7
 
-- [ ] T071 [US5] Release procedure for `bff_template_quality`: immutable tag commit, release notes with rule-change table generated from registry diff, in `quality/RELEASING.md` and `quality/tools/rule_diff.go`
-- [ ] T072 [US5] Second neutral consumer as a **separate Git repository** (different neutral domain; local until M8, consuming quality vN via `git_override` and prek `repo`/`rev` against a `file://` remote; re-proven against the hosted remote after publication)
-- [ ] T073 [US5] Upgrade the consumer vN → vN+1 by one pin change; record diff and verifier outcome. **Witness** SC-008
-- [ ] T074 [P] [US5] Language adapter profile with Python worked design in `docs/extending/language-profile.md` (no Python code without a consumer)
+- [x] T071 [US5] Release procedure for `bff_template_quality`: immutable tag commit, release notes with rule-change table generated from registry diff, in `quality/RELEASING.md` and `quality/tools/rule_diff.go`
+- [x] T072 [US5] Second neutral consumer as a **separate Git repository** (different neutral domain; local until M8, consuming quality vN via `git_override` and prek `repo`/`rev` against a `file://` remote; re-proven against the hosted remote after publication)
+- [x] T073 [US5] Upgrade the consumer vN → vN+1 by one pin change; record diff and verifier outcome. **Witness** SC-008
+- [x] T074 [P] [US5] Language adapter profile with Python worked design in `docs/extending/language-profile.md` (no Python code without a consumer)
 - [ ] T075 [US5] Checkpoint: declare quality interface stable (1.0.0) only if T073 passes
 
 ---

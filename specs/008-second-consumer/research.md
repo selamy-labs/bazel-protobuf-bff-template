@@ -100,6 +100,8 @@ Independent review at `a988f2a` found that an indented `repo = "local"` with a r
 
 The check reads files. A command-line or rc-file `--override_module` is outside it.
 
+T011 measured one more limit. The base's evaluator is built from the base's pin, but `from_base.sh` itself comes from the proposal's pin. A proposal that lowers a floor and pins a module whose adapter exits 0 passes the verifier. Moving the adapter out of the proposal's reach needs something a proposal does not control, which is what upstream #26 and a protected workflow are for, so it stays a named gap and gets no local workaround.
+
 ## R10 The N+1 rule
 
 The first idea, Staticcheck's `lint:ignore`, was already in S011. gosec's README documents a second inline form, `//gosec:disable`, which "functions similar to `#nosec`", and S011 has only `#nosec`. So the table misses a form of a tool it already names. The improvement is a new code, S013, because codes are stable, and it makes the notes show an added line in the catalog's named definition. No gosec runs here, so this proves the scanner's verdict on the directive. It does not prove that gosec honored one.

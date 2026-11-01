@@ -32,5 +32,16 @@ ordinary path. The notes inform a reader and gate nothing. Detecting and authori
 
 ## Compatibility
 
-Until 1.0.0 the interface may change. It is declared stable only on a candidate that a real consumer has
-upgraded to by its one pin, after independent review of that exact commit (spec 008 FR-010).
+1.0.0 is proposed on the commit whose module and catalog carry that version. It is declared only by the tag
+`quality-v1.0.0`, on the exact commit that a real consumer has pinned and an independent review has accepted
+(spec 008 FR-010). Nothing in the implementation changes to receive the tag.
+
+From that tag, these change only with a major version:
+
+- rule ids and suppression codes, which are never reused
+- the `rules { id shard args context targets }` binding, and the `Registry` fields a host sets
+- `quality_binary`'s arguments, and the `{contract}` and `{bazel}` expansions
+- the exit codes, and the hook ids in `.pre-commit-hooks.yaml`
+- the `prek.toml` and `git_override` form that `quality-pin` reads
+
+A minor version may add a rule, and a consumer may then have to fix what the rule finds. The notes show it.

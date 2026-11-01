@@ -14,7 +14,7 @@ depends on the application that uses it.
 - [specs/002 research.md](../specs/002-hermetic-skeleton/research.md) describes the M1 pins and
   checks.
 
-## Contents (0.3.0)
+## Contents (1.0.0)
 
 | Path | What it is |
 | --- | --- |
@@ -89,7 +89,11 @@ rule at commit time, so `tools/verify.sh` is what catches it. The rule reads the
 `--override_module` flag or rc line is outside it.
 A host that builds with `--config=weak-isolation` passes it to the `run` above as well.
 
-The interface is not stable until it is declared so in [RELEASING.md](RELEASING.md).
+`floors-from-base` builds the evaluator from the base's pin, so a proposal cannot replace the evaluator. The adapter
+that calls it comes from the proposal's pin, and a pin change that guts it is not caught by this rule. Read a pin
+change as a policy change.
+
+[RELEASING.md](RELEASING.md) says what is stable, and from when.
 
 ## Owner
 

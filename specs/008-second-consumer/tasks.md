@@ -15,11 +15,11 @@ One writer.
 | [x] T009 | T008 | Smallest consumer: one Go package, its own policy; one canonical pin, and the deterministic step that syncs both adapters | T072, FR-002 | Separate clone; both adapters resolve one SHA |
 | [x] T017 | T009 | Two repairs from independent review at `a988f2a`: the pin check fails closed; the notes read only inside the selected tree | FR-002, FR-006 | `pin_test`, `release_test`; each refused prek form valid under pinned prek; red before the code |
 | [x] T018 | T017, root's wiring review | A new N, never a moved tag, and a new consumer anchor on it, proven on the real consumer | T071, FR-010 | Commit recorded; anchor controls |
-| [ ] T010 | T018 | Consumer anchor C0: exit 11 control, then hold for independent targeted review. No descendant uses C0 as a base before it clears | FR-004 | Review |
-| [ ] T011 | T010 | Consumer verifier at N, on a descendant of the reviewed C0 still pinned to N, with `--base=C0`. C0 itself refuses, as its own base | SC-001 | Receipt |
-| [ ] T012 | T011 | One real compatible rule improvement, visible in the catalog diff, tag N+1, upgrade by the pin | T073, FR-007, SC-002 | Diff with mechanical effects apart; clean pass; deliberate defect caught; control restored |
-| [ ] T013 | T011 | Move a tag in the remote; SHA-pinned consumer unaffected | FR-008 | Logs |
-| [ ] T014 | T012 | Language profile document | T074 | Review |
+| [x] T010 | T018 | Consumer anchor C0: exit 11 control, then hold for independent targeted review. No descendant uses C0 as a base before it clears | FR-004 | Review |
+| [x] T011 | T010 | Consumer verifier at N, on a descendant of the reviewed C0 still pinned to N, with `--base=C0`. C0 itself refuses, as its own base | SC-001 | Receipt |
+| [x] T012 | T011 | One real compatible rule improvement, visible in the catalog diff, tag N+1, upgrade by the pin | T073, FR-007, SC-002 | Diff with mechanical effects apart; clean pass; deliberate defect caught; control restored |
+| [x] T013 | T011 | Move a tag in the remote; SHA-pinned consumer unaffected | FR-008 | Logs |
+| [x] T014 | T012 | Language profile document | T074 | Review |
 | [ ] T015 | T014 | Evidence, ledgers, freeze, gates, hold. The candidate states it is proposed as 1.0.0 | all, T075, FR-010 | Receipts, independent review |
 | [ ] T016 | T015 | Tag that exact reviewed candidate as 1.0.0, with no implementation change | T075 | Tag names the reviewed commit |
 
@@ -33,4 +33,7 @@ One writer.
 - T010: was to hold at C0 for independent targeted review. T011 needs a descendant of the reviewed C0.
 - Review of `a988f2a` found two defects that `quality-v0.2.0` carries, so that tag and its C0 are withdrawn as a baseline. The tag and its record stay as they are. T017 repairs both, and T018 replaces T008 and T009's result.
 - T017: `8b57e2c`, `b71f78f`.
+- T010: C0 `8b76a2f` cleared by independent targeted review. T011: C1 `05884b1`.
+- T012: `quality-v0.3.0`, `9284009`, and the consumer's `8c9b3aa`. T013: same verdict with the tag moved, and the fixture restored. T014: the language profile.
+- T015: the candidate carries 1.0.0 as a proposal, so nothing but the tag changes after review. The consumer pins it before the final review, and the evidence that names both follows in a later commit, because a file cannot name the commit that contains it.
 - T018: after the wiring review, `quality-v0.2.1`, `19af61b`, once this repository's full verifier passed there. The new consumer is a separate repository with one commit, and that commit is C0. T010 holds at it. No descendant uses it as a base until it clears.
