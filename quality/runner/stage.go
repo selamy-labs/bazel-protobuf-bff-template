@@ -211,7 +211,9 @@ func (e *execution) resolveBase(ctx context.Context, git Git) Base {
 	needed := slices.ContainsFunc(e.options.Registry.GetChecks(), func(check *registrypb.Check) bool {
 		return check.GetNeedsBase() && e.selected(check)
 	})
-	if !needed && e.options.Base == "" {
+	// A hook passes its setting on every push, and only a push that widened uses it. Any other named base
+	// binds the receipt, whether or not a check here reads it.
+	if !needed && (e.options.Base == "" || e.options.BaseSource == "hook-config") {
 		return Base{}
 	}
 	head, err := git.Run(ctx, nil, "rev-parse", "HEAD")
@@ -535,6 +537,9 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 		}
 	}
 	receipt.BaseRevision, receipt.BaseSource, receipt.BaseRefusal = e.base.Revision, e.base.Source, e.base.Refusal
+	if e.base.Refusal != "" && e.options.Base != "" {
+		receipt.Problems = append(receipt.Problems, "policy base: "+e.base.Refusal)
+	}
 	if e.base.Revision != "" {
 		digest, err := BaseOwnPolicyDigest(ctx, git, e.base.Revision)
 		if err != nil {

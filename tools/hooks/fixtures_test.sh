@@ -466,6 +466,16 @@ push "$t" -q origin ordinary
 accepted "an ordinary first push of a topic branch needs no base"
 [[ "$(of_receipt stage)" == pre-push ]] || fail "an ordinary first push widened"
 
+# A setting the push never needs cannot block it.
+git -C "$t" config bff-template.policy-base no-such-ref
+echo more >>"$t/more.txt"
+git -C "$t" add more.txt
+git -C "$t" commit -q --no-verify -m ordinary-again
+push "$t" -q origin ordinary
+accepted "an ordinary push is not judged by a setting it does not use"
+[[ "$(of_receipt base_refusal)" == null ]] || fail "an ordinary push recorded a refusal"
+git -C "$t" config --unset bff-template.policy-base
+
 git -C "$t" switch -q -c policy main
 echo '{ }' >"$t/quality/coverage_floors.json"
 git -C "$t" add -A

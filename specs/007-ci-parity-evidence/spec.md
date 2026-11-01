@@ -109,6 +109,9 @@ Base and bootstrap
   PASSED. There is no flag, default or fallback that compares a tree with itself.
 - **FR-015**: A receipt MUST record the resolved base SHA and how it was chosen: `argument`, `hook-config` or
   `ci-event`. It MUST NOT claim the base was reviewed. Review and readiness are separate records.
+- **FR-015c**: A base named as an argument or by CI binds the receipt even when no selected check reads it. If it cannot be
+  resolved, other results stay, and the receipt carries a problem, exit 11. A hook's setting is read only when a push
+  widens, so it cannot block an ordinary push.
 - **FR-015b**: `base_policy_digest` MUST use the base's own registry as the definition of its policy inputs. If that
   registry cannot be read or parsed, the identity is unavailable, and the receipt cannot be PASSED. This is metadata about
   the base, and no judgment of the proposal.

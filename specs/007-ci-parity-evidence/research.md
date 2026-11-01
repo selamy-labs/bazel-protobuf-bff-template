@@ -198,7 +198,7 @@ tools/verify.sh --base=C0  # PASSED
 The consumer's evaluator would come from `C0`'s pin of the quality module, so an upgrade is itself judged by the older pin. This flow is intent, not yet possible: the runner looks for the
 evaluator and registry at `quality/...` in the tree, and a pinning consumer has no such directory. M7 owns that decoupling, and no stable interface is claimed before it.
 
-**Bases elsewhere.**
+**Bases elsewhere.** Each CI leg selects the same base and carries it in its receipt, so a leg that reads none still names it. A base named by an argument or by CI must resolve; a hook setting is read only when a push widens.
 
 | Producer | Policy base | `base_source` |
 | --- | --- | --- |

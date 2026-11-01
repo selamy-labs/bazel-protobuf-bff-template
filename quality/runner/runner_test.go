@@ -1552,6 +1552,52 @@ func TestUnreadableBaseRegistryIsAProblem(t *testing.T) {
 	}
 }
 
+// A base given to a run that needs none still binds its receipt, so a bad one cannot pass as no identity.
+func TestSuppliedBaseMustResolveEvenWhenNoCheckNeedsIt(t *testing.T) {
+	h, evaluator, _ := baseRepository(t)
+	run := func(named, source string) (int, *Receipt) {
+		t.Helper()
+		options := h.options(native("other", "true"), registrypb.Stage_STAGE_FULL)
+		options.Base, options.BaseSource = named, source
+		options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+		code := h.run(options)
+		receipt := receiptOf(t, options.ReceiptPath)
+		return code, &receipt
+	}
+	code, receipt := run(evaluator, "ci-event")
+	if code != ExitOK || receipt.Result != "PASSED" || receipt.BaseRevision != evaluator || receipt.BasePolicyDigest == "" || receipt.BaseSource != "ci-event" {
+		t.Fatalf("the valid control: exit %d, %+v", code, receipt)
+	}
+	for _, named := range []string{"no-such-ref", "HEAD", "-x"} {
+		code, receipt := run(named, "ci-event")
+		if code != ExitNoEvidence || receipt.Result == "PASSED" || receipt.BaseRevision != "" {
+			t.Fatalf("%s: exit %d, %+v", named, code, receipt)
+		}
+		if !strings.Contains(strings.Join(receipt.Problems, "\n"), "policy base") {
+			t.Fatalf("%s: problems %q", named, receipt.Problems)
+		}
+		if len(receipt.Checks) != 1 || receipt.Checks[0].State != Passed {
+			t.Fatalf("%s: the other result was lost: %+v", named, receipt.Checks)
+		}
+	}
+}
+
+// A hook's setting is read only when a push widens. An ordinary push that needs no base is not judged
+// by a setting it never uses.
+func TestHookSettingIsIgnoredWhenNothingNeedsIt(t *testing.T) {
+	h, _, _ := baseRepository(t)
+	options := h.options(native("other", "true"), registrypb.Stage_STAGE_FULL)
+	options.Base, options.BaseSource = "no-such-ref", "hook-config"
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	receipt := receiptOf(t, options.ReceiptPath)
+	if receipt.BaseRefusal != "" || receipt.BaseSource != "" || receipt.Result != "PASSED" {
+		t.Fatalf("receipt: %+v", receipt)
+	}
+}
+
 func TestOfflineRefusesABuiltBase(t *testing.T) {
 	h, _, _ := baseRepository(t)
 	options := h.options(baseChecks(), registrypb.Stage_STAGE_FULL)

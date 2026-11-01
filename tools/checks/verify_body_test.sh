@@ -315,6 +315,8 @@ for leg in "${legs[@]}"; do
   run "--shard=$leg" || rc=$?
   [[ $rc -eq 0 ]] || { fail "leg $leg: exit $rc"; sed 's/^/  /' "$work/out" >&2; }
   [[ "$(field shard)" == "$leg" ]] || fail "leg $leg: the receipt names '$(field shard)'"
+  [[ "$(field base_revision)" == "$policy_base" ]] || fail "leg $leg: the receipt lost the base"
+  [[ -n "$(field base_policy_digest)" ]] || fail "leg $leg: the receipt lost the base's digest"
   [[ "$(field result)" == PASSED ]] || fail "leg $leg: result $(field result)"
   grep -E '^      "check": ' "$receipt" | sed -E 's/.*"check": "([^"]+)".*/\1/' >>"$union"
 done
@@ -340,6 +342,13 @@ HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" </dev/null >"$wor
 [[ "$(state floors-from-base)" == ERROR ]] || fail "no base: floors-from-base is '$(state floors-from-base)'"
 [[ "$(state tests)" == PASSED && "$(state coverage-floor)" == PASSED ]] || fail "no base: other results were lost"
 grep -qF 'no policy base was named' "$work/out" "$receipt" || fail "no base: the cause was not named"
+
+# A leg that reads no base still cannot pass on a base it was given and could not use.
+rc=0
+HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" --shard=e2e --base=no-such-ref </dev/null >"$work/out" 2>&1 || rc=$?
+[[ $rc -eq 11 ]] || fail "a leg given a bad base: exit $rc, want 11"
+[[ "$(field result)" != PASSED ]] || fail "a leg given a bad base: the receipt says PASSED"
+[[ "$(state e2e-browser)" == PASSED ]] || fail "a leg given a bad base: its check result was lost"
 
 # A leg's inventory is that leg's rows, so a target the leg did not run fails it.
 echo test-inventory >"$work/fail"

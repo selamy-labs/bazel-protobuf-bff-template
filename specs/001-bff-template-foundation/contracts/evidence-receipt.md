@@ -15,8 +15,8 @@ produces receipts and runs one aggregate gate. It does not define readiness.
 | `shard` | the leg: `build-test`, `e2e` or `policy`. Absent on a whole-stage run |
 | `revision`, `tree`, `tested_tree` | full SHA of the commit under test, and what was tested |
 | `policy_digest` | digest of the policy inputs in the tested tree |
-| `base_revision`, `base_source` | the policy base and how it was chosen, once the leg has one. Naming a base claims no review |
-| `base_policy_digest` | digest of the base's policy inputs, once the leg has a base |
+| `base_revision`, `base_source` | the policy base and how it was chosen. Every leg of a hosted run carries the same base. Naming a base claims no review |
+| `base_policy_digest` | digest of the base's policy inputs, by the base's own registry |
 | `producer` | workflow, job, run id and attempt; no personal identifiers |
 | `attempt` | hosted run attempt |
 | `result` | `PASSED`, `FAILED`, `INCOMPLETE` and other terminal results. Only terminal receipts are written |

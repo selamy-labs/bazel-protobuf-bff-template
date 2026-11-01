@@ -32,7 +32,7 @@ trigger_narrowed	.on = {"workflow_dispatch": null}	on triggers
 concurrency_cancels	.concurrency["cancel-in-progress"] = true	concurrency
 runner_changed	.jobs["build-test"]["runs-on"] = "self-hosted"	runs-on
 timeout_removed	del(.jobs["build-test"]["timeout-minutes"])	timeout-minutes
-verifier_flag_added	(.jobs["build-test"].steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=build-test --offline"	run body
+verifier_flag_added	(.jobs["build-test"].steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=build-test \"--base=$POLICY_BASE\" --base-source=ci-event --offline"	run body
 gate_permission_write	.jobs.gate.permissions = {"contents": "write"}	permissions
 step_env_scalar	(.jobs["build-test"].steps[] | select(.run // "" | test("sysctl"))).env = "${{ fromJSON(vars.VERIFY_ENV) }}"	env
 verify_env_scalar	(.jobs["build-test"].steps[] | select(.name == "Verify")).env = "${{ fromJSON(vars.VERIFY_ENV) }}"	env
@@ -44,7 +44,7 @@ sysctl_step_removed	.jobs["build-test"].steps |= map(select((.run // "") | test(
 gate_action_only	.jobs.gate.steps = [{"uses": "actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1", "with": {"persist-credentials": false, "ref": "${{ github.event.pull_request.head.sha || github.sha }}"}}]	step order
 leg_removed_with_needs	del(.jobs.e2e) | .jobs.gate.needs -= ["e2e"]	registry's legs
 leg_added	.jobs.extra = .jobs.e2e | .jobs.gate.needs += ["extra"]	registry's legs
-leg_runs_another_leg	(.jobs.e2e.steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=policy"	exactly once
+leg_runs_another_leg	(.jobs.e2e.steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=policy \"--base=$POLICY_BASE\" --base-source=ci-event"	exactly once
 leg_whole_policy	(.jobs.e2e.steps[] | select(.name == "Verify")).run = "tools/verify.sh"	run body
 artifact_name_without_attempt	(.jobs.e2e.steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with.name = "verify-receipt"	with inputs
 pull_request_target_trigger	.on.pull_request_target = null	on triggers
@@ -53,3 +53,7 @@ policy_base_self	(.jobs.policy.steps[] | select(.name == "Verify")).env.POLICY_B
 policy_base_step_removed	.jobs.policy.steps |= map(select(.id != "base"))	step order
 policy_base_interpolated	(.jobs.policy.steps[] | select(.id == "base")).run = "echo sha=${{ github.event.before }}"	run body
 policy_leg_without_base	(.jobs.policy.steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=policy"	run body
+leg_without_base	(.jobs["build-test"].steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=build-test"	run body
+e2e_without_base	(.jobs.e2e.steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=e2e"	run body
+leg_base_step_removed	.jobs.e2e.steps |= map(select(.id != "base"))	step order
+leg_own_base	(.jobs["build-test"].steps[] | select(.name == "Verify")).env.POLICY_BASE = "${{ github.sha }}"	env

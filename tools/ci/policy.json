@@ -42,8 +42,8 @@
   ],
   "gate": "gate",
   "required_run": {
-    "build-test": "tools/verify.sh --shard=build-test",
-    "e2e": "tools/verify.sh --shard=e2e",
+    "build-test": "tools/verify.sh --shard=build-test \"--base=$POLICY_BASE\" --base-source=ci-event",
+    "e2e": "tools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event",
     "policy": "tools/verify.sh --shard=policy \"--base=$POLICY_BASE\" --base-source=ci-event"
   },
   "runs": [
@@ -51,10 +51,16 @@
       "body": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
     },
     {
-      "body": "tools/verify.sh --shard=build-test"
+      "body": "tools/verify.sh --shard=build-test \"--base=$POLICY_BASE\" --base-source=ci-event",
+      "env": {
+        "POLICY_BASE": "${{ steps.base.outputs.sha }}"
+      }
     },
     {
-      "body": "tools/verify.sh --shard=e2e"
+      "body": "tools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event",
+      "env": {
+        "POLICY_BASE": "${{ steps.base.outputs.sha }}"
+      }
     },
     {
       "body": "tools/ci/policy_base.sh >>\"$GITHUB_OUTPUT\"",
@@ -84,13 +90,15 @@
     "build-test": [
       "uses:actions/checkout",
       "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
-      "run:tools/verify.sh --shard=build-test",
+      "run:tools/ci/policy_base.sh >>\"$GITHUB_OUTPUT\"",
+      "run:tools/verify.sh --shard=build-test \"--base=$POLICY_BASE\" --base-source=ci-event",
       "uses:actions/upload-artifact"
     ],
     "e2e": [
       "uses:actions/checkout",
       "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
-      "run:tools/verify.sh --shard=e2e",
+      "run:tools/ci/policy_base.sh >>\"$GITHUB_OUTPUT\"",
+      "run:tools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event",
       "uses:actions/upload-artifact"
     ],
     "policy": [
