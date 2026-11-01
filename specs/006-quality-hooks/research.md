@@ -12,8 +12,8 @@ The diagnosis in spec 004 R7 named rules_go, and that was too narrow.
   `export data version 5 is greater than maximum supported version 4`. Removing cgo did not change it.
 - **Cause.** nogo reads export data with `golang.org/x/tools`. rules_go 0.64.2 selects v0.48.0, whose
   `pkgbits` stops at V4. Go 1.27 writes V5. v0.52.0 (2026-10-10) has V5.
-- **Route.** `go_deps.module` raises x/tools to v0.52.0 with its sum. Go module selection applies
-  across modules, so rules_go's own `org_golang_x_tools` follows. rules_go and the Go SDK stay
+- **Route.** The quality module's `go_deps.from_file` raises x/tools to v0.52.0. Go module selection
+  applies across modules, so rules_go's own `org_golang_x_tools` follows. rules_go and the Go SDK stay
   pinned, so this does not need 0.65.0 and does not wait for 2026-11-05.
 - **Probe.** With this one change, nogo with vet built `//bff/...`. A planted
   `fmt.Sprintf("%d", "not a number")` failed the build with the `printf` finding, and removing it
@@ -22,7 +22,9 @@ The diagnosis in spec 004 R7 named rules_go, and that was too narrow.
   moves.
 
 staticcheck v0.8.2 (2026-10-12) passes the pin rule and is the second half of T091. It runs on
-repository code only, because third-party findings are not this repository's to fix.
+repository code only, because third-party findings are not this repository's to fix. nogo's default
+scope is the main repository, and `analysis-fixture` showed the quality module going unjudged, so the
+scope names `@bff_template_quality` too. SA5011 panics on this code and is excluded.
 
 ## R2 prek (T056, T057)
 
@@ -78,6 +80,10 @@ must not depend on root's `@protovalidate_proto`.
 - **Bazel server.** See R7.
 - **Bazel lock.** `bazel run` releases the output-base lock before starting the binary, so the runner
   may call Bazel. The first full run witnesses it.
+- **Adopted orphans.** A subreaper must also reap while the check runs. A Bazel server that a fixture
+  started and shut down stayed a zombie under the supervisor, and `bazel shutdown` waited on it and
+  exited 36. The supervisor now reaps adopted children on SIGCHLD. Witness:
+  `TestAdoptedOrphanIsReapedWhileTheCheckRuns`.
 - **macOS.** Process group only. Unverified.
 
 ## R6 Capacity
@@ -87,7 +93,9 @@ stages that run Bazel tests. Go opens files close-on-exec, so no child inherits 
 with its last open description. A daemon therefore cannot keep a slot. A negative control clears
 close-on-exec and must show the failure. Waiting is bounded and ends with exit 10. Pre-commit takes no
 slot: it builds nothing past the runner and has a 5 s target. The push worktree has its own lock,
-held by the orchestrating parent.
+held by the orchestrating parent. `<receipt>.lock` is held for the whole run, so a second producer
+cannot remove or overwrite what an active one is writing. `verify_body.sh` still removes a stale
+receipt before the runner starts, and that one removal happens outside the lock.
 
 ## R7 Daemons
 
@@ -115,6 +123,10 @@ closes the M1 open item by decision, not by killing the process.
 
 A capacity slot bounds how many runs start. It proves nothing about custody.
 
+`hook-e2e` witnesses both sides with a real Bazel. A one-check runner times out beside an independent
+`bazel build` on the same server: the runner exits 10, the other build finishes, and the server PID is
+unchanged. A pre-push deadline on the private output base stops that server, and the checkout's stays.
+
 ## R8 Snapshots
 
 - **Pre-commit.** `git diff --cached --name-only -z --diff-filter=ACMRD` selects paths, then
@@ -133,20 +145,32 @@ A capacity slot bounds how many runs start. It proves nothing about custody.
   `bootstrap ERROR` saying no check ran, exits 2 and never names a check. An untracked file in an
   ordinary checked package is outside that graph and has no effect. Eliminating the case would need a
   runner built from the index on every commit, which costs far more than the 5 s target for a
-  failure that is loud, blocks nothing silently and passes nothing.
+  failure that is loud, blocks nothing silently and passes nothing. The real case `hook-e2e` uses is
+  an empty untracked `tools/checks/BUILD.bazel`, which makes a package of a directory the root
+  package names files in. A `MODULE.bazel` inside the quality module does not break it: the first
+  attempt at that control passed the commit, so the control was replaced.
+- **Pre-push stash.** prek stashes unstaged changes at pre-push too. An unstaged fix therefore puts the
+  defect back in the checkout during the hook, and a fixture written that way cannot tell the commit
+  from the checkout. A mutant that judged the checkout survived it. The fix must be staged.
 
 ## R9 Affected tests
 
-Pre-push runs `bazel test //... --test_tag_filters=-e2e`. Bazel's own test cache decides what reruns,
-so there is one invocation, no query and no selection that could be wrong. Cost is a warm analysis.
-Bazel exit 4 stays `NOT_APPLICABLE`.
+Pre-push runs `bazel test` over `//...` and the quality module, minus the targets of checks outside
+the stage, which keeps browser tests out with no tag and no second list. Bazel's own test cache
+decides what reruns, so there is one invocation, no query and no selection that could be wrong. Cost
+is a warm analysis. Bazel exit 4 stays `NOT_APPLICABLE`.
 
 ## R10 Adapters
 
 `tools/checks/native.sh` is qualified and has fixtures, so it stays one file and moves to
 `quality/adapters/native.sh`, instead of splitting into the five directories T054 listed. Input
 discovery moves to Go with its tests (`select.go`), so selectors live in the registry. Checks that
-judge a Bazel log reuse `test_evidence.sh`.
+judge a Bazel log reuse `test_evidence.sh`. `verify_body.sh` stays as a thin wrapper, not deleted as
+T011 first said: it runs preflight and builds the runner, which nothing built can do for itself.
+
+Secrets and proto lint run from inside their scratch directories, so a diagnostic names a repository
+path and not a temporary one. `gitleaks --verbose` names the file, and `--redact` keeps the finding
+out of the output and the retained log; a fixture and a mutant both hold that.
 
 Moving the repository-specific policy scripts for a consumer's use is M7 work.
 

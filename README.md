@@ -5,8 +5,8 @@
 This is a neutral starter for contract-first web applications. A browser client and a
 backend-for-frontend talk only through generated Protocol Buffer/Connect clients, and Bazel owns the
 toolchains, code generation and tests. The aim is shared, versioned quality checks that run the same
-way in Git hooks, in the local verifier and in CI. Hooks and shared-check distribution are not built
-yet.
+way in Git hooks, in the local verifier and in CI. The local hooks and the one check registry exist;
+hosted CI has never run, and consumer distribution is not built yet.
 
 **Status: M1 to M4 exist locally.** The app works: `CreateNote` and `GetNote` run from a React page
 through a Go server, tested in a pinned browser. M1 to M3 passed independent local Linux
@@ -50,7 +50,8 @@ Other entry points:
 | Command | What it does |
 | --- | --- |
 | `tools/bootstrap/fresh_clone.sh` | Fresh-clone witness; `--hostile` also plants rc files and a real defect |
-| `tools/bench/measure.sh` | Feedback-cost measurement of bootstrap, first verify, warm and edited runs; results go to `docs/budgets/` |
+| `tools/bootstrap/bazel.sh run //tools/hooks:install` | Installs the pinned Git hooks; see [hooks](docs/quality/hooks.md) |
+| `tools/bench/measure.sh` | Feedback-cost measurement of bootstrap, first verify, warm and edited runs, or of the hook stages with `--stages-only`; results go to `docs/budgets/` |
 
 `bazel` on your PATH is not used by the verifier. To run Bazel yourself with the same pin and rc
 isolation, use `tools/bootstrap/bazel.sh`.

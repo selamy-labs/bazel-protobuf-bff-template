@@ -40,6 +40,7 @@ These are fetched at build time by version and sha256 and are not vendored or re
 | buildifier | 10.1.0 | Apache-2.0 | same |
 | yq | 4.54.1 | MIT | same |
 | uv | 0.13.1 | MIT OR Apache-2.0 | same |
+| prek | 0.5.5 (musl builds on Linux) | MIT | same; `tools/hooks/install.sh` copies the pinned binary into the local Git directory and never redistributes it |
 | Spec Kit Python dependencies | see the lock | as published by each package; to be enumerated by T077 | `tools/speckit/requirements.lock` (hashes) |
 | CPython (managed by uv) | 3.12.15 | PSF-2.0 | `tools/speckit/bootstrap.sh` |
 | actions/checkout, actions/upload-artifact | v7.0.1, v7.0.2 (pinned by commit) | MIT | `.github/workflows/ci.yml` |
@@ -80,7 +81,16 @@ and connect-web are bundled into the built page, so a deployed bundle carries th
 | Debian 12 shared libraries for the browser | see `tools/browser/debs.bzl` | as published by each Debian package (for example MPL-2.0 for NSS, LGPL for GLib); to be enumerated by T077 | `tools/browser/debs.bzl` (sha256) |
 | fonts-dejavu-core (Debian 12), DejaVu fonts for the browser | 2.37-6 | Bitstream Vera license for the fonts, with DejaVu changes in the public domain; Debian packaging files are GPL-2+ and are not used | `tools/browser/debs.bzl` (sha256) |
 
-## Planned dependencies (pinned when their first consumer arrives)
+## Quality toolchain (M5)
 
-These dependencies are not vendored, so they are fetched by pinned version or digest. Their
-licenses are recorded when they are pinned (task T077 automates the check): prek.
+These are fetched by version and checksum and are not vendored. The licenses shown come from each
+project's own package metadata. Transitive npm packages are not yet enumerated (T077).
+
+| Item | Version | License | Where pinned |
+| --- | --- | --- | --- |
+| golang.org/x/tools | 0.52.0 | BSD-3-Clause | `quality/go.mod`, `quality/go.sum` |
+| honnef.co/go/tools (staticcheck) | 0.8.2 | MIT | same |
+| golang.org/x/mod, golang.org/x/sync, golang.org/x/exp/typeparams | 0.42.0, 0.24.0, `v0.0.0-20231108232855-2478ac86f678` (indirect) | BSD-3-Clause | same |
+| ESLint | 10.13.0 | MIT | `package.json`, `pnpm-lock.yaml` |
+| typescript-eslint | 8.71.2 | MIT | same |
+| Prettier | 3.9.10 | MIT | same |

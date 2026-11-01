@@ -6,7 +6,7 @@ The reusable unit is a working application plus an upgradeable quality dependenc
 
 ## What is verified now
 
-The local template has an approved foundation design and a repaired M1 skeleton. Its first independent review returned REVISE: five high, four medium and two low findings. Those and a later re-review are repaired, and the source at `58b0f38` passed one independent full-isolation run on Linux x86_64 (see [the evidence record](evidence/m1-remediation.md)). There is no application yet, and no origin is configured. Local runs on the authoring host stay explicitly weakened. Hosted CI and macOS have not been witnessed.
+The local template has an approved foundation design and a repaired M1 skeleton. Its first independent review returned REVISE: five high, four medium and two low findings. Those and a later re-review are repaired, and the source at `58b0f38` passed one independent full-isolation run on Linux x86_64 (see [the evidence record](evidence/m1-remediation.md)). The notes application, the registry, the runner and the lifecycle hooks have since landed, and [the capability table](quality/capability-states.md) states what each has shown at which revision. No origin is configured. Local runs on the authoring host stay explicitly weakened. Hosted CI and macOS have not been witnessed.
 
 The public upstream hook, policy-diff, evidence, contract-consumer and worker-profile issues are still open. They are design inputs, not released dependencies. The template must record their adoption points without inventing parallel implementations or claiming their guarantees already exist.
 

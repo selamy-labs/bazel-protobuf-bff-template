@@ -52,7 +52,7 @@ synthetic graphs, so the test proves it can fail.
 
 `gofmt` from the pinned SDK joins the verifier as `format-go`.
 
-`nogo` is deferred to M5. Under rules_go 0.64.2 and Go 1.27.2 its analyzers fail with "cannot decode"
+`nogo` is deferred to M5. (Spec 006 research R1 corrects the diagnosis below: the blocker is the `golang.org/x/tools` version, not rules_go, and nogo now runs.) Under rules_go 0.64.2 and Go 1.27.2 its analyzers fail with "cannot decode"
 on the standard library's export data, before they reach this repository's code. rules_go 0.65.0 was
 released on 2026-10-22, so it is under the 14-day pin rule on this date. **Vet does not run yet.**
 M5 takes this with staticcheck, starting by rechecking 0.65.0.

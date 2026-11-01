@@ -1,43 +1,34 @@
 # Contract: Canonical Check Registry and Runner
 
 The registry is the only place a quality rule is defined (constitution IV). Schema:
-`quality/proto/registry.proto` (M5, T050); instance: `quality/registry.textproto`.
+`quality/proto/registry.proto`; instance: `quality/registry.textproto`. The instance is authoritative
+for ids, stages, class and witness. [Classification](../../../docs/quality/classification.md) explains
+the classes and lists the rules deliberately left out. M5's reasons are in
+[spec 006 research R11](../../006-quality-hooks/research.md).
 
-## Initial checks (first slice)
+## Checks
 
-| id | Canonical tool (pinned) | Stages | Class | Notes |
-| --- | --- | --- | --- | --- |
-| `secrets` | gitleaks | pre-commit, full | GUARANTEE | staged blobs at pre-commit; full history-free tree scan at full |
-| `suppression-ban` | runner built-in pattern set | pre-commit, full | GUARANTEE | bans `//nolint`, `eslint-disable`, `@ts-ignore`, `@ts-expect-error`, `// buf:lint:ignore` outside ledger, coverage-ignore markers; stable codes `S001…` |
-| `typos` | typos | pre-commit, full | GUARANTEE | |
-| `format-go` | gofmt (from Go SDK) | pre-commit, full | GUARANTEE | check mode only |
-| `format-ts` | prettier (pnpm lock) | pre-commit, full | GUARANTEE | check mode only |
-| `format-proto` / `lint-proto` | buf | pre-commit, full | GUARANTEE | |
-| `format-starlark` | buildifier | pre-commit, full | GUARANTEE | |
-| `lint-go` | nogo analyzers (vet + staticcheck) | every stage that builds Go (pre-push, full) | GUARANTEE | runs as part of the Go build, not as a separate step. Not enforced until T091 |
-| `lint-ts` / `typecheck-ts` | eslint `--max-warnings 0`, tsc | pre-push, full | GUARANTEE | |
-| `proto-breaking` | buf breaking vs immutable base SHA | pre-push, full | GUARANTEE | fails closed without baseline |
-| `generated-fresh` | build-graph diff | pre-push, full | GUARANTEE | only for committed generated docs |
-| `bazel-lock` | `bazel mod deps --lockfile_mode=error` | pre-push, full | GUARANTEE | |
-| `dependency-rules` | Bazel query test | pre-push, full | GUARANTEE | FR-007 directions, testonly fencing |
-| `tests` | `bazel test` (affected at pre-push, `//...` at full) | pre-push, full | GUARANTEE | |
-| `e2e-browser` | Playwright under bazel test | full | GUARANTEE | |
-| `coverage-floor` | bazel coverage + floors vs base | full | GUARANTEE | floors only rise |
-| `workflow-lint` | actionlint, shellcheck, zizmor | pre-commit (changed workflow), full | GUARANTEE | |
-| `floors-from-base` | evaluator built from the base revision, run on the proposal tree | full (CI `policy` shard) | GUARANTEE | suppression ban and coverage floors judged by base policy (R-09) |
-| `contract-consumers` | #28 profile (adopted when released) | full | SIGNAL | until then: e2e-per-RPC guarantee + review checklist |
-| `complexity` / `duplication` | gocognit / jscpd | full | SIGNAL first, ratcheted later | reviewed in M5 |
+| Group | ids | Stages |
+| --- | --- | --- |
+| Content | `secrets`, `suppression-ban`, `typos`, `format-go`, `format-ts`, `format-proto`, `lint-proto`, `format-starlark`, `shellcheck`, `actionlint`, `zizmor` | pre-commit, full |
+| Pushed commit | `tests`, `dependency-rules`, `proto-breaking` | pre-push, full |
+| Full only | `e2e-browser`, `test-inventory`, `sandbox-evidence`, `workspace-policy`, `implicit-config`, `bazelrc-policy`, `toolchain-fixtures`, `hook-e2e`, `speckit-provenance` | full |
+
+Later milestones add `coverage-floor`, `floors-from-base` (M6) and `contract-consumers` (upstream #28).
 
 ## Runner interface
 
 ```text
-bazel run //quality:run -- --stage=<pre-commit|commit-msg|pre-push|full>
-                           [--shard=<name>] [--base=<sha>] [--jobs=<n>]
-                           [--receipt=<path>] [--format=text|json]
+bazel run //:quality -- --stage=<pre-commit|commit-msg|pre-push|full>
+                        [--isolation=<full|weakened>] [--offline] [--receipt=<path>]
+                        [--rerun=<command>] [--jobs=<n>] [--slots=<n>] [--deadline=<duration>]
+                        [--from=<rev>] [--to=<rev>] [--inner] [--bazel-startup=<option>]
 ```
 
-The runner derives its input set itself (see hook-stages.md). It never receives a filename list
-from prek.
+`quality/` is its own module, so the entry is the root target `//:quality`, which embeds
+`@bff_template_quality//runner/cmd` and passes the repository's pinned tools as data. The runner
+derives its input set itself (see hook-stages.md). It never receives a filename list from prek, and
+`tools/hooks/stage.sh` refuses one. CI shards are M6.
 
 **Exit codes.** The runner's exit codes are deliberately disjoint from Bazel's:
 
@@ -45,9 +36,9 @@ from prek.
 | --- | --- |
 | `0` | every check is non-blocking |
 | `1` | at least one check `FAILED` |
-| `2` | usage or configuration error |
+| `2` | usage or configuration error, or a `bootstrap ERROR` |
 | `10` | `TIMED_OUT` or `CANCELLED` |
-| `11` | baseline or evidence unavailable (fail closed) |
+| `11` | baseline or evidence unavailable, or a receipt that cannot name what was tested (fail closed) |
 | `12` | a `GUARANTEE` check had zero inputs at `full` without `allow_empty` |
 
 Bazel exit codes are translated explicitly:
@@ -59,21 +50,42 @@ Bazel exit codes are translated explicitly:
 | `8` (interrupted) | `CANCELLED` |
 | anything else non-zero | `ERROR`, with Bazel's message |
 
+A result that contradicts its own exit code is an `ERROR`, never a pass.
+
 **Diagnostic line**:
 
 ```text
 <check-id> <path>:<line>:<col>: <message> [code] (rerun: <command>)
 ```
 
-At most 50 lines are printed per check, followed by `… N more (see <receipt>)`.
+At most 50 lines are printed per check, followed by `… N more (see <file>)`. That file exists: it is
+a private retained log (below), so the omitted lines can be retrieved.
 
 **Execution**:
 
-- All `bazel`-kind checks in a stage run as **one** Bazel invocation.
-- `native` checks run in a pool of `--jobs` workers (default `min(4, ncpu/2)`).
+- All `bazel`-kind checks in a stage run as **one** Bazel invocation. Targets of checks outside the
+  stage are subtracted, with no second list.
+- `native` checks run in a pool of `--jobs` workers (default `min(4, ncpu/2)`). `exclusive` checks run
+  alone, and `after_bazel` checks read that invocation's log.
 - stdin is closed for every child.
-- Native children run in their own process group under a Linux child subreaper.
-- On a deadline, the runner sends SIGINT to the Bazel client (then runs `bazel shutdown` if it does
-  not exit within 10 s), kills native process groups, and reaps any reparented orphans.
+- Each native check runs under its own supervisor (`__supervise`, a re-exec of the runner) that holds
+  a Linux child subreaper. It reaps adopted orphans while the check runs and removes what remains
+  at the end.
+- On a deadline, the runner sends one SIGINT to the Bazel client it started, and SIGKILL after 10 s.
+  It never runs `bazel shutdown` and never signals a checkout's server, which another producer may
+  own. It stops a server only under the exclusive push-worktree lock, through a process handle, after
+  requiring the exact `--output_base=` argument (spec 006 research R7).
+- Heavy stages take a capacity slot, a `flock` held by the parent and closed on exec, so no daemon can
+  keep it. A slot proves nothing about ownership of a server.
+
+**Receipts and logs**:
+
+- `<receipt>.lock` is held for the whole run, so one producer owns a receipt path.
+- The receipt is written to a unique temporary file and renamed.
+- Final bookkeeping shares a 30 s bound, plus up to 9 s to stop a helper. An identity it cannot
+  establish goes in `problems` and denies `PASSED`.
+- A failed check's output, up to 1 MiB, is kept mode `0600` in a marked per-run directory beside the
+  receipt. The next run on that receipt trims those directories under the lock, so that at most 5
+  remain, and removes only marked ones.
 
 **Side effects**: the runner never writes to the index or the working tree.

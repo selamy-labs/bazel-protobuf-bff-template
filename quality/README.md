@@ -9,7 +9,8 @@ depends on the application that uses it.
 ## What to read first
 
 - [specs/001 contracts/check-registry.md](../specs/001-bff-template-foundation/contracts/check-registry.md)
-  is the target registry design (M5).
+  is the registry and runner contract.
+- [docs/quality/classification.md](../docs/quality/classification.md) explains check classes.
 - [specs/002 research.md](../specs/002-hermetic-skeleton/research.md) describes the M1 pins and
   checks.
 
@@ -20,7 +21,11 @@ depends on the application that uses it.
 | `checks/suppression` | The `suppression-ban` Go check. Its stable codes S001–S012 are defined in `rules.go`, and each code has a defect and a corrected fixture. |
 | `checks/ciparity` | Validates a workflow against a closed allowlist policy. Unknown keys fail. |
 | `proto` | The canonical `buf.yaml` and the compatibility baseline reader, which reads a declared commit from Git objects and fails closed. |
-| `tools` | Pinned native tools: `actionlint`, `buf`, `buildifier`, `gitleaks`, `shellcheck`, `typos`, `uv`, `yq`, `zizmor`. They are exposed as `@bff_template_quality//tools:<name>`, and pinned by sha256 in `multitool.lock.json`. |
+| `registry.textproto`, `proto` | The one list of checks and its schema. |
+| `runner` | The one runner: selection, snapshots, the bounded pool, the single Bazel invocation, receipts, deadlines and server custody. |
+| `adapters/native.sh` | The one definition of how each native tool is invoked. |
+| `analysis` | The nogo configuration: vet and staticcheck. |
+| `tools` | Pinned native tools: `actionlint`, `buf`, `buildifier`, `gitleaks`, `prek`, `shellcheck`, `typos`, `uv`, `yq`, `zizmor`. They are exposed as `@bff_template_quality//tools:<name>`, and pinned by sha256 in `multitool.lock.json`. |
 
 ## How to use
 
