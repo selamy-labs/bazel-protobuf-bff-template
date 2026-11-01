@@ -35,6 +35,7 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [x] T024 | T023 | Reconcile capability states, classification, parent ledger; cheap checks | all | T070 | Review |
 | [ ] T025 | T024 | Reproduce R6 flows exactly, with negatives; a real compiled-base positive, and the combined negative: lowered floor plus replaced evaluator and patterns | SC-004 | | Logs |
 | [ ] T026 | T025 | Freeze; normal and hostile gates with `--base`; measure once; hold for independent acceptance | SC-002 | T070 | Receipts |
+| [x] T027 | T026 | Repair the measurement harness: a gofmt-clean edit, each run's log and receipt kept outside the clone, a failed passing scenario refused, offline recorded apart | SC-002 | T070 | Stub controls, one `--edited-only` run |
 
 Remain open by design: parent T067 and T068, blocked on upstream releases.
 

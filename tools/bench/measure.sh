@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Feedback-cost measurement (specs/002-hermetic-skeleton FR-012, T032, T033).
 #
-#   tools/bench/measure.sh --base=<rev> [--cold N] [--warm N] [--weak-isolation] [--stages-only] [--out FILE]
+#   tools/bench/measure.sh --base=<rev> [--cold N] [--warm N] [--weak-isolation] [--stages-only]
+#                          [--edited-only] [--evidence DIR] [--out FILE]
 #
 # Scenarios, all from a clone of HEAD. The source tree must be clean so the record names exactly
 # what was measured.
@@ -11,8 +12,18 @@
 #   warm_nochange: the full verifier again. Test results are never cached, build outputs are.
 #   warm_edited:   the full verifier after a source edit that forces a rebuild and retest.
 #   no_download:   --offline: Bazel's --repository_disable_download plus a dead proxy. The
-#                  networked provenance check is skipped, so this is not a passing full run, and it
-#                  proves only that Bazel and proxy-honoring tools fetched nothing.
+#                  networked provenance check is skipped and building the base's evaluator is refused,
+#                  so this is never a passing full run. It is recorded apart from the samples, with its
+#                  exit code, and proves only that Bazel and proxy-honoring tools fetched nothing.
+#
+# A scenario that has to pass and did not is refused: the harness stops and writes no record, because
+# the time of a failed run is not a measurement of that scenario.
+#
+# Every timed run's log and receipts are copied out of the clone before the next run can replace them,
+# into DIR/run-NNNN, with DIR/index.tsv naming each. --evidence defaults to .verify/ in this checkout.
+#
+# --edited-only runs the warm clone's first full verifier, then only warm_edited. It needs --out, so
+# that a partial record cannot replace a whole one.
 #
 # --stages-only measures the lifecycle stages instead (spec 006 FR-019), in a clone with the hooks
 # installed and a local bare remote. Every commit and push goes through the real hooks:
@@ -46,6 +57,8 @@ verify_args=()
 policy_base=""
 isolation=full
 stages_only=false
+edited_only=false
+evidence=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --cold) cold="$2"; shift 2 ;;
@@ -53,10 +66,16 @@ while [[ $# -gt 0 ]]; do
     --weak-isolation) verify_args+=(--weak-isolation); isolation=weakened; shift ;;
     --base=*) verify_args+=("$1"); policy_base="${1#--base=}"; shift ;;
     --stages-only) stages_only=true; shift ;;
+    --edited-only) edited_only=true; shift ;;
+    --evidence) evidence="$2"; shift 2 ;;
     --out) out="$2"; shift 2 ;;
     *) echo "measure: unknown argument '$1'" >&2; exit 2 ;;
   esac
 done
+if $edited_only && { $stages_only || [[ -z "$out" ]]; }; then
+  echo "measure: --edited-only needs --out and excludes --stages-only" >&2
+  exit 2
+fi
 if [[ -n "$(git -C "$root" status --porcelain)" ]]; then
   echo "measure: the working tree is dirty; commit first so the record names the measured source" >&2
   exit 1
@@ -69,6 +88,13 @@ os="$(awk -F= '/^ID=/{id=$2} /^VERSION_ID=/{v=$2} END{gsub(/"/,"",id); gsub(/"/,
 record="$root/docs/budgets/$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)-${ncpu}c"
 if $stages_only; then out="${out:-$record-stages.json}"; else out="${out:-$record.json}"; fi
 disk_free_gb="$(df -Pk "$root" | awk 'NR==2 {printf "%d", $4/1024/1024}')"
+evidence="${evidence:-$root/.verify/measure-$revision}"
+if [[ -e "$evidence" ]]; then
+  echo "measure: $evidence already exists; a record names one run's evidence" >&2
+  exit 2
+fi
+mkdir -p "$evidence"
+runs=0
 work="$(mktemp -d)"
 trap 'chmod -R u+w "$work" 2>/dev/null; rm -rf "$work"' EXIT
 
@@ -90,13 +116,25 @@ tree_pss_kb() { # tree_pss_kb <root pid>...: PSS sum over those processes and th
   echo "$total"
 }
 
+keep_run() { # keep_run <clone> <sample> <command...>: this run's log and receipts, outside the clone
+  local clone="$1" sample="$2" dir
+  shift 2
+  runs=$((runs + 1))
+  dir="$evidence/$(printf 'run-%04d' "$runs")"
+  mkdir "$dir"
+  cp "$work/run.log" "$dir/run.log"
+  if [[ -d "$clone/.verify" ]]; then cp -a "$clone/.verify" "$dir/verify"; fi
+  if [[ -d "$clone/.git/bff-template/receipts" ]]; then cp -a "$clone/.git/bff-template/receipts" "$dir/receipts"; fi
+  printf '%s\t%s\t%s\n' "${dir##*/}" "$sample" "$*" >>"$evidence/index.tsv"
+}
+
 timed() { # timed <home> <clone> <env assignments...> -- <command...>; prints "seconds peak_kb rc"
   local home="$1" clone="$2"
   shift 2
   local envs=()
   while [[ "$1" != "--" ]]; do envs+=("$1"); shift; done
   shift
-  local start end rc=0 peak=0 now server roots file
+  local start end rc=0 peak=0 now server roots file sample
   start="$(date +%s.%N)"
   mkdir -p "$home/tmp"
   (cd "$clone" && exec env -i HOME="$home" TMPDIR="$home/tmp" PATH=/usr/bin:/bin USER="${USER:-$(id -un)}" TERM=dumb "${envs[@]}" \
@@ -122,7 +160,9 @@ timed() { # timed <home> <clone> <env assignments...> -- <command...>; prints "s
   done
   wait "$verifier" || rc=$?
   end="$(date +%s.%N)"
-  printf '%s %s %s\n' "$(awk -v a="$start" -v b="$end" 'BEGIN {printf "%.1f", b-a}')" "$peak" "$rc"
+  sample="$(awk -v a="$start" -v b="$end" 'BEGIN {printf "%.1f", b-a}') $peak $rc"
+  keep_run "$clone" "$sample" "$@"
+  echo "$sample"
 }
 
 new_clone() { git clone --quiet --no-local "file://$root" "$1" && git -C "$1" checkout --quiet "$revision"; }
@@ -189,7 +229,7 @@ expect_rejected() { # expect_rejected <file of "seconds peak rc">: a rejection t
 }
 expect_passed() { # expect_passed <file>: a run that failed for some other reason is not a sample
   if awk '$3 != 0 { found = 1 } END { exit !found }' "$1"; then
-    echo "measure: a run that had to pass failed; see $1" >&2
+    echo "measure: a run that had to pass failed, so no record is written; see $evidence" >&2
     tail -n 20 "$work/run.log" >&2
     exit 1
   fi
@@ -393,6 +433,7 @@ fi
 
 : >"$work/bootstrap"
 : >"$work/first"
+if $edited_only; then cold=0; fi
 for i in $(seq 1 "$cold"); do
   mkdir -p "$work/cold$i/home"
   new_clone "$work/cold$i/clone"
@@ -400,34 +441,62 @@ for i in $(seq 1 "$cold"); do
   timed "$work/cold$i/home" "$work/cold$i/clone" -- tools/verify.sh "${verify_args[@]}" >>"$work/first"
   stop_server "$work/cold$i/home" "$work/cold$i/clone"
   echo "cold $i: bootstrap $(tail -1 "$work/bootstrap"); first verify $(tail -1 "$work/first")" >&2
+  expect_passed "$work/bootstrap"
+  expect_passed "$work/first"
   chmod -R u+w "$work/cold$i"
   rm -rf "$work/cold$i"
 done
 
 mkdir -p "$work/warm/home"
 new_clone "$work/warm/clone"
-timed "$work/warm/home" "$work/warm/clone" -- tools/verify.sh "${verify_args[@]}" >/dev/null
+timed "$work/warm/home" "$work/warm/clone" -- tools/verify.sh "${verify_args[@]}" >"$work/warm_first"
+echo "warm clone's first verify: $(cat "$work/warm_first")" >&2
+expect_passed "$work/warm_first"
 : >"$work/nochange"
 : >"$work/edited"
+if ! $edited_only; then
+  for i in $(seq 1 "$warm"); do
+    timed "$work/warm/home" "$work/warm/clone" -- tools/verify.sh "${verify_args[@]}" >>"$work/nochange"
+    echo "warm unchanged $i: $(tail -1 "$work/nochange")" >&2
+    expect_passed "$work/nochange"
+  done
+fi
 for i in $(seq 1 "$warm"); do
-  timed "$work/warm/home" "$work/warm/clone" -- tools/verify.sh "${verify_args[@]}" >>"$work/nochange"
-  echo "warm unchanged $i: $(tail -1 "$work/nochange")" >&2
-done
-for i in $(seq 1 "$warm"); do
-  echo "// Edit $i forces a rebuild and a retest of this package." >>"$work/warm/clone/quality/checks/suppression/scan.go"
+  # The blank line keeps the file gofmt-clean: format-go is in the full stage, so this run must pass it.
+  printf '\n// Edit %d forces a rebuild and a retest of this package.\n' "$i" >>"$work/warm/clone/quality/checks/suppression/scan.go"
   timed "$work/warm/home" "$work/warm/clone" -- tools/verify.sh "${verify_args[@]}" >>"$work/edited"
   echo "warm edited $i: $(tail -1 "$work/edited")" >&2
+  expect_passed "$work/edited"
 done
+if $edited_only; then
+  stop_server "$work/warm/home" "$work/warm/clone"
+  mkdir -p "$(dirname "$out")"
+  cat >"$out" <<JSON
+{
+  "schema_version": 3,
+  "scope": "edited-only: not a whole record",
+  "revision": "$revision",
+  "tree": "$tree",
+  "measured_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "isolation": "$isolation",
+  "warm_first": $(stats "$work/warm_first"),
+  "warm_edited": $(stats "$work/edited")
+}
+JSON
+  echo "measure: wrote $out; evidence in $evidence" >&2
+  cat "$out"
+  exit 0
+fi
 git -C "$work/warm/clone" checkout --quiet -- .
 timed "$work/warm/home" "$work/warm/clone" HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 \
   -- tools/verify.sh "${verify_args[@]}" --offline >"$work/nodownload"
-echo "no download: $(cat "$work/nodownload")" >&2
+echo "no download, incomplete by design: $(cat "$work/nodownload")" >&2
 stop_server "$work/warm/home" "$work/warm/clone"
 
 mkdir -p "$(dirname "$out")"
 cat >"$out" <<JSON
 {
-  "schema_version": 2,
+  "schema_version": 3,
   "revision": "$revision",
   "tree": "$tree",
   "measured_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -437,9 +506,9 @@ cat >"$out" <<JSON
   "first_verify": $(stats "$work/first"),
   "warm_nochange": $(stats "$work/nochange"),
   "warm_edited": $(stats "$work/edited"),
-  "no_download": $(stats "$work/nodownload"),
-  "limits": "bootstrap includes downloads, so its time depends on the link. warm_nochange reruns every test but reuses build outputs; warm_edited rebuilds one Go package and its dependents. no_download skips networked provenance and proves only that Bazel fetched nothing and proxy-honoring tools reached no network; it is not a network-isolation claim. Peak memory is sampled PSS of the verifier and Bazel server process trees every 0.5 s and can miss short spikes."
+  "no_download": {"complete": false, "exit": $(awk '{print $3}' "$work/nodownload"), "sample": $(stats "$work/nodownload")},
+  "limits": "bootstrap includes downloads, so its time depends on the link. warm_nochange reruns every test but reuses build outputs; warm_edited rebuilds one Go package and its dependents. no_download is never a passing verifier and is not one of the samples: it skips networked provenance, refuses to build the base's evaluator, and proves only that Bazel fetched nothing and proxy-honoring tools reached no network; it is not a network-isolation claim. Peak memory is sampled PSS of the verifier and Bazel server process trees every 0.5 s and can miss short spikes."
 }
 JSON
-echo "measure: wrote $out" >&2
+echo "measure: wrote $out; evidence in $evidence" >&2
 cat "$out"
