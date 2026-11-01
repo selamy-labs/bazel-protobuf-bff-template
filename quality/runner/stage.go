@@ -338,6 +338,10 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 // supervised runs argv under its own supervisor, so its whole process tree ends when it does or when
 // ctx does. Output goes to a file, which a surviving descendant cannot hold open against this wait.
 func supervised(ctx context.Context, argv []string, dir string, env []string, out *os.File) (int, error) {
+	// A spent context starts nothing: a late child would only add its own stop to a budget already used.
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	self, err := os.Executable()
 	if err != nil {
 		return 0, err

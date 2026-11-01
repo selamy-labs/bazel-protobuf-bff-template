@@ -82,8 +82,8 @@ a private retained log (below), so the omitted lines can be retrieved.
 
 - `<receipt>.lock` is held for the whole run, so one producer owns a receipt path.
 - The receipt is written to a unique temporary file and renamed.
-- Final bookkeeping shares a 30 s bound, plus up to 9 s to stop a helper. An identity it cannot
-  establish goes in `problems` and denies `PASSED`.
+- Final bookkeeping shares a 30 s bound, plus up to 9 s to stop a helper. Once the bound has passed,
+  no further helper starts. An identity it cannot establish goes in `problems` and denies `PASSED`.
 - A failed check's output, up to 1 MiB, is kept mode `0600` in a marked per-run directory beside the
   receipt. The next run on that receipt trims those directories under the lock, so that at most 5
   remain, and removes only marked ones.

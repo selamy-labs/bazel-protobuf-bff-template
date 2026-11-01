@@ -1017,6 +1017,65 @@ func TestHungVersionHelperCannotHoldTheRun(t *testing.T) {
 	}
 }
 
+// A spent context starts nothing. The directory does not exist, so starting anything reports that
+// instead: a child's own output could not show this, because a stop can beat its first line.
+func TestCancelledContextStartsNoChild(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	output, err := os.CreateTemp(t.TempDir(), "out")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = output.Close() }()
+	_, err = supervised(ctx, []string{"/bin/true"}, filepath.Join(t.TempDir(), "absent"), nil, output)
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("a spent context tried to start a child: %v", err)
+	}
+}
+
+// One budget covers every helper: once it has gone, no further helper starts, and each one that did
+// not run is still named, so a skipped version cannot become a PASSED receipt.
+func TestExpiredBudgetStartsNoFurtherHelper(t *testing.T) {
+	saved := bookkeepingBudget
+	bookkeepingBudget = 500 * time.Millisecond
+	defer func() { bookkeepingBudget = saved }()
+	h := committed(newHarness(t))
+	fakeBazel(h, `echo "//a:t   PASSED in 1s"`)
+	starts := filepath.Join(t.TempDir(), "starts")
+	tool := filepath.Join(t.TempDir(), "tool")
+	h.writeAbs(tool, "#!/bin/sh\necho started >>"+starts+"\ntrap '' TERM\nwhile :; do sleep 1; done\n", 0o755)
+	body := bazelCheck("tests", "//a/...", "STAGE_FULL")
+	tools := map[string]string{}
+	names := []string{"HUNGA", "HUNGB", "HUNGC", "HUNGD"}
+	for _, name := range names {
+		body += `tools { name: "` + name + `" version_args: "--version" }` + "\n"
+		tools[name] = tool
+	}
+	options := h.options(body, registrypb.Stage_STAGE_FULL)
+	options.Tools = tools
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code == ExitOK {
+		t.Fatalf("a receipt with no tool versions passed\n%s", h.out.String())
+	}
+	data, err := os.ReadFile(starts)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if started := strings.Count(string(data), "started"); started != 1 {
+		t.Fatalf("%d helpers started; the budget ended during the first", started)
+	}
+	receipt := receiptOf(t, options.ReceiptPath)
+	if receipt.Result == "PASSED" {
+		t.Fatal("the receipt says PASSED")
+	}
+	problems := strings.Join(receipt.Problems, "\n")
+	for _, name := range names {
+		if !strings.Contains(problems, strings.ToLower(name)+" version") {
+			t.Fatalf("the receipt does not name %s:\n%s", name, problems)
+		}
+	}
+}
+
 func TestReceiptWithoutIdentityIsNotPassed(t *testing.T) {
 	h := newHarness(t) // No commit: HEAD, and so the source identity, does not exist.
 	options := h.options(native("one", "exit 0"), registrypb.Stage_STAGE_FULL)
