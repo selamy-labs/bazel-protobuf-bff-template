@@ -20,8 +20,8 @@ One writer.
 | [x] T012 | T011 | One real compatible rule improvement, visible in the catalog diff, tag N+1, upgrade by the pin | T073, FR-007, SC-002 | Diff with mechanical effects apart; clean pass; deliberate defect caught; control restored |
 | [x] T013 | T011 | Move a tag in the remote; SHA-pinned consumer unaffected | FR-008 | Logs |
 | [x] T014 | T012 | Language profile document | T074 | Review |
-| [ ] T015 | T014 | Evidence, ledgers, freeze, gates, hold. The candidate states it is proposed as 1.0.0 | all, T075, FR-010 | Receipts, independent review |
-| [ ] T016 | T015 | Tag that exact reviewed candidate as 1.0.0, with no implementation change | T075 | Tag names the reviewed commit |
+| [x] T015 | T014 | Evidence, ledgers, freeze, gates, hold. The candidate states it is proposed as 1.0.0 | all, T075, FR-010 | Receipts, independent review |
+| [x] T016 | T015 | Tag that exact reviewed candidate as 1.0.0, with no implementation change | T075 | Tag names the reviewed commit |
 
 ## Execution record
 
@@ -36,4 +36,5 @@ One writer.
 - T010: C0 `8b76a2f` cleared by independent targeted review. T011: C1 `05884b1`.
 - T012: `quality-v0.3.0`, `9284009`, and the consumer's `8c9b3aa`. T013: same verdict with the tag moved, and the fixture restored. T014: the language profile.
 - T015: the candidate carries 1.0.0 as a proposal, so nothing but the tag changes after review. The consumer pins it before the final review, and the evidence that names both follows in a later commit, because a file cannot name the commit that contains it.
+- T015 and T016: `e982dd7` passed its independent review, and `quality-v1.0.0` names exactly that commit. The consumer's final pin is `0050f87`.
 - T018: after the wiring review, `quality-v0.2.1`, `19af61b`, once this repository's full verifier passed there. The new consumer is a separate repository with one commit, and that commit is C0. T010 holds at it. No descendant uses it as a base until it clears.
