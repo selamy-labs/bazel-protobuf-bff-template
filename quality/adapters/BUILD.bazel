@@ -1,8 +1,27 @@
+load("@rules_shell//shell:sh_test.bzl", "sh_test")
+
 exports_files(
     [
+        "duplication.sh",
         "from_base.sh",
         "native.sh",
         "test_evidence.sh",
     ],
     visibility = ["//visibility:public"],
+)
+
+# The duplication witness (spec 011 FR-006): the real dupl against a planted clone pair, the exclusions and the
+# setup failures.
+sh_test(
+    name = "duplication_test",
+    size = "small",
+    srcs = ["duplication_test.sh"],
+    args = [
+        "$(rootpath duplication.sh)",
+        "$(rootpath @com_github_mibk_dupl//:dupl)",
+    ],
+    data = [
+        "duplication.sh",
+        "@com_github_mibk_dupl//:dupl",
+    ],
 )

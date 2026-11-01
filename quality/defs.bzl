@@ -8,6 +8,8 @@ MODULE_TOOLS = {
     "ACTIONLINT": str(Label("//tools:actionlint")),
     "BUILDIFIER": str(Label("//tools:buildifier")),
     "COMPLEXITY": str(Label("//checks/complexity:complexity_bin")),
+    "DUPL": str(Label("@com_github_mibk_dupl//:dupl")),
+    "DUPLICATION": str(Label("//adapters:duplication.sh")),
     "FLOORS": str(Label("//checks/coverage:floors")),
     "FROM_BASE": str(Label("//adapters:from_base.sh")),
     "GITLEAKS": str(Label("//tools:gitleaks")),

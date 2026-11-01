@@ -69,6 +69,8 @@ stub "$work/bin/SUPPRESSION" suppression-ban
 stub "$work/bin/FLOORS" coverage-floor
 sed -i '$i echo "measurement: stub: 100.0% statements (1 of 1), floor 0.0%, branches unmeasured"' "$work/bin/FLOORS"
 stub "$work/bin/COMPLEXITY" complexity
+stub "$work/bin/DUPLICATION" duplication
+sed -i '$i echo "measurement: duplication 1 files compared at threshold 100; 0 candidate clone lines; stub"' "$work/bin/DUPLICATION"
 sed -i '$i echo "measurement: complexity 1 files measured, 0 excluded, 1 functions; max cognitive 0, max cyclomatic 1; stub"' "$work/bin/COMPLEXITY"
 cat >"$work/bin/adapter" <<STUB
 #!/usr/bin/env bash
@@ -88,7 +90,7 @@ tools=()
 while read -r name; do
   if [[ "$name" == TEST_EVIDENCE ]]; then
     cp "$PWD/${EVIDENCE:?}" "$work/bin/$name"
-  elif [[ "$name" != SUPPRESSION && "$name" != FLOORS && "$name" != FROM_BASE && "$name" != RELEASE && "$name" != COMPLEXITY ]]; then
+  elif [[ "$name" != SUPPRESSION && "$name" != FLOORS && "$name" != FROM_BASE && "$name" != RELEASE && "$name" != COMPLEXITY && "$name" != DUPLICATION ]]; then
     printf '#!/bin/sh\necho "1.0"\n' >"$work/bin/$name"
     chmod +x "$work/bin/$name"
   fi

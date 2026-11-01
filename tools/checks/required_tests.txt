@@ -55,3 +55,4 @@
 //:verify_body_test build-test
 //:verify_deadline_test build-test
 //tools/checks/u1000:u1000_witness_test build-test
+@bff_template_quality//adapters:duplication_test build-test

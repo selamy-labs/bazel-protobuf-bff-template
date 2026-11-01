@@ -12,6 +12,7 @@ Each entry is answered by a probe or by an independent measurement at a named re
 
 - Independent advisory run of `dupl` v1.1.0 under Go 1.27.2 at `00a4c6b`: zero candidate pairs at the default 100 AST nodes, input count verified, a planted 150-node pair detected by the same tool (`m9-go-duplication-result.json`).
 - `dupl` ignores AST values; a candidate needs semantic confirmation before deletion. TypeScript and Python tools probed at landing.
+- At T004: dupl 1.1.0 pinned in `quality/go.mod` (sums from the module proxy, MIT read from the module's LICENSE) and bound as `duplication` through `quality/adapters/duplication.sh` (`-files -plumbing -t 100` over the selected Go files, test files, generated protocol code and fixtures excluded with their reasons); 0 candidate clone lines over the tracked Go files; the witness plants a clone pair of well over a hundred nodes and sees it named. `jscpd` for TypeScript and a Python duplication tool need unpinned installs, so they are pins for T011.
 
 ## R3 Dead code (Q2)
 

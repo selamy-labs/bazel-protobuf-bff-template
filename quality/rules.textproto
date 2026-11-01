@@ -10,6 +10,8 @@ version: "1.0.0"
 tools { name: "ACTIONLINT" version_args: "--version" }
 tools { name: "BUILDIFIER" version_args: "--version" }
 tools { name: "COMPLEXITY" }
+tools { name: "DUPL" }
+tools { name: "DUPLICATION" }
 tools { name: "FLOORS" }
 tools { name: "FROM_BASE" }
 tools { name: "GITLEAKS" version_args: "--version" }
@@ -200,6 +202,22 @@ checks {
   needs_base: true
   command: ["{FROM_BASE}", "{base}", "{root}", "{isolation}", "{contract}", "{bazel}"]
   witness: "//:from_base_test"
+}
+
+# Duplication (spec 011 FR-006): dupl over the first-party Go files at the host's threshold; a candidate clone
+# fails, and is deleted in a focused change or recorded with its reason. Whole-tree context, so full only.
+checks {
+  id: "duplication"
+  definition: "adapters/duplication.sh"
+  tool: "DUPL"
+  selector { include: "\\.go$" }
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  summary: true
+  command: ["{DUPLICATION}", "{DUPL}", "{root}", "{list}", "100"]
+  witness: "@bff_template_quality//adapters:duplication_test"
 }
 
 # The complexity budgets compared by the base's own comparator (spec 011 FR-004, R9): a ceiling that rises, a
