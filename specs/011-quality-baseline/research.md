@@ -27,6 +27,7 @@ Each entry is answered by a probe or by an independent measurement at a named re
 ## R5 Property tests (Q6)
 
 - Go property tests exist for the notes app; `fast-check` under rules_js and Hypothesis through the pinned uv for the first-party generators, probed at landing. Invariants named before tests: the generated tables round-trip through the inventory check; the runner's selector is order-independent; the client's error mapping is total.
+- The runner's selector at T009: `Split` round-trips any NUL-free list; `compact` of a sorted list is exactly its distinct members, still sorted; `Select` returns an ordered subset of what was discovered, exactly the paths the patterns admit and the manifests do not exclude, idempotent and blind to the order of the patterns; `policyDigest` ignores entries outside the policy and the order of its patterns, and changes with an entry inside it. Each is a `testing/quick` property over generated paths from a small alphabet, so repeats, prefixes and collisions are common. `fast-check` for the client and Hypothesis for the generators need pins, so they follow T011.
 
 ## R6 Mutation (Q7)
 

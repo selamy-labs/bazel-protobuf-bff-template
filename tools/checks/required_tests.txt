@@ -58,3 +58,4 @@
 @bff_template_quality//adapters:duplication_test build-test
 @bff_template_quality//checks/command:command_test build-test
 //web/lint:eslint_complexity_witness_test build-test
+@bff_template_quality//runner:select_property_test build-test

@@ -27,6 +27,16 @@ go_library(
     ],
 )
 
+# The selector's invariants as properties (spec 011 FR-009): the NUL list round-trips, selection is an ordered
+# subset, idempotent and pattern-order-blind, compaction loses nothing but repeats, the policy digest sees policy only.
+go_test(
+    name = "select_property_test",
+    size = "small",
+    srcs = ["select_property_test.go"],
+    embed = [":runner"],
+    deps = ["//proto:registrypb"],
+)
+
 go_test(
     name = "runner_test",
     size = "medium",
