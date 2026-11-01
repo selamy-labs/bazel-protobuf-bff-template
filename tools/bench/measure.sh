@@ -22,6 +22,9 @@
 # Every timed run's log and receipts are copied out of the clone before the next run can replace them,
 # into DIR/run-NNNN, with DIR/index.tsv naming each. --evidence defaults to .verify/ in this checkout.
 #
+# On any exit this run's private servers are stopped before its work tree is deleted. If that cannot be
+# shown, the tree is kept, DIR/unreconciled.txt says why, and a run that had passed exits 3.
+#
 # --edited-only runs the warm clone's first full verifier, then only warm_edited. It needs --out, so
 # that a partial record cannot replace a whole one.
 #
@@ -95,8 +98,68 @@ if [[ -e "$evidence" ]]; then
 fi
 mkdir -p "$evidence"
 runs=0
-work="$(mktemp -d)"
-trap 'chmod -R u+w "$work" 2>/dev/null; rm -rf "$work"' EXIT
+work="$(readlink -f "$(mktemp -d)")"
+
+# Every server of this run has its output base under $work. One is taken as ours only while its process
+# carries the exact --output_base argument of its pid file's own directory, so a reused PID and another
+# producer's server, however alike, are left alone (spec 006 R7). A client is never started here, so a
+# server that never ran costs nothing.
+live_servers() { # live_servers <file of pid files>: the PIDs of the ones still running
+  local file pid
+  while IFS= read -r file; do
+    pid="$(cat "$file" 2>/dev/null || true)"
+    if [[ "$pid" =~ ^[0-9]+$ ]] &&
+      { tr '\0' '\n' <"/proc/$pid/cmdline"; } 2>/dev/null | grep -qxF -- "--output_base=${file%/server/server.pid.txt}"; then
+      echo "$pid"
+    fi
+  done <"$1"
+}
+work_processes() { # any process still running in or naming $work, other than this script
+  local dir
+  for dir in /proc/[0-9]*; do
+    if [[ "${dir#/proc/}" != "$$" ]] && { [[ "$(readlink "$dir/cwd" 2>/dev/null || true)" == "$work"* ]] ||
+      [[ "$({ tr '\0' ' ' <"$dir/cmdline"; } 2>/dev/null || true)" == *"$work"* ]]; }; then
+      echo "${dir#/proc/}"
+    fi
+  done
+}
+stop_private_servers() { # stops them, at most 20 s; fails if they cannot be shown to be gone
+  local files signal="" attempt
+  local -a pids=()
+  files="$(mktemp)"
+  if ! timeout 60 find "$work" \( -name execroot -o -name external \) -prune -o -name server.pid.txt -print >"$files"; then
+    rm -f "$files"
+    return 1
+  fi
+  for attempt in $(seq 1 100); do
+    mapfile -t pids < <(live_servers "$files")
+    if ((${#pids[@]} == 0)); then break; fi
+    if ((attempt == 1)); then signal=TERM; elif ((attempt == 75)); then signal=KILL; else signal=""; fi
+    if [[ -n "$signal" ]]; then kill "-$signal" "${pids[@]}" 2>/dev/null || true; fi
+    sleep 0.2
+  done
+  rm -f "$files"
+  ((${#pids[@]} == 0))
+}
+cleanup() { # the work tree goes only once nothing of this run is left using it
+  local rc=$? left="" attempt
+  set +e
+  stop_private_servers || left="a private server could not be shown to be gone"
+  for attempt in 1 2 3 4 5; do
+    if [[ -z "$(work_processes)" ]]; then break; fi
+    sleep 1
+  done
+  left+="$(work_processes | tr '\n' ' ')"
+  if [[ -n "$left" ]]; then
+    echo "measure: not quiescent, so $work is kept for reconciliation; still using it: $left" | tee -a "$evidence/unreconciled.txt" >&2
+    if ((rc == 0)); then rc=3; fi
+  else
+    chmod -R u+w "$work" 2>/dev/null
+    rm -rf "$work"
+  fi
+  exit "$rc"
+}
+trap cleanup EXIT
 
 sample_period=0.5
 tree_pss_kb() { # tree_pss_kb <root pid>...: PSS sum over those processes and their descendants
