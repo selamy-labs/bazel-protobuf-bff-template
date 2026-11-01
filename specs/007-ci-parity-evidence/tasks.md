@@ -33,8 +33,8 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [x] T022 | T009 | Trigger sentence narrowed | FR-026 | | Doc assertion |
 | [x] T023 | T019–T022 | `docs/quality/evidence.md`: separate claims; gaps for T067, T068, FR-023, SC-007 | US5 | T069 | Review |
 | [x] T024 | T023 | Reconcile capability states, classification, parent ledger; cheap checks | all | T070 | Review |
-| [ ] T025 | T024 | Reproduce R6 flows exactly, with negatives; a real compiled-base positive, and the combined negative: lowered floor plus replaced evaluator and patterns | SC-004 | | Logs |
-| [ ] T026 | T025 | Freeze; normal and hostile gates with `--base`; measure once; hold for independent acceptance | SC-002 | T070 | Receipts |
+| [x] T025 | T024 | Reproduce R6 flows, with negatives, through the `policy` leg by reviewed reduction; a real compiled-base positive, and the combined negative: lowered floor plus replaced evaluator and patterns | SC-004 | | Logs |
+| [x] T026 | T025 | Freeze; normal and hostile gates with `--base`; measure once; hold for independent acceptance | SC-002 | T070 | Receipts |
 | [x] T027 | T026 | Repair the measurement harness: a gofmt-clean edit, each run's log and receipt kept outside the clone, a failed passing scenario refused, offline recorded apart, private servers stopped before the work tree goes | SC-002 | T070 | Stub and real-server controls, one `--edited-only` run |
 
 Remain open by design: parent T067 and T068, blocked on upstream releases.
@@ -58,4 +58,5 @@ Remain open by design: parent T067 and T068, blocked on upstream releases.
 - T018: `33e6a55`, on the accepted anchor `e3b3b34`. Review of the anchor found that a passed `coverage-floor` left no measurements in the receipt; red first.
 - T019 to T024: the commit after `33e6a55`. T020 closes parent T047: the pinned Node witness is in the [evidence record](../../docs/evidence/m6.md).
 - Review of `33e6a55`: every leg's receipt binds the event's base, and a supplied base that cannot resolve denies PASSED in a leg that reads none. Red first.
-- T025, T026: their boxes stay open in the frozen source, because a file cannot record results about the commit that contains it. Those results are in the review handoff.
+- T025, T026: their boxes stayed open in the frozen source, because a file cannot record results about the commit that contains it. Results by scope are in the [evidence record](../../docs/evidence/m6.md). T025 replayed the flows through the `policy` leg, not as literal unsharded commands.
+- T027: `a5ebd95`, then `e16718d` for the cleanup found in review.

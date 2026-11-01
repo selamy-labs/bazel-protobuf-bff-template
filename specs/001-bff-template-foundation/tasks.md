@@ -162,7 +162,7 @@ scenarios; the deliberately broken variant fails.
 - [ ] T067 [US4] **Blocked on py#26 release**: adopt the shared policy-diff/trusted-baseline contract and its fixtures (removed check/stage, narrowed scope, tampering, stale/self-issued authorization, authorized exception, malformed evidence); delete any interim code it supersedes
 - [ ] T068 [US4] **Blocked on py#27 release**: adopt the shared evidence validator and its fixtures (running producer, truncated report, omitted leg, old revision, contradictory, moved branch, review receipt vs self-assertion); closes FR-023/SC-007. Until then record the gap in `docs/quality/evidence.md`
 - [x] T069 [US4] Document separate claims (offline / local / hosted CI / human approval / deployment) in `docs/quality/evidence.md`
-- [ ] T070 [US4] Checkpoint (M6 exit = aggregate + receipts + base-built floors): T060/T061 pass; bypassed-hook commit fails in CI-equivalent run. SC-007 is not an M6 exit criterion
+- [x] T070 [US4] Checkpoint (M6 exit = aggregate + receipts + base-built floors): T060/T061 pass; bypassed-hook commit fails in CI-equivalent run. SC-007 is not an M6 exit criterion
 
 ---
 

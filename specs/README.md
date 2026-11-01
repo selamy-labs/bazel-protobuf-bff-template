@@ -11,8 +11,9 @@ umbrella spec (the "spec of specs") and holds the milestone map that the later s
 | [004-go-bff](004-go-bff/) | M3: Go BFF for notes | Independent local Linux verification passed at `b6629b8` (2026-10-31). Vet is deferred to M5. |
 | [005-browser-client](005-browser-client/) | M4: browser client and end-to-end tests | Implemented; independent review pending |
 | [006-quality-hooks](006-quality-hooks/) | M5: registry, runner and hooks | Independent local Linux verification passed at `e0a12ac` (2026-11-01). macOS and hosted CI remain unverified. |
-| [007-ci-parity-evidence](007-ci-parity-evidence/) | M6: CI parity, base-built floors and receipts | Implemented; independent review pending |
-| 008+ | M7–M10 | Each is created with `/speckit-specify` when its milestone starts |
+| [007-ci-parity-evidence](007-ci-parity-evidence/) | M6: CI parity, base-built floors and receipts | Accepted at `e16718d` (2026-11-01). Evidence is split by revision in [m6](../docs/evidence/m6.md). Hosted CI has never run. |
+| [008-second-consumer](008-second-consumer/) | M7: second consumer and upgrade | In progress |
+| 009+ | M8–M10 | Each is created with `/speckit-specify` when its milestone starts |
 
 Start with [design.md](001-bff-template-foundation/design.md) to review the package, then read
 [issue-map.md](001-bff-template-foundation/issue-map.md) and
