@@ -237,11 +237,12 @@ func TestThePackagedBinaryIsStatic(t *testing.T) {
 	}
 }
 
-// The static check must see a dynamic binary. The host's shell is one, on the supported profile.
+// The static check must see a dynamic binary. The host's shell is one on the supported Linux profile, so a
+// host without it fails this required witness rather than passing without it.
 func TestADynamicBinaryIsSeen(t *testing.T) {
 	problems, err := staticProblems("/bin/sh")
 	if err != nil {
-		t.Skip("no /bin/sh to read:", err)
+		t.Fatal("the supported profile has a dynamic /bin/sh to read:", err)
 	}
 	if !slices.ContainsFunc(problems, func(p string) bool { return strings.HasPrefix(p, "program header PT_INTERP") }) ||
 		!slices.ContainsFunc(problems, func(p string) bool { return strings.HasPrefix(p, "dynamic dependencies") }) {

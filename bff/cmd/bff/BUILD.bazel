@@ -1,6 +1,7 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
 load("@tar.bzl", "tar")
+load(":release.bzl", "release_binary")
 
 go_library(
     name = "bff_lib",
@@ -44,10 +45,16 @@ LINUX_AMD64 = [
     "@platforms//os:linux",
 ]
 
+# The same binary a plain build makes, whatever command built the image.
+release_binary(
+    name = "bff_release",
+    binary = ":bff",
+)
+
 tar(
     name = "image_layer",
-    srcs = [":bff"],
-    mtree = ["./bff uid=65532 gid=65532 time=0 mode=0555 type=file content=$(execpath :bff)"],
+    srcs = [":bff_release"],
+    mtree = ["./bff uid=65532 gid=65532 time=0 mode=0555 type=file content=$(execpath :bff_release)"],
     target_compatible_with = LINUX_AMD64,
 )
 
