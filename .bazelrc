@@ -29,4 +29,4 @@ build:weak-isolation --spawn_strategy=processwrapper-sandbox
 # names both modules, and the quality module only by its canonical name.
 coverage --coverage_output_generator=@bff_template_quality//checks/coverage:merger
 coverage --coverage_report_generator=@bff_template_quality//checks/coverage:merger
-coverage --instrumentation_filter=^//bff[/:],^//tools/dev/profile[/:],^//web/client[/:],^@@bff_template_quality[+]//
+coverage --instrumentation_filter=^//bff[/:],^//deploy/gcp[/:],^//tools/dev/profile[/:],^//web/client[/:],^@@bff_template_quality[+]//

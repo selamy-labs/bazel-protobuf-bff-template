@@ -1,0 +1,24 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# The hosted example's one typed funnel (spec 012 FR-003): every value declared once, validated before any plan.
+go_library(
+    name = "inputs",
+    srcs = ["inputs.go"],
+    importpath = "example.com/bfftemplate/deploy/gcp/inputs",
+    visibility = ["//deploy:__subpackages__"],
+)
+
+go_test(
+    name = "inputs_test",
+    size = "small",
+    srcs = ["inputs_test.go"],
+    data = [
+        "example.inputs.json",
+        "inputs.schema.json",
+    ],
+    embed = [":inputs"],
+    env = {
+        "EXAMPLE": "$(rlocationpath example.inputs.json)",
+        "SCHEMA": "$(rlocationpath inputs.schema.json)",
+    },
+)

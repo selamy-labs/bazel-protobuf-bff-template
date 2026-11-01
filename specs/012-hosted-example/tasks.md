@@ -25,7 +25,7 @@
 
 ## Phase 4: User Story 1 - Stand up from a reviewed plan (Priority: P1)
 
-- [ ] T011 [US1] The typed input funnel `deploy/gcp/inputs/` with validation, precedence and effective-value provenance, and a synthetic example; inner modules take required parameters only
+- [ ] T011 [US1] (the schema, the synthetic example and the validator landed; the provenance of effective values and the precedence over an operator's file follow with the service module) The typed input funnel `deploy/gcp/inputs/` with validation, precedence and effective-value provenance, and a synthetic example; inner modules take required parameters only
 - [ ] T012 [US1] The service module `deploy/gcp/service/` (Cloud Run service by digest, runtime identity, config, exact origin) and the CD pipeline `deploy/gcp/cloudbuild/` (promote by digest from the trusted source, rollback by digest, cancel), authenticated through the sanctioned identity or WIF; no GitHub Actions deployment
 - [ ] T013 [US1] Offline tests `deploy/gcp/tests/`: format, validate, mock plan; planted defects fail: a second project, a wildcard origin, a runtime identity with deploy permission, an unenumerated binding, a digest that is not the recorded one; bound as a required Bazel test with the pinned tofu and provider
 - [ ] T014 [US1] The frontend inputs: base path and RPC base URL independent; `web/e2e/hosted.spec.*` covers the preflight, a blocked foreign origin, an authenticated call, error and status accessibility, reload and deep link, logout and cancellation, and log redaction

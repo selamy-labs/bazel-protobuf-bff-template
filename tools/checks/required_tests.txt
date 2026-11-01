@@ -5,6 +5,7 @@
 //api:schema_probes_test build-test
 //api:validate_test build-test
 //bff/adapters/memory:memory_test build-test
+//deploy/gcp/inputs:inputs_test build-test
 //bff/adapters/store/local:local_test build-test
 //bff/app:app_test build-test
 //bff/cmd/bff:config_test build-test
