@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"example.com/bfftemplate/bff/ports"
@@ -163,5 +164,29 @@ func TestFileSystemRefusalsAreUnavailable(t *testing.T) {
 	defer os.Chmod(dir, 0o700)
 	if err := store.Put(ctx, ports.Note{Owner: "bob", ID: "n1", Title: "t"}); !errors.Is(err, ports.ErrUnavailable) {
 		t.Errorf("a new owner directory under a read-only store: want unavailable, got %v", err)
+	}
+}
+
+// A directory sitting where the note's file belongs defeats the final rename, and that is unavailability too.
+func TestADirectoryInTheNotesPlaceIsUnavailable(t *testing.T) {
+	store, err := Open(filepath.Join(t.TempDir(), "notes"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	target := store.path("ana", "n1")
+	if err := os.MkdirAll(filepath.Join(target, "child"), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	if err := store.Put(context.Background(), ports.Note{Owner: "ana", ID: "n1", Title: "t"}); !errors.Is(err, ports.ErrUnavailable) {
+		t.Errorf("a rename onto a directory: want unavailable, got %v", err)
+	}
+	entries, err := os.ReadDir(filepath.Dir(target))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), ".put-") {
+			t.Errorf("a temporary file was left behind: %s", entry.Name())
+		}
 	}
 }
