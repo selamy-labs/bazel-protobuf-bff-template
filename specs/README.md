@@ -16,7 +16,7 @@ result holds only for the revision and profile its evidence names.
 | [006-quality-hooks](006-quality-hooks/) | M5: registry, runner and hooks | M1 | Independent local Linux verification passed at `e0a12ac` (2026-11-01). macOS and hosted CI remain unverified. |
 | [007-ci-parity-evidence](007-ci-parity-evidence/) | M6: CI parity, base-built floors and receipts | M4, M5 | Accepted at `e16718d` (2026-11-01). Evidence is split by revision in [m6](../docs/evidence/m6.md). Hosted CI has never run. |
 | [008-second-consumer](008-second-consumer/) | M7: second consumer and upgrade | M6 | Accepted at `e982dd7` (2026-11-01) for the qualified local Linux profile, tagged `quality-v1.0.0`. Evidence is in [m7](../docs/evidence/m7.md). |
-| [009-bff-image](009-bff-image/) | M8a: BFF container image | M7 | Implemented and tested locally at `779a36e`; independent review pending. Evidence is in [m8a](../docs/evidence/m8a.md). Not deployed. |
+| [009-bff-image](009-bff-image/) | M8a: BFF container image | M7 | Implemented and tested locally at `05d2545`; the artifact executed independently in a real runtime; independent source review pending. Evidence is in [m8a](../docs/evidence/m8a.md). Not deployed. |
 | [010-release-readiness](010-release-readiness/) | M8: public-release readiness and provisioning plan | M7, M8a | Proposed |
 | None yet | M9, M10: optional profiles | M6, and M8a for M9 | Proposed. Each is created with `/speckit-specify` when it starts |
 

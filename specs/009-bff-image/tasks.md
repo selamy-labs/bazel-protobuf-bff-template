@@ -44,7 +44,9 @@
 ## Phase 5: Polish
 
 - [x] T012 [P] Add the image to the built-artifact scope in `docs/provenance.md`
-- [ ] T013 Write `docs/evidence/m8a.md`, update `specs/README.md`, run the full verifier, freeze, hold for review
+- [x] T013 Write `docs/evidence/m8a.md`, update `specs/README.md`, run the full verifier, freeze, hold for review
+
+- T013: frozen at `05d2545`; the author's full verifier passed there, and an independent focused qualification of that revision is pending.
 
 ## Dependencies
 
