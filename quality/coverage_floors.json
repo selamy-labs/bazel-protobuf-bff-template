@@ -28,7 +28,8 @@
     { "pattern": "^web/app/vite\\.config\\.mjs$", "reason": "test-tooling" },
     { "pattern": "^web/app/test-identity\\.tsx$", "reason": "test-tooling" },
     { "pattern": "^web/client/test_main\\.mjs$", "reason": "test-tooling" },
-    { "pattern": "^web/app/signin/test_main\\.mjs$", "reason": "test-tooling" }
+    { "pattern": "^web/app/signin/test_main\\.mjs$", "reason": "test-tooling" },
+    { "pattern": "^web/testing/", "reason": "test-tooling" }
   ],
   "profiles": [
     {

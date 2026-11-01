@@ -37,6 +37,7 @@ js_test(
     data = [
         "test_main.mjs",
         ":signin_test",
+        "//web/testing:node_tests",
     ],
     entry_point = "test_main.mjs",
 )

@@ -50,6 +50,7 @@ js_test(
     data = [
         "test_main.mjs",
         ":client_test",
+        "//web/testing:node_tests",
     ],
     entry_point = "test_main.mjs",
 )

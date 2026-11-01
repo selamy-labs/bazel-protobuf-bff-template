@@ -22,6 +22,7 @@ eslint_bin.eslint_test(
         "//web/client:lint_srcs",
         "//web/e2e:lint_srcs",
         "//web/serve:lint_srcs",
+        "//web/testing:lint_srcs",
         "@bff_template_quality//:complexity_budgets.json",
     ],
     env = {"COMPLEXITY_BUDGETS": "$(rootpath @bff_template_quality//:complexity_budgets.json)"},

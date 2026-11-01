@@ -49,17 +49,14 @@ function ready(child, errors) {
   });
 }
 
-// basePath is where the page is served, "/" or a site's path (spec 012 FR-019); the backend is always on its
-// own origin. The backend's stderr is kept, so a test can read what it logged.
-export async function startStack(basePath) {
-  const site = await serve(required("WEB_DIST"), 0, basePath);
+// Starts a server binary on an ephemeral loopback port for the site's origin, and tells the site where it is. The
+// server's stderr is kept, so a test can read what it logged.
+async function startServer(binary, site, flags) {
   const errors = { text: "" };
   const server = spawn(
-    path.resolve(required("BFF_BIN")),
-    ["--addr=127.0.0.1:0", `--allowed-origin=${site.origin}`, "--store=memory"],
-    {
-      stdio: ["ignore", "pipe", "pipe"],
-    },
+    path.resolve(binary),
+    ["--addr=127.0.0.1:0", `--allowed-origin=${site.origin}`, "--store=memory", ...flags],
+    { stdio: ["ignore", "pipe", "pipe"] },
   );
   server.stderr.on("data", (chunk) => {
     errors.text += chunk;
@@ -68,19 +65,34 @@ export async function startStack(basePath) {
   const bffUrl = `http://${addr}`;
   site.setBffUrl(bffUrl);
   return {
-    origin: site.origin,
-    basePath,
     bffUrl,
     log: () => errors.text,
-    stopServer: async () => {
+    // Ends the server and waits for it; a server already gone is nothing to wait for.
+    kill: () => {
       server.removeAllListeners("exit");
+      if (server.exitCode !== null || server.signalCode !== null) {
+        return Promise.resolve();
+      }
       const exited = new Promise((resolve) => server.once("exit", resolve));
       server.kill("SIGTERM");
-      await exited;
+      return exited;
     },
+  };
+}
+
+// basePath is where the page is served, "/" or a site's path (spec 012 FR-019); the backend is always on its
+// own origin.
+export async function startStack(basePath) {
+  const site = await serve(required("WEB_DIST"), 0, basePath);
+  const server = await startServer(required("BFF_BIN"), site, []);
+  return {
+    origin: site.origin,
+    basePath,
+    bffUrl: server.bffUrl,
+    log: server.log,
+    stopServer: server.kill,
     stop: async () => {
-      server.removeAllListeners("exit");
-      server.kill("SIGTERM");
+      await server.kill();
       await site.close();
     },
   };
@@ -93,35 +105,20 @@ export async function startProductionStack(basePath) {
   const clientId = "bff-hosted-example";
   const issuer = await startIssuer(clientId);
   const site = await serve(required("WEB_DIST_PRODUCTION"), 0, basePath);
-  const errors = { text: "" };
-  const server = spawn(
-    path.resolve(required("BFF_PRODUCTION")),
-    [
-      "--addr=127.0.0.1:0",
-      `--allowed-origin=${site.origin}`,
-      "--store=memory",
-      `--verifier-issuer=${issuer.origin}`,
-      `--verifier-audience=${clientId}`,
-      `--verifier-jwks-url=${issuer.jwksUrl}`,
-    ],
-    { stdio: ["ignore", "pipe", "pipe"] },
-  );
-  server.stderr.on("data", (chunk) => {
-    errors.text += chunk;
-  });
-  const { addr } = await ready(server, errors);
-  const bffUrl = `http://${addr}`;
-  site.setBffUrl(bffUrl);
+  const server = await startServer(required("BFF_PRODUCTION"), site, [
+    `--verifier-issuer=${issuer.origin}`,
+    `--verifier-audience=${clientId}`,
+    `--verifier-jwks-url=${issuer.jwksUrl}`,
+  ]);
   site.setSignIn({ issuer: issuer.origin, clientId });
   return {
     origin: site.origin,
     basePath,
-    bffUrl,
+    bffUrl: server.bffUrl,
     issuer,
-    log: () => errors.text,
+    log: server.log,
     stop: async () => {
-      server.removeAllListeners("exit");
-      server.kill("SIGTERM");
+      await server.kill();
       await site.close();
       await issuer.close();
     },

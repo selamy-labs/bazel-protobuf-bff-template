@@ -1,0 +1,14 @@
+load("@aspect_rules_js//js:defs.bzl", "js_library")
+
+# The one test runner the TypeScript packages share (spec 007 R7); each package's entry point names its files.
+js_library(
+    name = "node_tests",
+    srcs = ["node_tests.mjs"],
+    visibility = ["//web:__subpackages__"],
+)
+
+js_library(
+    name = "lint_srcs",
+    srcs = glob(["*.mjs"]),
+    visibility = ["//web/lint:__pkg__"],
+)
