@@ -25,4 +25,4 @@ same change that alters any of them.
 | Focused tests | partial | review | not measured | n/a | none | review |
 | Feature, failure, recovery, integration acceptance | enforced | the end-to-end, failure, hook and image witnesses | per milestone | n/a | none | done |
 | Independent exact-revision verification | enforced | review at each milestone's SHA | evidence records; M8 at `446e5c8` | n/a | none | done |
-| Archive before cleanup | partial | none; 27 primitive and 9 handoff controls pass outside the repository | prevention only; `8ad7470` stays unrecovered | n/a | none | T016 |
+| Archive before cleanup | enforced for the future | `//:archive_ref_test` (27 controls), `//:archive_handoff_test` (9 controls) | prevention only: a named ref bundled, verified and restored to the exact commit and tree; a bare object id, a link, an existing or late-arriving destination and a damaged bundle refused; eligibility recorded only behind a verified archive. Nothing recovers `8ad7470` | n/a | none | done; cleanup custody stays with the lifecycle owner |

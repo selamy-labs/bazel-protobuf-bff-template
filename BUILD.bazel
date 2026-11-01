@@ -316,3 +316,25 @@ exports_files(
     ],
     visibility = ["//tools/dev/record:__pkg__"],
 )
+
+# The archive primitive and its handoff (spec 011 FR-015): a named ref bundled, verified and restored fresh to
+# the exact commit and tree before any cleanup is eligible; the handoff records eligibility only behind a verified
+# archive and authorizes nothing. Neither holds a cleanup step, and the controls run in scratch repositories.
+sh_test(
+    name = "archive_ref_test",
+    size = "small",
+    srcs = ["tools/release/archive_ref_test.sh"],
+    args = ["$(rootpath tools/release/archive_ref.sh)"],
+    data = ["tools/release/archive_ref.sh"],
+)
+
+sh_test(
+    name = "archive_handoff_test",
+    size = "small",
+    srcs = ["tools/release/archive_handoff_test.sh"],
+    args = ["$(rootpath tools/release/archive_handoff.sh)"],
+    data = [
+        "tools/release/archive_handoff.sh",
+        "tools/release/archive_ref.sh",
+    ],
+)
