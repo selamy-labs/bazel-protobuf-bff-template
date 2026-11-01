@@ -6,7 +6,7 @@
 
 ## Phase 1: Setup
 
-- [ ] T001 Land spec, plan, research, matrix and the Well-Architected rows in `specs/012-hosted-example/`
+- [x] T001 Land spec, plan, research, matrix and the Well-Architected rows in `specs/012-hosted-example/`
 - [ ] T002 The versioned output contract with the infrastructure owner: `deploy/gcp/inputs/contract.schema.json` (project id, region, runtime identity, build identity, state bucket, artifact registry) and the agreed task ids on their side, recorded in research R1
 
 ## Phase 2: Probes (research)
@@ -20,7 +20,7 @@
 
 - [ ] T007 [US4] The verifier adapter in `bff/adapters/identity/<issuer>/` implementing `identity.Verifier`, composed in production through `bff/cmd/bff/verifier.go`; tests refuse a wrong issuer, a wrong audience, an expired token and a bad signature; the dev identity stays out of the production binary (`//bff/cmd:binaries_test`)
 - [ ] T008 [US4] The managed store adapter in `bff/adapters/store/<managed>/` behind `ports.Store`, passing `bff/ports/contract_test.go`, with a read-after-restart test and an owner-isolation test
-- [ ] T009 [US4] `PORT` and the address at the funnel in `bff/cmd/bff/config.go`: production binds `0.0.0.0:$PORT`, dev stays loopback-only, a non-default port is tested
+- [x] T009 [US4] (the flag, then BFF_ADDR, then PORT on every interface, then 8080; dev stays loopback-only by its own refusal; a non-default port tested) `PORT` and the address at the funnel in `bff/cmd/bff/config.go`: production binds `0.0.0.0:$PORT`, dev stays loopback-only, a non-default port is tested
 - [ ] T010 [US4] Supported sign-in in `web/app/signin/` acquiring the bearer credential for the generated client; the production bundle inspected for the absent test identity (`//web/app:bundle_test`)
 
 ## Phase 4: User Story 1 - Stand up from a reviewed plan (Priority: P1)

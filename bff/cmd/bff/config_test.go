@@ -27,6 +27,29 @@ func TestShippedBinaryHasNoVerifier(t *testing.T) {
 	}
 }
 
+// The listen address at the funnel (spec 012 FR-018): the flag, then BFF_ADDR, then PORT, then 8080.
+func TestListenAddressPrecedence(t *testing.T) {
+	env := func(values map[string]string) func(string) string {
+		return func(name string) string { return values[name] }
+	}
+	cases := map[string]struct {
+		args []string
+		env  map[string]string
+		want string
+	}{
+		"nothing":                  {nil, nil, ":8080"},
+		"PORT alone":               {nil, map[string]string{"PORT": "9090"}, "0.0.0.0:9090"},
+		"BFF_ADDR over PORT":       {nil, map[string]string{"PORT": "9090", "BFF_ADDR": "127.0.0.1:7070"}, "127.0.0.1:7070"},
+		"the flag over everything": {[]string{"--addr=:6060"}, map[string]string{"PORT": "9090", "BFF_ADDR": ":7070"}, ":6060"},
+	}
+	for name, c := range cases {
+		parsed, err := parse(c.args, env(c.env))
+		if err != nil || parsed.addr != c.want {
+			t.Errorf("%s: addr %q, err %v; want %q", name, parsed.addr, err, c.want)
+		}
+	}
+}
+
 func TestConfigure(t *testing.T) {
 	cases := []struct {
 		name     string

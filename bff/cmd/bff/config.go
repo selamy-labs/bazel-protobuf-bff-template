@@ -22,7 +22,7 @@ func parse(args []string, getenv func(string) string) (options, error) {
 	var parsed options
 	flags := flag.NewFlagSet("bff", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
-	flags.StringVar(&parsed.addr, "addr", fallback(getenv("BFF_ADDR"), ":8080"), "listen address")
+	flags.StringVar(&parsed.addr, "addr", fallback(getenv("BFF_ADDR"), defaultAddr(getenv("PORT"))), "listen address")
 	flags.StringVar(&parsed.allowedOrigin, "allowed-origin", getenv("BFF_ALLOWED_ORIGIN"), "exact web origin")
 	flags.StringVar(&parsed.mode, "mode", fallback(getenv("BFF_MODE"), string(server.ModeProduction)), "only production")
 	flags.StringVar(&parsed.identity, "identity", fallback(getenv("BFF_IDENTITY"), "verifier"), "only verifier")
@@ -30,6 +30,16 @@ func parse(args []string, getenv func(string) string) (options, error) {
 		return options{}, err
 	}
 	return parsed, nil
+}
+
+// defaultAddr is the listen address when neither the flag nor BFF_ADDR says: every interface on PORT, which a
+// hosted container runtime sets (spec 012 FR-018), or 8080 without it. The precedence is the flag, then
+// BFF_ADDR, then PORT, then 8080; the ready event prints the address actually bound.
+func defaultAddr(port string) string {
+	if port == "" {
+		return ":8080"
+	}
+	return "0.0.0.0:" + port
 }
 
 func fallback(value, otherwise string) string {
