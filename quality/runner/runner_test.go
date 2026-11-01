@@ -1113,6 +1113,65 @@ func TestCancelledContextStartsNoChild(t *testing.T) {
 	}
 }
 
+// An instrumented tool warns on stderr, and that warning must not become part of what it printed.
+func TestCaptureReadsStdoutOnly(t *testing.T) {
+	dir := t.TempDir()
+	helper := filepath.Join(dir, "helper")
+	script := "#!/bin/sh\necho 'warning: GOCOVERDIR not set' >&2\necho /the/path\necho 'late warning' >&2\n"
+	if err := os.WriteFile(helper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e := &execution{options: Options{Root: dir, Env: os.Environ()}, scratch: t.TempDir()}
+	got, err := e.capture(context.Background(), "helper", []string{helper})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got != "/the/path\n" {
+		t.Fatalf("captured %q, want stdout alone", got)
+	}
+}
+
+// A helper that fails says why, within a bound, and its stdout is not offered as the cause.
+func TestCaptureFailureCarriesBoundedStderr(t *testing.T) {
+	dir := t.TempDir()
+	helper := filepath.Join(dir, "helper")
+	long := strings.Repeat("x", 10*MaxCapturedStderr)
+	script := "#!/bin/sh\necho stdout-noise\necho '" + long + "' >&2\necho 'the real cause' >&2\nexit 7\n"
+	if err := os.WriteFile(helper, []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	e := &execution{options: Options{Root: dir, Env: os.Environ()}, scratch: t.TempDir()}
+	_, err := e.capture(context.Background(), "helper", []string{helper})
+	if err == nil {
+		t.Fatal("a failed helper was accepted")
+	}
+	message := err.Error()
+	if !strings.Contains(message, "exited 7") || !strings.Contains(message, "the real cause") {
+		t.Fatalf("no cause in %q", message)
+	}
+	if strings.Contains(message, "stdout-noise") || len(message) > 2*MaxCapturedStderr {
+		t.Fatalf("unbounded or mixed diagnostic: %d bytes", len(message))
+	}
+}
+
+// A tool whose version cannot be read is not recorded as an empty version.
+func TestEmptyToolVersionIsAProblem(t *testing.T) {
+	h := committed(newHarness(t))
+	fakeBazel(h, `echo "//a:t   PASSED in 1s"`)
+	tool := filepath.Join(t.TempDir(), "tool")
+	h.writeAbs(tool, "#!/bin/sh\necho 'only on stderr' >&2\n", 0o755)
+	body := bazelCheck("tests", "//a/...", "STAGE_FULL") + `tools { name: "SILENT" version_args: "--version" }` + "\n"
+	options := h.options(body, registrypb.Stage_STAGE_FULL)
+	options.Tools = map[string]string{"SILENT": tool}
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitNoEvidence {
+		t.Fatalf("exit %d, want %d\n%s", code, ExitNoEvidence, h.out.String())
+	}
+	if problems := strings.Join(receiptOf(t, options.ReceiptPath).Problems, "\n"); !strings.Contains(problems, "silent version") {
+		t.Fatalf("the receipt does not name the tool: %q", problems)
+	}
+}
+
 // One budget covers every helper: once it has gone, no further helper starts, and each one that did
 // not run is still named, so a skipped version cannot become a PASSED receipt.
 func TestExpiredBudgetStartsNoFurtherHelper(t *testing.T) {

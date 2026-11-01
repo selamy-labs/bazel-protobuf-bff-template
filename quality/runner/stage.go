@@ -335,9 +335,14 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 	}
 }
 
-// supervised runs argv under its own supervisor, so its whole process tree ends when it does or when
-// ctx does. Output goes to a file, which a surviving descendant cannot hold open against this wait.
+// supervised runs argv under its own supervisor, with both output streams in one file.
 func supervised(ctx context.Context, argv []string, dir string, env []string, out *os.File) (int, error) {
+	return supervisedSplit(ctx, argv, dir, env, out, out)
+}
+
+// supervisedSplit is supervised with its streams apart. Its whole process tree ends when it does or
+// when ctx does. Output goes to files, which a surviving descendant cannot hold open against this wait.
+func supervisedSplit(ctx context.Context, argv []string, dir string, env []string, stdout, stderr *os.File) (int, error) {
 	// A spent context starts nothing: a late child would only add its own stop to a budget already used.
 	if err := ctx.Err(); err != nil {
 		return 0, err
@@ -347,7 +352,7 @@ func supervised(ctx context.Context, argv []string, dir string, env []string, ou
 		return 0, err
 	}
 	command := exec.Command(self, append([]string{SuperviseArg}, argv...)...)
-	command.Dir, command.Env, command.Stdout, command.Stderr = dir, env, out, out
+	command.Dir, command.Env, command.Stdout, command.Stderr = dir, env, stdout, stderr
 	if err := command.Start(); err != nil {
 		return 0, err
 	}
@@ -533,21 +538,41 @@ func (e *execution) identify(ctx context.Context, git Git, receipt *Receipt) {
 	}
 }
 
+// MaxCapturedStderr bounds what a failed helper adds to a diagnostic.
+const MaxCapturedStderr = 2048
+
 func (e *execution) capture(ctx context.Context, name string, argv []string) (string, error) {
-	output, err := os.CreateTemp(e.scratch, name+"-")
+	stdout, err := os.CreateTemp(e.scratch, name+"-stdout-")
 	if err != nil {
 		return "", err
 	}
-	defer func() { _ = output.Close() }()
-	code, err := supervised(ctx, argv, e.options.Root, e.options.Env, output)
+	defer func() { _ = stdout.Close() }()
+	stderr, err := os.CreateTemp(e.scratch, name+"-stderr-")
 	if err != nil {
 		return "", err
 	}
-	data, _ := os.ReadFile(output.Name())
+	defer func() { _ = stderr.Close() }()
+	code, err := supervisedSplit(ctx, argv, e.options.Root, e.options.Env, stdout, stderr)
+	if err != nil {
+		return "", err
+	}
 	if code != 0 {
-		return "", fmt.Errorf("exited %d", code)
+		return "", fmt.Errorf("exited %d: %s", code, stderrTail(stderr.Name(), MaxCapturedStderr))
+	}
+	data, err := os.ReadFile(stdout.Name())
+	if err != nil {
+		return "", err
 	}
 	return string(data), nil
+}
+
+// stderrTail returns the end of a file, where a tool usually states its cause.
+func stderrTail(path string, limit int) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "(no stderr)"
+	}
+	return strings.TrimSpace(string(data[max(0, len(data)-limit):]))
 }
 
 func (e *execution) bazelDigest(ctx context.Context) (string, error) {
@@ -577,6 +602,10 @@ func (e *execution) toolVersions(ctx context.Context, receipt *Receipt, missing 
 		output, err := e.capture(ctx, "version", append([]string{path}, tool.GetVersionArgs()...))
 		if err != nil {
 			missing(name+" version", err)
+			continue
+		}
+		if strings.TrimSpace(output) == "" {
+			missing(name+" version", errors.New("it printed nothing on stdout"))
 			continue
 		}
 		line, _, _ := strings.Cut(output, "\n")
