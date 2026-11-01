@@ -15,8 +15,11 @@ refuse() { echo "offline: $1" >&2; exit 11; }
 [[ -x "$validator" ]] || refuse "no inputs validator at $validator"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-# The one funnel first: a refusal here is a finding, before any plan.
-"$validator" "$inputs" || { echo "offline: the inputs are refused; no plan"; exit 1; }
+# The one funnel first: a refusal here is a finding, before any plan. As in the pipeline, the plan reads the
+# effective document the funnel wrote, never the raw file.
+"$validator" --effective "$work/effective.inputs.json" "$inputs" >"$work/validate.out" || { echo "offline: the inputs are refused; no plan"; exit 1; }
+[[ -s "$work/effective.inputs.json" ]] || { echo "offline: the funnel wrote no effective document"; exit 1; }
+grep -q '^release.serving_digest="sha256:[0-9a-f]*" # from ' "$work/validate.out" || { echo "offline: the funnel named no source for the serving digest"; exit 1; }
 hash="$(grep -oE 'h1:[A-Za-z0-9+/=]+' "$service/.terraform.lock.hcl" | head -1)"
 [[ -n "$hash" ]] || refuse "the lock names no h1 hash"
 mirror="$work/mirror/registry.opentofu.org/hashicorp/google"
@@ -34,7 +37,7 @@ provider_installation {
 CLI
 mkdir -p "$work/deploy/gcp/inputs"
 cp -rL "$service" "$work/deploy/gcp/service"
-cp -L "$inputs" "$work/deploy/gcp/inputs/example.inputs.json"
+cp "$work/effective.inputs.json" "$work/deploy/gcp/inputs/example.inputs.json"
 config="$work/deploy/gcp/service"
 export HOME="$work/home" TF_PLUGIN_CACHE_DIR="" TF_CLI_CONFIG_FILE="$work/cli.tfrc" HTTPS_PROXY=http://127.0.0.1:9 HTTP_PROXY=http://127.0.0.1:9 NO_PROXY="" GOOGLE_APPLICATION_CREDENTIALS="" GOOGLE_CREDENTIALS="" CLOUDSDK_CONFIG="$work/home" TF_INPUT=0
 mkdir -p "$HOME"

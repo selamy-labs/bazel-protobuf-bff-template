@@ -11,8 +11,9 @@ steps:
     args:
       - -ceu
       - |
-        # The one funnel first: a refusal here ends the deployment before anything is touched.
-        bazel run //deploy/gcp/inputs:validate -- "${_INPUTS_FILE}"
+        # The one funnel first: a refusal here ends the deployment before anything is touched. The trigger names
+        # the operator's file; the effective document, with every value's source printed, is what the plan reads.
+        bazel run //deploy/gcp/inputs:validate -- --effective /workspace/effective.inputs.json "${_INPUTS_FILE}"
 
   - id: promote-by-digest
     name: "${_TOOLS_IMAGE}"
@@ -33,7 +34,7 @@ steps:
       - |
         cd deploy/gcp/service
         tofu init -input=false -lockfile=readonly
-        tofu plan -input=false -var "inputs_file=${_INPUTS_FILE}" -out=/workspace/service.tfplan
+        tofu plan -input=false -var "inputs_file=/workspace/effective.inputs.json" -out=/workspace/service.tfplan
         tofu show -no-color /workspace/service.tfplan > /workspace/service.plan.txt
 
   - id: apply-behind-the-gate

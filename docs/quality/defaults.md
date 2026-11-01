@@ -42,9 +42,9 @@ inventory: they are not configurable behavior of the product.
 
 ## Hosted example inputs, `deploy/gcp/inputs`
 
-| Site                              | Value                                                                             | Boundary                                                                                                             |
-| --------------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| `inputs.schema.json`, `inputs.go` | no defaults: every value is required, and the example holds synthetic values only | input; the provenance of effective values and the precedence over an operator's file are spec 012 T011's second half |
+| Site                              | Value                                                                                                                         | Boundary                                                                                                                                                                    |
+| --------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `inputs.schema.json`, `inputs.go` | no defaults: every value is required, a leaf given by no file is refused by name, and the example holds synthetic values only | input: a base file and an operator's overlays, the last file winning per leaf; every effective value printed with its source; the effective document is what the plan reads |
 
 ## Transport and server internals, `bff/transport`, `bff/server`
 
