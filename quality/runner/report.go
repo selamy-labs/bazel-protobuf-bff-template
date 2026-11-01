@@ -1,12 +1,14 @@
 package runner
 
 import (
+	"cmp"
 	"encoding/json"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 )
 
@@ -40,16 +42,16 @@ const MaxDiagnostics = 50
 
 // Result is one check's outcome.
 type Result struct {
-	Check      string  `json:"check"`
-	State      State   `json:"result"`
-	Seconds    float64 `json:"seconds"`
-	Blocking   bool    `json:"blocking"`
-	Inputs     int     `json:"inputs"`
+	Check    string  `json:"check"`
+	State    State   `json:"result"`
+	Seconds  float64 `json:"seconds"`
+	Blocking bool    `json:"blocking"`
+	Inputs   int     `json:"inputs"`
 	// Log is the retained output of a check that did not pass, beside the receipt.
-	Log        string  `json:"log,omitempty"`
-	Reason     string  `json:"reason,omitempty"`
-	NoEvidence bool    `json:"no_evidence,omitempty"`
-	EmptyInput bool    `json:"empty_input,omitempty"`
+	Log        string `json:"log,omitempty"`
+	Reason     string `json:"reason,omitempty"`
+	NoEvidence bool   `json:"no_evidence,omitempty"`
+	EmptyInput bool   `json:"empty_input,omitempty"`
 	output     string
 }
 
@@ -150,29 +152,90 @@ type Receipt struct {
 	Problems []string `json:"problems,omitempty"`
 }
 
-// WriteReceipt writes through a temporary file, so a reader never sees a partial record.
+// WriteReceipt writes through a temporary file of its own, so a reader never sees a partial record
+// and no name is shared with another writer.
 func WriteReceipt(path string, receipt *Receipt) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
-	}
 	data, err := json.MarshalIndent(receipt, "", "  ")
 	if err != nil {
 		return err
 	}
-	temporary := path + ".tmp"
-	if err := os.WriteFile(temporary, append(data, '\n'), 0o644); err != nil {
+	temporary, err := os.CreateTemp(filepath.Dir(path), filepath.Base(path)+".tmp-")
+	if err != nil {
 		return err
 	}
-	return os.Rename(temporary, path)
+	defer func() { _ = os.Remove(temporary.Name()) }()
+	if _, err := temporary.Write(append(data, '\n')); err != nil {
+		_ = temporary.Close()
+		return err
+	}
+	if err := temporary.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(temporary.Name(), 0o644); err != nil {
+		return err
+	}
+	return os.Rename(temporary.Name(), path)
 }
 
-// RetainLog keeps a failed check's output beside the receipt, so the terminal's bound hides nothing
-// for good. It holds what the terminal would have shown in full, so it carries the same redaction,
-// and it is private to this user. Size is bounded, and a cut says so.
-func RetainLog(directory, check, output string) (string, error) {
-	if err := os.MkdirAll(directory, 0o700); err != nil {
+// logOwnerMark marks a directory this runner created. A receipt's path proves nothing about what
+// sits beside it, so only a directory holding this mark may ever be removed.
+const logOwnerMark = ".quality-run-logs"
+
+// keepLogRuns bounds how many runs of one receipt path keep logs: at most this many directories of
+// at most maxRetainedLog per check. The next run on that path prunes, under the receipt's lock.
+const keepLogRuns = 5
+
+func logPrefix(receipt string) string {
+	return strings.TrimSuffix(filepath.Base(receipt), ".json") + ".logs-"
+}
+
+// newLogDirectory makes one run's private directory, with a name no other run can hold.
+func newLogDirectory(receipt string) (string, error) {
+	directory, err := os.MkdirTemp(filepath.Dir(receipt), logPrefix(receipt))
+	if err != nil {
 		return "", err
 	}
+	return directory, os.WriteFile(filepath.Join(directory, logOwnerMark), nil, 0o600)
+}
+
+// pruneLogDirectories removes the oldest marked directories of this receipt path so that a new one
+// stays within keepLogRuns. The caller holds the receipt's lock, so none belongs to an active run.
+func pruneLogDirectories(receipt string) error {
+	entries, err := os.ReadDir(filepath.Dir(receipt))
+	if err != nil {
+		return err
+	}
+	type owned struct {
+		path    string
+		modTime int64
+	}
+	var runs []owned
+	for _, entry := range entries {
+		path := filepath.Join(filepath.Dir(receipt), entry.Name())
+		if !entry.IsDir() || !strings.HasPrefix(entry.Name(), logPrefix(receipt)) {
+			continue
+		}
+		if _, err := os.Lstat(filepath.Join(path, logOwnerMark)); err != nil {
+			continue
+		}
+		if info, err := entry.Info(); err == nil {
+			runs = append(runs, owned{path, info.ModTime().UnixNano()})
+		}
+	}
+	slices.SortFunc(runs, func(a, b owned) int { return cmp.Compare(a.modTime, b.modTime) })
+	for len(runs) >= keepLogRuns {
+		if err := os.RemoveAll(runs[0].path); err != nil {
+			return err
+		}
+		runs = runs[1:]
+	}
+	return nil
+}
+
+// RetainLog keeps a failed check's output in its run's directory, so the terminal's bound hides
+// nothing for good. It holds what the terminal would have shown in full, so it carries the same
+// redaction, and it is private to this user. Size is bounded, and a cut says so.
+func RetainLog(directory, check, output string) (string, error) {
 	path := filepath.Join(directory, check+".log")
 	if int64(len(output)) > maxRetainedLog {
 		output = output[:maxRetainedLog] + fmt.Sprintf("\n[truncated at %d bytes; rerun the check for the rest]\n", maxRetainedLog)

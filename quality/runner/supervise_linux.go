@@ -3,6 +3,7 @@ package runner
 import (
 	"bytes"
 	"os"
+	"os/signal"
 	"strconv"
 	"strings"
 	"syscall"
@@ -54,6 +55,37 @@ func children() []int {
 		}
 	}
 	return found
+}
+
+// reapAdopted collects adopted orphans as they exit, so a process that waits for its own daemon to
+// go, as a Bazel client does, does not see a zombie still answering. The command itself is left to
+// its own Wait.
+func reapAdopted(command int) (stop func()) {
+	exited := make(chan os.Signal, 1)
+	signal.Notify(exited, syscall.SIGCHLD)
+	quit := make(chan struct{})
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		for {
+			select {
+			case <-quit:
+				return
+			case <-exited:
+			}
+			for _, pid := range children() {
+				if pid != command {
+					var status syscall.WaitStatus
+					_, _ = syscall.Wait4(pid, &status, syscall.WNOHANG, nil)
+				}
+			}
+		}
+	}()
+	return func() {
+		signal.Stop(exited)
+		close(quit)
+		<-finished
+	}
 }
 
 // removeDescendants stops every adopted process, reaps it, and repeats until none are left, because

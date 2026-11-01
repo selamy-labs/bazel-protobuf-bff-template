@@ -32,6 +32,6 @@ js_test(
         "@bff_template_quality//checks/suppression:spellings",
     ],
     entry_point = "spellings.test.mjs",
-    no_copy_to_bin = ["@bff_template_quality//checks/suppression:spellings"],
     env = {"SPELLINGS": "$(rootpaths @bff_template_quality//checks/suppression:spellings)"},
+    no_copy_to_bin = ["@bff_template_quality//checks/suppression:spellings"],
 )

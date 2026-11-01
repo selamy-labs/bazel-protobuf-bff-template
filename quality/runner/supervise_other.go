@@ -10,3 +10,5 @@ func becomeSubreaper() error { return nil }
 func groupAttributes() *syscall.SysProcAttr { return &syscall.SysProcAttr{Setpgid: true} }
 
 func removeDescendants() {}
+
+func reapAdopted(int) func() { return func() {} }

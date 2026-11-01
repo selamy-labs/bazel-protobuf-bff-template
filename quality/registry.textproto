@@ -107,8 +107,8 @@ checks {
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
   timeout_seconds: 300
-  command: ["{adapter}", "proto-format", "api"]
-  witness: "//:native_fixtures_test"
+  command: ["{adapter}", "format-proto", "api"]
+  witness: "//api:schema_probes_test"
 }
 checks {
   id: "lint-proto"
@@ -118,8 +118,8 @@ checks {
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
   timeout_seconds: 300
-  command: ["{adapter}", "proto-lint", "api"]
-  witness: "//:native_fixtures_test"
+  command: ["{adapter}", "lint-proto", "api"]
+  witness: "//api:schema_probes_test"
 }
 checks {
   id: "format-starlark"
@@ -129,7 +129,7 @@ checks {
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
   timeout_seconds: 300
-  command: ["{adapter}", "buildifier", "{list}"]
+  command: ["{adapter}", "format-starlark", "{list}"]
   witness: "//:native_fixtures_test"
 }
 checks {
@@ -175,7 +175,7 @@ checks {
   kind: KIND_BAZEL
   timeout_seconds: 1500
   targets: ["//...", "@bff_template_quality//..."]
-  witness: "//:native_fixtures_test"
+  witness: "//:verify_body_test"
 }
 checks {
   id: "dependency-rules"
@@ -195,7 +195,7 @@ checks {
   kind: KIND_NATIVE
   timeout_seconds: 300
   command: ["{adapter}", "proto-breaking", "api", "api/BASELINE"]
-  witness: "//:native_fixtures_test"
+  witness: "//api:schema_probes_test"
 }
 
 # --- The full policy only.

@@ -42,7 +42,7 @@ git commit -q -m "declare the baseline"
 original="$work/original.proto"
 cp "$target" "$original"
 
-for check in proto-format proto-lint proto-breaking; do
+for check in format-proto lint-proto proto-breaking; do
   "$native" "$check" api api/BASELINE >"$work/out" 2>&1 || {
     cat "$work/out" >&2
     fail "control: $check rejected the unmutated schema"
@@ -83,7 +83,7 @@ cp "$original" "$target"
 sed -e 's/service NoteService/service Notes/' "$original" >"$target"
 printf 'version: v2\nlint:\n  except: [SERVICE_SUFFIX]\n' >api/buf.yaml
 rc=0
-"$native" proto-lint api >"$work/out" 2>&1 || rc=$?
+"$native" lint-proto api >"$work/out" 2>&1 || rc=$?
 if [[ $rc -eq 0 ]] || ! grep -qF '"type":"SERVICE_SUFFIX"' "$work/out"; then fail "a local buf.yaml weakened lint"; fi
 rm api/buf.yaml
 
@@ -91,7 +91,7 @@ rm api/buf.yaml
 directive="buf:lint:"'ignore SERVICE_SUFFIX'
 sed -e "s/^service NoteService/\/\/ $directive\nservice Notes/" "$original" >"$target"
 rc=0
-"$native" proto-lint api >"$work/out" 2>&1 || rc=$?
+"$native" lint-proto api >"$work/out" 2>&1 || rc=$?
 if [[ $rc -eq 0 ]] || ! grep -qF '"type":"SERVICE_SUFFIX"' "$work/out"; then fail "a comment excused lint"; fi
 cp "$original" "$target"
 

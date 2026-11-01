@@ -38,7 +38,7 @@ buf() { # Runs with a scratch HOME, so user configuration and the credential fil
 }
 
 case "$check" in
-  proto-format | proto-lint | proto-breaking) # <schema dir> [<marker>]
+  format-proto | lint-proto | proto-breaking) # <schema dir> [<marker>]
     schema="$1"
     [[ -d "$schema" ]] || { echo "$check: no schema directory: $schema" >&2; exit 1; }
     scratch="$(mktemp -d)"
@@ -49,8 +49,8 @@ case "$check" in
     [[ -n "$(find "$scratch/new" -name '*.proto' -not -path '*/buf/validate/*' -print -quit)" ]] ||
       { echo "$check: no schema files under $schema" >&2; exit 1; }
     case "$check" in
-      proto-format) buf format "$scratch/new" --exclude-path "$scratch/new/buf" --diff --exit-code ;;
-      proto-lint) buf lint "$scratch/new" --exclude-path "$scratch/new/buf" --error-format=json ;;
+      format-proto) buf format "$scratch/new" --exclude-path "$scratch/new/buf" --diff --exit-code ;;
+      lint-proto) buf lint "$scratch/new" --exclude-path "$scratch/new/buf" --error-format=json ;;
       proto-breaking)
         status="$("$BASELINE" -repo . -marker "$2" -schema "$schema" -out "$scratch/old")"
         echo "proto-breaking: $status"
@@ -82,7 +82,7 @@ case "$check" in
   shellcheck) # <NUL list>
     on_files "$1" env -u SHELLCHECK_OPTS "$SHELLCHECK" --norc
     ;;
-  buildifier) # <NUL list>
+  format-starlark) # <NUL list>
     on_files "$1" "$BUILDIFIER" --config=off --mode=check --lint=warn
     ;;
   format-go) # <NUL list>

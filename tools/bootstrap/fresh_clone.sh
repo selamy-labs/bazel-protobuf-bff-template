@@ -59,9 +59,9 @@ SH
     echo "fresh-clone: hostile settings hid the planted defect" >&2
     exit 1
   fi
-  grep -q '^FAILED shellcheck' "$work/log" || { echo "fresh-clone: did not fail on the planted defect" >&2; exit 1; }
+  grep -qE '^FAILED +shellcheck' "$work/log" || { echo "fresh-clone: did not fail on the planted defect" >&2; exit 1; }
   grep -q 'SC2086' "$work/log" || { echo "fresh-clone: shellcheck did not report the planted defect" >&2; exit 1; }
-  if grep -E '^(FAILED|TIMED_OUT) ' "$work/log" | grep -qv '^FAILED shellcheck'; then
+  if grep -E '^(FAILED|TIMED_OUT|ERROR|NOT_RUN) ' "$work/log" | grep -qvE '^FAILED +shellcheck'; then
     echo "fresh-clone: a check other than the planted defect failed" >&2
     exit 1
   fi

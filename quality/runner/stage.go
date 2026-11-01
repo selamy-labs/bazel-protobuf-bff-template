@@ -86,8 +86,23 @@ func Run(ctx context.Context, options Options) (int, error) {
 	}
 	defer func() { _ = os.RemoveAll(scratch) }()
 	if options.ReceiptPath != "" {
-		_ = os.Remove(options.ReceiptPath)
-		_ = os.RemoveAll(logsDirectory(options.ReceiptPath))
+		// One producer per receipt path, for the whole run: a second cannot remove or overwrite what
+		// an active one is writing. The lock is close-on-exec, so it ends with this process.
+		if err := os.MkdirAll(filepath.Dir(options.ReceiptPath), 0o755); err != nil {
+			return ExitConfig, err
+		}
+		lock, err := Acquire(ctx, []string{options.ReceiptPath + ".lock"})
+		if err != nil {
+			_, _ = fmt.Fprintf(options.Stdout, "quality: another run holds %s: %v\n", options.ReceiptPath, err)
+			return ExitInterrupted, nil
+		}
+		defer lock.Release()
+		if err := os.Remove(options.ReceiptPath); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return ExitConfig, err
+		}
+		if err := pruneLogDirectories(options.ReceiptPath); err != nil {
+			return ExitConfig, configErrorf("pruning old logs: %v", err)
+		}
 	}
 	git := Git{Dir: options.Root, Env: options.Env}
 	workdir := filepath.Join(scratch, "snapshot")
@@ -148,6 +163,7 @@ type execution struct {
 	scratch string
 	inputs  *Inputs
 	log     string
+	logs    string
 	mu      sync.Mutex
 	results []Result
 }
@@ -158,15 +174,22 @@ func (e *execution) record(result Result, check *registrypb.Check) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 	if e.options.ReceiptPath != "" && result.output != "" && result.State != Passed {
-		if path, err := RetainLog(logsDirectory(e.options.ReceiptPath), result.Check, result.output); err == nil {
-			result.Log = path
+		if e.logs == "" {
+			directory, err := newLogDirectory(e.options.ReceiptPath)
+			if err != nil {
+				result.Reason = strings.TrimSpace(result.Reason + " (no log kept: " + err.Error() + ")")
+			}
+			e.logs = directory
+		}
+		if e.logs != "" {
+			if path, err := RetainLog(e.logs, result.Check, result.output); err == nil {
+				result.Log = path
+			}
 		}
 	}
 	e.results = append(e.results, result)
 	PrintResult(e.options.Stdout, result, e.options.Rerun)
 }
-
-func logsDirectory(receipt string) string { return strings.TrimSuffix(receipt, ".json") + ".logs" }
 
 func (e *execution) run(ctx context.Context) []Result {
 	var pool, exclusive, after []planned
@@ -339,19 +362,6 @@ func supervised(ctx context.Context, argv []string, dir string, env []string, ou
 	return 0, ctx.Err()
 }
 
-func (e *execution) bazelEnv() []string {
-	env := make([]string, 0, len(e.options.Env))
-	for _, entry := range e.options.Env {
-		name, _, _ := strings.Cut(entry, "=")
-		if name == "BUILD_WORKSPACE_DIRECTORY" || name == "BUILD_WORKING_DIRECTORY" || strings.HasPrefix(name, "RUNFILES") ||
-			strings.HasSuffix(name, "_RUNFILES") {
-			continue
-		}
-		env = append(env, entry)
-	}
-	return env
-}
-
 func (e *execution) bazelFlags() []string {
 	var flags []string
 	if e.options.Isolation == "weakened" {
@@ -392,7 +402,7 @@ func (e *execution) runBazel(ctx context.Context) {
 	}
 	bazelCtx, cancel := context.WithTimeout(ctx, plan.Timeout)
 	defer cancel()
-	code, runErr := RunBazel(bazelCtx, e.options.Bazel, plan.Args, e.options.Root, e.bazelEnv(), log)
+	code, runErr := RunBazel(bazelCtx, e.options.Bazel, plan.Args, e.options.Root, e.options.Env, log)
 	seconds := time.Since(started).Seconds()
 	if runErr != nil && !errors.Is(runErr, context.DeadlineExceeded) && !errors.Is(runErr, context.Canceled) {
 		fail(Errored, runErr.Error(), "")

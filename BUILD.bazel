@@ -113,14 +113,6 @@ go_binary(
     visibility = ["//visibility:public"],
 )
 
-# Resolves the pinned tools once; the verifier then runs them from the repository root.
-sh_binary(
-    name = "tool_paths",
-    srcs = ["tools/checks/tool_paths.sh"],
-    args = ["%s=$(rootpath %s)" % (name, label) for name, label in sorted(TOOLS.items())],
-    data = sorted(TOOLS.values()),
-)
-
 sh_test(
     name = "native_fixtures_test",
     size = "small",
@@ -135,14 +127,6 @@ sh_test(
 )
 
 sh_test(
-    name = "tool_paths_test",
-    size = "small",
-    srcs = ["tools/checks/tool_paths_test.sh"],
-    args = ["$(rootpath tools/checks/tool_paths.sh)"],
-    data = ["tools/checks/tool_paths.sh"],
-)
-
-sh_test(
     name = "bazel_pin_test",
     size = "small",
     srcs = ["tools/bootstrap/bazel_pin_test.sh"],
@@ -151,14 +135,30 @@ sh_test(
 
 sh_test(
     name = "verify_body_test",
-    size = "small",
+    size = "medium",
     srcs = ["tools/checks/verify_body_test.sh"],
+    args = ["$(rootpath :quality)"],
     data = [
         "tools/checks/required_tests.txt",
         "tools/checks/test_evidence.sh",
         "tools/checks/verify_body.sh",
         "tools/verify.sh",
+        ":quality",
+        "@bff_template_quality//:registry.textproto",
     ],
+    env = {"REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)"},
+)
+
+sh_test(
+    name = "registry_witness_test",
+    size = "small",
+    srcs = ["tools/checks/registry_witness_test.sh"],
+    data = [
+        "tools/checks/native_fixtures_test.sh",
+        "tools/checks/required_tests.txt",
+        "@bff_template_quality//:registry.textproto",
+    ],
+    env = {"REGISTRY": "$(rootpath @bff_template_quality//:registry.textproto)"},
 )
 
 sh_test(
@@ -191,13 +191,6 @@ sh_test(
         "tools/speckit/normalize_json.sh",
         "@bff_template_quality//tools:yq",
     ],
-)
-
-sh_test(
-    name = "inventory_test",
-    size = "small",
-    srcs = ["tools/checks/inventory_test.sh"],
-    data = ["tools/checks/inventory.sh"],
 )
 
 sh_binary(

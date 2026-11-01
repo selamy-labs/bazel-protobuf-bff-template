@@ -22,14 +22,14 @@
 @bff_template_quality//checks/ciparity:ciparity_test
 @bff_template_quality//checks/suppression:suppression_test
 @bff_template_quality//proto:proto_test
+@bff_template_quality//runner:runner_test
 //:bzlmod_policy_test
 //:ci_parity_test
 //:config_policy_test
-//:inventory_test
 //:native_fixtures_test
 //:normalize_json_test
 //:preflight_test
+//:registry_witness_test
 //:speckit_scaffold_test
-//:tool_paths_test
 //:verify_body_test
 //:verify_deadline_test

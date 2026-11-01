@@ -17,7 +17,7 @@ $EDITOR api/template/notes/v1/notes.proto
 tools/verify.sh
 ```
 
-`proto-format`, `proto-lint` and `proto-breaking` name what failed. A wire-incompatible change needs
+`format-proto`, `lint-proto` and `proto-breaking` name what failed. A wire-incompatible change needs
 a new package version, such as `template.notes.v2`.
 
 ## The baseline

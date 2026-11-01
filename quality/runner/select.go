@@ -59,7 +59,7 @@ type Inputs struct {
 	Deleted  []string
 	Vendored map[string]bool
 	Fixtures map[string]bool
-	Counts map[string]int
+	Counts   map[string]int
 }
 
 func manifest(path string) (map[string]bool, error) {

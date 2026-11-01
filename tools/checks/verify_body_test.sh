@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Witness for the verifier's own control flow (specs/002-hermetic-skeleton T025, T032). The real
-# verify_body.sh and verify.sh run against stubs of everything they call. Making each check fail in
-# turn proves that the check is wired to its real command, that the failure reaches the exit code
-# and the receipt, and that no check is recorded as passed by construction.
+# Witness for the verifier's control flow (spec 002 T025, T032; spec 006 T011). The real wrapper, the
+# real runner, the real registry and the real evidence judge run against stubs of the tools. Making
+# each registered check fail in turn proves that it is wired, that the failure reaches the exit code
+# and the receipt, and that no check is recorded as passed by construction. The ids come from the
+# registry, so this test holds no list of its own.
+#
+#   tools/checks/verify_body_test.sh <runner>
 set -euo pipefail
-real_body="$PWD/tools/checks/verify_body.sh"
-real_wrapper="$PWD/tools/verify.sh"
+runner="$PWD/$1"
+registry="$PWD/${REGISTRY:?}"
 required="$PWD/tools/checks/required_tests.txt"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -13,15 +16,20 @@ failures=0
 fail() { echo "FAIL $1" >&2; failures=$((failures + 1)); }
 
 tree="$work/tree"
-mkdir -p "$tree/tools/checks" "$tree/tools/bootstrap" "$tree/tools/policy" "$tree/tools/speckit" "$work/bin"
-cp "$real_body" "$tree/tools/checks/verify_body.sh"
-cp "$required" "$tree/tools/checks/required_tests.txt"
-cp "$PWD/tools/checks/test_evidence.sh" "$tree/tools/checks/test_evidence.sh"
-sed 's/^deadline=[0-9]*$/deadline=3/' "$real_wrapper" >"$tree/tools/verify.sh"
+mkdir -p "$tree/tools/checks" "$tree/tools/bootstrap" "$tree/tools/policy" "$tree/tools/speckit" "$work/bin" \
+  "$tree/api" "$tree/.github/workflows"
+cp tools/checks/verify_body.sh tools/checks/required_tests.txt tools/checks/test_evidence.sh "$tree/tools/checks/"
+sed 's/^deadline=[0-9]*$/deadline=20/' tools/verify.sh >"$tree/tools/verify.sh"
+sed -i 's/--kill-after=60/--kill-after=1/' "$tree/tools/checks/verify_body.sh"
 
 stub() { # stub <path> <check id>: exits 1 when that check is the one selected to fail
   cat >"$1" <<STUB
 #!/usr/bin/env bash
+if [[ "\$(cat "$work/hang" 2>/dev/null)" == "$2" ]]; then
+  sleep 300 &
+  echo "\$!" >"$work/hung-pid"
+  wait
+fi
 [[ "\$(cat "$work/fail" 2>/dev/null)" == "$2" ]] && { echo "stub failure: $2"; exit 1; }
 exit 0
 STUB
@@ -32,12 +40,8 @@ stub "$tree/tools/policy/config_policy.sh" implicit-config
 stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
 stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
-stub "$work/bin/suppression" suppression-ban
-cat >"$tree/tools/bootstrap/preflight.sh" <<'STUB'
-#!/usr/bin/env bash
-echo isolation=full
-STUB
-cat >"$tree/tools/checks/native.sh" <<STUB
+stub "$work/bin/SUPPRESSION" suppression-ban
+cat >"$work/bin/adapter" <<STUB
 #!/usr/bin/env bash
 if [[ "\$1" == "\$(cat "$work/hang" 2>/dev/null)" ]]; then
   sleep 300 &
@@ -47,40 +51,68 @@ fi
 [[ "\$(cat "$work/fail" 2>/dev/null)" == "\$1" ]] && { echo "stub failure: \$1"; exit 1; }
 exit 0
 STUB
-cat >"$tree/tools/checks/inventory.sh" <<STUB
+cat >"$tree/tools/bootstrap/preflight.sh" <<'STUB'
 #!/usr/bin/env bash
-[[ "\$(cat "$work/fail" 2>/dev/null)" == inventory ]] && exit 1
-for f in all authored shell starlark workflows go; do printf 'x\0' >"\$2/\$f"; done
-echo x >"\$2/authored.nl"
-echo all=1 >"\$2/counts"
-git -C "\$1" rev-parse 'HEAD^{tree}' >"\$2/tested_tree"
-echo digest >"\$2/policy_digest"
+echo isolation=full
 STUB
+tools=()
+while read -r name; do
+  if [[ "$name" != SUPPRESSION ]]; then
+    printf '#!/bin/sh\necho "1.0"\n' >"$work/bin/$name"
+    chmod +x "$work/bin/$name"
+  fi
+  tools+=("--tool=$name=$work/bin/$name")
+done < <(sed -nE 's/^tools \{ name: "([A-Z_]+)".*/\1/p' "$registry")
 cat >"$tree/tools/bootstrap/bazel.sh" <<STUB
 #!/usr/bin/env bash
 case "\$1" in
-  --path) echo "$work/bin/tool" ;;
+  --path) echo "$work/bin/BUF" ;;
   run)
-    for name in ACTIONLINT BUILDIFIER GITLEAKS SHELLCHECK TYPOS UV YQ ZIZMOR; do echo "\$name=$work/bin/tool"; done
-    echo "SUPPRESSION=$work/bin/suppression"
+    for arg in "\$@"; do
+      if [[ "\$arg" == --script_path=* ]]; then
+        printf '#!/bin/sh\nexport BUILD_WORKSPACE_DIRECTORY="%s"\nexec "%s" "--registry=%s" "--adapter=%s" %s "\$@"\n' \
+          "$tree" "$runner" "$registry" "$work/bin/adapter" "${tools[*]}" >"\${arg#*=}"
+        chmod +x "\${arg#*=}"
+      fi
+    done
     ;;
   test)
-    if [[ "\$(cat "$work/fail" 2>/dev/null)" == bazel-test ]]; then exit 3; fi
-    if [[ "\$(cat "$work/fail" 2>/dev/null)" == test-inventory ]]; then sed 1d "$required" | sed 's/\$/ PASSED in 0.1s/'
-    else sed 's/\$/ PASSED in 0.1s/' "$required"; fi
-    if [[ "\$(cat "$work/fail" 2>/dev/null)" == sandbox-evidence ]]; then echo 'INFO: 3 processes: 1 internal, 2 local.'
+    selected="\$(cat "$work/fail" 2>/dev/null)"
+    case "\$selected" in
+      tests) echo '//:verify_body_test FAILED in 0.1s'; sed '/verify_body_test/d; s/\$/ PASSED in 0.1s/' "$required"; exit 3 ;;
+      dependency-rules) echo '//bff:dependency_rules_test FAILED in 0.1s'; sed '/dependency_rules/d; s/\$/ PASSED in 0.1s/' "$required"; exit 3 ;;
+      e2e-browser) echo '//web/e2e:notes_e2e_test FAILED in 0.1s'; sed '/notes_e2e/d; s/\$/ PASSED in 0.1s/' "$required"; exit 3 ;;
+      test-inventory) sed 1d "$required" | sed 's/\$/ PASSED in 0.1s/' ;;
+      *) sed 's/\$/ PASSED in 0.1s/' "$required" ;;
+    esac
+    if [[ "\$selected" == sandbox-evidence ]]; then echo 'INFO: 3 processes: 1 internal, 2 local.'
     else echo 'INFO: 3 processes: 1 internal, 2 linux-sandbox.'; fi
     ;;
 esac
 STUB
-printf '#!/bin/sh\necho "1.0"\n' >"$work/bin/tool"
-chmod +x "$work/bin/tool" "$tree/tools/checks/"*.sh "$tree/tools/bootstrap/"*.sh "$tree/tools/verify.sh"
-git -C "$tree" init -q
-GIT_CONFIG_GLOBAL=/dev/null git -C "$tree" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q --allow-empty -m base
+chmod +x "$work/bin/adapter" "$tree/tools/checks/"*.sh "$tree/tools/bootstrap/"*.sh "$tree/tools/verify.sh"
 
-run() { HOME="$work" bash "$tree/tools/verify.sh" "$@" </dev/null >"$work/out" 2>&1; }
+(
+  cd "$tree"
+  mkdir -p quality/checks/suppression/testdata tools/speckit
+  printf '%064d  vendored.sh\n' 0 >tools/speckit/scaffold.sha256
+  printf '%064d  fixture.go\n' 0 >quality/checks/suppression/testdata/fixtures.sha256
+  touch vendored.sh fixture.go a.go a.ts BUILD.bazel .bazelrc api/a.proto .github/workflows/ci.yml
+  printf '#!/bin/sh\n' >a.sh
+)
+GIT_CONFIG_GLOBAL=/dev/null git -C "$tree" init -q
+git -C "$tree" add -A
+GIT_CONFIG_GLOBAL=/dev/null git -C "$tree" -c user.name=t -c user.email=t@example.invalid -c commit.gpgsign=false commit -q -m base
+
+run() { HOME="$work" PATH="/usr/bin:/bin" bash "$tree/tools/verify.sh" "$@" </dev/null >"$work/out" 2>&1; }
 receipt="$tree/.verify/receipt.json"
-field() { grep -oE "\"$1\": *\"?[A-Za-z_]+" "$receipt" | head -1 | sed -E 's/.*[": ]//'; }
+field() { grep -E "^  \"$1\": " "$receipt" | head -1 | sed -E 's/^[^:]*: *"?([^",]*)"?,?$/\1/'; }
+state() { # the state of one check in the receipt
+  grep -A1 "\"check\": \"$1\"" "$receipt" | sed -nE 's/.*"result": "([A-Z_]+)".*/\1/p' | head -1
+}
+
+mapfile -t expected < <(sed -nE 's/^  id: "([a-z0-9-]+)"/\1/p' "$registry")
+[[ ${#expected[@]} -ge 20 ]] || fail "read only ${#expected[@]} check ids"
 
 : >"$work/fail"
 rc=0
@@ -88,10 +120,8 @@ run || rc=$?
 [[ $rc -eq 0 ]] || { fail "all checks passing: exit $rc"; sed 's/^/  /' "$work/out" >&2; }
 [[ "$(field result)" == PASSED ]] || fail "all checks passing: receipt result $(field result)"
 [[ "$(field isolation)" == full ]] || fail "default isolation label"
-expected=(inventory bazel-test test-inventory sandbox-evidence workspace-policy implicit-config bazelrc-policy
-  toolchain-fixtures suppression-ban secrets typos shellcheck buildifier actionlint zizmor speckit-provenance)
 for id in "${expected[@]}"; do
-  grep -qF "{\"check\":\"$id\",\"result\":\"PASSED\"" "$receipt" || fail "$id: not recorded as PASSED in the control run"
+  [[ "$(state "$id")" == PASSED ]] || fail "$id: not recorded as PASSED in the control run, got '$(state "$id")'"
 done
 
 for id in "${expected[@]}"; do
@@ -100,8 +130,18 @@ for id in "${expected[@]}"; do
   run || rc=$?
   [[ $rc -eq 1 ]] || fail "$id failing: exit $rc, want 1"
   [[ "$(field result)" == FAILED ]] || fail "$id failing: receipt result $(field result)"
-  grep -qF "{\"check\":\"$id\",\"result\":\"FAILED\"" "$receipt" || fail "$id failing: receipt does not record it"
+  [[ "$(state "$id")" != PASSED ]] || fail "$id failing: the receipt records a pass"
 done
+
+# The two rows review asked to keep after the old body went: a required target Bazel never ran, and
+# an action that ran outside the claimed sandbox, both beside a Bazel exit of 0.
+echo test-inventory >"$work/fail"
+run || true
+[[ "$(state test-inventory)" == FAILED ]] || fail "an omitted required target was not caught"
+[[ "$(state tests)" == PASSED ]] || fail "control: Bazel itself passed in that run"
+echo sandbox-evidence >"$work/fail"
+run || true
+[[ "$(state sandbox-evidence)" == FAILED ]] || fail "actions outside the sandbox were not caught"
 
 : >"$work/fail"
 run || fail "control before the stale receipt case"
@@ -114,14 +154,21 @@ sed -i 's/^exit 1$/echo isolation=full/' "$tree/tools/bootstrap/preflight.sh"
 
 rc=0
 run --offline || rc=$?
-[[ $rc -eq 0 ]] || fail "offline run: exit $rc"
+[[ $rc -eq 0 ]] || { fail "offline run: exit $rc"; sed 's/^/  /' "$work/out" >&2; }
 [[ "$(field result)" == INCOMPLETE ]] || fail "an offline run must not report PASSED, got $(field result)"
-grep -qF '{"check":"speckit-provenance","result":"SKIPPED"' "$receipt" || fail "offline skip was not recorded"
+[[ "$(state speckit-provenance)" == SKIPPED ]] || fail "offline skip was not recorded"
 
 run --weak-isolation || true
-grep -qF '{"check":"sandbox-evidence","result":"FAILED"' "$receipt" || fail "a linux-sandbox summary under --weak-isolation must not match"
+[[ "$(state sandbox-evidence)" == FAILED ]] || fail "a linux-sandbox summary under --weak-isolation must not match"
 
-echo shellcheck >"$work/hang"
+sed -i 's/^  run)$/  run) exit 1 ;;\n  never)/' "$tree/tools/bootstrap/bazel.sh"
+rc=0
+run || rc=$?
+[[ $rc -eq 2 ]] || fail "an unbuildable runner: exit $rc, want 2"
+grep -qF 'nothing was verified' "$work/out" || fail "an unbuildable runner must say nothing was verified"
+sed -i 's/^  run) exit 1 ;;$/  run)/; /^  never)$/d' "$tree/tools/bootstrap/bazel.sh"
+
+echo format-go >"$work/hang"
 : >"$work/fail"
 rc=0
 run || rc=$?

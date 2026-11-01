@@ -38,6 +38,8 @@ func Supervise(argv []string) int {
 	}
 	done := make(chan error, 1)
 	go func() { done <- command.Wait() }()
+	stopReaping := reapAdopted(command.Process.Pid)
+	defer stopReaping()
 	code := 0
 	select {
 	case err := <-done:

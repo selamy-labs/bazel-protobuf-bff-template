@@ -83,6 +83,9 @@ sh_test(
 
 js_library(
     name = "lint_srcs",
-    srcs = glob(["*.mjs", "*.tsx"]),
+    srcs = glob([
+        "*.mjs",
+        "*.tsx",
+    ]),
     visibility = ["//web/lint:__pkg__"],
 )

@@ -35,7 +35,12 @@ function diagnostics(text) {
 const defects = [
   ["wrong field type", 'title: "A title"', "title: 1", 2322],
   ["unknown field", 'body: "text"', 'text: "text"', 2353],
-  ["fields of another request", 'getNote({ name: note?.name ?? "" })', "getNote({ note: {} })", 2353],
+  [
+    "fields of another request",
+    'getNote({ name: note?.name ?? "" })',
+    "getNote({ note: {} })",
+    2353,
+  ],
   ["method not in the contract", "client.getNote", "client.deleteNote", 2339],
 ];
 

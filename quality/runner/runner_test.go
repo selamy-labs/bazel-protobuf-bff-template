@@ -203,7 +203,10 @@ func (h *harness) writeAbs(path, text string, mode os.FileMode) {
 	}
 }
 
-func (h *harness) write(path, text string) { h.t.Helper(); h.writeAbs(filepath.Join(h.dir, path), text, 0o644) }
+func (h *harness) write(path, text string) {
+	h.t.Helper()
+	h.writeAbs(filepath.Join(h.dir, path), text, 0o644)
+}
 
 func gitEnv() []string {
 	return append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
@@ -1108,14 +1111,6 @@ func TestOmittedDiagnosticsCanBeRetrieved(t *testing.T) {
 	if err != nil || info.Mode().Perm() != 0o600 {
 		t.Fatalf("a retained log stays private: %v %v", info, err)
 	}
-	stale := retained
-	h.write("real.go", "package again\n")
-	options = h.options(native("noisy", "exit 0"), registrypb.Stage_STAGE_FULL)
-	options.ReceiptPath = filepath.Join(filepath.Dir(filepath.Dir(stale)), "r.json")
-	h.run(options)
-	if _, err := os.Stat(stale); err == nil {
-		t.Fatal("an earlier run's log survived the next run")
-	}
 }
 
 func TestRetainedLogIsBounded(t *testing.T) {
@@ -1142,5 +1137,118 @@ func TestWithoutAReceiptTheOnlyPointerIsTheRerun(t *testing.T) {
 	h.run(options)
 	if out := h.out.String(); !strings.Contains(out, "… 1 more (rerun: rerun-me)") || strings.Contains(out, "(see ") {
 		t.Fatalf("a dead pointer:\n%s", out)
+	}
+}
+
+func TestReceiptPathOwnsNoSiblingDirectory(t *testing.T) {
+	dir := t.TempDir()
+	h := committed(newHarness(t))
+	h.writeAbs(filepath.Join(dir, "report.logs", "user-file"), "keep me\n", 0o644)
+	h.writeAbs(filepath.Join(dir, "report.logs-mine", "user-file"), "keep me\n", 0o644)
+	options := h.options(manyLines("noisy", 51), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(dir, "report.json")
+	h.run(options)
+	for _, name := range []string{"report.logs", "report.logs-mine"} {
+		if _, err := os.Stat(filepath.Join(dir, name, "user-file")); err != nil {
+			t.Fatalf("a path proves no ownership, but %s lost a file: %v", name, err)
+		}
+	}
+}
+
+func TestSameReceiptIsSerialized(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "r.json")
+	first := committed(newHarness(t))
+	release := filepath.Join(dir, "release")
+	body := native("slow", fmt.Sprintf(`touch %q.started; while [ ! -e %q ]; do sleep 0.02; done; echo first-output; exit 1`, release, release))
+	options := first.options(body, registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = path
+	done := make(chan int, 1)
+	go func() {
+		code, _ := Run(context.Background(), options)
+		done <- code
+	}()
+	for end := time.Now().Add(5 * time.Second); ; time.Sleep(10 * time.Millisecond) {
+		if _, err := os.Stat(release + ".started"); err == nil {
+			break
+		}
+		if time.Now().After(end) {
+			t.Fatal("the first run never started")
+		}
+	}
+	second := committed(newHarness(t))
+	rival := second.options(manyLines("rival", 3), registrypb.Stage_STAGE_FULL)
+	rival.ReceiptPath = path
+	rival.Deadline = 300 * time.Millisecond
+	if code := second.run(rival); code != ExitInterrupted {
+		t.Fatalf("a second producer on the same receipt ran alongside the first: exit %d\n%s", code, second.out.String())
+	}
+	h := first
+	h.writeAbs(release, "", 0o644)
+	if code := <-done; code != ExitFailed {
+		t.Fatalf("the first run: exit %d", code)
+	}
+	receipt := receiptOf(t, path)
+	data, err := os.ReadFile(receipt.Checks[0].Log)
+	if err != nil || !bytes.Contains(data, []byte("first-output")) {
+		t.Fatalf("the first run's log was disturbed: %v %q", err, data)
+	}
+}
+
+func TestLogRunsAreBoundedAndOnlyOwnedOnesGo(t *testing.T) {
+	dir := t.TempDir()
+	h := committed(newHarness(t))
+	h.writeAbs(filepath.Join(dir, "r.logs-stranger", "note"), "not ours\n", 0o644)
+	var logs []string
+	for range keepLogRuns + 3 {
+		options := h.options(manyLines("noisy", 2), registrypb.Stage_STAGE_FULL)
+		options.ReceiptPath = filepath.Join(dir, "r.json")
+		h.run(options)
+		logs = append(logs, receiptOf(t, options.ReceiptPath).Checks[0].Log)
+		time.Sleep(10 * time.Millisecond)
+	}
+	entries, err := filepath.Glob(filepath.Join(dir, "r.logs-*"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != keepLogRuns+1 {
+		t.Fatalf("want %d owned runs and the stranger, got %v", keepLogRuns, entries)
+	}
+	if _, err := os.Stat(logs[len(logs)-1]); err != nil {
+		t.Fatalf("the newest log went: %v", err)
+	}
+	if _, err := os.Stat(logs[0]); err == nil {
+		t.Fatal("the oldest log was kept past the bound")
+	}
+	if _, err := os.Stat(filepath.Join(dir, "r.logs-stranger", "note")); err != nil {
+		t.Fatalf("a directory with no owner mark was pruned: %v", err)
+	}
+}
+
+func TestReceiptWriteUsesAUniqueTemporaryFile(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "r.json")
+	if err := os.Mkdir(path+".tmp", 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := WriteReceipt(path, &Receipt{Stage: "full"}); err != nil {
+		t.Fatalf("a fixed temporary name can be taken: %v", err)
+	}
+}
+
+func TestAdoptedOrphanIsReapedWhileTheCheckRuns(t *testing.T) {
+	// A Bazel client waits for its server to go after a shutdown. Left as a zombie of the supervisor,
+	// the server still answers `kill -0`, and the client fails.
+	h := newHarness(t)
+	pidfile := filepath.Join(t.TempDir(), "pid")
+	script := `(setsid sh -c 'echo $$ >` + pidfile + `; sleep 0.1' &)
+while [ ! -s ` + pidfile + ` ]; do sleep 0.01; done
+pid=$(cat ` + pidfile + `)
+i=0
+while kill -0 "$pid" 2>/dev/null; do
+  i=$((i+1)); [ $i -gt 200 ] && { echo "the orphan is a zombie"; exit 1; }
+  sleep 0.01
+done`
+	if code := h.run(h.options(native("waiter", script), registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
 	}
 }

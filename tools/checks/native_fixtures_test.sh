@@ -5,7 +5,7 @@
 # repository's own scans never see them.
 set -euo pipefail
 for pair in "$@"; do export "${pair%%=*}=$(realpath "${pair#*=}")"; done
-native="$NATIVE"
+native="${NATIVE:?}"
 repo_gitleaks_config="$PWD/.gitleaks.toml"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
@@ -132,18 +132,18 @@ dir="$g"
 expect fail "bad.go" "format-go defect" "$native" format-go "$work/g-bad.list"
 expect pass - "format-go corrected" "$native" format-go "$work/g-good.list"
 
-# --- buildifier (T026)
+# --- format-starlark (T026)
 b="$work/b" && mkdir -p "$b"
 printf 'glob(["a"])\n' >"$b/BUILD.bazel"
 dir="$b"
 list "$work/b-bad" BUILD.bazel
-expect fail "constant-glob" "buildifier defect" "$native" buildifier "$work/b-bad.list"
+expect fail "constant-glob" "format-starlark defect" "$native" format-starlark "$work/b-bad.list"
 printf '{"warningsList": ["-constant-glob"]}\n' >"$b/.buildifier.json"
-expect fail "constant-glob" "buildifier: .buildifier.json cannot disable" "$native" buildifier "$work/b-bad.list"
-expect pass - "buildifier: the config file really would disable it (control)" "$BUILDIFIER" --mode=check --lint=warn BUILD.bazel
+expect fail "constant-glob" "format-starlark: .buildifier.json cannot disable" "$native" format-starlark "$work/b-bad.list"
+expect pass - "format-starlark: the config file really would disable it (control)" "$BUILDIFIER" --mode=check --lint=warn BUILD.bazel
 rm "$b/.buildifier.json"
 printf 'exports_files(["a"])\n' >"$b/BUILD.bazel"
-expect pass - "buildifier corrected" "$native" buildifier "$work/b-bad.list"
+expect pass - "format-starlark corrected" "$native" format-starlark "$work/b-bad.list"
 
 # --- actionlint (T027): verdicts cannot depend on what is on PATH
 a="$work/a" && mkdir -p "$a/.github/workflows" "$work/stub"
@@ -172,9 +172,9 @@ git -C "$a" init -q
 dir="$a"
 list "$work/a-bad" .github/workflows/bad.yml
 list "$work/a-good" .github/workflows/good.yml
-expect fail "SC2086" "actionlint defect, no host helpers" env PATH=/usr/bin:/bin "$native" actionlint "$work/a-bad.list"
+expect fail "SC2086" "actionlint defect" env PATH=/usr/bin:/bin "$native" actionlint "$work/a-bad.list"
 expect fail "SC2086" "actionlint: a no-op host shellcheck cannot hide it" env PATH="$work/stub:/usr/bin:/bin" "$native" actionlint "$work/a-bad.list"
-expect pass - "actionlint corrected, no host helpers" env PATH=/usr/bin:/bin "$native" actionlint "$work/a-good.list"
+expect pass - "actionlint corrected" env PATH=/usr/bin:/bin "$native" actionlint "$work/a-good.list"
 expect pass - "actionlint: an undeclared host pyflakes cannot fail it" env PATH="$work/stub:/usr/bin:/bin" "$native" actionlint "$work/a-good.list"
 
 # --- zizmor (T026)

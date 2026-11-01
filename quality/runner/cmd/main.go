@@ -182,6 +182,10 @@ func environment(root string, tools toolFlag, runfiles string) []string {
 	env := make([]string, 0, len(os.Environ())+len(tools)+1)
 	for _, entry := range os.Environ() {
 		name, value, _ := strings.Cut(entry, "=")
+		// What `bazel run` adds would leak into every child, including a nested Bazel.
+		if strings.HasPrefix(name, "BUILD_") || strings.HasPrefix(name, "RUNFILES") || strings.HasSuffix(name, "_RUNFILES") {
+			continue
+		}
 		if name == "GIT_INDEX_FILE" && !filepath.IsAbs(value) {
 			entry = name + "=" + filepath.Join(root, value)
 		}
