@@ -215,6 +215,7 @@ checks {
   timeout_seconds: 900
   exclusive: true
   needs_base: true
+  summary: true
   command: ["{FROM_BASE}", "{base}", "{root}", "{isolation}", "quality/complexity_budgets.json", "{bazel}", "complexity"]
   witness: "//:from_base_test"
 }
