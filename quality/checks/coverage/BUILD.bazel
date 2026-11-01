@@ -36,6 +36,7 @@ go_binary(
     visibility = ["//visibility:public"],
     deps = [
         ":coverage",
+        "//checks/command",
         "//checks/suppression",
     ],
 )

@@ -15,31 +15,14 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/command"
 	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/complexity"
 )
 
 const defaultBudgets = "quality/complexity_budgets.json"
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: complexity check|compare ...")
-		os.Exit(2)
-	}
-	var code int
-	var err error
-	switch os.Args[1] {
-	case "check":
-		code, err = check(os.Args[2:])
-	case "compare":
-		code, err = compare(os.Args[2:])
-	default:
-		err = fmt.Errorf("unknown command %q", os.Args[1])
-	}
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "complexity: %v\n", err)
-		os.Exit(2)
-	}
-	os.Exit(code)
+	os.Exit(command.Dispatch("complexity", os.Args[1:], map[string]func([]string) (int, error){"check": check, "compare": compare}, os.Stderr))
 }
 
 func listed(path string) ([]string, error) {

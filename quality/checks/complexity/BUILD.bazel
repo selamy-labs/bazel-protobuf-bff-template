@@ -23,5 +23,8 @@ go_binary(
     name = "complexity_bin",
     srcs = ["cmd/complexity/main.go"],
     visibility = ["//visibility:public"],
-    deps = [":complexity"],
+    deps = [
+        ":complexity",
+        "//checks/command",
+    ],
 )

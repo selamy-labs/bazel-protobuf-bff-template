@@ -22,6 +22,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/command"
 	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/coverage"
 	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/suppression"
 )
@@ -35,25 +36,7 @@ const (
 var testLine = regexp.MustCompile(`^(\S+)\s+(?:\(cached\)\s+)?(PASSED|FAILED|TIMEOUT|FLAKY|NO STATUS|SKIPPED|FAILED TO BUILD)\b`)
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Fprintln(os.Stderr, "usage: floors check|compare ...")
-		os.Exit(2)
-	}
-	var code int
-	var err error
-	switch os.Args[1] {
-	case "check":
-		code, err = check(os.Args[2:])
-	case "compare":
-		code, err = compare(os.Args[2:])
-	default:
-		err = fmt.Errorf("unknown command %q", os.Args[1])
-	}
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "floors: %v\n", err)
-		os.Exit(2)
-	}
-	os.Exit(code)
+	os.Exit(command.Dispatch("floors", os.Args[1:], map[string]func([]string) (int, error){"check": check, "compare": compare}, os.Stderr))
 }
 
 func tracked(root string) ([]string, error) {

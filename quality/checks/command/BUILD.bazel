@@ -1,0 +1,16 @@
+load("@rules_go//go:def.bzl", "go_library", "go_test")
+
+# The one entry point of a check binary with subcommands (spec 011 FR-006): shared, so no binary carries a copy.
+go_library(
+    name = "command",
+    srcs = ["command.go"],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/command",
+    visibility = ["//checks:__subpackages__"],
+)
+
+go_test(
+    name = "command_test",
+    size = "small",
+    srcs = ["command_test.go"],
+    embed = [":command"],
+)

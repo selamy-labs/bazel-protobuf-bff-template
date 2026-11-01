@@ -164,6 +164,7 @@ checks {
 checks {
   id: "coverage-floor"
   definition: "checks/coverage"
+  definition: "checks/command"
   tool: "FLOORS"
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
@@ -179,6 +180,7 @@ checks {
 checks {
   id: "complexity"
   definition: "checks/complexity"
+  definition: "checks/command"
   tool: "COMPLEXITY"
   selector { include: "\\.go$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
@@ -194,6 +196,7 @@ checks {
   id: "floors-from-base"
   definition: "adapters/from_base.sh"
   definition: "checks/coverage"
+  definition: "checks/command"
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
@@ -227,6 +230,7 @@ checks {
   id: "complexity-from-base"
   definition: "adapters/from_base.sh"
   definition: "checks/complexity"
+  definition: "checks/command"
   stages: [STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
