@@ -300,6 +300,8 @@ sh_test(
     data = glob([".github/workflows/**"]) + [
         "tools/ci/mutations.tsv",
         "tools/ci/policy.json",
+        "tools/ci/publish-mutations.tsv",
+        "tools/ci/publish-policy.json",
         "@bff_template_quality//:registry.textproto",
         "@bff_template_quality//checks/ciparity:ciparity_bin",
         "@bff_template_quality//tools:yq",

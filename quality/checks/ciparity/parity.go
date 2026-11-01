@@ -37,7 +37,19 @@ type Policy struct {
 	RequiredJobs []string `json:"required_jobs"`
 	// Gate is the aggregate job's name.
 	Gate string `json:"gate"`
+	// Kind is "verify" (the default: the jobs are the registry's legs and a gate aggregates them) or "publish"
+	// (a trusted publishing workflow: no legs, no gate, an exact chain of needs, and exact per-job permissions
+	// that may write where the policy says so and nowhere else).
+	Kind string `json:"kind"`
+	// JobPermissions, for a publish policy, is each job's exact permissions mapping. A job not listed must be
+	// read-only. Write scopes appear here or nowhere.
+	JobPermissions map[string]map[string]string `json:"job_permissions"`
+	// Needs, for a publish policy, is each job's exact needs list.
+	Needs map[string][]string `json:"needs"`
 }
+
+// publishing reports whether the policy declares a publishing workflow.
+func (p Policy) publishing() bool { return p.Kind == "publish" }
 
 // ActionRule pins one action.
 type ActionRule struct {
@@ -110,6 +122,16 @@ func (v *validator) workflow(wf map[string]any) {
 		v.fail("workflow: jobs are missing")
 		return
 	}
+	if v.p.publishing() {
+		v.publishJobs(jobs)
+		return
+	}
+	v.verifyJobs(jobs)
+}
+
+// verifyJobs validates a verify workflow: the jobs are the registry's legs, each runs its verifier once, and the
+// gate aggregates every leg.
+func (v *validator) verifyJobs(jobs map[string]any) {
 	gate, ok := jobs[v.p.Gate].(map[string]any)
 	if !ok {
 		v.fail("workflow: aggregate job %q is missing", v.p.Gate)
@@ -144,6 +166,102 @@ func (v *validator) workflow(wf map[string]any) {
 	}
 	if gate != nil {
 		v.gateNeeds(gate, others)
+	}
+}
+
+// publishJobs validates a publishing workflow: exactly the declared jobs, each with its exact needs and its
+// exact permissions, no gate and no conditional, every step pinned or allowlisted as in a verify workflow.
+func (v *validator) publishJobs(jobs map[string]any) {
+	var names []string
+	for name := range jobs {
+		names = append(names, name)
+	}
+	var declared []string
+	for name := range v.p.JobSteps {
+		declared = append(declared, name)
+	}
+	if !sameSet(names, declared) {
+		v.fail("workflow: jobs %v are not the declared publishing jobs %v", names, declared)
+	}
+	for name, raw := range jobs {
+		job, ok := raw.(map[string]any)
+		if !ok {
+			v.fail("job %s: not a mapping", name)
+			continue
+		}
+		if _, ok := job["if"]; ok {
+			v.fail("job %s: if is not permitted in a publishing workflow", name)
+		}
+		var needs []string
+		switch n := job["needs"].(type) {
+		case []any:
+			for _, x := range n {
+				s, _ := x.(string)
+				needs = append(needs, s)
+			}
+		case string:
+			needs = []string{n}
+		}
+		if !sameSet(needs, v.p.Needs[name]) {
+			v.fail("job %s: needs %v are not the declared needs %v", name, needs, v.p.Needs[name])
+		}
+		v.jobPermissions(name, job)
+		v.publishJob(name, job)
+	}
+}
+
+// jobPermissions requires a publishing job's permissions to equal the policy's mapping for it exactly; a job
+// the policy lists no mapping for must be read-only, so a write scope can appear only where the policy says.
+func (v *validator) jobPermissions(name string, job map[string]any) {
+	want, listed := v.p.JobPermissions[name]
+	if !listed {
+		if perms, ok := job["permissions"]; ok {
+			v.readOnlyPermissions("job "+name, perms, true)
+		}
+		return
+	}
+	have, ok := job["permissions"].(map[string]any)
+	if !ok {
+		v.fail("job %s: permissions must be an explicit mapping equal to the declared %v", name, want)
+		return
+	}
+	got := map[string]string{}
+	for scope, level := range have {
+		got[scope] = fmt.Sprint(level)
+	}
+	if !reflect.DeepEqual(got, want) {
+		v.fail("job %s: permissions %v are not the declared permissions %v", name, got, want)
+	}
+}
+
+// publishJob validates one publishing job's runner, timeout and ordered steps; no step is a required verifier
+// run and none is a gate, so every run body must simply be allowlisted.
+func (v *validator) publishJob(name string, job map[string]any) {
+	v.current = name
+	where := "job " + name
+	if _, ok := job["uses"]; ok {
+		v.fail("%s: reusable workflow jobs (uses) are not permitted", where)
+	}
+	v.unknownKeys(where, job, jobKeys)
+	v.runner(where, job)
+	steps, _ := job["steps"].([]any)
+	if len(steps) == 0 {
+		v.fail("%s: has no steps", where)
+	}
+	var order []string
+	for i, raw := range steps {
+		step, ok := raw.(map[string]any)
+		if !ok {
+			v.fail("%s step %d: not a mapping", where, i)
+			continue
+		}
+		v.step(fmt.Sprintf("%s step %d", where, i), step, false)
+		order = append(order, signature(step))
+	}
+	if want, ok := v.p.JobSteps[name]; !ok {
+		v.fail("%s: has no permitted step order", where)
+	} else if !reflect.DeepEqual(order, want) {
+		v.fail("%s: step order %q is not the permitted step order %q", where, order, want)
 	}
 }
 

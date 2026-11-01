@@ -1,0 +1,102 @@
+{
+  "kind": "publish",
+  "actions": {
+    "actions/checkout": {
+      "sha": "3d3c42e5aac5ba805825da76410c181273ba90b1",
+      "with": {
+        "fetch-depth": 0,
+        "persist-credentials": false,
+        "ref": "${{ github.sha }}"
+      }
+    },
+    "actions/upload-artifact": {
+      "sha": "cf430e030ddbb5b0abf93d22962f4752f3646cd9",
+      "with": {
+        "if-no-files-found": "error",
+        "name": "verify-receipt-${{ github.job }}-${{ github.run_attempt }}",
+        "path": ".verify/receipt.json",
+        "retention-days": 14
+      }
+    }
+  },
+  "on": {
+    "push": {
+      "tags": [
+        "v*"
+      ]
+    }
+  },
+  "concurrency": {
+    "cancel-in-progress": false,
+    "group": "${{ github.workflow }}-${{ github.ref }}"
+  },
+  "runs_on": [
+    "ubuntu-24.04"
+  ],
+  "max_timeout_minutes": 45,
+  "runs": [
+    {
+      "body": "sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0"
+    },
+    {
+      "body": "tools/verify.sh \"--base=$POLICY_BASE\" --base-source=ci-event",
+      "env": {
+        "POLICY_BASE": "${{ vars.POLICY_BASE }}"
+      }
+    },
+    {
+      "body": "tools/release/publish.sh \"$REPOSITORY\" \"$TAG\"",
+      "env": {
+        "GITHUB_TOKEN": "${{ github.token }}",
+        "REPOSITORY": "${{ github.repository }}",
+        "TAG": "${{ github.ref_name }}"
+      }
+    },
+    {
+      "body": "tools/release/verify_published.sh \"$REPOSITORY\" \"$TAG\"",
+      "env": {
+        "REPOSITORY": "${{ github.repository }}",
+        "TAG": "${{ github.ref_name }}"
+      }
+    }
+  ],
+  "job_steps": {
+    "verify": [
+      "uses:actions/checkout",
+      "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+      "run:tools/verify.sh \"--base=$POLICY_BASE\" --base-source=ci-event",
+      "uses:actions/upload-artifact"
+    ],
+    "publish": [
+      "uses:actions/checkout",
+      "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
+      "run:tools/release/publish.sh \"$REPOSITORY\" \"$TAG\""
+    ],
+    "verify-published": [
+      "uses:actions/checkout",
+      "run:tools/release/verify_published.sh \"$REPOSITORY\" \"$TAG\""
+    ]
+  },
+  "job_permissions": {
+    "verify": {
+      "contents": "read"
+    },
+    "publish": {
+      "contents": "write",
+      "packages": "write"
+    },
+    "verify-published": {}
+  },
+  "needs": {
+    "verify": [],
+    "publish": [
+      "verify"
+    ],
+    "verify-published": [
+      "publish"
+    ]
+  },
+  "required_run": {},
+  "required_jobs": [],
+  "gate": ""
+}

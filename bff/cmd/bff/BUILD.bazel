@@ -1,5 +1,5 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load")
+load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
 load("@tar.bzl", "tar")
 load(":release.bzl", "release_binary")
 
@@ -85,4 +85,12 @@ go_test(
     data = [":image"],
     env = {"IMAGE": "$(rlocationpath :image)"},
     target_compatible_with = LINUX_AMD64,
+)
+
+# The publishing path (spec 010 FR-013): the same image, pushed by digest to the repository the publishing
+# script names at run time with the job's own token. Never run by the verifier.
+oci_push(
+    name = "image_push",
+    image = ":image",
+    repository = "ghcr.io/example/bff",
 )

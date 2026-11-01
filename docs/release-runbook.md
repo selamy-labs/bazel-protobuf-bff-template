@@ -14,6 +14,7 @@ automated, and nothing below has run.
 | 5. First base | Operator, **gate** | The operator names the reviewed candidate as the policy base for the next proposal, in the hook and CI configuration, by its full SHA | The named base in configuration |
 | 6. First green | Hosted CI | A proposal on top of the candidate passes with that base | The aggregate's receipt |
 | 7. Activate | Operator, **gate** | The ruleset's activation input is changed in `governance/github/` and applied through the same configuration. No setting is changed by hand | The plan shows only the enforcement change |
+| 8. Pre-release | Operator, **gate** | A tag `v*` on the trusted source starts `.github/workflows/publish.yml`: the full verifier at the tagged revision, the image built once and pushed by digest to the repository-linked package with the job's own token, the artifacts attached to a pre-release with their hashes, then a credentialless job that pulls by digest anonymously and checks the hashes (spec 010 US6). Nothing is deployed | The anonymous pull and the hash check in the run; the package's public visibility read back |
 
 ## What this runbook does not do
 

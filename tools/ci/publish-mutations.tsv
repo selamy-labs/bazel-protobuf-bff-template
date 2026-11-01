@@ -1,0 +1,21 @@
+# Adversarial mutations of .github/workflows/publish.yml (spec 010 FR-013). Each row: case<TAB>yq expression<TAB>substring the validator must print.
+pull_request_target_trigger	.on["pull_request_target"] = {}	permitted triggers
+workflow_run_trigger	.on["workflow_run"] = {"workflows": ["ci"], "types": ["completed"]}	permitted triggers
+branch_trigger	.on.push.branches = ["main"]	permitted triggers
+verify_published_writes	.jobs["verify-published"].permissions = {"contents": "write"}	declared permissions
+verify_writes_packages	.jobs.verify.permissions = {"contents": "read", "packages": "write"}	declared permissions
+publish_id_token	.jobs.publish.permissions["id-token"] = "write"	declared permissions
+publish_without_verify	.jobs.publish.needs = []	declared needs
+verify_published_skips_publish	.jobs["verify-published"].needs = ["verify"]	declared needs
+extra_job	.jobs.cache = {"name": "cache", "runs-on": "ubuntu-24.04", "timeout-minutes": 5, "steps": [{"name": "x", "run": "true"}]}	declared publishing jobs
+cache_action	.jobs.publish.steps += [{"name": "Cache", "uses": "actions/cache@0123456789abcdef0123456789abcdef01234567"}]	uses
+unpinned_checkout	(.jobs.publish.steps[] | select(.uses // "" | test("^actions/checkout@"))).uses = "actions/checkout@v7"	uses
+checkout_persists_credentials	(.jobs.publish.steps[] | select(.uses // "" | test("^actions/checkout@"))).with["persist-credentials"] = true	persist-credentials
+checkout_other_ref	(.jobs.publish.steps[] | select(.uses // "" | test("^actions/checkout@"))).with.ref = "main"	exact ref
+extra_run_in_publish	.jobs.publish.steps += [{"name": "Extra", "run": "docker build -t x ."}]	run body
+publish_env_token_elsewhere	(.jobs.publish.steps[] | select(.name == "Publish by digest with the job's token")).env.EXTRA_TOKEN = "${{ secrets.PAT }}"	env
+conditional_job	.jobs.publish.if = "always()"	not permitted
+reusable_job	.jobs.publish = {"uses": "example/repo/.github/workflows/x.yml@0123456789abcdef0123456789abcdef01234567"}	uses
+larger_runner	.jobs.publish["runs-on"] = "ubuntu-24.04-16core"	permitted runner
+workflow_write_permissions	.permissions.packages = "write"	permissions
+verify_body_replaced	(.jobs.verify.steps[] | select(.name == "Verify at the tagged revision with the declared base")).run = "echo verified"	run body
