@@ -38,7 +38,15 @@
 - [ ] T020 [US4] One versioned typed schema per configurable surface, with validation, precedence and effective-value provenance; focused compatibility-preserving moves of each scattered default, each with omitted, invalid, precedence, alternative and fallback tests
 - [ ] T021 [US4] A config-only behavior-change witness per surface, and the bypass controls: a setting that would weaken a security, quality, spend or invariant contract is refused; OpenFeature probed before any pin, adopted only where runtime evaluation fits, with its boundary fallback source named
 
-## Phase 6: Archive primitive and closure
+## Phase 6: Adoption rows (research R12)
+
+- [ ] T022 [P] Q11 Python: probe a type checker, a linter, a complexity measure, line-and-branch coverage, Hypothesis and a mutation tool through the pinned uv route against the three first-party scripts; record applicability per script and per tool in `docs/quality/baseline.md` with the measured values; pins only after the probes
+- [ ] T023 [P] Reachable-vulnerability probe for the Go modules at the hosted boundary, with its database fetch named and no offline claim; a complement to the inventory, recorded as such in `docs/quality/baseline.md`
+- [ ] T024 [P] Whole-module Buf deletion witness: add a message deletion probe to `api/testdata/breaking/probes.tsv` beside the existing field and RPC deletions (`MESSAGE_NO_DELETE`), matched as the rule's JSON type by `//api:schema_probes_test`
+- [ ] T025 [P] Client request lifecycle in `web/client/` and `web/app/App.tsx`: cancel or ignore obsolete requests with a slow-A/fast-B unit witness, unmount cleanup, deadline behavior, and a render error boundary with its own test; loading, success, empty, failure and unknown states explicit
+- [ ] T026 [P] Accessibility in the Playwright journeys (`web/e2e/`): keyboard-only completion, visible focus, focus recovery after a validation error, role and label locators; the automated scan recorded as partial, never as full accessibility
+
+## Phase 7: Archive primitive and closure
 
 - [ ] T016 Land `tools/release/archive_ref.sh` and `tools/release/archive_handoff.sh` with their controls as `//:archive_ref_test` and `//:archive_handoff_test` (a bare object id refused with no bundle; a named ref bundled, verified and restored to the exact commit and tree; a truncated bundle fails the fresh restore; a failed archive leaves no eligibility record; a directory or a link to a directory arriving at the destination after the restore is refused with nothing written and no archive reported; no unowned path removed; no clobber; the reported digest is the published bundle's), with the incident record and the loss recorded as unrecovered; neither script holds a cleanup step
 - [ ] T017 Evidence record `docs/evidence/m9.md`, `docs/quality/baseline.md` at its measured state, statuses, the full verifier, freeze, independent review at the exact revision
@@ -46,4 +54,4 @@
 
 ## Dependencies
 
-- T001 to T003 first. T019 to T021 are the config-driven slice and run beside the probes. T004 to T010 are probes and tests on disjoint files and run together. T011 waits for the probes it pins. T012 waits for T006, T007 and T008's measurements; T012a follows T012 and is reviewed at its own SHA; T013's direction controls name a base at or after T012a. T014 waits for T004 and T005. T016 is independent. T017 and T018 come last.
+- T001 to T003 first. T019 to T021 are the config-driven slice and run beside the probes. T022 to T026 are disjoint by path and run beside them. T004 to T010 are probes and tests on disjoint files and run together. T011 waits for the probes it pins. T012 waits for T006, T007 and T008's measurements; T012a follows T012 and is reviewed at its own SHA; T013's direction controls name a base at or after T012a. T014 waits for T004 and T005. T016 is independent. T017 and T018 come last.

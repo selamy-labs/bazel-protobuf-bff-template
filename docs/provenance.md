@@ -139,7 +139,7 @@ analyzers and never link here.
 | connect-go | `connectrpc.com/connect/v2` | 2.0.1 | Apache-2.0 | built artifact, the server | `go.mod` |
 | protobuf-go | `google.golang.org/protobuf` | 1.36.12 | BSD-3-Clause | built artifact, the server | `go.mod` |
 | protovalidate-go | `buf.build/go/protovalidate` | 1.4.0 | Apache-2.0 | built artifact, the server | `go.mod` |
-| protovalidate generated Go | `buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go` | 1.36.12-20260825204119-511051f7f437.1 | unresolved: the fetched module directory was not found to read its LICENSE from; the generated code derives from protovalidate's Apache-2.0 schema | built artifact, the server | `go.mod` |
+| protovalidate generated Go | `buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go` | 1.36.12-20260825204119-511051f7f437.1 | Apache-2.0, read from the fetched module's `LICENSE` (11357 bytes, sha256 `ab870089234b247d1f41828bf8f39a7dbb7171277f81a56e69b474dc2fe51098`, module path matching, go.sum `h1:Slv0uGxx219srASyiaI5C9cDlyG8kNDcXpTSYcuAeE4=`). The earlier unresolved finding was the inventory's lookup, not a missing license | built artifact, the server | `go.mod` |
 | cel-go | `cel.dev/cel-go` | 0.32.0 | Apache-2.0 | built artifact, the server, through protovalidate | `go.sum` |
 | cel expr | `cel.dev/expr` | 0.25.3 | Apache-2.0 | built artifact, the server, through protovalidate | `go.sum` |
 | ANTLR Go runtime | `github.com/antlr4-go/antlr/v4` | 4.13.1 | BSD-3-Clause, from its LICENSE text | built artifact, the server, through cel-go | `go.sum` |

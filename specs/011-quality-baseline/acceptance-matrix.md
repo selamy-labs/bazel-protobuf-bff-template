@@ -25,3 +25,4 @@ never claimed. Each negative needs its positive first; a measurement that produc
 | FR-016 | the defaults inventory, the configuration tests, the config-only witness | one schema, one default site per value, provenance recorded | a silent inner default, an unrecorded precedence, a bypass setting → test or review rejects | G/S | off, hum |
 | SC-005 | the archive controls | the failed-archive, late-destination and named-ref restore controls run | a cleanup eligibility without a verified archive → refused. These controls prevent; they do not and cannot recover `8ad7470`, which stays unrecovered | G | off |
 | SC-006 | the defaults inventory | zero scattered defaults, or each named with an owner | an unnamed default → review rejects | S | hum |
+| FR-017 | the Python probes, `docs/quality/baseline.md` | applicability per script and per tool recorded with measurements | a Go- or TypeScript-only gate text read as a Python waiver → review rejects | S | hum |

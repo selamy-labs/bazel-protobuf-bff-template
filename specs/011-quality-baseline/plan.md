@@ -62,6 +62,8 @@ specs/011-quality-baseline/
 | --- | --- |
 | Integrator (the author) | `BUILD.bazel`, `MODULE.bazel` and its lock, `package.json` and its lock, `quality/registry.textproto`, `quality/rules.textproto`, `web/lint/eslint.config.mjs`, `quality/complexity_budgets.json`, `specs/`, `docs/` |
 | A slice's worker | only that slice's new files in the structure above |
+| T022 (Python) | `tools/pins/*_test.py`, `tools/release/*_test.py`, `tools/python/` probe records |
+| T025, T026 (client) | `web/client/lifecycle*.ts`, `web/app/ErrorBoundary.tsx` and its test, `web/e2e/accessibility.spec.*` |
 
 ## Gates
 

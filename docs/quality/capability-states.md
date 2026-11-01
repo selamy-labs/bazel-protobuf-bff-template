@@ -32,7 +32,7 @@ validator.
 | Hosted CI | yes | workflow only | no | no | no | no | Operator gate |
 | Consumer path and quality-pin upgrade | yes | yes | locally, on `file://` | see [m7](../evidence/m7.md) | no | no | Spec 008 |
 | Container image | yes | yes | locally | see [m8a](../evidence/m8a.md); independent review pending | no | no | `//bff/cmd/bff:image_test`, spec 009 |
-| Provenance and license inventory, neutrality scans, provisioning plan | yes | yes | locally and independently | see [m8](../evidence/m8.md); accepted locally at `446e5c8` by an independent full; 15 licenses unresolved; the required-check context corrected after an audit | no | no | `inventory`, `neutrality`, `//:governance_test` |
+| Provenance and license inventory, neutrality scans, provisioning plan | yes | yes | locally and independently | see [m8](../evidence/m8.md); accepted locally at `446e5c8` by an independent full; 14 licenses unresolved after the protovalidate row was read from its artifact; the required-check context corrected after an audit | no | no | `inventory`, `neutrality`, `//:governance_test` |
 | Quality baseline | yes | complexity for Go only | locally | see [m9](../evidence/m9.md) | no | no | `complexity`, spec 011 |
 | Public release | yes | no | no | no | no | no | Operator gate |
 

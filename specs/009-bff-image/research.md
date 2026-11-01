@@ -54,3 +54,11 @@ from the tests, not the image.
 - A Dockerfile or Cloud Build image step: a second builder, and the conflict this feature removes.
 - A distroless base: more than the server needs today.
 - Packaging `bff-dev` or a stub verifier for a green start: rejected by decision. It would claim a health the product does not have.
+
+## R-adoption Platform indexes and signing at rules_oci 2.3.0
+
+The pinned rules_oci 2.3.0 documents platform-driven image indexes without the module's usual compatibility
+guarantee and signing as preview. This image declares one platform, `linux/amd64`, has no base, and is identified by
+the content digest the build produces; `image_index` and signing stay out of the supported profile until each is
+qualified locally at the pinned version against the same digest and the same refusal. Independent digests from two
+clean builds at the final packaging revision remain the reproducibility witness (spec 009 FR-006).

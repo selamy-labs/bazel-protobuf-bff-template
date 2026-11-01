@@ -19,7 +19,7 @@ Each entry is answered by a probe or by an independent measurement at a named re
 
 ## R4 Coverage (Q5)
 
-- Go's cover tool reports statements, not branch outcomes, and does not probe inside `&&` and `||`. Root's probe of gobco 1.3.4 under Go 1.27 (`m9-go-branch-probe-result.json`, synthetic fixture, no Bazel integration): the tool has `-branch`; on the fixture it reported Condition 2/2 and Branch 2/2 while native statements were 50% and the `select` cases were never executed. It can be qualified only as a branch sub-metric that does not measure `select`; it is never a complete Go branch claim and never a waiver. Decision: probe `gobco` with adversarial fixtures and accept only the constructs it reports, named as such; Go branch outcomes stay a blocking owned task until measured; browser coverage through Playwright's V8 coverage into the existing merger; floors unchanged and only rising.
+- Go's cover tool reports statements, not branch outcomes, and does not probe inside `&&` and `||`. Root's probe of gobco 1.3.4 under Go 1.27 (`m9-go-branch-probe-result.json`, synthetic fixture, no Bazel integration): the tool has `-branch`; on the fixture it reported Condition 2/2 and Branch 2/2 while native statements were 50% and the `select` cases were never executed. It can be qualified only as a branch sub-metric: the probe covered `if` branches only, and an uncalled `select` is not counted even with `-branch`; it is never a complete Go branch claim and never a waiver. Decision: probe `gobco` with adversarial fixtures and accept only the constructs it reports, named as such; Go branch outcomes stay a blocking owned task until measured; browser coverage through Playwright's V8 coverage into the existing merger; floors unchanged and only rising.
 
 ## R5 Property tests (Q6)
 
@@ -41,6 +41,14 @@ Each entry is answered by a probe or by an independent measurement at a named re
 
 - The human baseline of 2026-11-01 adds typed, versioned configuration: one schema, defaults once at the composition or input boundary, required inner parameters, precedence, validation, effective-value provenance, OpenFeature only where runtime evaluation fits, and no bypass of security, quality, spend or invariant contracts.
 - Where this tree stands: the server's `Config` validates its mode, authenticator, store and origin at the boundary (`bff/server`); the quality runner takes its paths from the registry and the binary's arguments; the checks read policy inputs from files with unknown fields refused. Scattered defaults are not inventoried yet. The probe at landing inventories every default in first-party Go and TypeScript by its site, then decides schema placement by focused changes. No framework is added; a library is probed before a pin like every other tool.
+
+## R11 Python applicability (Q11)
+
+- The tree holds three first-party Python scripts, all generators run through the pinned uv: `tools/pins/gen_browser_libs.py`, `tools/pins/gen_multitool_lock.py`, `tools/release/inventory_tables.py`. The suppression ban already covers Python directives (S007). No Python type checker, linter, complexity or coverage tool is bound; the Go and TypeScript gate texts do not waive them. T022 probes each tool through the uv route before any pin and records applicability per script, with coverage measured as lines and branches separately.
+
+## R12 Adoption matrix
+
+- The reconciliation of the 2026-11-01 portfolio adoption matrix is in [adoption.md](adoption.md): reused controls by witness, bounded tasks T022 to T026, and non-applicability reasons. The matrix itself stays outside the repository.
 
 ## R9 The budget comparator and its base
 
