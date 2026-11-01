@@ -98,5 +98,7 @@ fresh; printf 'packages: [\n' >pnpm-lock.yaml; git add -A; expect "a malformed l
 fresh; printf '{}\n' >package.json; git add -A; expect "a package.json with no package is an error" 2
 fresh; mkdir -p other; printf '# Copyright (c) 1999 Another\n' >other/x.c; git add -A; expect "a foreign copyright outside an enrolled path" 1; grep -q 'other/x.c carries' "$T/out" || { echo "FAIL path not named"; failures=$((failures + 1)); }
 fresh; printf '# SPDX-License-Identifier: MIT\n' >docs/note.md; git add -A; expect "a license marker in documentation is not a vendored file" 0
+fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | reviewed: MIT-style notice; evidence: copyright file, sha256 0123abcd, 10 bytes; scope: test-time only; by a reviewer, 2026-11-01 |"; expect "a reviewed decision with its evidence, scope and reviewer is counted, not unresolved" 0; grep -q 'measurement: inventory .* 0 licenses unresolved, 1 reviewed decisions' "$T/out" || { echo "FAIL reviewed decision not counted"; failures=$((failures + 1)); }
+fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | reviewed: MIT-style notice, trust me |"; expect "a reviewed decision without evidence, scope and reviewer" 1; grep -q 'needs its evidence hash' "$T/out" || { echo "FAIL the missing evidence is not named"; failures=$((failures + 1)); }
 fresh; expect "restored control passes" 0
 echo "inventory fixture failures: $failures"; exit "$failures"

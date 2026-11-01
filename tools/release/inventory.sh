@@ -65,6 +65,7 @@ awk -F'|' '
     if (sep || lic < 0) next
     if (cell[lic] == "") print cell[0] ": empty license cell"
     else if (tolower(cell[lic]) ~ /unknown/ && tolower(cell[lic]) !~ /^unresolved:/) print cell[0] ": license is neither a name nor an explicit unresolved finding"
+    else if (cell[lic] ~ /^reviewed:/ && (cell[lic] !~ /; evidence: .*sha256 [0-9a-f]+/ || cell[lic] !~ /; scope: / || cell[lic] !~ /; by /)) print cell[0] ": a reviewed decision needs its evidence hash, scope and reviewer"
     next
   }
   { inTable = 0 }
@@ -123,9 +124,10 @@ while IFS= read -r path; do
 done <"$marked"; rm -f "$marked"
 
 unresolved="$(grep -ciE '^\| .*\| *unresolved:' "$inventory" || true)"
-echo "measurement: inventory $(grep -cE '^\| [^-|]' "$inventory") rows, $unresolved licenses unresolved"
+reviewed="$(grep -cE '^\| .*\| *reviewed:' "$inventory" || true)"
+echo "measurement: inventory $(grep -cE '^\| [^-|]' "$inventory") rows, $unresolved licenses unresolved, $reviewed reviewed decisions"
 if [[ $problems -eq 0 ]]; then
-  if [[ "$unresolved" -eq 0 ]]; then echo "inventory: every entry present and every license named"; else echo "inventory: every entry present; $unresolved licenses stay unresolved, and the release review decides each"; fi
+  if [[ "$unresolved" -eq 0 ]]; then echo "inventory: every entry present and every license named or decided by a recorded review"; else echo "inventory: every entry present; $unresolved licenses stay unresolved, and the release review decides each"; fi
   exit 0
 fi
 echo "inventory: $problems problems"; exit 1

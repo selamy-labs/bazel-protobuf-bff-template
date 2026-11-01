@@ -62,3 +62,16 @@ The checks below were run before the M0 commit:
 | Fresh clone passes with no credentials | author runs only, at weakened isolation; independent full-sandbox runs exist at M7's and M8a's revisions, not at this one | the evidence records |
 | First hosted push has no base | decided: the first run is expected to exit 11, and the operator names the reviewed candidate as the base afterwards | [runbook](release-runbook.md), steps 4 and 5 |
 | Result recorded with revision and reviewer | this row | this file |
+
+## License decisions (2026-11-01)
+
+The inventory's unresolved findings at the executed review above were decided afterwards, each from the exact
+artifact: the protovalidate generated Go module from its fetched `LICENSE` (Apache-2.0), twelve Debian browser
+packages from a complete read of their prose copyright files, and the two GCC runtimes from the matching Debian
+source copyright record, since their fetched doc directories are symlinks to a package that is not fetched. The
+decisions, with evidence hashes, scope and reviewer, are in `tools/release/license_decisions.tsv` and appear in
+the generated table as `reviewed:` cells, which the `inventory` check validates and counts. A decision names a
+license family as read; it is no legal guarantee, no compatibility judgment, and no clearance to redistribute the
+test-time browser packages, which are in neither the Git source nor the image. The release review still decides
+publication with these rows in view.
+
