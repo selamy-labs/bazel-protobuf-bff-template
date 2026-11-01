@@ -88,7 +88,10 @@ a private retained log (below), so the omitted lines can be retrieved.
 **Execution**:
 
 - All `bazel`-kind checks in a stage run as **one** Bazel invocation. Targets of checks outside the
-  stage are subtracted, with no second list.
+  stage are subtracted, with no second list. One declared exception replays after it: `image-release`,
+  a host check at `full`, builds and witnesses the release image in the plain configuration, because the
+  stage's `coverage` invocation cannot produce the release artifact (spec 009 research R6). It is
+  `exclusive` and `after_bazel`, never cached, and it reports the plain digest as a measurement.
 - `native` checks run in a pool of `--jobs` workers (default `min(4, ncpu/2)`). `exclusive` checks run
   alone, and `after_bazel` checks read that invocation's log.
 - stdin is closed for every child.

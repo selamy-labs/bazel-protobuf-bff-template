@@ -167,8 +167,14 @@ sh_test(
     name = "image_release_test",
     size = "small",
     srcs = ["tools/checks/image_release_test.sh"],
-    args = ["$(rootpath tools/checks/image_release.sh)"],
-    data = ["tools/checks/image_release.sh"],
+    args = [
+        "$(rootpath tools/checks/image_release.sh)",
+        "$(rootpath @bff_template_quality//tools:yq)",
+    ],
+    data = [
+        "tools/checks/image_release.sh",
+        "@bff_template_quality//tools:yq",
+    ],
 )
 
 sh_test(

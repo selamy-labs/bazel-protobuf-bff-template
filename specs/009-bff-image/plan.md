@@ -40,4 +40,6 @@ specs/001-bff-template-foundation/   D8, R-13, section 9, T083, FR-034
 
 ## Complexity Tracking
 
-None.
+| Exception | Why | Owner, condition |
+| --- | --- | --- |
+| A second Bazel invocation at `full`, by `image-release` | The stage's `coverage` invocation names transitioned output directories differently from a plain build, and the binary records them, so only a plain build produces the release artifact (research R6) | Spec 009. It stays while the Go toolchain records generated-source paths; it runs `after_bazel`, `exclusive`, uncached, and ordinary coverage and floors are untouched |

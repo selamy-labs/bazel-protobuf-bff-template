@@ -201,7 +201,7 @@ checks {
   after_bazel: true
   allow_empty: true
   summary: true
-  command: ["tools/checks/image_release.sh", "{bazel}", "{isolation}"]
+  command: ["tools/checks/image_release.sh", "{bazel}", "{isolation}", "{YQ}"]
   witness: "//:image_release_test"
 }
 

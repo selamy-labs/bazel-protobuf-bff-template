@@ -25,7 +25,8 @@ labeled `weakened`, and nothing here is independent yet.
 | Real runtime | Not run here. The authoring account has no container daemon access. An independent run binds the same content digest |
 | Verifier, `29d0d6c` | **Failed**, exit 1, 349 s: under `bazel coverage` the image held an instrumented server, and `image_test` saw coverage warnings before the refusal. Earned nothing. The repair is `4fe7355` |
 | Coverage mode after the repair | `image_test` passes under both `bazel test` and `bazel coverage`. The coverage-mode image's digest differs from the plain one by its embedded generated-source directory only, measured on the binaries. With `instrumentation_filter` also reset, the two transitioned configurations are option-identical, same ids under both commands, and the directories still differ by Bazel's naming scheme. So the plain build is the release artifact, and the `image-release` check witnesses it and reports its digest in the receipt |
-| Verifier, repaired | See below, once it has run |
+| Verifier, `eae69a9` | Passed, 27 of 27 checks in 351 s, clean tree. `image-release` reported `image sha256:682d4fae470d8dd11d741b26ea7eb54a7e98f4b2e2fe4b90c41605aeb27c2189` in the receipt |
+| Repeatability, `eae69a9` | Two clean clones, two paths, two output bases: one manifest digest, `682d4fae…2189`, equal to the `779a36e` artifact. The packaging change kept the production content |
 
 ## Not claimed
 
