@@ -21,6 +21,8 @@
 #   pre_commit_rejected:    warm, a staged secret. Each run must be rejected.
 #   pre_push_edited:        warm, a comment appended to one Go package.
 #   pre_push_exported:      warm, a new exported constant appended to that package.
+#   pre_push_runtime:       warm, a new init function in that package, which the linker keeps in every
+#                           importer, so this changes what runs. Its package test must run each time.
 #   pre_push_rejected:      warm, a test in that package made to fail. Each run must be rejected, for
 #                           that test.
 #   pre_push_docs_only:     warm, a documentation edit. Bazel's test cache answers, so this is the floor of
@@ -91,7 +93,7 @@ timed() { # timed <home> <clone> <env assignments...> -- <command...>; prints "s
   local envs=()
   while [[ "$1" != "--" ]]; do envs+=("$1"); shift; done
   shift
-  local start end rc=0 peak=0 now server roots
+  local start end rc=0 peak=0 now server roots file
   start="$(date +%s.%N)"
   mkdir -p "$home/tmp"
   (cd "$clone" && exec env -i HOME="$home" TMPDIR="$home/tmp" PATH=/usr/bin:/bin USER="${USER:-$(id -un)}" TERM=dumb "${envs[@]}" \
@@ -101,10 +103,14 @@ timed() { # timed <home> <clone> <env assignments...> -- <command...>; prints "s
     roots="$verifier"
     if $stages_only; then
       # A search of this tree takes longer than a whole warm stage, so only the known places are read.
-      server="$(cat "$home"/.cache/bazel/_bazel_*/*/server/server.pid.txt "$home"/.cache/bff-template/push/*/server/server.pid.txt 2>/dev/null | tr '\n' ' ' || true)"
+      server=""
+      for file in "$home"/.cache/bazel/_bazel_*/*/server/server.pid.txt "$home"/.cache/bff-template/push/*/server/server.pid.txt; do
+        if [[ -f "$file" ]]; then server+=" $(<"$file")"; fi
+      done
     else
       # The toolchain fixtures start their own server under TMPDIR, which is inside HOME here.
-      server="$(find "$home" -maxdepth 7 -name server.pid.txt -exec cat {} + 2>/dev/null | tr '\n' ' ' || true)"
+      # These files have no final newline, so each is read alone: joined, two PIDs make a wrong third.
+      server="$(find "$home" -maxdepth 7 -name server.pid.txt -exec sh -c 'for file; do cat "$file"; echo; done' _ {} + 2>/dev/null | tr '\n' ' ' || true)"
     fi
     roots+=" $server"
     now="$(tree_pss_kb "$roots")"
@@ -292,6 +298,22 @@ stage_scenarios() {
   done
   expect_passed "$work/push_exported"
 
+  : >"$work/push_runtime"
+  printf '\n// BenchEdits records the measured edits.\nvar BenchEdits []int\n' >>"$base/clone/$stage_file"
+  for i in $(seq 1 "$warm"); do
+    printf '\nfunc init() { BenchEdits = append(BenchEdits, %d) }\n' "$i" >>"$base/clone/$stage_file"
+    in_stage "$base" git add "$stage_file"
+    in_stage "$base" git commit -q --no-verify -m runtime
+    observed_push "$base" runtime
+    expect_work runtime
+    if [[ "$(tail -1 "$work/own_runtime")" -eq 0 ]]; then
+      echo "measure: an edit that changes what runs did not run the package's test" >&2
+      exit 1
+    fi
+    echo "push runtime $i: $(tail -1 "$work/push_runtime"); tests $(tail -1 "$work/tests_runtime")" >&2
+  done
+  expect_passed "$work/push_runtime"
+
   : >"$work/push_rejected"
   for i in $(seq 1 "$warm"); do
     printf '\nfunc init() { panic("edit %d fails this package'"'"'s tests") }\n' "$i" >>"$base/clone/$stage_test"
@@ -344,11 +366,13 @@ stage_scenarios() {
   "pre_push_edited_work": $(work_record edited),
   "pre_push_exported": $(stats "$work/push_exported"),
   "pre_push_exported_work": $(work_record exported),
+  "pre_push_runtime": $(stats "$work/push_runtime"),
+  "pre_push_runtime_work": $(work_record runtime),
   "pre_push_rejected": $(stats "$work/push_rejected"),
   "pre_push_rejected_work": $(work_record rejected),
   "pre_push_docs_only": $(stats "$work/push_docs"),
   "pre_push_docs_only_work": $(work_record docs),
-  "limits": "Times are a whole git commit or git push through the real hooks, including prek. failed_runs equals n on the rejected scenarios by construction. pre_commit_N staged N new Go files, so it exercises the content checks that apply to Go and nothing for other languages. pre_push_docs_only edits no build input of a test and is the stage's floor, not feedback on edited code. Scenario names say what was edited. The *_work records say what happened: spawned actions from each receipt, and tests that ran, seen as test.xml files the push rewrote, with caching on. A result that Bazel's cache answered is not a test run, so a time with tests_run 0 is a compile or cache time and not feedback on behavior. A spawned action can be a compile alone. Install and first runs include downloads when the host's download cache is empty, so they depend on the link. Peak memory is sampled PSS of the command's and Bazel servers' process trees every 0.1 s and can miss short spikes."
+  "limits": "Times are a whole git commit or git push through the real hooks, including prek. failed_runs equals n on the rejected scenarios by construction. pre_commit_N staged N new Go files, so it exercises the content checks that apply to Go and nothing for other languages. pre_push_docs_only edits no build input of a test and is the stage's floor, not feedback on edited code. Scenario names say what was edited. The *_work records say what happened: spawned actions from each receipt, and tests that ran, seen as test.xml files the push rewrote, with caching on. A result that Bazel's cache answered is not a test run, so a time with tests_run 0 is a compile or cache time and not feedback on behavior. A spawned action can be a compile alone. pre_push_runtime is the only passing scenario required to run a test, so it is the feedback number for a change in behavior, for this one package and its dependents. Install and first runs include downloads when the host's download cache is empty, so they depend on the link. Peak memory is sampled PSS of the command's and Bazel servers' process trees every 0.1 s and can miss short spikes."
 }
 JSON
   echo "measure: wrote $out" >&2
