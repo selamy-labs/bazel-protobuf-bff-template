@@ -6,6 +6,7 @@
 //bff/app:app_test
 //bff/cmd/bff:config_test
 //bff/cmd:binaries_test
+//bff/cmd:static_test
 //bff/identity:identity_test
 //bff/server:server_test
 //bff/transport:transport_test

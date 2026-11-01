@@ -1,3 +1,4 @@
+load("@rules_go//go:def.bzl", "go_test")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 sh_test(
@@ -12,4 +13,20 @@ sh_test(
         "//bff/cmd/bff",
         "//bff/cmd/bff-dev",
     ],
+)
+
+go_test(
+    name = "static_test",
+    size = "small",
+    srcs = ["static_test.go"],
+    data = [
+        "//bff/cmd/bff",
+        "//bff/cmd/bff-dev",
+        "@chrome_headless_shell//:chrome-headless-shell",
+    ],
+    env = {
+        "BFF": "$(rootpath //bff/cmd/bff)",
+        "BFF_DEV": "$(rootpath //bff/cmd/bff-dev)",
+        "DYNAMIC_CONTROL": "$(rootpath @chrome_headless_shell//:chrome-headless-shell)",
+    },
 )
