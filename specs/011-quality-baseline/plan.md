@@ -20,12 +20,12 @@ framework: every tool joins through the existing analyzer, lint, coverage and re
 
 ## Constitution Check
 
-| Principle | Result |
-| --- | --- |
-| IV. One policy, thin adapters | Every gate is a registry check run by the one runner; adapters translate invocation only |
+| Principle                      | Result                                                                                                                              |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------- |
+| IV. One policy, thin adapters  | Every gate is a registry check run by the one runner; adapters translate invocation only                                            |
 | V. Policy cannot weaken itself | Budgets are policy inputs the base evaluator compares, with the direction stated per metric; the evaluator's own limit stays stated |
-| III. Pinned | Every tool by checksum through the existing locks, with provenance rows |
-| Governance: no live action | None |
+| III. Pinned                    | Every tool by checksum through the existing locks, with provenance rows                                                             |
+| Governance: no live action     | None                                                                                                                                |
 
 ## Project Structure
 
@@ -58,25 +58,43 @@ specs/011-quality-baseline/
 
 ## Ownership
 
-| Role | Files |
-| --- | --- |
+| Role                    | Files                                                                                                                                                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Integrator (the author) | `BUILD.bazel`, `MODULE.bazel` and its lock, `package.json` and its lock, `quality/registry.textproto`, `quality/rules.textproto`, `web/lint/eslint.config.mjs`, `quality/complexity_budgets.json`, `specs/`, `docs/` |
-| A slice's worker | only that slice's new files in the structure above |
+| A slice's worker        | only that slice's new files in the structure above                                                                                                                                                                   |
+
+The slices as landed (every one by the author as the single writer; no second worker ran, so no two slices ran at once):
+
+| Slice                          | New files                                                                              | Landed                                       |
+| ------------------------------ | -------------------------------------------------------------------------------------- | -------------------------------------------- |
+| Complexity gate and comparator | `quality/checks/complexity/`, `quality/complexity_budgets.json`                        | `6436306` to `c8683d2`, `201ca52`, `6748c32` |
+| Escape hatches                 | `docs/quality/type-escapes.md`                                                         | `21eab0f`                                    |
+| Message deletion probe         | one row of `api/testdata/breaking/probes.tsv`                                          | `4bd9a8f`                                    |
+| Request lifecycle              | `web/client/lifecycle.ts`, its test, `web/app/ErrorBoundary.tsx`                       | `bed02b7`                                    |
+| Accessibility journeys         | three journeys in `web/e2e/notes.spec.mjs`                                             | `e6fe228`                                    |
+| Defaults and configuration     | `docs/quality/defaults.md`; the bounds in `bff/transport`, `bff/server`, `bff/cmd/bff` | `ef5e857` to `4248055`                       |
+| Archive primitive              | `tools/release/archive_ref.sh`, `archive_handoff.sh`, their tests                      | `e82e3bb`                                    |
+| Hosted example (spec 012)      | `deploy/gcp/`, `web/e2e/hosted.spec.mjs`, `tools/dev/`                                 | `ae929a5` to `86120a5`                       |
+
+The integrator's shared files, touched by more than one slice: the task lists, the control table, the evidence
+records, the registry and the catalog, the required-test list, the coverage floors, the root `BUILD.bazel`, the
+READMEs and the capability record. The path check in [m9](../../docs/evidence/m9.md) lists what more than one
+landed commit touched.
 | T022 (Python) | `tools/pins/*_test.py`, `tools/release/*_test.py`, `tools/python/` probe records |
 | T025, T026 (client) | `web/client/lifecycle*.ts`, `web/app/ErrorBoundary.tsx` and its test, `web/e2e/accessibility.spec.*` |
 
 ## Gates
 
-| Gate | Where | What it refuses |
-| --- | --- | --- |
-| Measurement before policy | T004 to T010 before T012 | a budget with no measurement older than itself |
-| Probe before pin | T011 | a tool pinned by name, or one that cannot be pinned by checksum |
-| Planted defect before enforced | T013, `docs/quality/baseline.md` | a row marked enforced without a named failing gate |
-| Direction per metric | T013 | a ceiling that rises, a floor that falls, a blanket exclusion |
-| Comparator anchor before witness | T012a before T013 | a weaker-proposal control whose base predates the comparator, which would pass without judging |
-| Disjoint slices | T015 | a file touched by two slices |
-| Archive before any Git maintenance | T016 | cleanup eligibility without a verified archive; any cleanup step inside the primitive or its handoff |
-| Closure | T018 | an applicable control still partial or a gap |
+| Gate                               | Where                            | What it refuses                                                                                      |
+| ---------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| Measurement before policy          | T004 to T010 before T012         | a budget with no measurement older than itself                                                       |
+| Probe before pin                   | T011                             | a tool pinned by name, or one that cannot be pinned by checksum                                      |
+| Planted defect before enforced     | T013, `docs/quality/baseline.md` | a row marked enforced without a named failing gate                                                   |
+| Direction per metric               | T013                             | a ceiling that rises, a floor that falls, a blanket exclusion                                        |
+| Comparator anchor before witness   | T012a before T013                | a weaker-proposal control whose base predates the comparator, which would pass without judging       |
+| Disjoint slices                    | T015                             | a file touched by two slices                                                                         |
+| Archive before any Git maintenance | T016                             | cleanup eligibility without a verified archive; any cleanup step inside the primitive or its handoff |
+| Closure                            | T018                             | an applicable control still partial or a gap                                                         |
 
 ## Risks
 
@@ -87,6 +105,6 @@ specs/011-quality-baseline/
 
 ## Complexity Tracking
 
-| Exception | Why | Owner, condition |
-| --- | --- | --- |
+| Exception                                            | Why                                                                         | Owner, condition                                                                                                                                                       |
+| ---------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Go branch outcomes are not produced by the toolchain | the cover tool reports statements and does not probe inside `&&` and `\|\|` | Q5: a condition-coverage tool accepted only for what the probe shows, named by its construct and its `select` gap; the gap stays an owned blocking task until measured |

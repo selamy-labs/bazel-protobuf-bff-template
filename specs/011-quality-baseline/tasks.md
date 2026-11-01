@@ -30,7 +30,7 @@
 
 ## Phase 4: User Story 3 - Disjoint slices (Priority: P2)
 
-- [ ] T015 [US3] The slice table in `specs/011-quality-baseline/plan.md` names each worker's new files and the integrator's shared files; a path check in the evidence record shows no overlap
+- [x] T015 [US3] (one writer: every slice is the integrator's, no two ran at once; the slice table names each slice's new files and the shared files; the path check in `docs/evidence/m9.md` lists the files more than one landed commit touched, all of them the integrator's shared files or one slice's own files revisited by its later commits) The slice table in `specs/011-quality-baseline/plan.md` names each worker's new files and the integrator's shared files; a path check in the evidence record shows no overlap
 
 ## Phase 5: User Story 4 - Config-driven behavior (Priority: P2)
 

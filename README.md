@@ -9,8 +9,12 @@ way in Git hooks, in the local verifier and in CI. The local hooks and the one c
 separate repository consumes the checks at `quality-v1.0.0` by one pin; hosted CI has never run.
 
 **Status: M1 to M8 are implemented and independently accepted at their revisions, locally; M8a's image is built,
-tested and executed independently; hosted CI has never run, and nothing is published; the quality baseline (M9) is
-open, with the Go complexity gate enforced and every other control at its measured state.** The app works:
+tested and executed independently; hosted CI has never run, and nothing is published. The quality baseline (M9) is
+open: the Go complexity gate, its comparator from the base, the configuration surfaces and the request lifecycle
+are enforced from this tree's measurements, the duplication, dead-code, branch-coverage, mutation and property
+probes have not run, and every control is at its measured state. The local whole-stack demo (M10) works on Linux;
+the hosted example exists only as offline tests and a reviewable plan, nothing is deployed, and no hosted claim
+is made.** The app works:
 `CreateNote` and `GetNote` run from a React page through a Go server, tested in a pinned browser. The
 [specification index](specs/README.md) is the one authority on each milestone's status, the evidence
 pages under [docs/evidence](docs/evidence/) list what has and has not been observed at which revision,
@@ -64,18 +68,18 @@ the one place its ports, store and seed are declared, notes persist in a local d
 
 ![Local demo: the real page against the real local server, recorded from that one command with the test identity; sign-in, create, reload, open](docs/media/local-demo.gif)
 
-*Local demo, recorded from the running stack by `tools/dev/record.sh` at the revision named in
+_Local demo, recorded from the running stack by `tools/dev/record.sh` at the revision named in
 [docs/media/local-demo.json](docs/media/local-demo.json). It shows the development identity on loopback; nothing
-hosted is claimed.*
+hosted is claimed._
 
 Other entry points:
 
-| Command | What it does |
-| --- | --- |
-| `tools/bootstrap/bazel.sh build //bff/cmd/bff:image` | The production server as an OCI layout, built only here; `:image_tarball` loads it into a runtime elsewhere |
-| `tools/bootstrap/fresh_clone.sh` | Fresh-clone witness; `--hostile` also plants rc files and a real defect |
-| `tools/bootstrap/bazel.sh run //tools/hooks:install` | Installs the pinned Git hooks; see [hooks](docs/quality/hooks.md) |
-| `tools/bench/measure.sh` | Feedback-cost measurement of bootstrap, first verify, warm and edited runs, or of the hook stages with `--stages-only`; results go to `docs/budgets/` |
+| Command                                              | What it does                                                                                                                                          |
+| ---------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tools/bootstrap/bazel.sh build //bff/cmd/bff:image` | The production server as an OCI layout, built only here; `:image_tarball` loads it into a runtime elsewhere                                           |
+| `tools/bootstrap/fresh_clone.sh`                     | Fresh-clone witness; `--hostile` also plants rc files and a real defect                                                                               |
+| `tools/bootstrap/bazel.sh run //tools/hooks:install` | Installs the pinned Git hooks; see [hooks](docs/quality/hooks.md)                                                                                     |
+| `tools/bench/measure.sh`                             | Feedback-cost measurement of bootstrap, first verify, warm and edited runs, or of the hook stages with `--stages-only`; results go to `docs/budgets/` |
 
 `bazel` on your PATH is not used by the verifier. To run Bazel yourself with the same pin and rc
 isolation, use `tools/bootstrap/bazel.sh`.

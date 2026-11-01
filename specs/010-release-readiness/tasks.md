@@ -56,7 +56,6 @@ The final scan comes after everything it must cover: the inventory (T004 to T006
 - [x] T015 `docs/evidence/m8.md`, `specs/README.md` statuses, the full verifier, freeze at the scanned revision, hold for independent acceptance. Accepted locally at `446e5c8` by an independent combined full
 - [ ] T016 External release packet, outside the repository: configured identity, proposed release ref, the activation input, the open workflow choice. Technical readiness is recorded with publication pending
 
-
 ## Phase 7: User Story 5 - Public development on the reviewed core (Priority: P1)
 
 **Goal**: one frozen exact candidate, an accurate README, reviewed decisions, the required check that exists.
@@ -64,11 +63,10 @@ The final scan comes after everything it must cover: the inventory (T004 to T006
 **Independent Test**: the packet names the candidate; the governance witness fails on a context that names no job; the README matches the evidence records.
 
 - [x] T017 [US5] (landed at `a42c9f1`) Relate the ruleset's required status check to the workflow's gate job and the CI-parity policy in `tools/release/governance.sh`, with the planted defects in `tools/release/governance_test.sh`: a context naming no job, a blank context, a renamed policy gate, a renamed workflow job; correct `governance/github/main.tf` to `gate`
-- [ ] T018 [US5] Make `README.md` and the other public READMEs accurate for publication: implemented, independently accepted at a revision, hosted-unverified and unfinished states per milestone, the open M9 work visible as open, no production or hosted claim
+- [ ] T018 [US5] (accurate at `86120a5`: the status names what is enforced, what has not run and that nothing is hosted; the index carries each milestone's state; re-read at the freeze, T020, since every later revision can change it) Make `README.md` and the other public READMEs accurate for publication: implemented, independently accepted at a revision, hosted-unverified and unfinished states per milestone, the open M9 work visible as open, no production or hosted claim
 - [ ] T019 [US5] Turn each pending packet item into a reviewed decision in the external packet: the commit identity, the holder line, each of the 15 unresolved licenses by scope (source-exported third-party content apart from fetched build and test dependencies and runtime artifacts)
 - [ ] T020 [US5] Freeze one exact publication candidate after T017 and T018: name its revision, tree, export ref and holder in the packet; run the full verifier, both scans (private by opaque output) and the governance check at that revision; record them in `docs/evidence/m8.md`
 - [ ] T021 [US5] After creation and first push through the approved plan: qualify the standard hosted Linux runners from real runs, recording cold, cached, queue, wall, concurrency and disk per leg in `docs/budgets/`; the first push exits 11 for lack of a base, the first real PR green and the activation follow the runbook
-
 
 ## Phase 8: User Story 6 - Distribution from the public repository (Priority: P2)
 
