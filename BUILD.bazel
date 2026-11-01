@@ -305,3 +305,12 @@ sh_test(
         "@bff_template_quality//tools:yq",
     ],
 )
+
+# The local demo's recording and its record, read by their witness.
+exports_files(
+    [
+        "docs/media/local-demo.gif",
+        "docs/media/local-demo.json",
+    ],
+    visibility = ["//tools/dev/record:__pkg__"],
+)

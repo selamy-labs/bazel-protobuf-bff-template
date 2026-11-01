@@ -167,6 +167,7 @@ project's own package metadata. Transitive npm packages are enumerated in the ge
 | golang.org/x/tools | `golang.org/x/tools` | 0.52.0 | BSD-3-Clause | tools | `quality/go.mod`, `quality/go.sum` |
 | honnef.co/go/tools (staticcheck) | `honnef.co/go/tools` | 0.8.2 | MIT | tools | same |
 | gocognit | `github.com/uudashr/gocognit` | 1.3.0 | MIT, read from the module's LICENSE (M9, spec 011) | tools | same |
+| Pillow, the demo recording's encoder | `pillow` | 13.0.0 | MIT-CMU, read from the wheel's License-Expression and its LICENSE (the PIL license) | tools (the recording only; nothing of it ships) | `tools/dev/record/requirements.lock`, by hash |
 | gocyclo | `github.com/fzipp/gocyclo` | 0.6.0 | BSD-3-Clause, read from the module's LICENSE (M9, spec 011) | tools | same |
 | golang.org/x/mod, golang.org/x/sync, golang.org/x/exp/typeparams | `golang.org/x/mod`, `golang.org/x/sync`, `golang.org/x/exp/typeparams` | 0.42.0, 0.24.0, v0.0.0-20231108232855-2478ac86f678 (indirect) | BSD-3-Clause | tools | same |
 | ESLint | `eslint` | 10.13.0 | MIT | tools | `package.json`, `pnpm-lock.yaml` |

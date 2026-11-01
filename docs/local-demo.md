@@ -46,6 +46,16 @@ system. Both adapters pass the same contract suite as any store an adopter bring
 Ctrl-C stops the launcher, which stops the server and the page it started and nothing else. If one of them
 exits on its own, the launcher reports its status, stops the other, and exits nonzero.
 
+## The recording
+
+`docs/media/local-demo.gif` is the README's animation: `tools/dev/record.sh` starts the real stack through the one
+command with a scratch data directory, drives the real page in the pinned browser and captures seven frames
+(open, sign in, type, create, reload, type the name, open), and assembles them with the hash-locked encoder under
+the pinned uv Python. `docs/media/local-demo.json` names the revision it was recorded at, the frames, the size and
+the digest; `//tools/dev/record:media_test` checks that the GIF and the record agree. Regenerate it after a
+material change to the page; the raw frames and logs stay outside the repository. Linux x86_64 only, because the
+pinned browser is.
+
 ## Limitations
 
 - The development identity is for loopback only; the production server refuses to start without a real

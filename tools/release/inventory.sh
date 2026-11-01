@@ -16,7 +16,7 @@ cd "$root" || { echo "inventory: cannot enter $root" >&2; exit 2; }
 [[ -f "$inventory" ]] || { echo "inventory: $inventory does not exist" >&2; exit 2; }
 # Every input the enumeration reads must exist and parse. A producer that fails ends the check with 2, so that a
 # missing or malformed file never yields an empty, complete-looking enumeration.
-for input in MODULE.bazel quality/MODULE.bazel go.mod quality/go.mod package.json quality/multitool.lock.json pnpm-lock.yaml tools/browser/debs.bzl tools/speckit/requirements.lock; do
+for input in MODULE.bazel quality/MODULE.bazel go.mod quality/go.mod package.json quality/multitool.lock.json pnpm-lock.yaml tools/browser/debs.bzl tools/speckit/requirements.lock tools/dev/record/requirements.lock; do
   [[ -r "$input" ]] || { echo "inventory: cannot read $input" >&2; exit 2; }
 done
 produce() { # produce <name> <command...>: the command's output, or exit 2 with its error
@@ -83,6 +83,7 @@ while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "lock packa
 produce "Debian packages" sed -nE 's/^    "([^"]+)": \(\[.*/\1/p' tools/browser/debs.bzl >"$work/debs"
 while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "Debian package $name has no inventory entry"; done <"$work/debs"
 produce "Spec Kit dependencies" sed -nE 's/^([A-Za-z0-9_.-]+)==.*/\1/p' tools/speckit/requirements.lock >"$work/py"
+produce "recording dependencies" sed -nE 's/^([A-Za-z0-9_.-]+)==.*/\1/p' tools/dev/record/requirements.lock >>"$work/py"
 while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "Spec Kit dependency $name has no inventory entry"; done <"$work/py"
 
 # 4. Every row names its required fields: an Identifier cell in backticks and a filled License, Scope and Where pinned.

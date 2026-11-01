@@ -1,0 +1,19 @@
+{
+  "label": "LOCAL demo: the real page against the real local server, recorded from the one command; no hosted claim",
+  "revision": "03204b85962a53c416de263cb3763c0421523120",
+  "command": "tools/dev/record.sh",
+  "frames": [
+    "01-open",
+    "02-sign-in",
+    "03-typed",
+    "04-created",
+    "05-reloaded",
+    "06-name-typed",
+    "07-opened"
+  ],
+  "width": 640,
+  "height": 427,
+  "bytes": 64112,
+  "sha256": "fa72910355ba7d7884ccecb0ee5adb80431c94bc60c64f5f9493dc8e1a1fb872",
+  "encoder": "pillow, pinned by hash in tools/dev/record/requirements.lock"
+}

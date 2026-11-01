@@ -62,6 +62,12 @@ the one place its ports, store and seed are declared, notes persist in a local d
 `-- --reset`, and a busy port or an invalid value is refused by name before anything starts. See
 [docs/local-demo.md](docs/local-demo.md) for the profile, persistence, restart, reset and the limitations.
 
+![Local demo: the real page against the real local server, recorded from that one command with the test identity; sign-in, create, reload, open](docs/media/local-demo.gif)
+
+*Local demo, recorded from the running stack by `tools/dev/record.sh` at the revision named in
+[docs/media/local-demo.json](docs/media/local-demo.json). It shows the development identity on loopback; nothing
+hosted is claimed.*
+
 Other entry points:
 
 | Command | What it does |

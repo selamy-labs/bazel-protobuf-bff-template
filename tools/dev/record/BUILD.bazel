@@ -1,0 +1,36 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library")
+load("@rules_go//go:def.bzl", "go_test")
+
+# The capture drives the running local stack in the pinned browser and writes frames (spec 012 FR-024).
+# testonly, because the browser tree is.
+js_binary(
+    name = "capture",
+    testonly = True,
+    data = [
+        "//:node_modules/@playwright/test",
+        "//tools/browser",
+    ],
+    entry_point = "capture.mjs",
+    env = {"BROWSER_DIR": "$(rootpath //tools/browser:browser)"},
+)
+
+js_library(
+    name = "lint_srcs",
+    srcs = ["capture.mjs"],
+    visibility = ["//web/lint:__pkg__"],
+)
+
+# The recording in the tree and its record agree, and the record names the revision and the journey.
+go_test(
+    name = "media_test",
+    size = "small",
+    srcs = ["media_test.go"],
+    data = [
+        "//:docs/media/local-demo.gif",
+        "//:docs/media/local-demo.json",
+    ],
+    env = {
+        "GIF": "$(rlocationpath //:docs/media/local-demo.gif)",
+        "RECORD": "$(rlocationpath //:docs/media/local-demo.json)",
+    },
+)

@@ -8,5 +8,8 @@ browser_tree(
     font_config = "fonts.conf",
     fonts = "@browser_libs//:fonts",
     libs = "@browser_libs//:libs",
-    visibility = ["//web/e2e:__pkg__"],
+    visibility = [
+        "//tools/dev/record:__pkg__",
+        "//web/e2e:__pkg__",
+    ],
 )

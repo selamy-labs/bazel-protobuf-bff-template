@@ -11,10 +11,12 @@ eslint_bin.eslint_test(
         "0",
         "--no-warn-ignored",
         "web",
+        "tools/dev/record",
     ],
     data = [
         "eslint.config.mjs",
         "//:node_modules/typescript-eslint",
+        "//tools/dev/record:lint_srcs",
         "//web/app:lint_srcs",
         "//web/client:lint_srcs",
         "//web/e2e:lint_srcs",
