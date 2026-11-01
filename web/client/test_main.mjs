@@ -7,7 +7,12 @@ import { lcov, spec } from "node:test/reporters";
 const here = new URL(".", import.meta.url).pathname;
 const output = process.env.COVERAGE_OUTPUT_FILE;
 const stream = run({
-  files: [`${here}errors.test.js`, `${here}lifecycle.test.js`, `${here}transport.test.js`],
+  files: [
+    `${here}errors.property.test.js`,
+    `${here}errors.test.js`,
+    `${here}lifecycle.test.js`,
+    `${here}transport.test.js`,
+  ],
   isolation: "none",
   coverage: Boolean(output),
   coverageIncludeGlobs: ["**/web/client/*.js"],
