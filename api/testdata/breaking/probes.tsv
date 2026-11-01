@@ -6,6 +6,7 @@ proto-breaking	field renamed	s/string body = 3/string text = 3/	"type":"FIELD_SA
 proto-breaking	json name changed	s/string body = 3 \[/string body = 3 [json_name = "text", /	"type":"FIELD_SAME_JSON_NAME"
 proto-breaking	field removed without a reservation	/create_time = 4;/d	"type":"FIELD_NO_DELETE"
 proto-breaking	rpc removed	/rpc GetNote/d	"type":"RPC_NO_DELETE"
+proto-breaking	message removed with its rpc	/rpc GetNote/d;/^message GetNoteRequest {/,/^}/d	"type":"MESSAGE_NO_DELETE"
 proto-breaking	compatible field added	s/^  google.protobuf.Timestamp create_time = 4;/&\n\n  string summary = 5;/	-
 format-proto	badly indented field	s/^  string body = 3/string body = 3/	string body = 3
 lint-proto	service without the Service suffix	s/service NoteService/service Notes/	"type":"SERVICE_SUFFIX"

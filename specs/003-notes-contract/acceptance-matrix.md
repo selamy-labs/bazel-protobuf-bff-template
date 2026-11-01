@@ -12,7 +12,7 @@ local verifier, **ci** hosted CI (not run), **hum** human.
 | FR-005 | `//api:schema_probes_test`, `proto-format`, `proto-lint` | bad format; SERVICE_SUFFIX; comment and local-config exclusions stay inert | G | off, loc |
 | FR-006 | `@bff_template_quality//proto:proto_test`, `proto-breaking` | branch name, short hash, unknown commit, non-ancestor, no schema, shallow clone → exit 4 | G | off, loc |
 | FR-007 | `proto_test` (`TestBootstrapMarker`, `TestFreshHistoryCopy`), `schema_probes_test` | marker with schema history, even deleted → refused; inherited hash in a fresh-history copy → fails closed; each adopter route passes | G | off |
-| FR-008 | `schema_probes_test` | six breaking probes matched as the rule's JSON type; compatible addition passes; a schema that does not compile reports `COMPILE`, which no probe expects | G | off |
+| FR-008 | `schema_probes_test` | seven breaking probes matched as the rule's JSON type, among them a whole message deleted with the RPC that used it (`MESSAGE_NO_DELETE`, since `011` T024); compatible addition passes; a schema that does not compile reports `COMPILE`, which no probe expects | G | off |
 | FR-009 | `//api:compile_gate_test` | four defects, each one exact diagnostic on the changed line; control clean | G | off |
 | FR-010 | [docs/api-style.md](../../docs/api-style.md) | each RPC listed with rule decisions | S | hum |
 | FR-011 | `required_tests.txt`, `expected` in `verify_body.sh` | a missing test or check fails the receipt | G | loc |
