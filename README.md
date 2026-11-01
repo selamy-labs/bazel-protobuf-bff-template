@@ -5,15 +5,16 @@
 This is a neutral starter for contract-first web applications. A browser client and a
 backend-for-frontend talk only through generated Protocol Buffer/Connect clients, and Bazel owns the
 toolchains, code generation and tests. The aim is shared, versioned quality checks that run the same
-way in Git hooks, in the local verifier and in CI. The local hooks and the one check registry exist;
-hosted CI has never run, and consumer distribution is not built yet.
+way in Git hooks, in the local verifier and in CI. The local hooks and the one check registry exist, and a
+separate repository consumes the checks at `quality-v1.0.0` by one pin; hosted CI has never run.
 
-**Status: M1 to M5 exist locally.** The app works: `CreateNote` and `GetNote` run from a React page
-through a Go server, tested in a pinned browser. M1 to M4 passed independent local Linux review. M5,
-the check registry and Git hooks, awaits independent review. The evidence pages for
-[M2 to M4](docs/evidence/m2-m4.md) and [M5](docs/evidence/m5.md) list what has and has not been
-observed, and [capability states](docs/quality/capability-states.md) has the summary. macOS and hosted
-CI are unverified. The repository is
+**Status: M1 to M7 are implemented and independently reviewed at their revisions; M8a's image is built,
+tested and executed independently; M8 and the quality baseline are in progress.** The app works:
+`CreateNote` and `GetNote` run from a React page through a Go server, tested in a pinned browser. The
+[specification index](specs/README.md) is the one authority on each milestone's status, the evidence
+pages under [docs/evidence](docs/evidence/) list what has and has not been observed at which revision,
+and [capability states](docs/quality/capability-states.md) has the summary. macOS and hosted CI are
+unverified. The repository is
 local-only and unpublished, and it ships no identity provider, so the production server refuses to
 start until you add one ([bff/README.md](bff/README.md)). The same server is packaged as one container
 image by the build graph, and that image shows the same refusal: a healthy production deployment is
@@ -90,4 +91,5 @@ tools/speckit/bootstrap.sh verify
 
 ## Owner
 
-To be decided at M8 (proposal: Sélamy Labs). See research R-14.
+Proposed: Sélamy Labs, pending the operator's approval of the public identity, recorded in the external
+release packet. No public repository exists. See research R-14.

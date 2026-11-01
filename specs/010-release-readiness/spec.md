@@ -2,7 +2,7 @@
 
 **Feature Branch**: `010-release-readiness`
 **Created**: 2026-11-01
-**Status**: Draft
+**Status**: Implemented and tested locally. Current status is in the [index](../README.md)
 **Input**: M8. Parent: spec 001 US7, FR-032, FR-033, SC-009; tasks T076 to T080; upstream #31. Name, public visibility and the MIT license are already approved. Closed throughout: creation, publication, settings, Apps, access, apply, destroy, merge, paid runs. Lands after M8a (spec 009), so that its inventory and scans cover the image.
 
 ## User Scenarios & Testing *(mandatory)*

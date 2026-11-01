@@ -80,6 +80,7 @@ bt='`'
 replace() { local content; content="$(cat "$1")"; printf '%s\n' "${content/"$2"/"$3"}" >"$1"; }
 expect() { local name="$1" want="$2" rc=0; "$S" "$T/r" "$YQ" >"$T/out" 2>&1 || rc=$?; if [[ "$rc" == "$want" ]]; then echo "ok   $name"; else echo "FAIL $name: exit $rc"; sed 's/^/     /' "$T/out"; failures=$((failures + 1)); fi; }
 fresh; expect "complete inventory passes" 0
+fresh; rc=0; (cd / && "$S" "$T/r" "$YQ" >"$T/out" 2>&1) || rc=$?; if [[ "$rc" == 0 ]]; then echo "ok   the same tree passes from another working directory"; else echo "FAIL from another working directory: exit $rc"; sed 's/^/     /' "$T/out"; failures=$((failures + 1)); fi
 fresh; printf 'bazel_dep(name = "rules_oci", version = "2.0.0")\n' >>MODULE.bazel; git add -A; expect "an unlisted bazel_dep" 1; grep -q 'rules_oci has no inventory entry' "$T/out" || { echo "FAIL not named"; failures=$((failures + 1)); }
 fresh; replace go.mod $'\texample.org/dep v1.2.3' $'\texample.org/dep v1.2.3\n\texample.org/new v2.0.0'; expect "an unlisted Go module" 1
 fresh; replace package.json '"left-pad": "1.0.0"' '"left-pad": "1.0.0", "newpkg": "1"'; expect "an unlisted npm package" 1

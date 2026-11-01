@@ -2,7 +2,7 @@
 
 **Feature Branch**: `009-bff-image`
 **Created**: 2026-11-01
-**Status**: Draft
+**Status**: Implemented and tested locally. Current status is in the [index](../README.md)
 **Input**: Goal amendment 2026-11-01: Bazel and rules_oci own application images. Reconcile the Cloud Build image promise, and implement the smallest target with build, structure and startup evidence. Parent: spec 001 FR-034.
 
 ## User Scenarios & Testing *(mandatory)*

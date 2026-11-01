@@ -17,7 +17,7 @@ grep -q 'private not-run' "$T/out" || { echo "FAIL not-run status missing"; fail
 grep -q 'private not-run' "$T/out" || { echo "FAIL empty file read as a run"; failures=$((failures + 1)); }
 # generic defects
 mk "$T/g1"; (cd "$T/g1" && printf 'see /ho%s/x\n' 'me/someone' >b.txt && git add . && git commit -q -m two); expect "personal path in a current file" 1 "$S" "$T/g1" --allow "$T/allow"
-mk "$T/g2"; (cd "$T/g2" && printf 'sa: thing@%s\n' 'proj.iam.gserviceaccount.com' >c.txt && git add . && git commit -q -m two && git rm -q c.txt && git commit -q -m three); expect "cloud identifier in a deleted file" 1 "$S" "$T/g2" --allow "$T/allow"
+mk "$T/g2"; (cd "$T/g2" && printf 'sa: thing@%s%s\n' 'proj.iam.gservice' 'account.com' >c.txt && git add . && git commit -q -m two && git rm -q c.txt && git commit -q -m three); expect "cloud identifier in a deleted file" 1 "$S" "$T/g2" --allow "$T/allow"
 mk "$T/g3"; (cd "$T/g3" && git commit -q --allow-empty -m "contact: who@$(printf '%s.%s' private-corp example)"); expect "email domain in a message" 1 "$S" "$T/g3" --allow "$T/allow"
 mk "$T/g4"; (cd "$T/g4" && git -c user.email=x@example.com commit -q --allow-empty -m ok); expect "allowed domain in an identity passes" 0 "$S" "$T/g4" --allow "$T/allow"
 # private defects: a marker in a blob, a file name, a directory, a message, a ref, an identity

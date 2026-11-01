@@ -12,6 +12,8 @@ root="${1:?usage: inventory.sh <root> <yq> [inventory]}"
 yq="${2:?usage: inventory.sh <root> <yq> [inventory]}"
 inventory="${3:-docs/provenance.md}"
 [[ -x "$yq" ]] || { echo "inventory: no yq at $yq" >&2; exit 2; }
+cd "$root" || { echo "inventory: cannot enter $root" >&2; exit 2; }
+[[ -f "$inventory" ]] || { echo "inventory: $inventory does not exist" >&2; exit 2; }
 # Every input the enumeration reads must exist and parse. A producer that fails ends the check with 2, so that a
 # missing or malformed file never yields an empty, complete-looking enumeration.
 for input in MODULE.bazel quality/MODULE.bazel go.mod quality/go.mod package.json quality/multitool.lock.json pnpm-lock.yaml tools/browser/debs.bzl tools/speckit/requirements.lock; do
@@ -24,8 +26,6 @@ produce() { # produce <name> <command...>: the command's output, or exit 2 with 
 }
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-cd "$root"
-[[ -f "$inventory" ]] || { echo "inventory: $inventory does not exist" >&2; exit 2; }
 problems=0
 problem() { echo "inventory: $1"; problems=$((problems + 1)); }
 # An entry is a table cell in backticks, never prose. The backtick lives in a variable so that no pattern holds a pair.
