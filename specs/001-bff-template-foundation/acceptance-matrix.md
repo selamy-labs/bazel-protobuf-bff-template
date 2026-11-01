@@ -52,6 +52,8 @@ Every **G** witness has a defect case that must fail and a corrected counterpart
 | FR-029 | language profile doc (T074) | placeholder service added → consumer report flags | S | hum | M7 |
 | FR-030 | offline tofu tests (T084), runbook (T085) | apply without approval → pipeline config test fails | G (config) / R (live) | off / dep | M9 |
 | FR-031 | worker-conformance doc (T086) | — | S | hum | M10 |
+| FR-034 | spec 009 matrix | a second image builder → review rejects; a defect in the image → `image_test` fails | G / S | off, hum | M8a |
+| FR-035 | T092's unchanged gates, queued, no result yet | NixOS required of a template user → review rejects | S | hum | T092 |
 | FR-032 | neutrality + provenance checks (T076, T077), review (T080) | denylisted identifier → fails | G (scan) / hum (review) | loc, hum | M8 |
 | FR-033 | governance module validate (T079) | — | G (validate) / R (applied state readback) | off / dep | M8 |
 
@@ -68,6 +70,7 @@ Every **G** witness has a defect case that must fail and a corrected counterpart
 | SC-007 | T068 (#27 adoption) | off |
 | SC-008 | T073 upgrade record | loc |
 | SC-009 | T076/T077 + T080 record | loc, hum |
+| SC-010 | spec 009 repeatability and refusal records | off, loc |
 
 ## M0 evidence (this package)
 

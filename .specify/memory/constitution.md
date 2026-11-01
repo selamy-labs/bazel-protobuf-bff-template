@@ -51,7 +51,8 @@ Rationale: two definitions of one rule always diverge.
 A proposal MUST NOT be able to authorize its own weakened thresholds, removed checks, widened
 exclusions, new suppressions or replaced evaluators. Weakening MUST be detected and reported by
 comparison against an independently trusted, pinned baseline, using an evaluator built from that
-baseline rather than from the proposal; PR prose or in-branch approval files cannot authorize
+baseline rather than from the proposal. That evaluator does not authenticate the adapter or workflow
+that invokes it, and documentation MUST say so. PR prose or in-branch approval files cannot authorize
 themselves. Detection is not enforcement: blocking a proposal that removes the detecting job itself
 requires a platform-side required check configured by the owner, and documentation MUST say so
 rather than claim enforcement. This template MUST NOT reinstate the custom trusted-policy issuers removed from the
@@ -140,6 +141,8 @@ Rationale: every component a template ships is a component every consumer mainta
   case and its corrected counterpart.
 - A change is done only when the full canonical verifier passes at the exact revision and the
   evidence record for that revision is complete and terminal.
+- Spec 001 is the one spec of specs, and `specs/README.md` is its index. A change to a feature's status
+  reconciles them in the same change.
 - Upstream Relentless CI issues own their implementations; this repository consumes their outputs
   and MUST NOT duplicate active issue work.
 
@@ -153,4 +156,4 @@ clarification. Reviews verify compliance with each principle; any justified exce
 in the plan's Complexity Tracking table with its owner and expiry. Weakening a principle is itself a
 policy change subject to Principle V.
 
-**Version**: 1.0.0 | **Ratified**: 2026-10-28 | **Last Amended**: 2026-10-28
+**Version**: 1.1.0 | **Ratified**: 2026-10-28 | **Last Amended**: 2026-11-01

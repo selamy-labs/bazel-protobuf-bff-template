@@ -3,17 +3,22 @@
 Spec Kit feature directories, one per milestone. [001](001-bff-template-foundation/spec.md) is the
 umbrella spec (the "spec of specs") and holds the milestone map that the later specs trace to.
 
-| Spec | Milestone | Status |
-| --- | --- | --- |
-| [001-bff-template-foundation](001-bff-template-foundation/) | M0: review package (constitution, spec, research, plan, tasks, acceptance matrix, design) | Approved 2026-10-29 |
-| [002-hermetic-skeleton](002-hermetic-skeleton/) | M1: hermetic skeleton and bootstrap | Local Linux review passed at `2ef8e2f` (2026-10-31). macOS and hosted CI remain unverified. |
-| [003-notes-contract](003-notes-contract/) | M2: neutral notes contract and build-time generation | Independent local Linux verification passed at `a26b71b` (2026-10-31). |
-| [004-go-bff](004-go-bff/) | M3: Go BFF for notes | Independent local Linux verification passed at `b6629b8` (2026-10-31). Vet is deferred to M5. |
-| [005-browser-client](005-browser-client/) | M4: browser client and end-to-end tests | Implemented; independent review pending |
-| [006-quality-hooks](006-quality-hooks/) | M5: registry, runner and hooks | Independent local Linux verification passed at `e0a12ac` (2026-11-01). macOS and hosted CI remain unverified. |
-| [007-ci-parity-evidence](007-ci-parity-evidence/) | M6: CI parity, base-built floors and receipts | Accepted at `e16718d` (2026-11-01). Evidence is split by revision in [m6](../docs/evidence/m6.md). Hosted CI has never run. |
-| [008-second-consumer](008-second-consumer/) | M7: second consumer and upgrade | In progress |
-| 009+ | M8–M10 | Each is created with `/speckit-specify` when its milestone starts |
+Each status is a separate claim. Deployed is no for every row, and hosted CI has never run. A qualified
+result holds only for the revision and profile its evidence names.
+
+| Spec | Milestone | Depends on | Status |
+| --- | --- | --- | --- |
+| [001-bff-template-foundation](001-bff-template-foundation/) | M0: review package (constitution, spec, research, plan, tasks, acceptance matrix, design) | None | Approved 2026-10-29 |
+| [002-hermetic-skeleton](002-hermetic-skeleton/) | M1: hermetic skeleton and bootstrap | M0 | Local Linux review passed at `2ef8e2f` (2026-10-31). macOS and hosted CI remain unverified. |
+| [003-notes-contract](003-notes-contract/) | M2: neutral notes contract and build-time generation | M1 | Independent local Linux verification passed at `a26b71b` (2026-10-31). |
+| [004-go-bff](004-go-bff/) | M3: Go BFF for notes | M2 | Independent local Linux verification passed at `b6629b8` (2026-10-31). Vet is deferred to M5. |
+| [005-browser-client](005-browser-client/) | M4: browser client and end-to-end tests | M3 | Independent local Linux review passed at `97d9e22`. Evidence is in [m2-m4](../docs/evidence/m2-m4.md). |
+| [006-quality-hooks](006-quality-hooks/) | M5: registry, runner and hooks | M1 | Independent local Linux verification passed at `e0a12ac` (2026-11-01). macOS and hosted CI remain unverified. |
+| [007-ci-parity-evidence](007-ci-parity-evidence/) | M6: CI parity, base-built floors and receipts | M4, M5 | Accepted at `e16718d` (2026-11-01). Evidence is split by revision in [m6](../docs/evidence/m6.md). Hosted CI has never run. |
+| [008-second-consumer](008-second-consumer/) | M7: second consumer and upgrade | M6 | Accepted at `e982dd7` (2026-11-01) for the qualified local Linux profile, tagged `quality-v1.0.0`. Evidence is in [m7](../docs/evidence/m7.md). |
+| [009-bff-image](009-bff-image/) | M8a: BFF container image | M7 | Proposed |
+| [010-release-readiness](010-release-readiness/) | M8: public-release readiness and provisioning plan | M7, M8a | Proposed |
+| None yet | M9, M10: optional profiles | M6, and M8a for M9 | Proposed. Each is created with `/speckit-specify` when it starts |
 
 Start with [design.md](001-bff-template-foundation/design.md) to review the package, then read
 [issue-map.md](001-bff-template-foundation/issue-map.md) and

@@ -36,7 +36,7 @@ flowchart LR
 | D5 | One declarative registry and one runner; one prek hook per stage; one Bazel invocation per stage; pre-commit reads staged blobs, pre-push checks the pushed commit in a detached worktree | One definition per rule; Bazel's output-base lock; prek stashes only unstaged (not untracked) changes and checks only the working tree (R-08) | Imperative shell dispatcher; per-tool prek hooks; Bazel builds over the working tree in hooks |
 | D6 | Only bans and base-built floors locally; #26 policy-diff, #27 evidence validator and #28 analyzer adopted on release | No duplicate of active issue work (issue-map.md); evaluator built from base cannot be replaced by the proposal | Re-implementing the shared contracts here |
 | D7 | Git, bash, curl and coreutils on the host, with Bazel itself fetched by verified pin; network off in the sandbox; pinned browsers | Constitution III; SC-001 | Host Node/Go installs |
-| D8 | Deployment is an optional GCP profile with operator gates; design only until M9 | RFC #30: keep the provider optional (R-13) | Deploy in the core path |
+| D8 | Deployment is an optional GCP profile with operator gates, design only until M9. Images come only from Bazel and rules_oci | RFC #30: keep the provider optional (R-13) | Deploy in the core path |
 
 ## 3. Boundaries and dependency rules (deterministic, T038)
 
@@ -104,11 +104,11 @@ does not trust them.
 ## 7. Update and upgrade story
 
 `bff_template_quality` releases are immutable tag commits. Each release carries notes with a rule-diff
-table generated from the registry; weakening entries are marked.
+table generated from the rule catalog and each rule's definition files; weakening entries are marked.
 
-A consumer upgrades by changing the `archive_override` or `git_override` commit in `MODULE.bazel`
-together with the matching prek revision, then runs `tools/verify.sh`. The diff to review is that pin
-change plus any consumer edits the new rules require.
+A consumer upgrades by changing `git_override`'s commit in `MODULE.bazel`, running the pin target's sync,
+which writes prek's revision, and running `tools/verify.sh`. The diff to review is that pin change plus any
+consumer edits the new rules require.
 
 The interface is declared stable (1.0.0) only after a second neutral consumer has completed one
 upgrade (M7). Template-copied app code is not updated automatically. The README says so.
@@ -130,7 +130,8 @@ hypotheses on Linux x86_64 with 8 vCPU / 32 GB:
 - **GCP** (`deploy/gcp/`):
   - OpenTofu bootstrap: state bucket, migrating from local to remote state.
   - Runtime: Artifact Registry, Cloud Run, least-privilege service accounts.
-  - Cloud Build: builds images by digest; the deploy trigger has `approvalRequired`.
+  - Cloud Build: invokes the Bazel image target and publishes its digest. It does not rebuild the
+    image. The deploy trigger has `approvalRequired`.
   - CI runs offline `tofu test` only. Every apply, approval and IAM change is an operator gate.
   - No identifiers are committed.
 - **Worker conformance** (#29): a document showing how the runner's bounds satisfy the profile. It

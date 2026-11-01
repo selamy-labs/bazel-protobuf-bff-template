@@ -4,7 +4,7 @@
 
 **Created**: 2026-10-28
 
-**Status**: Draft (review package; no application implementation)
+**Status**: Living umbrella. M0 was approved 2026-10-29. Delivery status is in the [index](../README.md)
 
 **Input**: Owner request to start a generic Bazel/Protobuf BFF template, generalizing the
 architecture of a private reference implementation. The request asks for the Spec Kit workflow to
@@ -26,6 +26,24 @@ Three responsibilities stay separate throughout (RFC #30):
 2. **Thin adapters**: language/build adapters and lifecycle hooks that invoke the canonical pinned
    tools locally, through hooks and in CI.
 3. **Reference application**: an opinionated, real browser → BFF vertical slice.
+
+**Product outcome**: an adopter clones one neutral template, gets a working browser-to-BFF slice and a
+quality gate that runs the same way locally and in CI, and can adopt those checks in another repository
+by one pin.
+
+**Concern boundaries and owners**:
+
+| Concern | Owner | Authoritative feature |
+| --- | --- | --- |
+| Application builds, tests and toolchain pins | Bazel | [002](../002-hermetic-skeleton/) |
+| Quality rules and their release | `bff_template_quality` | [006](../006-quality-hooks/), [008](../008-second-consumer/) |
+| Application images | rules_oci, through Bazel | [009](../009-bff-image/) |
+| Repository settings, as a reviewed plan | OpenTofu, applied only by an operator | [010](../010-release-readiness/) |
+| Infrastructure lifecycle | OpenTofu | M9, optional |
+| Workloads, where they apply | GitOps | Outside this repository |
+| Managed runtimes | The provider, as supported | Outside this repository |
+| NixOS on self-managed hosts | Shared host operations | Outside this repository; the consumer side is [host-profile](contracts/host-profile.md) |
+| Hook stage contract, policy-diff, evidence validator, contract analyzer, worker profile | Upstream #25 to #29, TS #20 | Consumed, not implemented here |
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -309,6 +327,11 @@ Optional profiles, provenance and governance
 
 - **FR-030**: An optional cloud deployment profile, if offered, MUST include declarative bootstrap,
   CI/CD responsibilities and explicit operator gates, and MUST NOT be required by the core verifier.
+- **FR-034**: Application images, if offered, MUST be produced only by the Bazel graph through rules_oci.
+  A pipeline MAY invoke that target and publish its digest, and MUST NOT rebuild the image.
+- **FR-035**: No template user MUST need NixOS. Support stays Linux only, as qualified. An optional host
+  profile MUST be a stated contract of measured requirements, and MUST be qualified by the existing
+  commands unchanged.
 - **FR-031**: An optional worker-integration conformance profile MAY define bounded execution,
   failure taxonomy and identity/billing evidence; it MUST remain a contract, not a runtime.
 - **FR-032**: The repository MUST keep a provenance and license inventory and a public-release
@@ -355,6 +378,8 @@ Optional profiles, provenance and governance
   changing a single version pin plus documented reviewed edits.
 - **SC-009**: The neutrality scan finds zero private identifiers and the provenance inventory covers
   100% of third-party assets before any publication.
+- **SC-010**: The image's manifest digest repeats across two clean builds, and its entrypoint shows the
+  server's exact refusal.
 
 ## Milestone Map (spec of specs)
 
@@ -371,8 +396,9 @@ strict; parallel-safe pairs are marked.
 | M5 | Shared check registry, adapters and prek hooks | M1 (parallel with M2–M4) | FR-013–FR-020 | #25, TS #20 (stage/diagnostic contract) |
 | M6 | CI parity, aggregate gate, receipts, base-built ratchets | M4, M5 | FR-019 (bans, floors), FR-021, FR-022 (receipts), FR-024 | #26, #27 (consumed; FR-023 and SC-007 complete when #27 is adopted) |
 | M7 | Second neutral consumer and upgrade | M6 | FR-027, FR-029 | #30 |
-| M8 | Public-release readiness and repository provisioning plan | M7 | FR-032, FR-033 | #31 |
-| M9 | Optional GCP deployment profile | M6 (optional) | FR-030 | #30 |
+| M8a | BFF container image | M7 | FR-034, SC-010 | #30 |
+| M8 | Public-release readiness and repository provisioning plan | M7, M8a | FR-032, FR-033 | #31 |
+| M9 | Optional GCP deployment profile | M6, M8a (optional) | FR-030 | #30 |
 | M10 | Optional worker-integration conformance | M6 (optional) | FR-031 | #29 |
 
 The **first implementation slice** is M1 → M4 with the minimal M5/M6 gates needed to keep them
@@ -381,6 +407,7 @@ honest (pins, schema checks, suppression ban, single CI aggregate).
 ## Explicitly Out of Scope / Deferred
 
 - Remote cache, remote build execution or any hosted build service.
+- Host configuration of any kind, and a healthy production deployment until a real verifier exists.
 - Multiworker orchestration, Batch runtime, agent platform or cloud control plane.
 - Domain services, background workflows, data aggregation and migration/cutover. These are
   product-specific.

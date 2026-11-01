@@ -351,7 +351,7 @@ The profile is optional and lives in `deploy/gcp/`. `tools/verify.sh` never requ
    - A Cloud Run service with a least-privilege runtime service account.
    - A Cloud Build service account and triggers.
 3. **Cloud Build pipelines.**
-   - Build and push by digest.
+   - Invoke the Bazel image target and push its digest. No second image build.
    - Deploy only through a trigger with `approvalRequired`.
 
 **Offline CI**: `tofu fmt -check`, `validate`, `tflint`, and `tofu test` with mocked providers.

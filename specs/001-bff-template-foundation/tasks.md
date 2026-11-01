@@ -186,11 +186,17 @@ scenarios; the deliberately broken variant fails.
 
 ---
 
+## Phase 8a: BFF container image — M8a
+
+Tasks are in [spec 009](../009-bff-image/tasks.md). They land before M8, so that M8's inventory and scans cover the image.
+
+---
+
 ## Phase 9: User Story 6 — Optional GCP profile (Priority: P3) — M9 (optional)
 
 - [ ] T081 [US6] Bootstrap module (state bucket, local→remote state migration runbook) in `deploy/gcp/bootstrap/`
 - [ ] T082 [US6] Runtime module (Artifact Registry, Cloud Run, least-privilege service accounts) in `deploy/gcp/runtime/`
-- [ ] T083 [US6] Cloud Build pipelines: build/push by digest; deploy trigger with `approvalRequired` in `deploy/gcp/cloudbuild/`
+- [ ] T083 [US6] Cloud Build pipelines: invoke the Bazel image target, push its digest; deploy trigger with `approvalRequired` in `deploy/gcp/cloudbuild/`
 - [ ] T084 [US6] Offline `tofu fmt/validate/test` with mocked providers + tflint, opt-in registry stage `deploy-gcp`
 - [ ] T085 [US6] Operator runbook listing every gate (apply, approval, IAM) in `deploy/gcp/README.md`; no values committed
 
@@ -208,6 +214,7 @@ scenarios; the deliberately broken variant fails.
 - [ ] T088 [P] Directory READMEs for `api/`, `bff/`, `web/`, `quality/`
 - [ ] T089 Re-measure all budgets; declare budgets = measured p95 + documented margin in `docs/budgets/`
 - [ ] T090 Run `/speckit-analyze` for cross-artifact consistency before each milestone review
+- [ ] T092 Optional host profile: queued until a reviewed producer revision and a complete descriptor exist, per `contracts/host-profile.md`. Qualify with the existing commands unchanged, and primary receipts. **Witness** FR-035
 
 ---
 
@@ -222,7 +229,7 @@ Phase 6 → Phase 9 US6 (optional)   Phase 6 → Phase 10 (optional, blocked on 
 
 Within phases: T004/T005 before T008; T011 before T012; T020 before T022; T021 before T022–T025;
 T030 before T032/T039; T033 → T034 → T035 → T037; T050 before T051–T058; T062 before T067.
-Blocked externally: T025 adoption part (#28), T067 (#26), T068 (#27), T086 (#29).
+Blocked externally: T025 adoption part (#28), T067 (#26), T068 (#27), T086 (#29), T092 (a reviewed host producer).
 
 ## Parallel Example: User Story 1
 

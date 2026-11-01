@@ -29,5 +29,6 @@ bazel run //quality:run -- --stage=pre-push
 # change a field number → proto-breaking fails naming the field
 ```
 
-Upgrade shared checks (M7): change the `bff_template_quality` commit in `MODULE.bazel`, read the
-release notes' rule-change table, run `tools/verify.sh`.
+Upgrade shared checks (M7): change the `bff_template_quality` commit in `MODULE.bazel`, run the pin
+target's sync, which writes prek's revision, read the release notes' rule-change table, and run
+`tools/verify.sh`.
