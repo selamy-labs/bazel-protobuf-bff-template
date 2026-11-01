@@ -17,6 +17,10 @@ run "one_public_template_repository" {
     error_message = "the ruleset is disabled until the operator activates it"
   }
   assert {
+    condition     = github_repository_ruleset.main.repository == github_repository.template.name
+    error_message = "the ruleset binds to the one declared repository"
+  }
+  assert {
     condition     = length(output.resources) == 2
     error_message = "the graph holds exactly the repository and its ruleset"
   }

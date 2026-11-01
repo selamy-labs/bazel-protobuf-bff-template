@@ -22,6 +22,10 @@ expect() { # expect <name> <want> <mutation> [tofu]
     relax_owner) replace "$T/g/variables.tf" 'var.owner == "selamy-labs"' 'var.owner != ""' ;;
     relax_name) replace "$T/g/variables.tf" 'var.name == "bazel-protobuf-bff-template"' 'var.name != ""' ;;
     unformatted) replace "$T/g/main.tf" '  name        = var.name' '  name=var.name' ;;
+    json_resource) printf '{"resource":{"github_repository":{"third":{"name":"third"}}}}\n' >"$T/g/extra.tf.json" ;;
+    provider_literal) replace "$T/g/main.tf" '  owner = var.owner' '  owner = "someone-else"' ;;
+    ruleset_other) replace "$T/g/main.tf" '  repository  = github_repository.template.name' '  repository  = "other-existing-repository"' ;;
+    module_block) printf '\nmodule "extra" {\n  source = "./extra"\n}\n' >>"$T/g/main.tf"; mkdir -p "$T/g/extra"; printf 'resource "github_repository" "third" {\n  name = "third"\n}\n' >"$T/g/extra/main.tf" ;;
     *) echo "unknown mutation $3"; exit 2 ;;
   esac
   "$script" "${4:-$tofu}" "$zip" "$T/g" >"$T/out" 2>&1 || rc=$?
@@ -36,6 +40,10 @@ expect "a ruleset active by default" 1 active_by_default
 expect "the pinned owner relaxed" 1 relax_owner
 expect "the pinned name relaxed" 1 relax_name
 expect "unformatted configuration" 1 unformatted
+expect "a third resource in JSON configuration" 1 json_resource
+expect "a module that adds a resource" 1 module_block
+expect "the provider bound to a literal owner" 1 provider_literal
+expect "the ruleset bound to another repository" 1 ruleset_other
 expect "no tofu" 11 none "$T/absent"
 expect "restored control" 0 none
 exit "$failures"

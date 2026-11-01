@@ -32,13 +32,27 @@ trap 'rm -rf "$work"' EXIT
 # Every term and marker is read into files, never into pipelines whose exit a match could cut short.
 git -C "$repo" rev-list --all --reflog >"$work/commits.list" || die "cannot list commits"
 # Every path association in every reachable tree, raw: ls-tree -z keeps names literal, and nothing is deduplicated
-# before a name is seen. rev-list --objects would show one name for identical content under two names.
+# before a name is seen. rev-list --objects would show one name for identical content under two names. A ref may
+# also name a tree or a blob directly, or an annotated tag chain that ends in one, so every ref is peeled and a
+# tree or blob it reaches is listed too, under the ref's own name.
 : >"$work/paths.z"
 while read -r commit; do
   git -C "$repo" ls-tree -r -z --format='%(objectname)%x09%(path)%x00' "$commit" >>"$work/paths.z" || die "cannot list the tree of $commit"
 done <"$work/commits.list"
+while read -r ref; do
+  peeled="$(git -C "$repo" rev-parse --verify --quiet "$ref^{}")" || die "cannot peel $ref"
+  kind="$(git -C "$repo" cat-file -t "$peeled")" || die "cannot type what $ref names"
+  case "$kind" in
+    commit) ;;
+    tree) git -C "$repo" ls-tree -r -z --format="%(objectname)%x09$ref:%(path)%x00" "$peeled" >>"$work/paths.z" || die "cannot list the tree $ref names" ;;
+    blob) printf '%s\t%s\0' "$peeled" "$ref" >>"$work/paths.z" ;;
+    *) die "$ref names a $kind" ;;
+  esac
+done < <(git -C "$repo" for-each-ref --format='%(refname)')
+# And every object reachable at all, so that nothing the listing above could miss is left unread.
+git -C "$repo" rev-list --objects --all --reflog | cut -d' ' -f1 >"$work/objects.all" || die "cannot list objects"
 LC_ALL=C sort -z -u "$work/paths.z" >"$work/paths.zu"
-cut -z -f1 "$work/paths.zu" | tr '\0' '\n' | sort -u >"$work/blobs.candidates"
+{ cut -z -f1 "$work/paths.zu" | tr '\0' '\n'; cat "$work/objects.all"; } | sort -u >"$work/blobs.candidates"
 git -C "$repo" cat-file --batch-check='%(objectname) %(objecttype)' <"$work/blobs.candidates" | awk '$2 == "blob" {print $1}' | sort -u >"$work/blobs" || die "cannot type objects"
 cut -z -f2- "$work/paths.zu" | LC_ALL=C sort -z -u >"$work/pathnames.z"
 git -C "$repo" log --all --reflog --format='%H%x1f%an%x1f%ae%x1f%cn%x1f%ce%x1f%B%x1e' >"$work/commits" || die "cannot read commits"
@@ -57,9 +71,16 @@ while IFS= read -r -d $'\x1e' record; do
   printf '%s' "${record#*$'\x1f'}" | tr '\037' '\n' >"$work/commit/$sha"
 done <"$work/commits"
 
-# Generic. grep reads a file to its end, so a match and a read error are distinct.
-: >"$work/hits"
-hit() { echo "neutrality: generic $1 at $2" | tee -a "$work/hits"; }
+# Generic. grep reads a file to its end, so a match and a read error are distinct. A hit on an object the
+# allowlist names with a `blob <id> <reason>` line is a decided finding: printed with its reason, counted apart,
+# and not a failure. The decision names one object, so a new blob with the same text is a new finding.
+: >"$work/hits"; : >"$work/decided"
+hit() {
+  local reason=""
+  if [[ -n "$allow" && "$2" == blob\ * ]]; then reason="$(awk -v id="${2#blob }" '$1 == "blob" && $2 == id {$1 = ""; $2 = ""; sub(/^ +/, ""); print}' "$allow")"; fi
+  if [[ -n "$reason" ]]; then echo "neutrality: generic $1 at $2, decided: $reason" | tee -a "$work/decided"
+  else echo "neutrality: generic $1 at $2" | tee -a "$work/hits"; fi
+}
 scan_file() { # scan_file <file> <locator>
   local file="$1" locator="$2"
   grep -aqE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[0-9A-Za-z-]{10,}' "$file" && hit "secret pattern" "$locator"
@@ -80,8 +101,8 @@ while read -r sha; do scan_file "$work/blob/$sha" "blob $sha"; done <"$work/blob
 scan_file "$work/pathnames" "a path"
 for file in "$work"/commit/*; do [[ -e "$file" ]] || continue; scan_file "$file" "commit ${file##*/}"; done
 scan_file "$work/refnames" "a ref name or tag message"
-hits="$(wc -l <"$work/hits")"
-if [[ $hits -eq 0 ]]; then echo "neutrality: generic passed, scope: $scope"; else echo "neutrality: generic failed, $hits hits, scope: $scope"; fi
+hits="$(wc -l <"$work/hits")"; decided="$(wc -l <"$work/decided")"
+if [[ $hits -eq 0 ]]; then echo "neutrality: generic passed, $decided decided findings, scope: $scope"; else echo "neutrality: generic failed, $hits hits, $decided decided findings, scope: $scope"; fi
 
 # Private: labels only. A term list with no terms is not-run; an unreadable list is an error.
 private=0

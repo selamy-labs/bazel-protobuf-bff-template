@@ -12,6 +12,18 @@ root="${1:?usage: inventory.sh <root> <yq> [inventory]}"
 yq="${2:?usage: inventory.sh <root> <yq> [inventory]}"
 inventory="${3:-docs/provenance.md}"
 [[ -x "$yq" ]] || { echo "inventory: no yq at $yq" >&2; exit 2; }
+# Every input the enumeration reads must exist and parse. A producer that fails ends the check with 2, so that a
+# missing or malformed file never yields an empty, complete-looking enumeration.
+for input in MODULE.bazel quality/MODULE.bazel go.mod quality/go.mod package.json quality/multitool.lock.json pnpm-lock.yaml tools/browser/debs.bzl tools/speckit/requirements.lock; do
+  [[ -r "$input" ]] || { echo "inventory: cannot read $input" >&2; exit 2; }
+done
+produce() { # produce <name> <command...>: the command's output, or exit 2 with its error
+  local name="$1" out; shift
+  out="$("$@" 2>"$work/err")" || { echo "inventory: cannot enumerate $name: $(head -c 200 "$work/err")" >&2; exit 2; }
+  printf '%s\n' "$out"
+}
+work="$(mktemp -d)"
+trap 'rm -rf "$work"' EXIT
 cd "$root"
 [[ -f "$inventory" ]] || { echo "inventory: $inventory does not exist" >&2; exit 2; }
 problems=0
@@ -22,14 +34,18 @@ cells="$(grep -E '^\| ' "$inventory" | grep -oE "${bt}[^${bt}]+${bt}" | tr -d "$
 listed() { grep -qxF -- "$1" <<<"$cells"; }
 
 # 1. Pinned identifiers, each from the file that pins it.
-while read -r name; do listed "$name" || problem "bazel_dep $name has no inventory entry"; done < <(
-  sed -nE 's/^bazel_dep\(name = "([^"]+)".*/\1/p' MODULE.bazel quality/MODULE.bazel | sort -u)
-while read -r name; do listed "$name" || problem "Go module $name has no inventory entry"; done < <(
-  awk '/^require \(/{inside=1; next} /^\)/{inside=0} inside && !/indirect/ && NF >= 2 {print $1}' go.mod quality/go.mod | sort -u)
-while read -r name; do listed "$name" || problem "npm package $name has no inventory entry"; done < <(
-  "$yq" -p json -o yaml '(.dependencies // {}) * (.devDependencies // {}) | keys | .[]' package.json | sort -u)
-while read -r name; do listed "$name" || problem "pinned tool $name has no inventory entry"; done < <(
-  "$yq" -p json -o yaml 'keys | .[]' quality/multitool.lock.json | grep -v '^\$' | sort -u)
+produce bazel_dep sed -nE 's/^bazel_dep\(name = "([^"]+)".*/\1/p' MODULE.bazel quality/MODULE.bazel | sort -u >"$work/bazel_deps"
+grep -q . "$work/bazel_deps" || { echo "inventory: no bazel_dep found" >&2; exit 2; }
+while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "bazel_dep $name has no inventory entry"; done <"$work/bazel_deps"
+awk '/^require \(/{inside=1; next} /^\)/{inside=0} inside && !/indirect/ && NF >= 2 {print $1}' go.mod quality/go.mod >"$work/go_modules.raw" || { echo "inventory: cannot enumerate Go modules" >&2; exit 2; }
+sort -u "$work/go_modules.raw" >"$work/go_modules"
+while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "Go module $name has no inventory entry"; done <"$work/go_modules"
+produce "npm packages" "$yq" -p json -o yaml '(.dependencies // {}) * (.devDependencies // {}) | keys | .[]' package.json | sort -u >"$work/npm"
+grep -q . "$work/npm" || { echo "inventory: package.json names no package" >&2; exit 2; }
+while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "npm package $name has no inventory entry"; done <"$work/npm"
+produce "pinned tools" "$yq" -p json -o yaml 'keys | .[]' quality/multitool.lock.json | grep -v '^\$' | sort -u >"$work/tools"
+grep -q . "$work/tools" || { echo "inventory: the tool lock names no tool" >&2; exit 2; }
+while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "pinned tool $name has no inventory entry"; done <"$work/tools"
 
 # 2. Every entry table, one with an Identifier or Path column, has a License column, and every row's license cell is
 #    filled. `unresolved: <reason>` is a filled, explicit finding counted below; an empty cell is incomplete.
@@ -60,12 +76,13 @@ rm -f "$rows_report"
 for group in "## Transitive npm packages" "## Debian packages for the browser" "## Spec Kit Python dependencies" "## Built artifacts" "## Code generation" "## First-party prose boundary"; do
   grep -q "^$group" "$inventory" || problem "the inventory has no section '$group'"
 done
-while read -r name; do listed "$name" || problem "lock package $name has no inventory entry"; done < <(
-  "$yq" -p yaml -o yaml '.packages | keys | .[]' pnpm-lock.yaml | sed -E 's/@[^@]+$//' | sort -u)
-while read -r name; do listed "$name" || problem "Debian package $name has no inventory entry"; done < <(
-  sed -nE 's/^    "([^"]+)": \(\[.*/\1/p' tools/browser/debs.bzl)
-while read -r name; do listed "$name" || problem "Spec Kit dependency $name has no inventory entry"; done < <(
-  sed -nE 's/^([A-Za-z0-9_.-]+)==.*/\1/p' tools/speckit/requirements.lock)
+produce "lock packages" "$yq" -p yaml -o yaml '.packages | keys | .[]' pnpm-lock.yaml | sed -E 's/@[^@]+$//' | sort -u >"$work/lock"
+grep -q . "$work/lock" || { echo "inventory: pnpm-lock.yaml names no package" >&2; exit 2; }
+while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "lock package $name has no inventory entry"; done <"$work/lock"
+produce "Debian packages" sed -nE 's/^    "([^"]+)": \(\[.*/\1/p' tools/browser/debs.bzl >"$work/debs"
+while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "Debian package $name has no inventory entry"; done <"$work/debs"
+produce "Spec Kit dependencies" sed -nE 's/^([A-Za-z0-9_.-]+)==.*/\1/p' tools/speckit/requirements.lock >"$work/py"
+while read -r name; do [[ -z "$name" ]] || listed "$name" || problem "Spec Kit dependency $name has no inventory entry"; done <"$work/py"
 
 # 4. Every row names its required fields: an Identifier cell in backticks and a filled License, Scope and Where pinned.
 rows_report="$(mktemp)"

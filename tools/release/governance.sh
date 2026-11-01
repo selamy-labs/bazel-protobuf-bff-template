@@ -33,9 +33,16 @@ export HOME="$work/home" TF_PLUGIN_CACHE_DIR="" TF_CLI_CONFIG_FILE="$work/cli.tf
 mkdir -p "$HOME"
 rm -rf "$work/config/.terraform"
 "$tofu" -chdir="$work/config" fmt -check -recursive >/dev/null || { echo "governance: the configuration is not formatted"; exit 1; }
+# The declaration is read structurally, not counted by file name: no JSON configuration, no module, no import, no
+# data source, exactly the two resources, and then the real graph that tofu builds from the loaded configuration.
+if find "$work/config" -name '*.tf.json' -o -name '*.tofu.json' | grep -q .; then echo "governance: JSON configuration is not accepted here"; exit 1; fi
+! grep -rqE '^\s*(import|data|module) ' "$work/config"/*.tf || { echo "governance: an import block, a data source or a module is present"; exit 1; }
+[[ "$(cat "$work/config"/*.tf | grep -cE '^resource ')" == 2 ]] || { echo "governance: the resource graph is not the two declared resources"; exit 1; }
 "$tofu" -chdir="$work/config" init -input=false -lockfile=readonly >/dev/null || refuse "init did not complete from the mirror"
 "$tofu" -chdir="$work/config" validate >/dev/null || { echo "governance: the configuration is not valid"; exit 1; }
-! grep -rqE '^\s*(import|data) ' "$work/config"/*.tf || { echo "governance: an import block or a data source is present"; exit 1; }
-[[ "$(cat "$work/config"/*.tf | grep -cE '^resource ')" == 2 ]] || { echo "governance: the resource graph is not the two declared resources"; exit 1; }
+graph="$("$tofu" -chdir="$work/config" graph 2>/dev/null)" || refuse "the graph could not be built"
+nodes="$(grep -oE '"[a-z_]+\.[A-Za-z0-9_-]+( \(expand\))?"' <<<"$graph" | grep -E '^"github_' | sed 's/ (expand)//' | LC_ALL=C sort -u | tr -d '"' | tr '\n' ' ')"
+[[ "$nodes" == "github_repository.template github_repository_ruleset.main " ]] || { echo "governance: the loaded graph holds [$nodes], not the two declared resources"; exit 1; }
+grep -qE '^\s*owner\s*=\s*var\.owner\s*$' "$work/config/main.tf" || { echo "governance: the provider is not bound to the pinned owner"; exit 1; }
 "$tofu" -chdir="$work/config" test || { echo "governance: a mock test failed"; exit 1; }
 echo "governance: one target, formatted, valid, two resources, mock tests passed, offline"

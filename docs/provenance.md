@@ -62,19 +62,19 @@ These are fetched by version and checksum and are not vendored.
 
 | Item | Identifier | Version | License | Scope | Where pinned |
 | --- | --- | --- | --- | --- | --- |
-| buf | `buf` | 1.74.0 | Apache-2.0 | tools and built artifacts: the Go modules link into the server | `quality/multitool.lock.json` |
-| `buf/validate/validate.proto` | `protovalidate` | v1.2.2 | Apache-2.0 | tools and built artifacts: the Go modules link into the server | `MODULE.bazel` (sha256), fetched and used at build time |
-| gazelle | `gazelle` | 0.54.0 | Apache-2.0 | tools and built artifacts: the Go modules link into the server | `MODULE.bazel` |
-| rules_nodejs, aspect_rules_js, aspect_rules_ts | `rules_nodejs`, `aspect_rules_js`, `aspect_rules_ts` | 6.7.6, 3.5.1, 3.10.1 | Apache-2.0 | tools and built artifacts: the Go modules link into the server | `MODULE.bazel` |
-| Node.js | `nodejs` | 24.22.0 | MIT | tools and built artifacts: the Go modules link into the server | `MODULE.bazel` (sha256) |
-| pnpm | `pnpm` | 10.34.6 | MIT | tools and built artifacts: the Go modules link into the server | pinned by rules_js |
-| connect-go, with its generator | `connectrpc.com/connect/v2`, `connectrpc.com/connect/v2/cmd/protoc-gen-connect-go` | 2.0.1 | Apache-2.0 | tools and built artifacts: the Go modules link into the server | `go.mod`, `go.sum` |
-| protobuf-go | `google.golang.org/protobuf` | 1.36.12 | BSD-3-Clause | tools and built artifacts: the Go modules link into the server | same |
-| protovalidate-go, with its generated validate package | `buf.build/go/protovalidate`, `buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go` | 1.4.0 | Apache-2.0 | tools and built artifacts: the Go modules link into the server | same |
-| Indirect Go modules | `golang.org/x/exp/typeparams`, `golang.org/x/mod`, `golang.org/x/sync` | see `go.sum` | BSD-3-Clause, read from each module's LICENSE in the module cache | tools and built artifacts: the Go modules link into the server | same |
-| @bufbuild/protobuf, @bufbuild/protoc-gen-es | `@bufbuild/protobuf`, `@bufbuild/protoc-gen-es` | 2.16.0 | Apache-2.0 AND BSD-3-Clause | tools and built artifacts: the Go modules link into the server | `pnpm-lock.yaml` |
-| @connectrpc/connect | `@connectrpc/connect` | 2.2.0 | Apache-2.0 | tools and built artifacts: the Go modules link into the server | same |
-| TypeScript | `typescript` | 6.0.3 | Apache-2.0 | tools and built artifacts: the Go modules link into the server | same |
+| buf | `buf` | 1.74.0 | Apache-2.0 | tools | `quality/multitool.lock.json` |
+| `buf/validate/validate.proto` | `protovalidate` | v1.2.2 | Apache-2.0 | built artifact, the server: linked, see the measured table | `MODULE.bazel` (sha256), fetched and used at build time |
+| gazelle | `gazelle` | 0.54.0 | Apache-2.0 | tools | `MODULE.bazel` |
+| rules_nodejs, aspect_rules_js, aspect_rules_ts | `rules_nodejs`, `aspect_rules_js`, `aspect_rules_ts` | 6.7.6, 3.5.1, 3.10.1 | Apache-2.0 | tools | `MODULE.bazel` |
+| Node.js | `nodejs` | 24.22.0 | MIT | tools | `MODULE.bazel` (sha256) |
+| pnpm | `pnpm` | 10.34.6 | MIT | tools | pinned by rules_js |
+| connect-go, with its generator | `connectrpc.com/connect/v2`, `connectrpc.com/connect/v2/cmd/protoc-gen-connect-go` | 2.0.1 | Apache-2.0 | built artifact, the server: linked, see the measured table | `go.mod`, `go.sum` |
+| protobuf-go | `google.golang.org/protobuf` | 1.36.12 | BSD-3-Clause | built artifact, the server: linked, see the measured table | same |
+| protovalidate-go, with its generated validate package | `buf.build/go/protovalidate`, `buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go` | 1.4.0 | Apache-2.0 | built artifact, the server: linked, see the measured table | same |
+| Indirect Go modules | `golang.org/x/exp/typeparams`, `golang.org/x/mod`, `golang.org/x/sync` | see `go.sum` | BSD-3-Clause, read from each module's LICENSE in the module cache | built artifact, the server: linked, see the measured table | same |
+| @bufbuild/protobuf, @bufbuild/protoc-gen-es | `@bufbuild/protobuf`, `@bufbuild/protoc-gen-es` | 2.16.0 | Apache-2.0 AND BSD-3-Clause | built artifact, the page (`@bufbuild/protobuf`); tools (`protoc-gen-es`) | `pnpm-lock.yaml` |
+| @connectrpc/connect | `@connectrpc/connect` | 2.2.0 | Apache-2.0 | built artifact, the page | same |
+| TypeScript | `typescript` | 6.0.3 | Apache-2.0 | tools | same |
 
 ## Browser and web toolchain (M4)
 
@@ -83,14 +83,14 @@ and connect-web are bundled into the built page, so a deployed bundle carries th
 
 | Item | Identifier | Version | License | Scope | Where pinned |
 | --- | --- | --- | --- | --- | --- |
-| React, React DOM | `react`, `react-dom` | 19.3.1 | MIT | tools; React and connect-web are in the built page | `pnpm-lock.yaml` |
-| @connectrpc/connect-web | `@connectrpc/connect-web` | 2.2.0 | Apache-2.0 | tools; React and connect-web are in the built page | same |
-| Vite | `vite` | 8.3.4 | MIT | tools; React and connect-web are in the built page | same |
-| @playwright/test | `@playwright/test` | 1.64.1 | Apache-2.0 | tools; React and connect-web are in the built page | same |
-| @types/node, @types/react, @types/react-dom | `@types/node`, `@types/react`, `@types/react-dom` | see `package.json` | MIT | tools; React and connect-web are in the built page | same |
-| chrome-headless-shell | `chrome_headless_shell` | 156.0.8078.4 | BSD-3-Clause and bundled third-party licenses | tools; React and connect-web are in the built page | `MODULE.bazel` (sha256) |
-| Debian 12 shared libraries for the browser | see the generated table below | see `tools/browser/debs.bzl` | enumerated below, each with its own license | tools; React and connect-web are in the built page | `tools/browser/debs.bzl` (sha256) |
-| fonts-dejavu-core (Debian 12), DejaVu fonts for the browser | `fonts-dejavu-core` | 2.37-6 | Bitstream Vera license for the fonts, with DejaVu changes in the public domain; Debian packaging files are GPL-2+ and are not used | tools; React and connect-web are in the built page | `tools/browser/debs.bzl` (sha256) |
+| React, React DOM | `react`, `react-dom` | 19.3.1 | MIT | built artifact, the page | `pnpm-lock.yaml` |
+| @connectrpc/connect-web | `@connectrpc/connect-web` | 2.2.0 | Apache-2.0 | built artifact, the page | same |
+| Vite | `vite` | 8.3.4 | MIT | tools | same |
+| @playwright/test | `@playwright/test` | 1.64.1 | Apache-2.0 | tools | same |
+| @types/node, @types/react, @types/react-dom | `@types/node`, `@types/react`, `@types/react-dom` | see `package.json` | MIT | tools | same |
+| chrome-headless-shell | `chrome_headless_shell` | 156.0.8078.4 | BSD-3-Clause and bundled third-party licenses | tools | `MODULE.bazel` (sha256) |
+| Debian 12 shared libraries for the browser | see the generated table below | see `tools/browser/debs.bzl` | enumerated below, each with its own license | tools | `tools/browser/debs.bzl` (sha256) |
+| fonts-dejavu-core (Debian 12), DejaVu fonts for the browser | `fonts-dejavu-core` | 2.37-6 | Bitstream Vera license for the fonts, with DejaVu changes in the public domain; Debian packaging files are GPL-2+ and are not used | tools | `tools/browser/debs.bzl` (sha256) |
 
 ## Container image (M8a)
 
@@ -125,8 +125,29 @@ read from the artifacts: OpenTofu's zip carries its LICENSE, and the provider's 
 
 | Artifact | Contains | Third-party content | Scope |
 | --- | --- | --- | --- |
-| `//bff/cmd/bff:image` | the production server binary only | the Go standard library (BSD-3-Clause) and the Go modules above that the server links | built artifact |
+| `//bff/cmd/bff:image` | the production server binary only | the Go standard library (BSD-3-Clause) and exactly the modules in the measured table below | built artifact |
 | the built web page | this repository's client | React, React DOM, @connectrpc/connect, @connectrpc/connect-web, @bufbuild/protobuf, listed above | built artifact |
+
+## Linked into the production server (measured)
+
+Read from the packaged binary's own module table with the Go toolchain's `go version -m`, at the `779a36e`
+artifact whose digest the image carries. Nothing else is in the binary. The quality module's Go dependencies are
+analyzers and never link here.
+
+| Item | Identifier | Version | License | Scope | Where pinned |
+| --- | --- | --- | --- | --- | --- |
+| connect-go | `connectrpc.com/connect/v2` | 2.0.1 | Apache-2.0 | built artifact, the server | `go.mod` |
+| protobuf-go | `google.golang.org/protobuf` | 1.36.12 | BSD-3-Clause | built artifact, the server | `go.mod` |
+| protovalidate-go | `buf.build/go/protovalidate` | 1.4.0 | Apache-2.0 | built artifact, the server | `go.mod` |
+| protovalidate generated Go | `buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go` | 1.36.12-20260825204119-511051f7f437.1 | unresolved: the fetched module directory was not found to read its LICENSE from; the generated code derives from protovalidate's Apache-2.0 schema | built artifact, the server | `go.mod` |
+| cel-go | `cel.dev/cel-go` | 0.32.0 | Apache-2.0 | built artifact, the server, through protovalidate | `go.sum` |
+| cel expr | `cel.dev/expr` | 0.25.3 | Apache-2.0 | built artifact, the server, through protovalidate | `go.sum` |
+| ANTLR Go runtime | `github.com/antlr4-go/antlr/v4` | 4.13.1 | BSD-3-Clause, from its LICENSE text | built artifact, the server, through cel-go | `go.sum` |
+| yaml | `go.yaml.in/yaml/v3` | 3.0.5 | MIT | built artifact, the server, through cel-go | `go.sum` |
+| x/exp | `golang.org/x/exp` | v0.0.0-20260820142414-ca536658362e | BSD-3-Clause | built artifact, the server | `go.sum` |
+| x/text | `golang.org/x/text` | 0.41.0 | BSD-3-Clause | built artifact, the server | `go.sum` |
+| genproto api | `google.golang.org/genproto/googleapis/api` | v0.0.0-20260819154853-08b0e4226688 | Apache-2.0 | built artifact, the server | `go.sum` |
+| genproto rpc | `google.golang.org/genproto/googleapis/rpc` | v0.0.0-20260819154853-08b0e4226688 | Apache-2.0 | built artifact, the server | `go.sum` |
 
 ## Code generation
 

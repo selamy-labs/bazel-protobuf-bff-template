@@ -1,6 +1,8 @@
-# Email domains the generic scan accepts (spec 010 FR-005): reserved test domains, and the proposed
-# commit identity's domain, which the release packet lists as pending the operator's approval.
+# The generic scan's decisions (spec 010 FR-005, SC-003). A plain line is an email domain the scan accepts:
+# reserved test domains, and the proposed commit identity's domain, which the release packet lists as pending
+# the operator's approval. A `blob <object id> <reason>` line is one decided finding: the scan still prints it.
 example.com
 example.invalid
 selamy.dev
 anthropic.com
+blob 8479e0b5f1b76dae02c164ede301cc7bac3cac64 the first neutrality_test.sh, at f4ca205, planted its generic patterns as literals; they are synthetic test values, not identifiers of anything; the test now builds them from split strings, and this historical blob stays in the export by decision rather than by a rewrite

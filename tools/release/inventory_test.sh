@@ -92,6 +92,9 @@ fresh; printf '\nThe module rules_oci is mentioned in prose only.\n' >>docs/prov
 fresh; replace docs/provenance.md '| Item | Identifier | Version | License | Scope | Where pinned |' '| Item | Identifier | Version | Scope | Where pinned |'; expect "a table without a License column" 1
 fresh; replace docs/provenance.md '## Debian packages for the browser (generated)' '## Debian packages, gone'; expect "a missing required group" 1
 fresh; replace pnpm-lock.yaml '  vite@1.0.0:' $'  newdep@2.0.0:\n    resolution: {integrity: x}\n\n  vite@1.0.0:'; git add -A; expect "a lock package with no row" 1
+fresh; rm pnpm-lock.yaml; git add -A; expect "a missing lock file is an error, not an empty enumeration" 2; grep -q 'cannot read pnpm-lock.yaml' "$T/out" || { echo "FAIL the missing file is not named"; failures=$((failures + 1)); }
+fresh; printf 'packages: [\n' >pnpm-lock.yaml; git add -A; expect "a malformed lock file is an error" 2
+fresh; printf '{}\n' >package.json; git add -A; expect "a package.json with no package is an error" 2
 fresh; mkdir -p other; printf '# Copyright (c) 1999 Another\n' >other/x.c; git add -A; expect "a foreign copyright outside an enrolled path" 1; grep -q 'other/x.c carries' "$T/out" || { echo "FAIL path not named"; failures=$((failures + 1)); }
 fresh; printf '# SPDX-License-Identifier: MIT\n' >docs/note.md; git add -A; expect "a license marker in documentation is not a vendored file" 0
 fresh; expect "restored control passes" 0

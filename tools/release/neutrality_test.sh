@@ -16,9 +16,9 @@ grep -q 'private not-run' "$T/out" || { echo "FAIL not-run status missing"; fail
 : >"$T/empty"; expect "an empty marker file is not-run" 0 "$S" "$T/clean" --allow "$T/allow" --markers "$T/empty" --mapping "$T/map"
 grep -q 'private not-run' "$T/out" || { echo "FAIL empty file read as a run"; failures=$((failures + 1)); }
 # generic defects
-mk "$T/g1"; (cd "$T/g1" && printf 'see /home/someone/x\n' >b.txt && git add . && git commit -q -m two); expect "personal path in a current file" 1 "$S" "$T/g1" --allow "$T/allow"
-mk "$T/g2"; (cd "$T/g2" && printf 'sa: thing@proj.iam.gserviceaccount.com\n' >c.txt && git add . && git commit -q -m two && git rm -q c.txt && git commit -q -m three); expect "cloud identifier in a deleted file" 1 "$S" "$T/g2" --allow "$T/allow"
-mk "$T/g3"; (cd "$T/g3" && git commit -q --allow-empty -m 'contact: who@private-corp.example'); expect "email domain in a message" 1 "$S" "$T/g3" --allow "$T/allow"
+mk "$T/g1"; (cd "$T/g1" && printf 'see /ho%s/x\n' 'me/someone' >b.txt && git add . && git commit -q -m two); expect "personal path in a current file" 1 "$S" "$T/g1" --allow "$T/allow"
+mk "$T/g2"; (cd "$T/g2" && printf 'sa: thing@%s\n' 'proj.iam.gserviceaccount.com' >c.txt && git add . && git commit -q -m two && git rm -q c.txt && git commit -q -m three); expect "cloud identifier in a deleted file" 1 "$S" "$T/g2" --allow "$T/allow"
+mk "$T/g3"; (cd "$T/g3" && git commit -q --allow-empty -m "contact: who@$(printf '%s.%s' private-corp example)"); expect "email domain in a message" 1 "$S" "$T/g3" --allow "$T/allow"
 mk "$T/g4"; (cd "$T/g4" && git -c user.email=x@example.com commit -q --allow-empty -m ok); expect "allowed domain in an identity passes" 0 "$S" "$T/g4" --allow "$T/allow"
 # private defects: a marker in a blob, a file name, a directory, a message, a ref, an identity
 marker="zebra-orchid-7731"; printf '%s\n' "$marker" >"$T/markers"; chmod 600 "$T/markers"
@@ -58,4 +58,21 @@ plant two-names "printf 'same\n' >plain.txt && cp plain.txt '$marker.txt' && git
 plant space-and-quote-name "printf 'x\n' >'a \"b\" $marker.txt' && git add . && git commit -q -m two"
 ln -s "$T/elsewhere" "$T/link-map"; expect "a linked mapping path is refused" 2 "$S" "$T/p0" --allow "$T/allow" --markers "$T/markers" --mapping "$T/link-map"
 expect "a mapping path inside the repository is refused" 2 "$S" "$T/p0" --allow "$T/allow" --markers "$T/markers" --mapping "$T/p0/map"
+# objects reachable from a ref that is not a commit: a blob-only tag, a tag to a tree, an annotated chain
+mk "$T/blob-tag"; (cd "$T/blob-tag" && b="$(printf 'x %s y\n' "$marker" | git hash-object -w --stdin)" && git tag blob-only "$b")
+expect "marker in a blob named only by a lightweight tag" 1 "$S" "$T/blob-tag" --allow "$T/allow" --markers "$T/markers" --mapping "$T/map-blob-tag"
+grep -q 'private M1:' "$T/out" || { echo "FAIL no label for the blob-only tag"; failures=$((failures + 1)); }
+mk "$T/tree-tag"; (cd "$T/tree-tag" && mkdir t && printf 'x\n' >"t/$marker.txt" && git add t && tr="$(git write-tree)" && git rm -rqf t && git tag tree-only "$tr")
+expect "marker in a path of a tree named only by a tag" 1 "$S" "$T/tree-tag" --allow "$T/allow" --markers "$T/markers" --mapping "$T/map-tree-tag"
+mk "$T/chain"; (cd "$T/chain" && b="$(printf '%s\n' "$marker" | git hash-object -w --stdin)" && git tag -a inner -m inner "$b" && git tag -a outer -m outer inner)
+expect "marker in a blob under an annotated tag chain" 1 "$S" "$T/chain" --allow "$T/allow" --markers "$T/markers" --mapping "$T/map-chain"
+mk "$T/clean-tags"; (cd "$T/clean-tags" && b="$(printf 'plain\n' | git hash-object -w --stdin)" && git tag blob-only "$b" && git tag -a note -m 'a note' HEAD)
+expect "tags without a marker still pass" 0 "$S" "$T/clean-tags" --allow "$T/allow" --markers "$T/markers" --mapping "$T/map-clean-tags"
+# a decided object: printed with its reason, not a failure; the same text in a new blob is a new finding
+mk "$T/decided"; (cd "$T/decided" && printf 'see /ho%s/x\n' 'me/someone' >b.txt && git add . && git commit -q -m two)
+id="$(git -C "$T/decided" rev-parse HEAD:b.txt)"; { cat "$T/allow"; printf 'blob %s a synthetic fixture value\n' "$id"; } >"$T/allow-decided"
+expect "a decided finding does not fail" 0 "$S" "$T/decided" --allow "$T/allow-decided"
+grep -q 'decided: a synthetic fixture value' "$T/out" || { echo "FAIL the decision is not printed"; failures=$((failures + 1)); }
+(cd "$T/decided" && printf 'see /ho%s/y\n' 'me/someone' >c.txt && git add . && git commit -q -m three)
+expect "the same pattern in a new blob is a new finding" 1 "$S" "$T/decided" --allow "$T/allow-decided"
 echo "fixture failures: $failures"; exit "$failures"
