@@ -66,6 +66,8 @@ func TestDirectivesSpanningLinesAreReportedAtTheirStart(t *testing.T) {
 		{"S002_bad_globals.ts", "S002", 3},
 		{"S002_bad_env.ts", "S002", 1},
 		{"S005_bad_multiline.ts", "S005", 1},
+		{"S005_bad_node.ts", "S005", 1},
+		{"S005_bad_node_disable.ts", "S005", 1},
 	}
 	for _, c := range cases {
 		t.Run(c.fixture, func(t *testing.T) {

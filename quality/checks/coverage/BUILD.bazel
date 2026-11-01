@@ -3,7 +3,10 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 go_library(
     name = "coverage",
     srcs = [
+        "config.go",
+        "floors.go",
         "merger.go",
+        "report.go",
     ],
     importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/coverage",
 )
@@ -12,9 +15,30 @@ go_test(
     name = "coverage_test",
     size = "small",
     srcs = [
+        "binaries_test.go",
+        "floors_test.go",
         "merger_test.go",
     ],
+    data = [
+        ":floors",
+        ":merger",
+    ],
     embed = [":coverage"],
+    env = {
+        "FLOORS": "$(rlocationpath :floors)",
+        "MERGER": "$(rlocationpath :merger)",
+    },
+)
+
+go_binary(
+    name = "floors",
+    srcs = ["cmd/floors/main.go"],
+    pure = "on",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":coverage",
+        "//checks/suppression",
+    ],
 )
 
 go_binary(

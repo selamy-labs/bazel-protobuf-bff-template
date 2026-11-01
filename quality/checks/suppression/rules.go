@@ -22,7 +22,7 @@ var Rules = []Rule{
 	{"S002", "ESLint disable or inline configuration comment", re(`eslint-disable|/\*\s*eslint-env\b|/\*\s*eslint\s+["']?[@\w/-]+["']?\s*:|/\*\s*globals?\s+\S`), ".ts", true},
 	{"S003", "TypeScript checker suppression", re(`@ts-(ignore|expect-error|nocheck)\b`), ".ts", false},
 	{"S004", "buf lint ignore comment (use the API-style ledger)", re(`buf:lint:ignore`), ".proto", false},
-	{"S005", "coverage exclusion marker", re(`\b(istanbul|c8|v8)\s+ignore\b|pragma:\s*no\s*cover|coverage:ignore`), ".ts", true},
+	{"S005", "coverage exclusion marker", re(`\b(istanbul|c8|v8)\s+ignore\b|node:coverage\s+(ignore|disable)\b|pragma:\s*no\s*cover|coverage:ignore`), ".ts", true},
 	{"S006", "ShellCheck directive that changes what is checked", re(`#\s*shellcheck\s[^\n]*\b(disable|enable|shell)\s*=`), ".txt", false},
 	{"S007", "Python lint/type suppression", re(`#\s*noqa\b|#\s*(ruff|flake8)\s*:\s*noqa|type:\s*ignore\b|pyright:\s*ignore|pylint:\s*disable|mypy:\s*ignore`), ".py", false},
 	{"S008", "gitleaks inline allow", re(`gitleaks:allow`), ".txt", false},

@@ -22,7 +22,10 @@ ts_project(
 ts_project(
     name = "client_test",
     testonly = True,
-    srcs = ["errors.test.ts"],
+    srcs = [
+        "errors.test.ts",
+        "transport.test.ts",
+    ],
     declaration = True,
     transpiler = "tsc",
     tsconfig = "//:tsconfig",
@@ -35,11 +38,16 @@ ts_project(
     ],
 )
 
+# Runs the tests through Node's own runner, which writes the coverage report under `bazel coverage`.
+# rules_js's report keeps only `.ts` entries, and V8 reports the compiled `.js` (spec 007 R7).
 js_test(
-    name = "errors_test",
+    name = "client_unit_test",
     size = "small",
-    data = [":client_test"],
-    entry_point = "errors.test.js",
+    data = [
+        "test_main.mjs",
+        ":client_test",
+    ],
+    entry_point = "test_main.mjs",
 )
 
 js_library(

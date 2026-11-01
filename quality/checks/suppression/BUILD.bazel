@@ -7,6 +7,7 @@ go_library(
         "scan.go",
     ],
     importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/suppression",
+    visibility = ["//checks/coverage:__pkg__"],
 )
 
 go_test(

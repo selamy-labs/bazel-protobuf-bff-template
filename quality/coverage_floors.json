@@ -1,0 +1,42 @@
+{
+  "languages": {
+    "go": [".go"],
+    "typescript": [".ts", ".tsx", ".mjs"]
+  },
+  "go_modules": {
+    "example.com/bfftemplate/": "",
+    "github.com/selamy-labs/bazel-protobuf-bff-template/quality/": "quality/"
+  },
+  "lcov_prefixes": {
+    "external/bff_template_quality+/": "quality/"
+  },
+  "excludes": [
+    { "pattern": "_test\\.go$", "reason": "test-code" },
+    { "pattern": "\\.test\\.(ts|mjs)$", "reason": "test-code" },
+    { "pattern": "^api/testdata/", "reason": "test-data" },
+    { "pattern": "^quality/checks/suppression/testdata/", "reason": "test-data" },
+    { "pattern": "^bff/ports/store\\.go$", "reason": "interfaces-only" },
+    { "pattern": "^bff/cmd/bff/verifier\\.go$", "reason": "no-statements" },
+    { "pattern": "^api/tools\\.go$", "reason": "build-tag-tools" },
+    { "pattern": "^quality/analysis/tools\\.go$", "reason": "build-tag-tools" },
+    { "pattern": "^quality/runner/supervise_other\\.go$", "reason": "other-platform" },
+    { "pattern": "^web/e2e/", "reason": "test-tooling" },
+    { "pattern": "^web/lint/", "reason": "test-tooling" },
+    { "pattern": "^web/app/vite\\.config\\.mjs$", "reason": "test-tooling" },
+    { "pattern": "^web/app/test-identity\\.tsx$", "reason": "test-tooling" },
+    { "pattern": "^web/client/test_main\\.mjs$", "reason": "test-tooling" }
+  ],
+  "profiles": [
+    {
+      "name": "go-entrypoints",
+      "language": "go",
+      "metric": "block-span-lines",
+      "include": "^(bff/cmd/bff-dev/main\\.go|quality/checks/ciparity/cmd/main\\.go|quality/checks/coverage/cmd/(floors|merger)/main\\.go|quality/checks/suppression/main\\.go|quality/proto/cmd/main\\.go|quality/runner/cmd/main\\.go)$",
+      "floor": 0
+    },
+    { "name": "go-root", "language": "go", "metric": "statements", "include": "^bff/", "floor": 0 },
+    { "name": "go-quality", "language": "go", "metric": "statements", "include": "^quality/", "floor": 0 },
+    { "name": "ts-client", "language": "typescript", "metric": "compiled-js-lines", "include": "^web/client/", "floor": 0 },
+    { "name": "web-browser", "language": "typescript", "metric": "unmeasured", "include": "^web/(app|serve)/", "floor": 0 }
+  ]
+}
