@@ -1,3 +1,10 @@
+# govulncheck, built from the pinned module (spec 011 T023); it reads a vulnerability database the caller names.
+alias(
+    name = "govulncheck",
+    actual = "@org_golang_x_vuln//cmd/govulncheck",
+    visibility = ["//visibility:public"],
+)
+
 # Pinned native tools, exposed so consumers depend on this module rather than on the hub name.
 [
     alias(

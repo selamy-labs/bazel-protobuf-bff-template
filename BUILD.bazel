@@ -177,6 +177,24 @@ sh_test(
     ],
 )
 
+# The vulnerability check's planted control (spec 011 T023): the real govulncheck and a real server binary against
+# a local database written by the test; a reachable advisory is a finding, a fixed or absent one is not.
+sh_test(
+    name = "vulnerabilities_test",
+    size = "medium",
+    srcs = ["tools/checks/vulnerabilities_test.sh"],
+    args = [
+        "$(rootpath tools/checks/vulnerabilities.sh)",
+        "$(rootpath @bff_template_quality//tools:govulncheck)",
+        "$(rootpath //bff/cmd/bff-dev)",
+    ],
+    data = [
+        "tools/checks/vulnerabilities.sh",
+        "//bff/cmd/bff-dev",
+        "@bff_template_quality//tools:govulncheck",
+    ],
+)
+
 sh_test(
     name = "inventory_test",
     size = "small",

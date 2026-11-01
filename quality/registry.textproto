@@ -33,6 +33,7 @@ shards: "policy"
 tools { name: "BASELINE" }
 tools { name: "BUF" version_args: "--version" }
 tools { name: "BUF_CONFIG_FILE" }
+tools { name: "GOVULNCHECK" }
 tools { name: "PREK" version_args: "--version" }
 tools { name: "RELEASE" }
 tools { name: "UV" version_args: "--version" }
@@ -231,6 +232,26 @@ checks {
   summary: true
   command: ["tools/checks/image_release.sh", "{bazel}", "{isolation}", "{YQ}"]
   witness: "//:image_release_test"
+}
+
+# Reachable vulnerabilities at the hosted boundary (spec 011 T023): govulncheck in binary mode against the
+# production server binary, with the Go vulnerability database named here and fetched when the check runs, so the
+# check needs the network and its result holds for the database as of the run, which its measurement states. A new
+# advisory failing a later run is this control working, and the answer is a pin move, as GO-2026-6809 was.
+checks {
+  id: "vulnerabilities"
+  shard: "policy"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 600
+  exclusive: true
+  after_bazel: true
+  allow_empty: true
+  summary: true
+  needs_network: true
+  command: ["tools/checks/vulnerabilities.sh", "{bazel}", "{isolation}", "{GOVULNCHECK}", "https://vuln.go.dev", "//bff/cmd/bff:bff"]
+  witness: "//:vulnerabilities_test"
 }
 
 checks {

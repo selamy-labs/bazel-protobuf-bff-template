@@ -12,6 +12,7 @@
 //bff/cmd/bff:config_test build-test
 //bff/cmd/bff:image_test build-test
 //:image_release_test build-test
+//:vulnerabilities_test build-test
 //:inventory_test build-test
 //:neutrality_test build-test
 //:governance_test build-test

@@ -58,6 +58,13 @@ echo "measurement: image sha256:$(printf '%064d' 0), plain configuration, stub"
 exit 0
 STUB
 chmod +x "$tree/tools/checks/image_release.sh"
+cat >"$tree/tools/checks/vulnerabilities.sh" <<STUB
+#!/usr/bin/env bash
+[[ "\$(cat "$work/fail" 2>/dev/null)" == vulnerabilities ]] && { echo "stub failure: vulnerabilities"; exit 1; }
+echo "measurement: vulnerabilities //bff/cmd/bff:bff: 0 reachable against https://vuln.go.dev updated stub"
+exit 0
+STUB
+chmod +x "$tree/tools/checks/vulnerabilities.sh"
 stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
 stub "$tree/tools/hooks/e2e.sh" hook-e2e
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
