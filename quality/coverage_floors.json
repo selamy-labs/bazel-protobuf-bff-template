@@ -22,6 +22,7 @@
     { "pattern": "^quality/analysis/tools\\.go$", "reason": "build-tag-tools" },
     { "pattern": "^quality/runner/supervise_other\\.go$", "reason": "other-platform" },
     { "pattern": "^web/e2e/", "reason": "test-tooling" },
+    { "pattern": "^tools/dev/record/", "reason": "test-tooling" },
     { "pattern": "^web/lint/", "reason": "test-tooling" },
     { "pattern": "^web/app/vite\\.config\\.mjs$", "reason": "test-tooling" },
     { "pattern": "^web/app/test-identity\\.tsx$", "reason": "test-tooling" },

@@ -71,7 +71,7 @@ fresh() {
 | none | `none` | 0 | none | tools | none |
 P
   printf "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.0.0:\n    resolution: {integrity: x}\n\n  vite@1.0.0:\n    resolution: {integrity: x}\n\nsnapshots:\n" >pnpm-lock.yaml
-  mkdir -p tools/browser tools/speckit; printf 'DEBS = {\n}\n' >tools/browser/debs.bzl; : >tools/speckit/requirements.lock
+  mkdir -p tools/browser tools/speckit tools/dev/record; printf 'DEBS = {\n}\n' >tools/browser/debs.bzl; : >tools/speckit/requirements.lock; : >tools/dev/record/requirements.lock
   git add -A; git -c user.name=a -c user.email=a@example.com commit -q -m one
 }
 failures=0
