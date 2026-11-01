@@ -19,14 +19,17 @@
 #   pre_commit_first, pre_push_first: straight after installing in an empty HOME.
 #   pre_commit_{1,50,500}:  warm, with that many newly edited Go files staged.
 #   pre_commit_rejected:    warm, a staged secret. Each run must be rejected.
-#   pre_push_edited:        warm, a comment edit to one Go package. Its export data is unchanged, so
-#                           this recompiles that package and retests it, and rebuilds no dependent.
-#   pre_push_exported:      warm, a new exported name in that package, which rebuilds its dependents.
+#   pre_push_edited:        warm, a comment appended to one Go package.
+#   pre_push_exported:      warm, a new exported constant appended to that package.
 #   pre_push_rejected:      warm, a test in that package made to fail. Each run must be rejected, for
 #                           that test.
 #   pre_push_docs_only:     warm, a documentation edit. Bazel's test cache answers, so this is the floor of
 #                           the stage and never reported as feedback on edited code.
-# A push sample counts only if its receipt shows the work: an edited run must have spawned actions.
+# These names say what was edited, not what that caused. What each push really did is recorded beside
+# its times: spawned actions from the receipt, and tests that ran, seen as test.xml files the push
+# rewrote in the private output base. Bazel leaves those alone for a cached result, and caching stays
+# on as in any ordinary push. An edited sample that spawned nothing is refused as a cache hit. A
+# rejected sample must show the package's own test ran, which is the control for that probe.
 #
 # Peak memory is the highest sampled sum of proportional set size (PSS) over the verifier's process
 # tree and the Bazel server's tree, every 0.5 s. PSS divides shared pages among their sharers, so
@@ -183,20 +186,39 @@ expect_passed() { # expect_passed <file>: a run that failed for some other reaso
   fi
 }
 
-spawned() { # spawned <base>: the actions the last push really ran, from its receipt
+spawned() { # spawned <base>: the actions the last push spawned, from its receipt
   awk -F'"' '/"sandbox_summary"/ { n = 0; if (match($4, /[0-9]+ (processwrapper|linux)-sandbox/)) n = substr($4, RSTART, RLENGTH) + 0; print n }' \
-    "$base/clone/.git/bff-template/receipts/pre-push.json"
+    "$1/clone/.git/bff-template/receipts/pre-push.json"
 }
-expect_work() { # expect_work <base> <label>: an edited sample that ran nothing is a cache hit, not feedback
-  local count
-  count="$(spawned "$1")"
-  if [[ "${count:-0}" -eq 0 ]]; then
-    echo "measure: $2: the receipt shows no action ran, so this is not an edited sample" >&2
+test_logs() { # test_logs <base>: each test's result file and when a run last wrote it
+  { find "$1"/home/.cache/bff-template/push/*/execroot/_main/bazel-out/*/testlogs -name test.xml -printf '%P %T@\n' 2>/dev/null || true; } | sort
+}
+observed_push() { # observed_push <base> <label>: one timed push, with the work it really did
+  local base="$1" label="$2" total own actions
+  test_logs "$base" >"$work/logs_before"
+  stage_timed "$base" git push -q origin main >>"$work/push_$label"
+  test_logs "$base" >"$work/logs_after"
+  comm -13 "$work/logs_before" "$work/logs_after" >"$work/logs_new"
+  total="$(wc -l <"$work/logs_new")"
+  own="$(grep -c "^$stage_package/" "$work/logs_new" || true)"
+  actions="$(spawned "$base")"
+  echo "${actions:-0}" >>"$work/spawns_$label"
+  echo "$total" >>"$work/tests_$label"
+  echo "$own" >>"$work/own_$label"
+  echo "$((total - own))" >>"$work/dependents_$label"
+}
+expect_work() { # expect_work <label>: an edited sample that spawned nothing is a cache hit, not feedback
+  if [[ "$(tail -1 "$work/spawns_$1")" -eq 0 ]]; then
+    echo "measure: $1: the receipt shows no action ran, so this is not an edited sample" >&2
     exit 1
   fi
-  echo "$count" >>"$work/spawns_$2"
 }
 range() { sort -n "$1" | awk 'NR == 1 { low = $1 } { high = $1 } END { printf "{\"min\": %d, \"max\": %d}", low, high }'; }
+work_record() { # work_record <label>: what the samples of one scenario really did
+  printf '{"spawned_actions": %s, "tests_run": %s, "dependent_tests_run": %s, "samples_running_the_package_test": %d}' \
+    "$(range "$work/spawns_$1")" "$(range "$work/tests_$1")" "$(range "$work/dependents_$1")" \
+    "$(awk '$1 > 0 { n++ } END { print n + 0 }' "$work/own_$1")"
+}
 
 stage_scenarios() {
   sample_period=0.1
@@ -253,8 +275,8 @@ stage_scenarios() {
     echo "// Edit $i forces a rebuild and a retest of this package." >>"$base/clone/$stage_file"
     in_stage "$base" git add "$stage_file"
     in_stage "$base" git commit -q --no-verify -m edited
-    stage_timed "$base" git push -q origin main >>"$work/push_edited"
-    expect_work "$base" edited
+    observed_push "$base" edited
+    expect_work edited
     echo "push edited $i: $(tail -1 "$work/push_edited")" >&2
   done
   expect_passed "$work/push_edited"
@@ -264,8 +286,8 @@ stage_scenarios() {
     printf '\n// BenchEdit%d is a measured edit.\nconst BenchEdit%d = %d\n' "$i" "$i" "$i" >>"$base/clone/$stage_file"
     in_stage "$base" git add "$stage_file"
     in_stage "$base" git commit -q --no-verify -m exported
-    stage_timed "$base" git push -q origin main >>"$work/push_exported"
-    expect_work "$base" exported
+    observed_push "$base" exported
+    expect_work exported
     echo "push exported $i: $(tail -1 "$work/push_exported")" >&2
   done
   expect_passed "$work/push_exported"
@@ -275,14 +297,17 @@ stage_scenarios() {
     printf '\nfunc init() { panic("edit %d fails this package'"'"'s tests") }\n' "$i" >>"$base/clone/$stage_test"
     in_stage "$base" git add "$stage_test"
     in_stage "$base" git commit -q --no-verify -m rejected
-    stage_timed "$base" git push -q origin main >>"$work/push_rejected"
+    observed_push "$base" rejected
     echo "push rejected $i: $(tail -1 "$work/push_rejected")" >&2
     if ! grep -qF "//$stage_package" "$work/run.log"; then
       echo "measure: the push was rejected for another reason:" >&2
       tail -n 20 "$work/run.log" >&2
       exit 1
     fi
-    expect_work "$base" rejected
+    if [[ "$(tail -1 "$work/own_rejected")" -eq 0 ]]; then
+      echo "measure: a failing test left no new test.xml, so that probe cannot be trusted" >&2
+      exit 1
+    fi
     in_stage "$base" git reset -q --hard HEAD~1
   done
   expect_rejected "$work/push_rejected"
@@ -292,7 +317,7 @@ stage_scenarios() {
     echo "<!-- edit $i -->" >>"$base/clone/docs/quality-framework.md"
     in_stage "$base" git add docs/quality-framework.md
     in_stage "$base" git commit -q --no-verify -m docs
-    stage_timed "$base" git push -q origin main >>"$work/push_docs"
+    observed_push "$base" docs
   done
   expect_passed "$work/push_docs"
   echo "push, docs only: $(stats "$work/push_docs")" >&2
@@ -316,13 +341,14 @@ stage_scenarios() {
   "pre_commit_500": $(stats "$work/commit_500"),
   "pre_commit_rejected": $(stats "$work/commit_rejected"),
   "pre_push_edited": $(stats "$work/push_edited"),
-  "pre_push_edited_spawned_actions": $(range "$work/spawns_edited"),
+  "pre_push_edited_work": $(work_record edited),
   "pre_push_exported": $(stats "$work/push_exported"),
-  "pre_push_exported_spawned_actions": $(range "$work/spawns_exported"),
+  "pre_push_exported_work": $(work_record exported),
   "pre_push_rejected": $(stats "$work/push_rejected"),
-  "pre_push_rejected_spawned_actions": $(range "$work/spawns_rejected"),
+  "pre_push_rejected_work": $(work_record rejected),
   "pre_push_docs_only": $(stats "$work/push_docs"),
-  "limits": "Times are a whole git commit or git push through the real hooks, including prek. failed_runs equals n on the rejected scenarios by construction. pre_commit_N staged N new Go files, so it exercises the content checks that apply to Go and nothing for other languages. pre_push_docs_only is answered by Bazel's test cache and is the stage's floor, not feedback on edited code. pre_push_edited is a comment edit: it recompiles one package and retests it, and its export data does not change, so no dependent rebuilds. pre_push_exported adds an exported name, which rebuilds dependents and is the fairer feedback number. Every edited sample's receipt showed spawned actions. Install and first runs include downloads when the host's download cache is empty, so they depend on the link. Peak memory is sampled PSS of the command's and Bazel servers' process trees every 0.1 s and can miss short spikes."
+  "pre_push_docs_only_work": $(work_record docs),
+  "limits": "Times are a whole git commit or git push through the real hooks, including prek. failed_runs equals n on the rejected scenarios by construction. pre_commit_N staged N new Go files, so it exercises the content checks that apply to Go and nothing for other languages. pre_push_docs_only edits no build input of a test and is the stage's floor, not feedback on edited code. Scenario names say what was edited. The *_work records say what happened: spawned actions from each receipt, and tests that ran, seen as test.xml files the push rewrote, with caching on. A result that Bazel's cache answered is not a test run, so a time with tests_run 0 is a compile or cache time and not feedback on behavior. A spawned action can be a compile alone. Install and first runs include downloads when the host's download cache is empty, so they depend on the link. Peak memory is sampled PSS of the command's and Bazel servers' process trees every 0.1 s and can miss short spikes."
 }
 JSON
   echo "measure: wrote $out" >&2
