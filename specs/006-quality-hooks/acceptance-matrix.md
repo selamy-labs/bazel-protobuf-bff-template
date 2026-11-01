@@ -15,13 +15,14 @@ control: the same setup must pass before a rejection earns credit.
 | FR-007 | `runner_test` | format parsed back | 51 lines → 50 and `… 1 more`; a failure with no rerun → test fails | G | off |
 | FR-008 | `runner_test` | `allow_empty` → not applicable | zero inputs at `full` → 12 | G | off |
 | FR-009 | `fixtures_test` | clean staged commit | bad staged blob with clean working copy → rejected; bad working copy with clean staged blob → passes; `commit -a` and `commit <path>` read their own index | G | off |
+| FR-009a | `fixtures_test` | an untracked bad file in an ordinary checked package → the commit passes, bytes unchanged | a broken file in the runner's dependency graph → `bootstrap ERROR`, exit 2, no check named, and a staged-defect rejection is never claimed | G | off |
 | FR-010 | `fixtures_test`, `hook-e2e` | corrected push | pushed commit fails while the working tree holds the fix → rejected | G | off, loc |
 | FR-011 | `runner_test` | an ordinary edit stays `pre-push` | a policy path or unknown base → `full`; pre-commit never | G | off |
 | FR-012 | `runner_test`, `fixtures_test` | spaces, newline, rename, deletion | a NUL-unsafe split loses the file → fails | G | off |
 | FR-013 | `runner_test` | second run proceeds after the first ends | holder active → waits, bound → 10; close-on-exec cleared → the daemon control shows the slot stuck | G | off |
-| FR-014 | `runner_test`, `hook-e2e` | normal exit leaves the checkout's server | deadline → SIGINT, shutdown, server gone | G | off, loc |
+| FR-014 | `runner_test`, `hook-e2e` | owned output base, proved process → server stops | an independent producer on the checkout's server keeps running and finishes when this runner times out, same server PID; without custody no server is signaled; a PID file naming an unrelated process → that process lives, and the run reports it | G | off, loc |
 | FR-015 | `fixtures_test` | one hook per stage | double install identical; foreign hook runs; worktree; `core.hooksPath`; malformed config refuses; prek moved off `PATH` route still pinned | G | off |
-| FR-016 | `nogo_fixture_test` | corrected code builds | vet finding and staticcheck finding fail the build | G | off |
+| FR-016 | `analysis-fixture` in `toolchain-fixtures` | corrected code builds | vet finding and staticcheck finding fail the build | G | off |
 | FR-017 | `eslint_test`, `eslint_witness_test` | clean TS passes | a lint finding fails; each S002 spelling really suppresses under pinned ESLint, and the unsuppressed control reports | G | off |
 | FR-018 | `runner_test` | every `GUARANTEE` names both cases | a missing case fails | G | off |
 | FR-019 | `docs/budgets/` | a record with edited input | a budget without a measurement → review rejects | S | loc, hum |

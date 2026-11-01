@@ -72,9 +72,10 @@ must not depend on root's `@protovalidate_proto`.
   under a small re-exec of the runner (`__supervise`) that holds the subreaper role. The child gets
   its own process group. When the child exits or the supervisor is told to stop, it signals the
   group, then every remaining adopted descendant, SIGTERM then SIGKILL, and reaps them.
-- **Bazel.** No subreaper. On a deadline: SIGINT to the client, 10 s, SIGKILL the client, bounded
-  `bazel shutdown`, then signal the server by `<output_base>/server/server.pid.txt`. The output base
-  comes from the runner's own executable path, so no Bazel query is needed when Bazel is stuck.
+- **Bazel client.** No subreaper. On a deadline the runner sends one SIGINT to the client it started,
+  through its own process handle, waits 10 s, then SIGKILLs that client. One only: Bazel treats
+  repeated interrupts as a request to kill its server. This does not depend on custody.
+- **Bazel server.** See R7.
 - **Bazel lock.** `bazel run` releases the output-base lock before starting the binary, so the runner
   may call Bazel. The first full run witnesses it.
 - **macOS.** Process group only. Unverified.
@@ -92,8 +93,27 @@ held by the orchestrating parent.
 
 | Server | Owner | Lifetime |
 | --- | --- | --- |
-| The checkout's server | The developer | Default idle bound. Stopped by the runner only after an expired deadline |
-| The push worktree's server | The hooks | `--max_idle_secs=300` |
+| The checkout's server | The developer, and anything else using that checkout | Default idle bound. **The runner never stops it** |
+| The push worktree's server | The hooks, while the worktree lock is held | `--max_idle_secs=300` |
+
+The first version of this design would have run `bazel shutdown` and then signaled the PID in
+`server.pid.txt`. Independent review rejected it: a runner waiting on a shared server can time out
+while another producer owns that server, and neither a PID file, a path nor a capacity lock shows
+who it belongs to. So custody has two conditions, and both must hold:
+
+1. **Exclusive output base.** The runner holds the push worktree's lock, and that output base is used
+   by nothing else. Only the orchestrator knows this, and it passes it down explicitly. The checkout
+   never qualifies.
+2. **Exact process.** Read the PID file, open a process handle (a pidfd on Linux, so the PID cannot be
+   reused under it), then read `/proc/<pid>/cmdline` and require the exact
+   `--output_base=<ours>` argument, and only then signal through that handle. A mismatch, or a
+   platform without `/proc`, leaves the process alone and reports it.
+
+A checkout server left after a deadline stays until its idle bound, and the run says so. If it is
+wedged, the next client waits, bounded, and reports that. This is the supported behavior, and it
+closes the M1 open item by decision, not by killing the process.
+
+A capacity slot bounds how many runs start. It proves nothing about custody.
 
 ## R8 Snapshots
 
@@ -106,9 +126,14 @@ held by the orchestrating parent.
   and moves the worktree to the pushed commit. A second runner, built in that worktree by a separate
   output base, judges the commit by that commit's own policy. A dirty checkout can break the
   orchestrator, which fails loudly, but cannot change a verdict.
-- **Limit.** The runner itself is built from the working tree at pre-commit, so an untracked broken
-  `BUILD` file in a package it depends on fails the hook. That is a false rejection, never a false
-  pass.
+- **Bootstrap is not a verdict.** Check verdicts come only from staged blobs. But the runner is
+  built from the checkout, so a broken file in its own dependency graph (`quality/**`, the root
+  `BUILD.bazel`, module files) can stop it from starting. `stage.sh` therefore builds first with
+  `bazel run --script_path` and starts the runner as a second step. A failed first step prints a
+  `bootstrap ERROR` saying no check ran, exits 2 and never names a check. An untracked file in an
+  ordinary checked package is outside that graph and has no effect. Eliminating the case would need a
+  runner built from the index on every commit, which costs far more than the 5 s target for a
+  failure that is loud, blocks nothing silently and passes nothing.
 
 ## R9 Affected tests
 

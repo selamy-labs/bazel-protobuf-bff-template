@@ -67,12 +67,16 @@ is reported `TIMED_OUT`, the child is gone and the run exits 10.
 
 **Acceptance Scenarios**:
 
-1. **Given** a deadline passes during Bazel, **When** the runner stops it, **Then** the client is
-   interrupted, the server is shut down, and no process of that run remains.
+1. **Given** a deadline passes during Bazel, **When** the runner stops it, **Then** the client it
+   started is interrupted and gone. A server stops only on an output base this run holds exclusively,
+   after its exact identity is proved.
 2. **Given** a daemon child outlives a foreground command, **When** the command exits, **Then** its
    slot is free.
 3. **Given** active foreground work, **When** another run asks for that slot, **Then** it waits
    within its bound and never runs alongside it.
+4. **Given** an independent producer is using the checkout's Bazel server, **When** this runner's
+   deadline passes while it waits for that server, **Then** the other work continues and finishes,
+   and the server is the same process afterward.
 
 ### User Story 5 - Installation is safe and repeatable (P2)
 
@@ -116,16 +120,23 @@ is reported `TIMED_OUT`, the child is gone and the run exits 10.
 - **FR-007**: Diagnostics MUST follow the contract's line format, bounded to 50 lines per check, and
   every failure MUST name a rerun command. Output MUST also be available as JSON.
 - **FR-008**: A `GUARANTEE` check with zero inputs at `full` MUST exit 12 unless it has `allow_empty`.
-- **FR-009**: Pre-commit MUST read blobs from the index Git names and MUST NOT write to the index or
+- **FR-009**: Every check at pre-commit MUST read blobs from the index Git names, so untracked and
+  unstaged content cannot change a check's verdict, and pre-commit MUST NOT write to the index or
   working tree. Pre-commit MUST stay a fast subset distinct from `full`.
+- **FR-009a**: The runner is built from the checkout before any check exists to run, so a broken file
+  in the runner's own dependency graph can stop startup. That outcome MUST be a separate bootstrap
+  `ERROR` that says no check ran. It blocks the commit and MUST NOT be reported or counted as a
+  rejection of staged content.
 - **FR-010**: Pre-push MUST judge the pushed commit in a detached reusable worktree with its own
   output base, using the policy of that commit.
 - **FR-011**: A change to policy inputs MUST escalate pre-push to `full`. Pre-commit MUST NOT escalate.
 - **FR-012**: Paths MUST stay NUL-delimited end to end.
 - **FR-013**: Concurrency capacity MUST be held by locks in the waiting parent, not inherited by any
   child, and acquisition MUST be bounded.
-- **FR-014**: Daemon lifetime MUST be owned: a stage's Bazel server stops on an expired deadline, and
-  the push worktree's server has a short idle bound.
+- **FR-014**: The runner MUST signal only the Bazel client it started. It MUST NOT stop a Bazel server
+  unless it holds an isolated output base exclusively and has proved the exact process belongs to
+  that output base; a PID file or path alone proves neither. A server it does not own MUST be left
+  running and reported. The push worktree's owned server has a short idle bound.
 - **FR-015**: Hooks MUST be pinned prek, one local hook per stage, with `pass_filenames = false` and
   installation that is idempotent, preserves foreign hooks, and honors worktrees and `core.hooksPath`.
 - **FR-016**: Go analyzers MUST fail the build on a finding, under the pinned Go SDK.
