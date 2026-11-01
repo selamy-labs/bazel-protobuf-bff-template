@@ -15,7 +15,9 @@ the check registry and Git hooks, awaits independent review. The evidence pages 
 observed, and [capability states](docs/quality/capability-states.md) has the summary. macOS and hosted
 CI are unverified. The repository is
 local-only and unpublished, and it ships no identity provider, so the production server refuses to
-start until you add one ([bff/README.md](bff/README.md)).
+start until you add one ([bff/README.md](bff/README.md)). The same server is packaged as one container
+image by the build graph, and that image shows the same refusal: a healthy production deployment is
+unsupported until a real verifier exists ([spec 009](specs/009-bff-image/contracts/image.md)).
 
 ## How to use and test
 
@@ -58,6 +60,7 @@ Other entry points:
 
 | Command | What it does |
 | --- | --- |
+| `tools/bootstrap/bazel.sh build //bff/cmd/bff:image` | The production server as an OCI layout, built only here; `:image_tarball` loads it into a runtime elsewhere |
 | `tools/bootstrap/fresh_clone.sh` | Fresh-clone witness; `--hostile` also plants rc files and a real defect |
 | `tools/bootstrap/bazel.sh run //tools/hooks:install` | Installs the pinned Git hooks; see [hooks](docs/quality/hooks.md) |
 | `tools/bench/measure.sh` | Feedback-cost measurement of bootstrap, first verify, warm and edited runs, or of the hook stages with `--stages-only`; results go to `docs/budgets/` |

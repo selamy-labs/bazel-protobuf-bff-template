@@ -81,6 +81,19 @@ and connect-web are bundled into the built page, so a deployed bundle carries th
 | Debian 12 shared libraries for the browser | see `tools/browser/debs.bzl` | as published by each Debian package (for example MPL-2.0 for NSS, LGPL for GLib); to be enumerated by T077 | `tools/browser/debs.bzl` (sha256) |
 | fonts-dejavu-core (Debian 12), DejaVu fonts for the browser | 2.37-6 | Bitstream Vera license for the fonts, with DejaVu changes in the public domain; Debian packaging files are GPL-2+ and are not used | `tools/browser/debs.bzl` (sha256) |
 
+## Container image (M8a)
+
+The image `//bff/cmd/bff:image` is a built artifact. It holds one file, the production server binary, which links
+this repository's Go code, the Go standard library and the Go modules listed under the contract toolchain. It has
+no base image, so it carries no other third-party content. The rules that assemble it are build tools, fetched by
+the module lock and not redistributed.
+
+| Item | Version | License | Where pinned |
+| --- | --- | --- | --- |
+| rules_oci | 2.3.0 | Apache-2.0, read from the fetched module's LICENSE | `MODULE.bazel.lock` |
+| tar.bzl | 0.7.0 | Apache-2.0, read from the fetched module's LICENSE | same |
+| platforms | 1.0.0 | **Unresolved**: the fetched module carries no LICENSE file, so none is claimed here. An open M8 inventory finding | same |
+
 ## Quality toolchain (M5)
 
 These are fetched by version and checksum and are not vendored. The licenses shown come from each
