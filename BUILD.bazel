@@ -208,8 +208,12 @@ sh_test(
         "$(rootpath @opentofu//:tofu)",
         "$(rootpath @terraform_provider_github//file)",
         "governance/github",
+        "tools/ci/policy.json",
+        ".github/workflows/ci.yml",
     ],
     data = [
+        ".github/workflows/ci.yml",
+        "tools/ci/policy.json",
         "tools/release/governance.sh",
         "@opentofu//:tofu",
         "@terraform_provider_github//file",

@@ -47,8 +47,10 @@ resource "github_repository_ruleset" "main" {
     required_status_checks {
       strict_required_status_checks_policy = true
 
+      # The aggregate job of .github/workflows/ci.yml, as tools/ci/policy.json names it. governance.sh refuses a
+      # context that is not that job, so the protection can never require a check that no run reports.
       required_check {
-        context = "aggregate"
+        context = "gate"
       }
     }
   }

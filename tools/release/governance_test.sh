@@ -4,15 +4,15 @@
 # a relaxed owner or name pin, and unformatted configuration. Copies dereference links, because runfiles are
 # links to the source tree and an edit through one would reach it.
 #
-#   governance_test.sh <governance.sh> <tofu> <provider zip> <config dir>
+#   governance_test.sh <governance.sh> <tofu> <provider zip> <config dir> <ci policy json> <workflow yml>
 set -euo pipefail
-script="$PWD/$1"; tofu="$PWD/$2"; zip="$PWD/$3"; config="$PWD/$4"
+script="$PWD/$1"; tofu="$PWD/$2"; zip="$PWD/$3"; config="$PWD/$4"; policy="$PWD/$5"; workflow="$PWD/$6"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 failures=0
 replace() { local content; content="$(cat "$1")"; printf '%s\n' "${content/"$2"/"$3"}" >"$1"; }
 expect() { # expect <name> <want> <mutation> [tofu]
   local name="$1" want="$2" rc=0
-  rm -rf "$T/g"; cp -rL "$config" "$T/g"
+  rm -rf "$T/g"; cp -rL "$config" "$T/g"; cp -L "$policy" "$T/policy.json"; cp -L "$workflow" "$T/ci.yml"
   case "$3" in
     none) ;;
     second_repository) printf '\nresource "github_repository" "second" {\n  name = "other"\n}\n' >>"$T/g/main.tf" ;;
@@ -25,10 +25,14 @@ expect() { # expect <name> <want> <mutation> [tofu]
     json_resource) printf '{"resource":{"github_repository":{"third":{"name":"third"}}}}\n' >"$T/g/extra.tf.json" ;;
     provider_literal) replace "$T/g/main.tf" '  owner = var.owner' '  owner = "someone-else"' ;;
     ruleset_other) replace "$T/g/main.tf" '  repository  = github_repository.template.name' '  repository  = "other-existing-repository"' ;;
+    context_other) replace "$T/g/main.tf" '        context = "gate"' '        context = "aggregate"' ;;
+    context_blank) replace "$T/g/main.tf" '        context = "gate"' '        context = ""' ;;
+    policy_gate_other) replace "$T/policy.json" '"gate": "gate",' '"gate": "aggregate",' ;;
+    workflow_gate_renamed) replace "$T/ci.yml" '    name: gate' '    name: aggregate' ;;
     module_block) printf '\nmodule "extra" {\n  source = "./extra"\n}\n' >>"$T/g/main.tf"; mkdir -p "$T/g/extra"; printf 'resource "github_repository" "third" {\n  name = "third"\n}\n' >"$T/g/extra/main.tf" ;;
     *) echo "unknown mutation $3"; exit 2 ;;
   esac
-  "$script" "${4:-$tofu}" "$zip" "$T/g" >"$T/out" 2>&1 || rc=$?
+  "$script" "${4:-$tofu}" "$zip" "$T/g" "$T/policy.json" "$T/ci.yml" >"$T/out" 2>&1 || rc=$?
   if [[ "$rc" == "$want" ]]; then echo "ok   $name"; else echo "FAIL $name: exit $rc"; tail -5 "$T/out" | sed 's/^/     /'; failures=$((failures + 1)); fi
 }
 expect "the declared target passes offline" 0 none
@@ -44,6 +48,11 @@ expect "a third resource in JSON configuration" 1 json_resource
 expect "a module that adds a resource" 1 module_block
 expect "the provider bound to a literal owner" 1 provider_literal
 expect "the ruleset bound to another repository" 1 ruleset_other
+# The required check must be the gate job: the defect an independent read-only audit found before publication
+expect "a required check that names no job" 1 context_other
+expect "a blank required check" 1 context_blank
+expect "the policy's gate renamed under the ruleset" 1 policy_gate_other
+expect "the workflow's gate job renamed under the ruleset" 1 workflow_gate_renamed
 expect "no tofu" 11 none "$T/absent"
 expect "restored control" 0 none
 exit "$failures"
