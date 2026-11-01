@@ -84,7 +84,14 @@ export function useSignIn(config: SignInConfig | undefined): SignIn {
       .then((session) => setState({ status: "signed-in", session }))
       .catch((error: unknown) => setState(failed(error)));
   }, [config, ports]);
-  const credential = useCallback(() => current(ports)?.credential ?? null, [ports]);
+  // The session may have ended since it was shown: a call then goes without a credential, and the panel says so.
+  const credential = useCallback(() => {
+    const session = current(ports);
+    if (session === null) {
+      setState((shown) => (shown.status === "signed-in" ? { status: "signed-out" } : shown));
+    }
+    return session?.credential ?? null;
+  }, [ports]);
   const signIn = useCallback(() => {
     if (config === undefined) {
       return;

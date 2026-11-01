@@ -25,7 +25,10 @@ go_binary(
     name = "bff",
     embed = [":bff_lib"],
     pure = "on",
-    visibility = ["//bff:__subpackages__"],
+    visibility = [
+        "//bff:__subpackages__",
+        "//web/e2e:__pkg__",
+    ],
 )
 
 go_test(

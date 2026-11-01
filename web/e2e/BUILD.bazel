@@ -79,6 +79,36 @@ playwright.playwright_test(
     },
 )
 
+# The journey with the sign-in (spec 012 FR-016, FR-021, T014): the production bundle and the production server
+# with its verifier pointed at a local issuer; the sign-in through the issuer's page, the verified calls, a reload,
+# sign-out, a declined sign-in, a deep link, an ended session, the development identity refused, the log.
+playwright.playwright_test(
+    name = "signin_e2e_test",
+    size = "medium",
+    args = [
+        "test",
+        "--config",
+        "web/e2e/playwright.config.mjs",
+        "signin.spec.mjs",
+    ],
+    data = BROWSER_DATA + [
+        "issuer.mjs",
+        "playwright.config.mjs",
+        "signin.spec.mjs",
+        "stack.mjs",
+        ":example_inputs",
+        "//:node_modules/@playwright/test",
+        "//bff/cmd/bff",
+        "//web/app:dist",
+        "//web/serve:serve_lib",
+    ],
+    env = BROWSER_ENV | {
+        "BFF_PRODUCTION": "$(rootpath //bff/cmd/bff)",
+        "EXAMPLE_INPUTS": "$(rootpath :example_inputs)",
+        "WEB_DIST_PRODUCTION": "$(rootpath //web/app:dist)",
+    },
+)
+
 # The whole stack through the one command (spec 012 FR-020 to FR-023): the real launcher, a real browser, a
 # restart and a reset. The launcher's own runfiles come along, and DEV_ARGS names them as `bazel run` would.
 playwright.playwright_test(

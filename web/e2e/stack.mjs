@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import path from "node:path";
 
 import { serve } from "../serve/serve.mjs";
+import { startIssuer } from "./issuer.mjs";
 
 const required = (name) => {
   const value = process.env[name];
@@ -81,6 +82,48 @@ export async function startStack(basePath) {
       server.removeAllListeners("exit");
       server.kill("SIGTERM");
       await site.close();
+    },
+  };
+}
+
+// The hosted shape with the sign-in (spec 012 FR-016, T014): the production bundle under the base path, a local
+// issuer, and the production server with its verifier pointed at that issuer's key set. The client id the page
+// signs in as is the audience the server accepts: one value, as the hosted inputs declare it once.
+export async function startProductionStack(basePath) {
+  const clientId = "bff-hosted-example";
+  const issuer = await startIssuer(clientId);
+  const site = await serve(required("WEB_DIST_PRODUCTION"), 0, basePath);
+  const errors = { text: "" };
+  const server = spawn(
+    path.resolve(required("BFF_PRODUCTION")),
+    [
+      "--addr=127.0.0.1:0",
+      `--allowed-origin=${site.origin}`,
+      "--store=memory",
+      `--verifier-issuer=${issuer.origin}`,
+      `--verifier-audience=${clientId}`,
+      `--verifier-jwks-url=${issuer.jwksUrl}`,
+    ],
+    { stdio: ["ignore", "pipe", "pipe"] },
+  );
+  server.stderr.on("data", (chunk) => {
+    errors.text += chunk;
+  });
+  const { addr } = await ready(server, errors);
+  const bffUrl = `http://${addr}`;
+  site.setBffUrl(bffUrl);
+  site.setSignIn({ issuer: issuer.origin, clientId });
+  return {
+    origin: site.origin,
+    basePath,
+    bffUrl,
+    issuer,
+    log: () => errors.text,
+    stop: async () => {
+      server.removeAllListeners("exit");
+      server.kill("SIGTERM");
+      await site.close();
+      await issuer.close();
     },
   };
 }
