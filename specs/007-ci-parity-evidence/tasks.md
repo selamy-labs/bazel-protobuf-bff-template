@@ -19,8 +19,8 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 | [x] T008 | T006 | `ciparity`: legs from the registry equal jobs and `needs`; no inline policy; unique artifact names; read-only; no `pull_request_target` | FR-003, FR-004, FR-024, FR-025 | T066 | `parity_test` mutations |
 | [x] T009 | T008 | Workflow legs, per-attempt receipts; the rerun guide check against R4 stays with T023 | FR-004, FR-024 | T064, T065 | `parity_test`, `zizmor`, `actionlint` |
 | [x] T010 | T009 | Gate fixtures by executing its run block: all success, skipped, cancelled, failed, absent, failed then rerun, partial rerun | FR-005 | T061 | `parity_test` |
-| [ ] T011 | T002, T003 | Merger in the quality module; `.bazelrc`, `bazelrc.allow`; no C++ or JDK | FR-009 | T063 | `bazelrc-policy`, analysis on this no-toolchain template |
-| [ ] T012 | T011 | `PlanBazel` verb rule; one invocation per stage; `coverage-floor` after it | FR-006, FR-007 | T063 | Fake Bazel count; every required test under `coverage` |
+| [x] T011 | T002, T003 | Merger in the quality module; `.bazelrc`, `bazelrc.allow`; no C++ or JDK | FR-009 | T063 | `bazelrc-policy`, analysis on this no-toolchain template |
+| [x] T012 | T011 | `PlanBazel` verb rule; one invocation per stage; `coverage-floor` after it | FR-006, FR-007 | T063 | Fake Bazel count; every required test under `coverage` |
 | [ ] T013 | T012 | Reports validated: Go statements from the raw profile; Node test entry and a `transport.ts` test; empty, placeholder, truncated, missing module, missing `.cover`, exit 3 with reports | FR-019–FR-021 | T063 | Named fixtures, real tools |
 | [ ] T014 | T013 | Evaluator: profiles, measured source sets, enrollment, narrowing table R8, suppressions; `node:coverage` added to S005; real Git delete and add control | FR-016–FR-018 | T060, T063 | Unit, real Git fixtures |
 | [ ] T015 | T014 | `from_base.sh`, `--base`: one resolution, lock, private output base, handle, every refusal in R6; same-tree positive | FR-011–FR-015 | T062 | Real Git fixtures |

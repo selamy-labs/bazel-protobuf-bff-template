@@ -23,3 +23,10 @@ test --test_output=errors
 # Explicit, labeled opt-in for hosts that cannot provide namespaces. Run it through
 # `tools/verify.sh --weak-isolation`, which records `isolation: weakened` in the receipt.
 build:weak-isolation --spawn_strategy=processwrapper-sandbox
+
+# `full` runs one `bazel coverage`, which is also its test run (spec 007 R3). Bazel's default merger and
+# report generator need a C++ toolchain and a JDK, so a pure Go tool stands in for both. The filter
+# names both modules, and the quality module only by its canonical name.
+coverage --coverage_output_generator=@bff_template_quality//checks/coverage:merger
+coverage --coverage_report_generator=@bff_template_quality//checks/coverage:merger
+coverage --instrumentation_filter=^//bff[/:],^//web/client[/:],^@@bff_template_quality[+]//

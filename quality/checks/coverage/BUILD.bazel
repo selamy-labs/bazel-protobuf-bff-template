@@ -1,0 +1,26 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "coverage",
+    srcs = [
+        "merger.go",
+    ],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/coverage",
+)
+
+go_test(
+    name = "coverage_test",
+    size = "small",
+    srcs = [
+        "merger_test.go",
+    ],
+    embed = [":coverage"],
+)
+
+go_binary(
+    name = "merger",
+    srcs = ["cmd/merger/main.go"],
+    pure = "on",
+    visibility = ["//visibility:public"],
+    deps = [":coverage"],
+)

@@ -64,7 +64,11 @@ type BazelPlan struct {
 func PlanBazel(registry *registrypb.Registry, stage registrypb.Stage, shard string, flags []string) *BazelPlan {
 	plan := &BazelPlan{}
 	var targets, excluded []string
+	verb := "test"
 	for _, check := range registry.GetChecks() {
+		if check.GetNeedsCoverage() && Selected(registry, check, stage, shard) {
+			verb = "coverage"
+		}
 		if check.GetKind() != registrypb.Kind_KIND_BAZEL {
 			continue
 		}
@@ -83,7 +87,7 @@ func PlanBazel(registry *registrypb.Registry, stage registrypb.Stage, shard stri
 	if len(plan.Checks) == 0 {
 		return nil
 	}
-	plan.Args = append(append([]string{"test"}, flags...), "--keep_going", "--noshow_progress", "--")
+	plan.Args = append(append([]string{verb}, flags...), "--keep_going", "--noshow_progress", "--")
 	plan.Args = append(plan.Args, targets...)
 	for _, target := range excluded {
 		if !slices.ContainsFunc(targets, func(selected string) bool { return matchesTarget(selected, target) }) {

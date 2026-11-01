@@ -1215,6 +1215,43 @@ func TestRealRegistryPartitionsFull(t *testing.T) {
 	}
 }
 
+// The verb follows the selection, and either way a stage issues one Bazel invocation.
+func TestCoverageCheckChangesTheVerbNotTheCount(t *testing.T) {
+	body := legRegistry(native("floor", "true", `after_bazel: true shard: "alpha" needs_coverage: true`))
+	registry, err := ParseRegistry([]byte(body))
+	if err != nil {
+		t.Fatal(err)
+	}
+	verb := func(shard string) string { return PlanBazel(registry, registrypb.Stage_STAGE_FULL, shard, nil).Args[0] }
+	if got := verb(""); got != "coverage" {
+		t.Errorf("the whole stage: %s", got)
+	}
+	if got := verb("alpha"); got != "coverage" {
+		t.Errorf("the owning leg: %s", got)
+	}
+	if got := verb("beta"); got != "test" {
+		t.Errorf("a leg without the check: %s", got)
+	}
+	h := committed(newHarness(t))
+	calls := fakeBazel(h, `echo "//a:t   PASSED in 1s"; echo "//web/e2e:t   PASSED in 1s"`)
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	data, err := os.ReadFile(calls)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var runs []string
+	for _, line := range strings.Split(strings.TrimSpace(string(data)), "\n") {
+		if word, _, _ := strings.Cut(line, " "); word == "test" || word == "coverage" {
+			runs = append(runs, word)
+		}
+	}
+	if !slices.Equal(runs, []string{"coverage"}) {
+		t.Fatalf("Bazel runs: %v", runs)
+	}
+}
+
 // A leg with no Bazel work owes no postcondition, and an unrun obligation denies a pass.
 func TestLegRunsItsOwnChecksAndDeniesAMissingOne(t *testing.T) {
 	h := committed(newHarness(t))

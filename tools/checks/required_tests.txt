@@ -20,6 +20,7 @@
 //web/e2e:notes_e2e_test e2e
 //web/lint:eslint_test build-test
 //web/lint:eslint_witness_test build-test
+@bff_template_quality//checks/coverage:coverage_test build-test
 @bff_template_quality//checks/ciparity:ciparity_test build-test
 @bff_template_quality//checks/suppression:suppression_test build-test
 @bff_template_quality//proto:proto_test build-test

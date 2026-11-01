@@ -88,6 +88,9 @@ message Check {
   // No shard: runs after the Bazel invocation of every leg that has one, and judges that leg's log.
   // Requires after_bazel.
   bool postcondition = 17;
+  // Reads coverage data, so the Bazel invocation that runs with this check is `coverage`, not `test`.
+  // It stays one invocation, and it still gives every test result (spec 007 FR-006).
+  bool needs_coverage = 18;
 }
 
 // A pinned tool, as the root target passes it in NAME=path form.
