@@ -3,4 +3,6 @@ ignore_directories([
     "quality",
     ".private",
     ".verify",
+    # The push and base worktrees live here, with their own BUILD files and output links.
+    ".git",
 ])

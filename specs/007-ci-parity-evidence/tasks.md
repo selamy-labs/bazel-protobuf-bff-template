@@ -56,3 +56,4 @@ Remain open by design: parent T067 and T068, blocked on upstream releases.
   and wiring, not that a compiled base rejects a replaced evaluator. T025 proves that composition with a real base.
 - T018: `33e6a55`, on the accepted anchor `e3b3b34`. Review of the anchor found that a passed `coverage-floor` left no measurements in the receipt; red first.
 - T019 to T024: the commit after `33e6a55`. T020 closes parent T047: the pinned Node witness is in the [evidence record](../../docs/evidence/m6.md).
+- T025, T026: their boxes stay open in the frozen source, because a file cannot record results about the commit that contains it. Those results are in the review handoff.

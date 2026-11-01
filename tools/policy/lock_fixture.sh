@@ -7,7 +7,8 @@
 #   4. every target analyzes with no C compiler on PATH, and a real C consumer fails even when the
 #      host has a compiler (specs/005-browser-client FR-012);
 #   5. a vet or staticcheck finding fails the Go build, in the root and in the quality module, and the
-#      corrected code builds (specs/006-quality-hooks FR-016).
+#      corrected code builds (specs/006-quality-hooks FR-016);
+#   6. a worktree kept under .git cannot reach `//...` (specs/007-ci-parity-evidence).
 # Runs in a throwaway copy with its own output root, sharing only the download cache. The fourth
 # reads the real checkout, with its own output root and no convenience links, because it must see
 # every target.
@@ -105,6 +106,22 @@ if in_ws build --config=weak-isolation --nobuild //c_consumer:main; then
 fi
 grep -qF 'Unable to find a CC toolchain' "$work/log" || { echo "compiler-fixture: failure did not name the C toolchain:" >&2; tail -8 "$work/log" >&2; exit 1; }
 echo "ok   compiler-fixture control and corrected"
+
+# A worktree kept under .git is not part of this repository. `//...` walks into it otherwise, and a
+# later check fails on what it finds there.
+mkdir -p "$work/ws/.git/bff-template/worktree"
+printf 'this is not Starlark(\n' >"$work/ws/.git/bff-template/worktree/BUILD.bazel"
+in_ws query //... || { echo "worktree-fixture: a package under .git broke //...:" >&2; tail -5 "$work/log" >&2; exit 1; }
+cp "$work/ws/REPO.bazel" "$work/REPO.clean"
+sed -i '/^    "\.git",$/d' "$work/ws/REPO.bazel"
+cmp -s "$work/ws/REPO.bazel" "$work/REPO.clean" && { echo "worktree-fixture: control changed nothing" >&2; exit 1; }
+if in_ws query //...; then
+  echo "worktree-fixture: control passed without the ignore, so this proves nothing" >&2
+  exit 1
+fi
+cp "$work/REPO.clean" "$work/ws/REPO.bazel"
+rm -r "${work:?}/ws/.git"
+echo "ok   worktree-fixture control and corrected"
 
 # package <directory>: one library that the analyzers judge when it builds.
 go_package() {
