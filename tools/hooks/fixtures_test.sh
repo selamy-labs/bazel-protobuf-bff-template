@@ -344,13 +344,14 @@ echo x >"$p/BROKEN"
 git -C "$p" add BROKEN
 commit "$p" -q -m 'breaks a test'
 accepted "pre-commit does not run tests"
-rm -- "${p:?}/BROKEN" # The working tree is now fine; the commit is not.
+# Staged, because prek stashes unstaged changes at pre-push too, which would restore the defect to
+# the checkout and leave this case unable to tell the pushed commit from the working tree.
+git -C "$p" rm -q BROKEN # The checkout now holds the fix; the commit does not.
 push "$p" -q origin main
-rejected "a failing push, with a clean working tree" "tests"
+rejected "a failing push, with a clean working tree" "tests //src:unit_test FAILED"
 if [[ "$(git -C "$remote" rev-parse main)" == "$(git -C "$p" rev-parse HEAD)" ]]; then
   fail "the failing commit reached the remote"
 fi
-git -C "$p" add -A
 commit "$p" -q -m 'fixes the test'
 push "$p" -q origin main
 accepted "the corrected push"
