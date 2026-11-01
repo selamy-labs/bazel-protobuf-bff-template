@@ -15,7 +15,7 @@ same change that alters any of them.
 | Duplicate deletion, Go | partial | none | 0 pairs at 100 AST nodes at `00a4c6b`, planted pair detected (independent `dupl` 1.1.0) | none yet | none | T004, T011 |
 | Duplicate deletion, TypeScript and Python | gap | none | not measured | none | none | T004 |
 | Dead code | partial | ESLint unused rules for TypeScript only | not measured for Go | none | none | T005 |
-| Strong typing | partial | Go vet and strict TypeScript | escape hatches not inventoried | n/a | none | T003 |
+| Strong typing | partial | Go vet; TypeScript `strict` and `noUncheckedIndexedAccess`; the suppression ban and the lint rules refuse directives and casts | every escape hatch inventoried with its reason in [type-escapes](type-escapes.md) at `e82e3bb`: none in TypeScript; in Go only checked assertions on JSON, syntax-tree, protobuf-clone and context values, and the generic JSON shape the CI-parity validator must read | n/a | none | `exactOptionalPropertyTypes` probe and the Python scripts' typing: T022 |
 | Coverage, lines | partial | `coverage-floor`, `floors-from-base` | Go statements 87.9 root, 78.4 quality, 73.0 block-span entrypoints; TypeScript 100 compiled lines, 36 of 37 branches, at `446e5c8` | `quality/coverage_floors.json`, only rising | stated in the contract | T007 |
 | Coverage, branch outcomes | gap, blocking | none | Go not produced by the toolchain; gobco 1.3.4 probed: a branch sub-metric that does not measure `select` | none | none | T007 |
 | Property tests | partial | existing Go tests | Go only | n/a | none | T009 |

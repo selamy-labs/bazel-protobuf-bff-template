@@ -8,7 +8,7 @@
 
 - [x] T001 Land spec, plan, research and matrix in `specs/011-quality-baseline/` through the installed Spec Kit workflow, with the control table drafted at its measured state
 - [x] T002 Write `docs/quality/baseline.md`, the control table with state, gate, measured value, threshold source, exclusions and owner per control, reconciled with the registry; every row starts at its measured state, none at enforced without a gate
-- [ ] T003 Inventory the first-party Python (`tools/release/inventory_tables.py`, `tools/pins/gen_browser_libs.py`, `tools/pins/gen_multitool_lock.py`) and the type escape hatches (`as`, `any`, directives in TypeScript; type assertions in Go outside tests), each with a justification or a removal task, in `docs/quality/type-escapes.md`
+- [x] T003 (the escape hatches in `docs/quality/type-escapes.md`, each with its reason; the `exactOptionalPropertyTypes` probe and the Python scripts' typing stay with T022) Inventory the first-party Python (`tools/release/inventory_tables.py`, `tools/pins/gen_browser_libs.py`, `tools/pins/gen_multitool_lock.py`) and the type escape hatches (`as`, `any`, directives in TypeScript; type assertions in Go outside tests), each with a justification or a removal task, in `docs/quality/type-escapes.md`
 
 ## Phase 2: User Story 1 - Every control with its real state (Priority: P1)
 

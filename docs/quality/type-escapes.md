@@ -1,0 +1,31 @@
+# Type escape hatches
+
+Every place the first-party code steps outside its type system, with the reason it is there (spec 011 FR-012,
+T003). The inventory was taken over the tracked non-test Go and TypeScript sources at `e82e3bb`; a new escape
+hatch joins this table with its reason or does not land.
+
+## TypeScript (`web/app`, `web/client`)
+
+The compiler runs with `strict` and `noUncheckedIndexedAccess`. No `any`, no `as` cast, no `@ts-ignore`,
+no `@ts-expect-error` and no `eslint-disable` directive exists in the first-party sources; the suppression ban
+refuses the directives, and the lint rules refuse the rest. `exactOptionalPropertyTypes` is not enabled: it is
+probed at T003's next step, since enabling it changes how absent and undefined properties are typed across the
+generated client.
+
+## Go
+
+No `unsafe`. `reflect` is used once, for `reflect.DeepEqual` in the CI-parity validator, to compare an untyped
+workflow fragment with the policy's exact value.
+
+| Site | Escape | Reason |
+| --- | --- | --- |
+| `quality/checks/ciparity/parity.go`, `cmd/main.go` | `map[string]any`, `any`, checked type assertions on `string`, `float64`, `[]any`, `map[string]any` | a workflow file is untyped by nature; the validator reads it as the generic JSON shape and refuses every unexpected key, type or value by name. Typing it as a struct would silently drop unknown keys, which is the opposite of what the check is for |
+| `quality/checks/complexity/complexity.go` | checked type assertions on `*ast.FuncDecl`, `*ast.GenDecl`, `*ast.ValueSpec`, `*ast.FuncLit` | the Go syntax tree is an interface hierarchy; the checked form is the only way to select node kinds |
+| `quality/release/release.go`, `quality/runner/resolve.go` | `proto.Clone(x).(*T)` | the protobuf runtime's clone returns the message interface; the assertion back to the concrete type is the documented use |
+| `bff/identity/identity.go` | checked type assertion on a context value | the context carries the principal under a private key; the checked form returns `ok` false for a missing one, and nothing else reads the key |
+| `deploy/gcp/inputs/cmd/validate/main.go` | `map[string]any` for the printed summary | an output map for a JSON print, never read back |
+| `quality/checks/ciparity/parity.go` | `fail(format string, args ...any)` | the variadic formatting signature of the standard library |
+
+Nothing above weakens a boundary: every value that enters from outside (a workflow, an inputs file, a token, a
+note) is validated by name before it is used, and the generated protocol types never stand in for runtime
+validation (spec 003, spec 004).
