@@ -7,6 +7,8 @@ This is the browser client: one form and one lookup that call the BFF through th
 ## What to read first
 
 - [client/errors.ts](client/errors.ts) maps each contract error to what the page shows.
+- [client/lifecycle.ts](client/lifecycle.ts) keeps one request in flight: a newer one cancels the older, and a
+  superseded result is ignored.
 - [e2e/notes.spec.mjs](e2e/notes.spec.mjs) lists every scenario, run in a real browser.
 
 ## Layout

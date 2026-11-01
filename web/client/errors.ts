@@ -9,6 +9,7 @@ export type Failure =
   | { kind: "unauthenticated" }
   | { kind: "unavailable" }
   | { kind: "deadline" }
+  | { kind: "cancelled" }
   | { kind: "internal"; correlationId: string | null }
   | { kind: "unknown" };
 
@@ -58,6 +59,8 @@ export function toFailure(reason: unknown): Failure {
       return { kind: "unavailable" };
     case Code.DeadlineExceeded:
       return { kind: "deadline" };
+    case Code.Canceled:
+      return { kind: "cancelled" };
     case Code.Internal:
       return {
         kind: "internal",
@@ -81,6 +84,8 @@ export function describe(failure: Failure): string {
       return "The service is unavailable. Try again.";
     case "deadline":
       return "The request took too long. Try again.";
+    case "cancelled":
+      return "The request was cancelled.";
     case "internal":
       return failure.correlationId === null
         ? "Something went wrong."

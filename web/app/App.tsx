@@ -1,37 +1,58 @@
-import { useState, type FormEvent, type ReactElement } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactElement } from "react";
 
 import { describe, toFailure, type Failure } from "../client/errors.js";
+import { latest, Requests } from "../client/lifecycle.js";
 import type { NotesClient } from "../client/transport.js";
 import type { Note } from "../../api/template/notes/v1/notes_pb.js";
 
-type Result = { note: Note } | { failure: Failure } | null;
+/** What the page is doing, or last did. Each state renders differently, and none is implied. */
+type View =
+  | { state: "idle" }
+  | { state: "loading"; operation: "create" | "open" }
+  | { state: "note"; note: Note }
+  | { state: "empty" }
+  | { state: "failure"; failure: Failure };
 
-function fieldError(result: Result, path: string): string | undefined {
-  if (result === null || !("failure" in result) || result.failure.kind !== "fields") {
+function fieldError(view: View, path: string): string | undefined {
+  if (view.state !== "failure" || view.failure.kind !== "fields") {
     return undefined;
   }
-  return result.failure.fields[path];
+  return view.failure.fields[path];
 }
 
-function Outcome({ result }: { result: Result }): ReactElement | null {
-  if (result === null) {
-    return null;
+function Outcome({ view }: { view: View }): ReactElement | null {
+  switch (view.state) {
+    case "idle":
+      return null;
+    case "loading":
+      return (
+        <p role="status" data-testid="loading">
+          Working…
+        </p>
+      );
+    case "note":
+      return (
+        <section data-testid="note" aria-live="polite">
+          <h2>{view.note.title}</h2>
+          <p data-testid="note-name">{view.note.name}</p>
+          <p data-testid="note-body">{view.note.body}</p>
+        </section>
+      );
+    case "empty":
+      return (
+        <p role="status" data-testid="empty">
+          The server returned no note.
+        </p>
+      );
+    case "failure": {
+      const text = describe(view.failure);
+      return text === "" ? null : (
+        <p role="alert" data-testid="failure">
+          {text}
+        </p>
+      );
+    }
   }
-  if ("note" in result) {
-    return (
-      <section data-testid="note" aria-live="polite">
-        <h2>{result.note.title}</h2>
-        <p data-testid="note-name">{result.note.name}</p>
-        <p data-testid="note-body">{result.note.body}</p>
-      </section>
-    );
-  }
-  const text = describe(result.failure);
-  return text === "" ? null : (
-    <p role="alert" data-testid="failure">
-      {text}
-    </p>
-  );
 }
 
 function FieldMessage({ id, text }: { id: string; text: string | undefined }): ReactElement | null {
@@ -46,35 +67,56 @@ export function App({ client }: { client: NotesClient }): ReactElement {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [name, setName] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [result, setResult] = useState<Result>(null);
+  const [view, setView] = useState<View>({ state: "idle" });
+  // One request at a time. Unmounting cancels the one in flight, and nothing is set afterwards.
+  const requests = useRef(new Requests());
+  useEffect(() => {
+    const owned = requests.current;
+    return () => owned.dispose();
+  }, []);
 
-  async function run(call: () => Promise<{ note?: Note | undefined }>): Promise<void> {
-    setBusy(true);
-    setResult(null);
-    try {
-      const { note } = await call();
-      setResult(note === undefined ? { failure: { kind: "unknown" } } : { note });
-    } catch (reason) {
-      setResult({ failure: toFailure(reason) });
-    } finally {
-      setBusy(false);
+  async function run(
+    operation: "create" | "open",
+    call: (signal: AbortSignal) => Promise<{ note?: Note | undefined }>,
+  ): Promise<void> {
+    setView({ state: "loading", operation });
+    const settled = await latest(requests.current, call);
+    if (settled === null) {
+      return; // superseded, cancelled or unmounted: a newer request owns the view
+    }
+    if (!settled.ok) {
+      setView({ state: "failure", failure: toFailure(settled.reason) });
+    } else if (settled.value.note === undefined) {
+      setView({ state: "empty" });
+    } else {
+      setView({ state: "note", note: settled.value.note });
     }
   }
 
+  // A mutation is never duplicated: while anything is in flight, Create waits. A read may be
+  // superseded: a newer Open cancels the older one, whose result is then ignored.
+  const creating = view.state === "loading" && view.operation === "create";
+  const loading = view.state === "loading";
+
   function create(event: FormEvent): void {
     event.preventDefault();
-    void run(() => client.createNote({ note: { title, body } }));
+    if (loading) {
+      return;
+    }
+    void run("create", (signal) => client.createNote({ note: { title, body } }, { signal }));
   }
 
   function open(event: FormEvent): void {
     event.preventDefault();
-    void run(() => client.getNote({ name }));
+    if (creating) {
+      return;
+    }
+    void run("open", (signal) => client.getNote({ name }, { signal }));
   }
 
   function clearField(path: string): void {
-    if (fieldError(result, path) !== undefined) {
-      setResult(null);
+    if (fieldError(view, path) !== undefined) {
+      setView({ state: "idle" });
     }
   }
 
@@ -94,7 +136,7 @@ export function App({ client }: { client: NotesClient }): ReactElement {
             }}
           />
         </label>
-        <FieldMessage id="title-error" text={fieldError(result, "note.title")} />
+        <FieldMessage id="title-error" text={fieldError(view, "note.title")} />
         <label>
           Body
           <textarea
@@ -107,8 +149,8 @@ export function App({ client }: { client: NotesClient }): ReactElement {
             }}
           />
         </label>
-        <FieldMessage id="body-error" text={fieldError(result, "note.body")} />
-        <button type="submit" disabled={busy}>
+        <FieldMessage id="body-error" text={fieldError(view, "note.body")} />
+        <button type="submit" disabled={loading}>
           Create note
         </button>
       </form>
@@ -126,12 +168,12 @@ export function App({ client }: { client: NotesClient }): ReactElement {
             }}
           />
         </label>
-        <FieldMessage id="name-error" text={fieldError(result, "name")} />
-        <button type="submit" disabled={busy}>
+        <FieldMessage id="name-error" text={fieldError(view, "name")} />
+        <button type="submit" disabled={creating}>
           Open note
         </button>
       </form>
-      <Outcome result={result} />
+      <Outcome view={view} />
     </main>
   );
 }

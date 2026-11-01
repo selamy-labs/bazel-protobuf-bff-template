@@ -25,7 +25,7 @@ function capturing(): { headers: Headers[]; restore: () => void } {
 test("a credential becomes the Authorization header", async () => {
   const { headers, restore } = capturing();
   try {
-    await createNotesClient("http://localhost", () => "Bearer token")
+    await createNotesClient("http://localhost", () => "Bearer token", { deadlineMs: 1000 })
       .getNote({})
       .catch(() => undefined);
     assert.equal(headers.length, 1);
@@ -38,7 +38,7 @@ test("a credential becomes the Authorization header", async () => {
 test("with no credential, no Authorization header is sent", async () => {
   const { headers, restore } = capturing();
   try {
-    await createNotesClient("http://localhost", () => null)
+    await createNotesClient("http://localhost", () => null, { deadlineMs: 1000 })
       .getNote({})
       .catch(() => undefined);
     assert.equal(headers.length, 1);

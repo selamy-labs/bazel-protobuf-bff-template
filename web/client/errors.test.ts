@@ -33,6 +33,7 @@ test("each contract code is one distinct outcome", () => {
     [Code.Unauthenticated, "unauthenticated"],
     [Code.Unavailable, "unavailable"],
     [Code.DeadlineExceeded, "deadline"],
+    [Code.Canceled, "cancelled"],
     [Code.Internal, "internal"],
     [Code.PermissionDenied, "unknown"],
   ];
@@ -40,7 +41,7 @@ test("each contract code is one distinct outcome", () => {
     assert.equal(toFailure(new ConnectError("x", code)).kind, kind);
   }
   const texts = cases.map(([code]) => describe(toFailure(new ConnectError("x", code))));
-  assert.equal(new Set(texts.slice(0, 4)).size, 4);
+  assert.equal(new Set(texts.slice(0, 5)).size, 5);
 });
 
 test("a violation lands on its field", () => {

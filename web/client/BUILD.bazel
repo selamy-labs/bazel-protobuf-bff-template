@@ -5,6 +5,7 @@ ts_project(
     name = "client",
     srcs = [
         "errors.ts",
+        "lifecycle.ts",
         "transport.ts",
     ],
     declaration = True,
@@ -24,6 +25,7 @@ ts_project(
     testonly = True,
     srcs = [
         "errors.test.ts",
+        "lifecycle.test.ts",
         "transport.test.ts",
     ],
     declaration = True,

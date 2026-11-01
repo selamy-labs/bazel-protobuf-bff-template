@@ -34,7 +34,7 @@ assert.deepEqual(failed.map((spec) => spec.title).sort(), [
   "another principal's note reads as not found",
   "not found",
 ]);
-assert.equal(results.length, 18);
+assert.equal(results.length, 20);
 for (const spec of failed) {
   const message = spec.tests[0].results[0].error.message;
   assert.match(message, /Not found\./, "the failure must be the visible text, not a crash");

@@ -8,8 +8,21 @@ export type CredentialSource = () => string | null;
 
 export type NotesClient = Client<typeof NoteService>;
 
+/** What the composition decides for every call. */
+export type ClientOptions = {
+  /**
+   * The page's patience: every call carries this deadline unless the call sets its own, and ends as
+   * a deadline failure when it passes. The server caps any deadline at its own maximum.
+   */
+  deadlineMs: number;
+};
+
 /** The generated client over the Connect protocol, with JSON for debuggability. */
-export function createNotesClient(baseUrl: string, credentials: CredentialSource): NotesClient {
+export function createNotesClient(
+  baseUrl: string,
+  credentials: CredentialSource,
+  options: ClientOptions,
+): NotesClient {
   const authorize: Interceptor = (next) => (request) => {
     const value = credentials();
     if (value !== null) {
@@ -17,5 +30,12 @@ export function createNotesClient(baseUrl: string, credentials: CredentialSource
     }
     return next(request);
   };
-  return createClient(NoteService, createConnectTransport({ baseUrl, interceptors: [authorize] }));
+  return createClient(
+    NoteService,
+    createConnectTransport({
+      baseUrl,
+      interceptors: [authorize],
+      defaultTimeoutMs: options.deadlineMs,
+    }),
+  );
 }

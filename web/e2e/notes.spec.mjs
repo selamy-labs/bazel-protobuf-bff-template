@@ -132,6 +132,31 @@ test("a stopped server is unavailable and a restart is not assumed", async ({ pa
   await stack.stop();
 });
 
+test("a newer open supersedes a hanging one, whose outcome never shows", async ({ notes }) => {
+  await identify(notes, "ana");
+  await createNote(notes, "kept", "the newer result");
+  const name = await notes.getByTestId("note-name").textContent();
+  await identify(notes, "fault-hang");
+  await openNote(notes, name);
+  await expect(notes.getByTestId("loading")).toBeVisible();
+  await identify(notes, "ana");
+  await openNote(notes, name);
+  await expect(notes.getByTestId("note-body")).toHaveText("the newer result");
+  // Past the hanging call's deadline, the page still shows the newer result and no failure.
+  await notes.waitForTimeout(2500);
+  await expect(notes.getByTestId("note")).toBeVisible();
+  await expect(notes.getByTestId("failure")).toHaveCount(0);
+});
+
+test("a render error shows the boundary's message, not a blank page", async ({ page, stack }) => {
+  await page.goto(`${stack.origin}#planted-render-error`);
+  await expect(page.getByTestId("render-error")).toHaveText(
+    "The page failed to render. Reload to continue.",
+  );
+  await expect(page.getByTestId("test-identity")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Create note" })).toHaveCount(0);
+});
+
 test("a second submit does not create a second note", async ({ notes }) => {
   await identify(notes, "ana");
   let creates = 0;
