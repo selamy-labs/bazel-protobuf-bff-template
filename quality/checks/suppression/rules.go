@@ -30,6 +30,7 @@ var Rules = []Rule{
 	{"S010", "zizmor ignore comment", re(`zizmor:\s*ignore`), ".yml", false},
 	{"S011", "staticcheck or gosec suppression", re(`//\s*lint:(file-)?ignore\b|#nosec\b`), ".go", false},
 	{"S012", "Prettier ignore comment", re(`prettier-ignore`), ".ts", false},
+	{"S013", "gosec disable directive", re(`//\s*gosec:disable\b`), ".go", false},
 }
 
 func re(pattern string) *regexp.Regexp {

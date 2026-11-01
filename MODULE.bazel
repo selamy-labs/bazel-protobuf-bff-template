@@ -14,7 +14,7 @@ bazel_dep(name = "rules_shell", version = "0.8.0")
 
 # Shared, separately versioned quality checks (spec 001 R-07). Consumers outside this repository
 # pin it with git_override at an immutable tag commit instead.
-bazel_dep(name = "bff_template_quality", version = "0.2.1")
+bazel_dep(name = "bff_template_quality", version = "0.3.0")
 local_path_override(
     module_name = "bff_template_quality",
     path = "quality",

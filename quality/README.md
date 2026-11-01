@@ -14,11 +14,11 @@ depends on the application that uses it.
 - [specs/002 research.md](../specs/002-hermetic-skeleton/research.md) describes the M1 pins and
   checks.
 
-## Contents (0.2.1)
+## Contents (0.3.0)
 
 | Path | What it is |
 | --- | --- |
-| `checks/suppression` | The `suppression-ban` Go check. Its stable codes S001–S012 are defined in `rules.go`, and each code has a defect and a corrected fixture. |
+| `checks/suppression` | The `suppression-ban` Go check. Its stable codes S001–S013 are defined in `rules.go`, and each code has a defect and a corrected fixture. |
 | `checks/coverage` | The coverage merger, and `floors`: `check` judges a run against the host's contract, and `compare`, built from a base, judges a tree's contract. |
 | `checks/ciparity` | Validates a workflow against a closed allowlist policy. Unknown keys fail. |
 | `proto` | The canonical `buf.yaml` and the compatibility baseline reader, which reads a declared commit from Git objects and fails closed. |

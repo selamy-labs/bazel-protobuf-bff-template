@@ -38,6 +38,7 @@ func TestSupportedSpellingsAreCaught(t *testing.T) {
 		{"S009_bad_unused.txt", "S009"},
 		{"S011_bad_lint.go", "S011"},
 		{"S012_bad.ts", "S012"},
+		{"S013_bad.go", "S013"},
 	}
 	for _, c := range cases {
 		t.Run(c.fixture, func(t *testing.T) {
