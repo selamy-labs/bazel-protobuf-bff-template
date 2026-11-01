@@ -4,8 +4,8 @@
     "version": 1,
     "project_id": "example-bff-hosted-000000",
     "region": "example-region1",
-    "runtime_identity": "bff-runtime@example-bff-hosted-000000.iam.example.invalid",
-    "build_identity": "bff-build@example-bff-hosted-000000.iam.example.invalid",
+    "runtime_identity": "bff-runtime@example.invalid",
+    "build_identity": "bff-build@example.invalid",
     "artifact_registry": "example-region1-docker.example.invalid/example-bff-hosted-000000/bff",
     "state_bucket": "example-bff-hosted-000000-state"
   },
