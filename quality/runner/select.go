@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb"
 )
@@ -32,6 +33,8 @@ func (g Git) Run(ctx context.Context, stdin []byte, args ...string) ([]byte, err
 	}
 	var stdout, stderr bytes.Buffer
 	command.Stdout, command.Stderr = &stdout, &stderr
+	// A hook Git starts could hold these pipes open past the deadline.
+	command.WaitDelay = 2 * time.Second
 	if err := command.Run(); err != nil {
 		return nil, fmt.Errorf("git %s: %w: %s", strings.Join(args, " "), err, strings.TrimSpace(stderr.String()))
 	}

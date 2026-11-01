@@ -4,6 +4,7 @@ package runner
 
 import (
 	"fmt"
+	"math"
 	"os"
 	"regexp"
 	"strings"
@@ -54,6 +55,12 @@ func Validate(registry *registrypb.Registry) []string {
 	}
 	tools := map[string]bool{}
 	for _, tool := range registry.GetTools() {
+		switch {
+		case tool.GetName() == "":
+			add("a tool with no name")
+		case tools[tool.GetName()]:
+			add("duplicate tool %q", tool.GetName())
+		}
 		tools[tool.GetName()] = true
 	}
 	for _, pattern := range registry.GetEscalate() {
@@ -82,8 +89,18 @@ func validateCheck(check *registrypb.Check, tools map[string]bool) []string {
 	add := func(format string, args ...any) {
 		problems = append(problems, id+": "+fmt.Sprintf(format, args...))
 	}
+	// The parser accepts any number for an enum, so a closed set is checked here.
 	full := false
+	stages := map[registrypb.Stage]bool{}
 	for _, stage := range check.GetStages() {
+		_, known := registrypb.Stage_name[int32(stage)]
+		switch {
+		case !known || stage == registrypb.Stage_STAGE_UNSPECIFIED:
+			add("unknown stage %d", int32(stage))
+		case stages[stage]:
+			add("repeated stage %s", stage)
+		}
+		stages[stage] = true
 		full = full || stage == registrypb.Stage_STAGE_FULL
 	}
 	if !full {
@@ -100,6 +117,15 @@ func validateCheck(check *registrypb.Check, tools map[string]bool) []string {
 		}
 	default:
 		add("missing classification")
+	}
+	if threshold := check.GetThreshold(); threshold != nil {
+		direction := threshold.GetDirection()
+		if direction != registrypb.Direction_DIRECTION_MIN && direction != registrypb.Direction_DIRECTION_MAX {
+			add("a threshold needs a direction")
+		}
+		if math.IsNaN(threshold.GetValue()) || math.IsInf(threshold.GetValue(), 0) {
+			add("a threshold needs a finite value")
+		}
 	}
 	if check.GetTimeoutSeconds() == 0 {
 		add("missing timeout")

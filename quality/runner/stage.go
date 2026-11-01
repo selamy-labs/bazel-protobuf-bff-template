@@ -60,6 +60,10 @@ func StageName(stage registrypb.Stage) string {
 	return "unknown"
 }
 
+// bookkeepingBudget bounds all final bookkeeping for one run, in total. With a stopped helper's own
+// grace, it adds at most this plus 9 s after the stage's work and cleanup.
+var bookkeepingBudget = 30 * time.Second
+
 // DefaultJobs is the contract's pool bound.
 func DefaultJobs() int { return max(1, min(4, runtime.NumCPU()/2)) }
 
@@ -108,6 +112,15 @@ func Run(ctx context.Context, options Options) (int, error) {
 		receipt := execution.receipt(ctx, git, results, started, code)
 		if err := WriteReceipt(options.ReceiptPath, receipt); err != nil {
 			return ExitConfig, err
+		}
+		if code == ExitOK && len(receipt.Problems) > 0 {
+			code = ExitNoEvidence
+			for _, problem := range receipt.Problems {
+				_, _ = fmt.Fprintf(options.Stdout, "quality: the receipt cannot name %s (rerun: %s)\n", problem, options.Rerun)
+			}
+		}
+		if receipt.WorktreeDirty {
+			_, _ = fmt.Fprintln(options.Stdout, "quality: the tested tree differs from HEAD")
 		}
 	}
 	_, _ = fmt.Fprintf(options.Stdout, "quality: %s exited %d (isolation: %s)\n", StageName(options.Stage), code, options.Isolation)
@@ -248,10 +261,6 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 	if !filepath.IsAbs(argv[0]) && strings.Contains(argv[0], "/") {
 		argv[0] = filepath.Join(e.options.Root, argv[0])
 	}
-	self, err := os.Executable()
-	if err != nil {
-		return finish(Errored, err.Error())
-	}
 	logPath := filepath.Join(e.scratch, plan.check.GetId()+".log")
 	log, err := os.Create(logPath)
 	if err != nil {
@@ -260,34 +269,18 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 	defer func() { _ = log.Close() }()
 	checkCtx, cancel := context.WithTimeout(ctx, time.Duration(plan.check.GetTimeoutSeconds())*time.Second)
 	defer cancel()
-	command := exec.Command(self, append([]string{SuperviseArg}, argv...)...)
-	command.Dir, command.Env, command.Stdout, command.Stderr = e.inputs.Root, e.options.Env, log, log
-	if err := command.Start(); err != nil {
-		return finish(Errored, err.Error())
-	}
-	done := make(chan error, 1)
-	go func() { done <- command.Wait() }()
-	var code int
-	select {
-	case err := <-done:
-		code = exitCode(err)
-	case <-checkCtx.Done():
-		_ = command.Process.Signal(syscall.SIGTERM)
-		select {
-		case <-done:
-		case <-time.After(4*termGrace + time.Second):
-			_ = command.Process.Kill()
-			<-done
-		}
-		output, _ := os.ReadFile(logPath)
-		result.output = string(output)
-		if ctx.Err() != nil && !errors.Is(checkCtx.Err(), context.DeadlineExceeded) {
-			return finish(Cancelled, "cancelled")
-		}
-		return finish(TimedOut, fmt.Sprintf("exceeded %ds", plan.check.GetTimeoutSeconds()))
-	}
+	code, runErr := supervised(checkCtx, argv, e.inputs.Root, e.options.Env, log)
 	output, _ := os.ReadFile(logPath)
 	result.output = string(output)
+	switch {
+	case runErr == nil:
+	case checkCtx.Err() == nil:
+		return finish(Errored, runErr.Error())
+	case errors.Is(ctx.Err(), context.Canceled):
+		return finish(Cancelled, "cancelled")
+	default:
+		return finish(TimedOut, fmt.Sprintf("exceeded %ds", plan.check.GetTimeoutSeconds()))
+	}
 	switch code {
 	case 0:
 		return finish(Passed, "")
@@ -297,6 +290,35 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 	default:
 		return finish(Failed, "")
 	}
+}
+
+// supervised runs argv under its own supervisor, so its whole process tree ends when it does or when
+// ctx does. Output goes to a file, which a surviving descendant cannot hold open against this wait.
+func supervised(ctx context.Context, argv []string, dir string, env []string, out *os.File) (int, error) {
+	self, err := os.Executable()
+	if err != nil {
+		return 0, err
+	}
+	command := exec.Command(self, append([]string{SuperviseArg}, argv...)...)
+	command.Dir, command.Env, command.Stdout, command.Stderr = dir, env, out, out
+	if err := command.Start(); err != nil {
+		return 0, err
+	}
+	done := make(chan error, 1)
+	go func() { done <- command.Wait() }()
+	select {
+	case err := <-done:
+		return exitCode(err), nil
+	case <-ctx.Done():
+	}
+	_ = command.Process.Signal(syscall.SIGTERM)
+	select {
+	case <-done:
+	case <-time.After(4*termGrace + time.Second):
+		_ = command.Process.Kill()
+		<-done
+	}
+	return 0, ctx.Err()
 }
 
 func (e *execution) bazelEnv() []string {
@@ -370,9 +392,9 @@ func (e *execution) runBazel(ctx context.Context) {
 		return
 	}
 	for _, check := range plan.Checks {
-		state, reason := TranslateBazel(check, code, states)
-		result := Result{State: state, Reason: reason, Seconds: seconds}
-		if state != Passed {
+		result := TranslateBazel(check, e.options.Stage, code, states)
+		result.Seconds = seconds
+		if result.State != Passed {
 			result.output = output
 		}
 		e.record(result, check)
@@ -397,9 +419,13 @@ func (e *execution) complete() []Result {
 
 var sandboxSummary = regexp.MustCompile(`(?m)^INFO: [0-9]+ process.*$`)
 
+// receipt records what was judged. Final bookkeeping shares one bound, whatever the stage's own
+// deadline did, so it cannot become a second unbounded phase. It runs helpers under supervisors.
+// Identity it cannot establish goes in Problems and denies PASSED: full and pre-push evidence names
+// exactly what was tested.
 func (e *execution) receipt(ctx context.Context, git Git, results []Result, started time.Time, code int) *Receipt {
-	// The stage's deadline may have passed; a receipt is still owed.
-	ctx = context.WithoutCancel(ctx)
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), bookkeepingBudget)
+	defer cancel()
 	options := e.options
 	receipt := &Receipt{
 		SchemaVersion: 4, Stage: StageName(options.Stage), Requested: StageName(options.Requested),
@@ -409,17 +435,10 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 		FinishedAt: time.Now().UTC().Format(time.RFC3339),
 		Host:       map[string]string{"os": runtime.GOOS, "arch": runtime.GOARCH},
 		Inventory:  map[string]int{"all": len(e.inputs.All), "deleted": len(e.inputs.Deleted)},
-		Tools:      e.toolVersions(ctx),
-		Result:     "FAILED", Producer: "local",
+		Producer:   "local", Tools: map[string]string{},
 	}
 	if run := os.Getenv("GITHUB_RUN_ID"); run != "" {
 		receipt.Producer = fmt.Sprintf("github-actions/%s/%s/%s/%s", os.Getenv("GITHUB_WORKFLOW"), os.Getenv("GITHUB_JOB"), run, os.Getenv("GITHUB_RUN_ATTEMPT"))
-	}
-	if code == ExitOK {
-		receipt.Result = "PASSED"
-		if options.Offline {
-			receipt.Result = "INCOMPLETE"
-		}
 	}
 	data, _ := os.ReadFile(e.log)
 	targets := 0
@@ -432,56 +451,107 @@ func (e *execution) receipt(ctx context.Context, git Git, results []Result, star
 	if summaries := sandboxSummary.FindAllString(string(data), -1); len(summaries) > 0 {
 		receipt.SandboxSummary = summaries[len(summaries)-1]
 	}
-	if head, err := git.Run(ctx, nil, "rev-parse", "HEAD"); err == nil {
-		receipt.Revision = strings.TrimSpace(string(head))
+	if options.Stage != registrypb.Stage_STAGE_PRE_COMMIT && options.Stage != registrypb.Stage_STAGE_COMMIT_MSG {
+		e.identify(ctx, git, receipt)
 	}
-	if tree, err := git.Run(ctx, nil, "rev-parse", "HEAD^{tree}"); err == nil {
-		receipt.Tree = strings.TrimSpace(string(tree))
-	}
-	receipt.TestedTree, receipt.PolicyDigest = "unknown", "unknown"
-	if options.Stage == registrypb.Stage_STAGE_FULL || options.Stage == registrypb.Stage_STAGE_PRE_PUSH {
-		if inputs, err := Discover(ctx, git, options.Registry); err == nil {
-			if tree, digest, err := TestedTree(ctx, git, inputs, filepath.Join(e.scratch, "tree")); err == nil {
-				receipt.TestedTree, receipt.PolicyDigest = tree, digest
-			}
-		}
-	}
-	receipt.WorktreeDirty = receipt.TestedTree != receipt.Tree
-	if binary, err := exec.Command(options.Bazel, "--path").Output(); err == nil {
-		if data, err := os.ReadFile(strings.TrimSpace(string(binary))); err == nil {
-			sum := sha256.Sum256(data)
-			receipt.BazelSHA256 = hex.EncodeToString(sum[:])
+	receipt.Result = "FAILED"
+	if code == ExitOK && len(receipt.Problems) == 0 {
+		receipt.Result = "PASSED"
+		if options.Offline {
+			receipt.Result = "INCOMPLETE"
 		}
 	}
 	return receipt
 }
 
-func (e *execution) toolVersions(ctx context.Context) map[string]string {
-	versions := map[string]string{}
-	if e.options.Stage != registrypb.Stage_STAGE_FULL {
-		return versions
+// identify fills in what a commit-level stage must name.
+func (e *execution) identify(ctx context.Context, git Git, receipt *Receipt) {
+	missing := func(what string, err error) {
+		receipt.Problems = append(receipt.Problems, fmt.Sprintf("%s: %v", what, err))
 	}
+	if head, err := git.Run(ctx, nil, "rev-parse", "--verify", "HEAD"); err != nil {
+		missing("revision", err)
+	} else {
+		receipt.Revision = strings.TrimSpace(string(head))
+	}
+	if tree, err := git.Run(ctx, nil, "rev-parse", "--verify", "HEAD^{tree}"); err != nil {
+		missing("tree", err)
+	} else {
+		receipt.Tree = strings.TrimSpace(string(tree))
+	}
+	inputs, err := Discover(ctx, git, e.options.Registry)
+	if err != nil {
+		missing("tested tree", err)
+	} else if tree, digest, err := TestedTree(ctx, git, inputs, filepath.Join(e.scratch, "tree")); err != nil {
+		missing("tested tree", err)
+	} else {
+		receipt.TestedTree, receipt.PolicyDigest = tree, digest
+		receipt.WorktreeDirty = tree != receipt.Tree
+	}
+	if digest, err := e.bazelDigest(ctx); err != nil {
+		missing("bazel binary", err)
+	} else {
+		receipt.BazelSHA256 = digest
+	}
+	if e.options.Stage == registrypb.Stage_STAGE_FULL {
+		e.toolVersions(ctx, receipt, missing)
+	}
+}
+
+func (e *execution) capture(ctx context.Context, name string, argv []string) (string, error) {
+	output, err := os.CreateTemp(e.scratch, name+"-")
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = output.Close() }()
+	code, err := supervised(ctx, argv, e.options.Root, e.options.Env, output)
+	if err != nil {
+		return "", err
+	}
+	data, _ := os.ReadFile(output.Name())
+	if code != 0 {
+		return "", fmt.Errorf("exited %d", code)
+	}
+	return string(data), nil
+}
+
+func (e *execution) bazelDigest(ctx context.Context) (string, error) {
+	path, err := e.capture(ctx, "bazel-path", []string{e.options.Bazel, "--path"})
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(strings.TrimSpace(path))
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
+}
+
+func (e *execution) toolVersions(ctx context.Context, receipt *Receipt, missing func(string, error)) {
 	for _, tool := range e.options.Registry.GetTools() {
-		path := e.options.Tools[tool.GetName()]
-		if len(tool.GetVersionArgs()) == 0 || path == "" {
+		if len(tool.GetVersionArgs()) == 0 {
 			continue
 		}
-		versionCtx, cancel := context.WithTimeout(ctx, 30*time.Second)
-		command := exec.CommandContext(versionCtx, path, tool.GetVersionArgs()...)
-		command.Env = e.options.Env
-		output, err := command.CombinedOutput()
-		cancel()
-		if err == nil {
-			line, _, _ := strings.Cut(string(output), "\n")
-			if strings.HasPrefix(line, "ShellCheck") {
-				for item := range strings.Lines(string(output)) {
-					if version, ok := strings.CutPrefix(item, "version: "); ok {
-						line = version
-					}
+		name := strings.ToLower(tool.GetName())
+		path, known := e.options.Tools[tool.GetName()]
+		if !known {
+			missing(name+" version", errors.New("the tool was not passed in"))
+			continue
+		}
+		output, err := e.capture(ctx, "version", append([]string{path}, tool.GetVersionArgs()...))
+		if err != nil {
+			missing(name+" version", err)
+			continue
+		}
+		line, _, _ := strings.Cut(output, "\n")
+		if strings.HasPrefix(line, "ShellCheck") {
+			for item := range strings.Lines(output) {
+				if version, ok := strings.CutPrefix(item, "version: "); ok {
+					line = version
 				}
 			}
-			versions[strings.ToLower(tool.GetName())] = strings.TrimSpace(line)
 		}
+		receipt.Tools[name] = strings.TrimSpace(line)
 	}
-	return versions
 }

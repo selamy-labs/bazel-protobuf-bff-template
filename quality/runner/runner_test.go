@@ -119,9 +119,9 @@ func TestExitCodes(t *testing.T) {
 
 func TestBazelTranslation(t *testing.T) {
 	check := &registrypb.Check{Targets: []string{"//a/...", "//b:t"}}
-	passed := map[string]string{"//a/x:t": "PASSED"}
-	failed := map[string]string{"//a/x:t": "FAILED", "//c:t": "PASSED"}
-	other := map[string]string{"//c:t": "FAILED"}
+	passed := map[string]string{"//a/x:t": "PASSED", "//b:t": "PASSED"}
+	failed := map[string]string{"//a/x:t": "FAILED", "//b:t": "PASSED", "//c:t": "PASSED"}
+	other := map[string]string{"//b:t": "PASSED"}
 	cases := []struct {
 		name   string
 		code   int
@@ -129,16 +129,18 @@ func TestBazelTranslation(t *testing.T) {
 		want   State
 	}{
 		{"passed", 0, passed, Passed},
-		{"passed with none of its targets", 0, other, Errored},
+		{"a named target never ran", 0, map[string]string{"//a/x:t": "PASSED"}, Errored},
+		{"contradictory exit 0", 0, map[string]string{"//a/x:t": "TIMEOUT", "//b:t": "PASSED"}, Errored},
 		{"tests failed", 3, failed, Failed},
-		{"another check's failure", 3, map[string]string{"//a/x:t": "PASSED", "//c:t": "FAILED"}, Passed},
+		{"another check's failure", 3, map[string]string{"//a/x:t": "PASSED", "//b:t": "PASSED", "//c:t": "FAILED"}, Passed},
+		{"only its named target", 0, other, Passed},
 		{"no tests on an affected set", 4, nil, NotApplicable},
 		{"interrupted", 8, passed, Cancelled},
 		{"build failed", 1, passed, Errored},
 		{"crash", 37, passed, Errored},
 	}
 	for _, test := range cases {
-		if got, _ := TranslateBazel(check, test.code, test.states); got != test.want {
+		if got := TranslateBazel(check, registrypb.Stage_STAGE_PRE_PUSH, test.code, test.states).State; got != test.want {
 			t.Errorf("%s: %s, want %s", test.name, got, test.want)
 		}
 	}
@@ -187,7 +189,7 @@ func newHarness(t *testing.T) *harness {
 	h.write("fixture.go", "bad\n")
 	h.write("real.go", "package a\n")
 	h.bazel = filepath.Join(t.TempDir(), "bazel")
-	h.writeAbs(h.bazel, "#!/bin/sh\nexit 0\n", 0o755)
+	h.writeAbs(h.bazel, "#!/bin/sh\n[ \"$1\" = --path ] && echo \"$0\"\nexit 0\n", 0o755)
 	return h
 }
 
@@ -255,7 +257,7 @@ func native(id, command string, extra ...string) string {
 }
 
 func TestStageRunsExactlyItsEntries(t *testing.T) {
-	h := newHarness(t)
+	h := committed(newHarness(t))
 	options := h.options(native("one", "exit 0")+native("two", "exit 0"), registrypb.Stage_STAGE_FULL)
 	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
 	if code := h.run(options); code != ExitOK {
@@ -341,7 +343,7 @@ func TestSelectorsSeeOnlyTheirFiles(t *testing.T) {
 }
 
 func TestOfflineSkipIsNotAPass(t *testing.T) {
-	h := newHarness(t)
+	h := committed(newHarness(t))
 	options := h.options(native("network", "exit 1", "needs_network: true"), registrypb.Stage_STAGE_FULL)
 	options.Offline = true
 	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
@@ -433,7 +435,7 @@ sleep 0.3`
 
 func fakeBazel(h *harness, body string) string {
 	calls := filepath.Join(h.t.TempDir(), "calls")
-	h.writeAbs(h.bazel, fmt.Sprintf("#!/bin/bash\n[ \"$1\" = --path ] && exit 1\necho \"$*\" >>%q\n%s\n", calls, body), 0o755)
+	h.writeAbs(h.bazel, fmt.Sprintf("#!/bin/bash\n[ \"$1\" = --path ] && { echo \"$0\"; exit 0; }\necho \"$*\" >>%q\n%s\n", calls, body), 0o755)
 	return calls
 }
 
@@ -875,5 +877,199 @@ func TestRegistryTextRoundTrips(t *testing.T) {
 	}
 	if registry.GetChecks()[0].GetId() != "good" {
 		t.Fatal("generated schema mismatch")
+	}
+}
+
+// The counterexamples below came from independent review of the first draft (spec 006 tasks,
+// execution record). They were seen failing against that draft before the repair.
+
+func TestContradictoryBazelResultFailsClosed(t *testing.T) {
+	h := newHarness(t)
+	fakeBazel(h, `echo "//a:good   PASSED in 1s"; echo "//a:bad   FAILED in 1s"; exit 0`)
+	if code := h.run(h.options(bazelCheck("tests", "//a/...", "STAGE_FULL"), registrypb.Stage_STAGE_FULL)); code == ExitOK {
+		t.Fatalf("Bazel exit 0 beside a FAILED target passed\n%s", h.out.String())
+	}
+}
+
+func TestSkippedTargetIsNotAPass(t *testing.T) {
+	h := newHarness(t)
+	fakeBazel(h, `echo "//a:good   PASSED in 1s"; echo "//a:skip   SKIPPED"; exit 0`)
+	if code := h.run(h.options(bazelCheck("tests", "//a/...", "STAGE_FULL"), registrypb.Stage_STAGE_FULL)); code == ExitOK {
+		t.Fatalf("a SKIPPED target passed\n%s", h.out.String())
+	}
+}
+
+func TestEmptyTargetSetAtFullFailsClosed(t *testing.T) {
+	h := newHarness(t)
+	fakeBazel(h, `exit 4`)
+	if code := h.run(h.options(bazelCheck("tests", "//a/...", "STAGE_FULL"), registrypb.Stage_STAGE_FULL)); code != ExitEmptyInput {
+		t.Fatalf("exit %d: no tests at full must not pass\n%s", code, h.out.String())
+	}
+	h = newHarness(t)
+	fakeBazel(h, `exit 4`)
+	body := bazelCheck("tests", "//a/...", "STAGE_PRE_PUSH, STAGE_FULL")
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_PRE_PUSH)); code != ExitOK {
+		t.Fatalf("exit %d: an affected set may be empty\n%s", code, h.out.String())
+	}
+}
+
+func TestMixedBazelFailureKeepsThePassingCheck(t *testing.T) {
+	h := newHarness(t)
+	fakeBazel(h, `echo "//a:t   PASSED in 1s"; echo "//b:t   FAILED in 1s"; exit 3`)
+	body := bazelCheck("first", "//a/...", "STAGE_FULL") + bazelCheck("second", "//b/...", "STAGE_FULL")
+	options := h.options(body, registrypb.Stage_STAGE_FULL)
+	if code := h.run(options); code != ExitFailed {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	out := h.out.String()
+	if !strings.Contains(out, "PASS") || !strings.Contains(out, "FAILED") {
+		t.Fatalf("each check must keep its own result:\n%s", out)
+	}
+}
+
+func TestNamedTargetThatNeverRanIsNotAPass(t *testing.T) {
+	h := newHarness(t)
+	fakeBazel(h, `echo "//a:other   FAILED in 1s"; exit 3`)
+	body := bazelCheck("first", "//a/...", "STAGE_FULL") + bazelCheck("named", "//a:missing", "STAGE_FULL")
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_FULL)); code == ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	if out := h.out.String(); strings.Contains(out, "PASS      named") {
+		t.Fatalf("a target that never ran passed:\n%s", out)
+	}
+}
+
+// committed gives a harness a commit, so a receipt has an identity to record.
+func committed(h *harness) *harness {
+	h.t.Helper()
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "first")
+	return h
+}
+
+func receiptOf(t *testing.T, path string) Receipt {
+	t.Helper()
+	var receipt Receipt
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		t.Fatal(err)
+	}
+	return receipt
+}
+
+func TestHungBazelPathCannotHoldTheRun(t *testing.T) {
+	saved := bookkeepingBudget
+	bookkeepingBudget = 500 * time.Millisecond
+	defer func() { bookkeepingBudget = saved }()
+	h := committed(newHarness(t))
+	pidfile := filepath.Join(t.TempDir(), "pid")
+	h.writeAbs(h.bazel, `#!/bin/bash
+if [ "$1" = --path ]; then
+  setsid sh -c 'trap "" TERM; echo $$ >`+pidfile+`; sleep 300; sleep 300' &
+  trap "" TERM
+  while :; do sleep 1; done
+fi
+echo "//a:t   PASSED in 1s"
+`, 0o755)
+	options := h.options(bazelCheck("tests", "//a/...", "STAGE_FULL"), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	started := time.Now()
+	code := h.run(options)
+	if elapsed := time.Since(started); elapsed > 15*time.Second {
+		t.Fatalf("final bookkeeping took %s", elapsed)
+	}
+	if code == ExitOK {
+		t.Fatalf("a receipt with no Bazel identity passed\n%s", h.out.String())
+	}
+	if receipt := receiptOf(t, options.ReceiptPath); receipt.Result == "PASSED" {
+		t.Fatal("the receipt says PASSED")
+	}
+	if pid := readPid(t, pidfile); alive(pid) {
+		_ = syscall.Kill(pid, syscall.SIGKILL)
+		t.Fatalf("the helper's descendant %d survived", pid)
+	}
+}
+
+func TestHungVersionHelperCannotHoldTheRun(t *testing.T) {
+	saved := bookkeepingBudget
+	bookkeepingBudget = 500 * time.Millisecond
+	defer func() { bookkeepingBudget = saved }()
+	h := committed(newHarness(t))
+	fakeBazel(h, `echo "//a:t   PASSED in 1s"`)
+	tool := filepath.Join(t.TempDir(), "tool")
+	h.writeAbs(tool, "#!/bin/sh\ntrap '' TERM\nwhile :; do sleep 1; done\n", 0o755)
+	options := h.options(bazelCheck("tests", "//a/...", "STAGE_FULL")+`tools { name: "HUNG" version_args: "--version" }`, registrypb.Stage_STAGE_FULL)
+	options.Tools = map[string]string{"HUNG": tool}
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	started := time.Now()
+	code := h.run(options)
+	if elapsed := time.Since(started); elapsed > 15*time.Second {
+		t.Fatalf("version capture took %s", elapsed)
+	}
+	if code == ExitOK {
+		t.Fatalf("a missing tool version passed\n%s", h.out.String())
+	}
+}
+
+func TestReceiptWithoutIdentityIsNotPassed(t *testing.T) {
+	h := newHarness(t) // No commit: HEAD, and so the source identity, does not exist.
+	options := h.options(native("one", "exit 0"), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	code := h.run(options)
+	receipt := receiptOf(t, options.ReceiptPath)
+	if code == ExitOK || receipt.Result == "PASSED" {
+		t.Fatalf("exit %d, result %s, with no revision", code, receipt.Result)
+	}
+	if !strings.Contains(strings.Join(receipt.Problems, " "), "revision") {
+		t.Fatalf("problems: %v", receipt.Problems)
+	}
+}
+
+func TestReceiptKeepsCleanAndDirtyApart(t *testing.T) {
+	h := committed(newHarness(t))
+	options := h.options(native("one", "exit 0"), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("clean: exit %d\n%s", code, h.out.String())
+	}
+	clean := receiptOf(t, options.ReceiptPath)
+	if clean.WorktreeDirty || clean.TestedTree != clean.Tree || clean.Result != "PASSED" || clean.PolicyDigest == "" {
+		t.Fatalf("clean: %+v", clean)
+	}
+	h.write("real.go", "package changed\n")
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("dirty: exit %d", code)
+	}
+	dirty := receiptOf(t, options.ReceiptPath)
+	if !dirty.WorktreeDirty || dirty.TestedTree == dirty.Tree || dirty.Result != "PASSED" {
+		t.Fatalf("dirty: %+v", dirty)
+	}
+}
+
+func TestRegistryClosedValues(t *testing.T) {
+	cases := []struct{ name, text, want string }{
+		{"unknown numeric stage", strings.Replace(baseCheck, "[STAGE_FULL]", "[STAGE_FULL, 99]", 1), "unknown stage"},
+		{"unspecified stage", strings.Replace(baseCheck, "[STAGE_FULL]", "[STAGE_FULL, STAGE_UNSPECIFIED]", 1), "unknown stage"},
+		{"repeated stage", strings.Replace(baseCheck, "[STAGE_FULL]", "[STAGE_FULL, STAGE_FULL]", 1), "repeated stage"},
+		{"unknown numeric class", strings.Replace(baseCheck, "CLASSIFICATION_GUARANTEE", "7", 1), "missing classification"},
+		{"unknown numeric kind", strings.Replace(baseCheck, "KIND_NATIVE", "7", 1), "missing kind"},
+		{"empty tool name", baseCheck + `tools { version_args: "x" }`, "tool with no name"},
+		{"duplicate tool", baseCheck + `tools { name: "A" } tools { name: "A" }`, "duplicate tool"},
+		{"threshold without direction", strings.Replace(baseCheck, `witness: "//:test"`, `witness: "//:test" threshold { value: 1 }`, 1), "threshold"},
+		{"threshold not finite", strings.Replace(baseCheck, `witness: "//:test"`, `witness: "//:test" threshold { direction: DIRECTION_MIN value: nan }`, 1), "threshold"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := ParseRegistry([]byte(test.text))
+			if err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("got %v, want %q", err, test.want)
+			}
+		})
+	}
+	if _, err := ParseRegistry([]byte(strings.Replace(baseCheck, `witness: "//:test"`, `witness: "//:test" threshold { direction: DIRECTION_MIN value: 80 }`, 1))); err != nil {
+		t.Fatalf("a valid threshold was rejected: %v", err)
 	}
 }

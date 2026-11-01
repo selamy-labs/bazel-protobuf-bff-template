@@ -90,13 +90,14 @@ func PlanBazel(registry *registrypb.Registry, stage registrypb.Stage, flags []st
 	return plan
 }
 
-// TranslateBazel maps Bazel's exit code to a result for one check (contracts/check-registry.md).
-func TranslateBazel(check *registrypb.Check, code int, states map[string]string) (State, string) {
-	var ran, bad []string
+// TranslateBazel maps Bazel's exit code to one check's result (contracts/check-registry.md). The exit
+// code and the per-target summary must agree: neither alone can pass a check.
+func TranslateBazel(check *registrypb.Check, stage registrypb.Stage, code int, states map[string]string) Result {
+	ran, bad, missing := 0, []string{}, []string{}
 	for label, state := range states {
 		for _, pattern := range check.GetTargets() {
 			if matchesTarget(label, pattern) {
-				ran = append(ran, label)
+				ran++
 				if state != "PASSED" {
 					bad = append(bad, label+" "+state)
 				}
@@ -104,27 +105,36 @@ func TranslateBazel(check *registrypb.Check, code int, states map[string]string)
 			}
 		}
 	}
+	for _, pattern := range check.GetTargets() {
+		if _, known := states[pattern]; !known && !strings.HasSuffix(pattern, "...") {
+			missing = append(missing, pattern)
+		}
+	}
 	slices.Sort(bad)
+	slices.Sort(missing)
 	switch code {
-	case 0:
-		if len(ran) == 0 {
-			return Errored, "Bazel passed but ran none of this check's targets"
+	case 0, 3:
+		switch {
+		case len(missing) > 0:
+			return Result{State: Errored, Reason: "never ran: " + strings.Join(missing, ", ")}
+		case ran == 0:
+			return Result{State: Errored, Reason: "Bazel ran none of this check's targets"}
+		case len(bad) > 0 && code == 0:
+			return Result{State: Errored, Reason: "Bazel exited 0 beside " + strings.Join(bad, ", ")}
+		case len(bad) > 0:
+			return Result{State: Failed, Reason: strings.Join(bad, ", ")}
 		}
-		return Passed, ""
-	case 3:
-		if len(bad) == 0 && len(ran) > 0 {
-			return Passed, ""
-		}
-		if len(ran) == 0 {
-			return Errored, "Bazel reported failures, none in this check's targets"
-		}
-		return Failed, strings.Join(bad, ", ")
+		return Result{State: Passed}
 	case 4:
-		return NotApplicable, "no tests to run"
+		// An affected set may be empty. The full gate's may not.
+		if stage == registrypb.Stage_STAGE_FULL {
+			return Result{State: Errored, EmptyInput: true, Reason: "Bazel found no tests at full"}
+		}
+		return Result{State: NotApplicable, Reason: "no tests to run"}
 	case 8:
-		return Cancelled, "Bazel was interrupted"
+		return Result{State: Cancelled, Reason: "Bazel was interrupted"}
 	default:
-		return Errored, fmt.Sprintf("Bazel exited %d", code)
+		return Result{State: Errored, Reason: fmt.Sprintf("Bazel exited %d", code)}
 	}
 }
 

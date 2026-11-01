@@ -139,6 +139,8 @@ type Receipt struct {
 	Inventory      map[string]int    `json:"inventory"`
 	Expected       int               `json:"expected_checks"`
 	Checks         []Result          `json:"checks"`
+	// Problems names each identity this receipt could not establish. Any entry denies PASSED.
+	Problems []string `json:"problems,omitempty"`
 }
 
 // WriteReceipt writes through a temporary file, so a reader never sees a partial record.
