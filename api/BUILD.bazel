@@ -127,11 +127,11 @@ sh_test(
     args = [
         "$(rootpath %s)" % SCHEMA,
         "$(rootpath testdata/breaking/probes.tsv)",
-        "$(rootpath //:tools/checks/native.sh)",
+        "$(rootpath @bff_template_quality//adapters:native.sh)",
     ] + ["%s=$(rootpath %s)" % (name, label) for name, label in sorted(SCHEMA_TOOLS.items())],
     data = sorted(SCHEMA_TOOLS.values()) + [
         SCHEMA,
         "testdata/breaking/probes.tsv",
-        "//:tools/checks/native.sh",
+        "@bff_template_quality//adapters:native.sh",
     ],
 )

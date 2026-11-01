@@ -1,0 +1,879 @@
+package runner
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"slices"
+	"strconv"
+	"strings"
+	"syscall"
+	"testing"
+	"time"
+
+	"google.golang.org/protobuf/encoding/prototext"
+
+	"github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb"
+)
+
+func TestMain(m *testing.M) {
+	if len(os.Args) > 2 && os.Args[1] == SuperviseArg {
+		os.Exit(Supervise(os.Args[2:]))
+	}
+	os.Exit(m.Run())
+}
+
+const baseCheck = `
+checks {
+  id: "good"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 5
+  command: ["true"]
+  witness: "//:test"
+}
+`
+
+func TestRegistryValidation(t *testing.T) {
+	if _, err := ParseRegistry([]byte(baseCheck)); err != nil {
+		t.Fatalf("the valid control was rejected: %v", err)
+	}
+	cases := []struct{ name, text, want string }{
+		{"duplicate id", baseCheck + baseCheck, "duplicate check id"},
+		{"missing full", strings.Replace(baseCheck, "STAGE_FULL", "STAGE_PRE_COMMIT", 1), "every check must run at full"},
+		{"signal with threshold", strings.Replace(strings.Replace(baseCheck, "CLASSIFICATION_GUARANTEE", "CLASSIFICATION_SIGNAL", 1), `witness: "//:test"`, "threshold { direction: DIRECTION_MIN value: 1 }", 1), "SIGNAL cannot carry"},
+		{"guarantee without witness", strings.Replace(baseCheck, `witness: "//:test"`, "", 1), "needs a witness"},
+		{"missing class", strings.Replace(baseCheck, "classification: CLASSIFICATION_GUARANTEE", "", 1), "missing classification"},
+		{"missing kind", strings.Replace(baseCheck, "kind: KIND_NATIVE", "", 1), "missing kind"},
+		{"missing timeout", strings.Replace(baseCheck, "timeout_seconds: 5", "", 1), "missing timeout"},
+		{"unknown field", strings.Replace(baseCheck, "timeout_seconds: 5", "timeout_seconds: 5 skip: true", 1), "skip"},
+		{"bad id", strings.Replace(baseCheck, `"good"`, `"Not_Kebab"`, 1), "kebab-case"},
+		{"unknown tool", strings.Replace(baseCheck, "timeout_seconds: 5", `timeout_seconds: 5 tool: "NOPE"`, 1), "unknown tool"},
+		{"bad selector", strings.Replace(baseCheck, "timeout_seconds: 5", `timeout_seconds: 5 selector { include: "(" }`, 1), "selector"},
+		{"no checks", `version: "1"`, "no checks"},
+		{"native with targets", strings.Replace(baseCheck, "timeout_seconds: 5", `timeout_seconds: 5 targets: "//x"`, 1), "no targets"},
+		{"malformed", "checks {", "registry"},
+	}
+	for _, test := range cases {
+		t.Run(test.name, func(t *testing.T) {
+			_, err := ParseRegistry([]byte(test.text))
+			var config *ConfigError
+			if !errors.As(err, &config) || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("got %v, want a configuration error naming %q", err, test.want)
+			}
+		})
+	}
+}
+
+func TestRealRegistry(t *testing.T) {
+	path := filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("REGISTRY"))
+	registry, err := LoadRegistry(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stages := map[registrypb.Stage]int{}
+	for _, check := range registry.GetChecks() {
+		for _, stage := range check.GetStages() {
+			stages[stage]++
+		}
+	}
+	if stages[registrypb.Stage_STAGE_PRE_COMMIT] == 0 || stages[registrypb.Stage_STAGE_PRE_COMMIT] >= stages[registrypb.Stage_STAGE_FULL] {
+		t.Errorf("pre-commit must be a fast subset of full, got %v", stages)
+	}
+	for _, check := range registry.GetChecks() {
+		if slices.Contains(check.GetStages(), registrypb.Stage_STAGE_PRE_COMMIT) && check.GetKind() == registrypb.Kind_KIND_BAZEL {
+			t.Errorf("%s: pre-commit reads staged blobs, so it cannot build from the checkout", check.GetId())
+		}
+	}
+}
+
+func TestExitCodes(t *testing.T) {
+	cases := []struct {
+		name    string
+		results []Result
+		want    int
+	}{
+		{"all passed", []Result{{State: Passed, Blocking: true}}, ExitOK},
+		{"not applicable", []Result{{State: NotApplicable, Blocking: true}}, ExitOK},
+		{"failed", []Result{{State: Failed, Blocking: true}}, ExitFailed},
+		{"errored", []Result{{State: Errored, Blocking: true}}, ExitFailed},
+		{"not run", []Result{{State: NotRun, Blocking: true}}, ExitFailed},
+		{"signal failed", []Result{{State: Failed}}, ExitOK},
+		{"timed out", []Result{{State: TimedOut, Blocking: true}}, ExitInterrupted},
+		{"cancelled outranks failed", []Result{{State: Failed, Blocking: true}, {State: Cancelled, Blocking: true}}, ExitInterrupted},
+		{"no evidence", []Result{{State: Failed, Blocking: true, NoEvidence: true}}, ExitNoEvidence},
+		{"empty input", []Result{{State: Errored, Blocking: true, EmptyInput: true}}, ExitEmptyInput},
+	}
+	for _, test := range cases {
+		if got := ExitCode(test.results); got != test.want {
+			t.Errorf("%s: exit %d, want %d", test.name, got, test.want)
+		}
+	}
+}
+
+func TestBazelTranslation(t *testing.T) {
+	check := &registrypb.Check{Targets: []string{"//a/...", "//b:t"}}
+	passed := map[string]string{"//a/x:t": "PASSED"}
+	failed := map[string]string{"//a/x:t": "FAILED", "//c:t": "PASSED"}
+	other := map[string]string{"//c:t": "FAILED"}
+	cases := []struct {
+		name   string
+		code   int
+		states map[string]string
+		want   State
+	}{
+		{"passed", 0, passed, Passed},
+		{"passed with none of its targets", 0, other, Errored},
+		{"tests failed", 3, failed, Failed},
+		{"another check's failure", 3, map[string]string{"//a/x:t": "PASSED", "//c:t": "FAILED"}, Passed},
+		{"no tests on an affected set", 4, nil, NotApplicable},
+		{"interrupted", 8, passed, Cancelled},
+		{"build failed", 1, passed, Errored},
+		{"crash", 37, passed, Errored},
+	}
+	for _, test := range cases {
+		if got, _ := TranslateBazel(check, test.code, test.states); got != test.want {
+			t.Errorf("%s: %s, want %s", test.name, got, test.want)
+		}
+	}
+	states := TargetStates("//a:t    PASSED in 1s\n//b:t  (cached) PASSED in 0.1s\n//c:t   FAILED in 2s\n@q//d:t  TIMEOUT in 9s\nINFO: Build\n")
+	if states["//a:t"] != "PASSED" || states["//b:t"] != "PASSED" || states["//c:t"] != "FAILED" || states["@q//d:t"] != "TIMEOUT" || len(states) != 4 {
+		t.Errorf("states: %v", states)
+	}
+}
+
+func TestDiagnostics(t *testing.T) {
+	line := Diagnostics("lint", "a/b.go:3:7: bad thing [S001]\n", "tools/verify.sh", "r.json")
+	if len(line) != 1 || line[0] != "lint a/b.go:3:7: bad thing [S001] (rerun: tools/verify.sh)" {
+		t.Errorf("format: %q", line)
+	}
+	if got := Diagnostics("lint", "a.go:3: no column\n", "r", "x")[0]; got != "lint a.go:3:1: no column (rerun: r)" {
+		t.Errorf("no column: %q", got)
+	}
+	if got := Diagnostics("lint", "", "r", "x")[0]; !strings.Contains(got, "printed nothing") || !strings.Contains(got, "(rerun: r)") {
+		t.Errorf("silent failure: %q", got)
+	}
+	long := strings.Repeat("x\n", 51)
+	got := Diagnostics("lint", long, "r", "receipt.json")
+	if len(got) != MaxDiagnostics+1 || got[MaxDiagnostics] != "… 1 more (see receipt.json)" {
+		t.Errorf("bound: %d lines, last %q", len(got), got[len(got)-1])
+	}
+	if got := Diagnostics("lint", strings.Repeat("x\n", 50), "r", "x"); len(got) != 50 {
+		t.Errorf("exactly at the bound: %d", len(got))
+	}
+}
+
+// harness runs a stage against a registry in a scratch repository.
+type harness struct {
+	t     *testing.T
+	dir   string
+	out   bytes.Buffer
+	bazel string
+}
+
+func newHarness(t *testing.T) *harness {
+	t.Helper()
+	h := &harness{t: t, dir: t.TempDir()}
+	h.git("init", "-q", "-b", "main")
+	h.write("tools/speckit/scaffold.sha256", strings.Repeat("0", 64)+"  vendored.sh\n")
+	h.write("vendored.sh", "#!/bin/sh\n")
+	h.write("quality/fixtures.sha256", strings.Repeat("0", 64)+"  fixture.go\n")
+	h.write("fixture.go", "bad\n")
+	h.write("real.go", "package a\n")
+	h.bazel = filepath.Join(t.TempDir(), "bazel")
+	h.writeAbs(h.bazel, "#!/bin/sh\nexit 0\n", 0o755)
+	return h
+}
+
+func (h *harness) writeAbs(path, text string, mode os.FileMode) {
+	h.t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		h.t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(text), mode); err != nil {
+		h.t.Fatal(err)
+	}
+}
+
+func (h *harness) write(path, text string) { h.t.Helper(); h.writeAbs(filepath.Join(h.dir, path), text, 0o644) }
+
+func gitEnv() []string {
+	return append(os.Environ(), "GIT_CONFIG_GLOBAL=/dev/null", "GIT_CONFIG_SYSTEM=/dev/null",
+		"GIT_AUTHOR_NAME=a", "GIT_AUTHOR_EMAIL=a@example.com", "GIT_COMMITTER_NAME=a", "GIT_COMMITTER_EMAIL=a@example.com")
+}
+
+func (h *harness) git(args ...string) string {
+	h.t.Helper()
+	out, err := Git{Dir: h.dir, Env: gitEnv()}.Run(context.Background(), nil, args...)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	return strings.TrimSpace(string(out))
+}
+
+func (h *harness) registry(body string) *registrypb.Registry {
+	h.t.Helper()
+	text := `vendored_manifest: "tools/speckit/scaffold.sha256"
+fixture_manifest: "quality/fixtures.sha256"
+` + body
+	registry, err := ParseRegistry([]byte(text))
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	return registry
+}
+
+func (h *harness) options(body string, stage registrypb.Stage) Options {
+	h.t.Helper()
+	registry := h.registry(body)
+	return Options{
+		Registry: registry, Stage: stage, Requested: stage, Root: h.dir, Adapter: "/bin/true", Bazel: h.bazel,
+		Env: gitEnv(), Isolation: "full", Rerun: "rerun-me", Jobs: 2, Deadline: 30 * time.Second, Stdout: &h.out,
+		Inputs: func(ctx context.Context, git Git, _ string) (*Inputs, error) { return Discover(ctx, git, registry) },
+	}
+}
+
+func (h *harness) run(options Options) int {
+	h.t.Helper()
+	code, err := Run(context.Background(), options)
+	if err != nil {
+		h.t.Fatal(err)
+	}
+	return code
+}
+
+func native(id, command string, extra ...string) string {
+	return fmt.Sprintf(`checks { id: %q stages: [STAGE_FULL] classification: CLASSIFICATION_GUARANTEE kind: KIND_NATIVE
+ timeout_seconds: 30 witness: "w" command: ["sh", "-c", %q] %s }
+`, id, command, strings.Join(extra, " "))
+}
+
+func TestStageRunsExactlyItsEntries(t *testing.T) {
+	h := newHarness(t)
+	options := h.options(native("one", "exit 0")+native("two", "exit 0"), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	var receipt Receipt
+	data, _ := os.ReadFile(options.ReceiptPath)
+	if err := json.Unmarshal(data, &receipt); err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, check := range receipt.Checks {
+		ids = append(ids, check.Check+":"+string(check.State))
+	}
+	if strings.Join(ids, " ") != "one:PASSED two:PASSED" || receipt.Result != "PASSED" {
+		t.Fatalf("receipt: %v %s", ids, receipt.Result)
+	}
+	h2 := newHarness(t)
+	options = h2.options(native("one", "exit 0"), registrypb.Stage_STAGE_PRE_PUSH)
+	h2.run(options)
+	if strings.Contains(h2.out.String(), "one") && !strings.Contains(h2.out.String(), "pre-push exited 0") {
+		t.Fatalf("an entry for another stage ran: %s", h2.out.String())
+	}
+}
+
+func TestFailureNamesCheckAndRerun(t *testing.T) {
+	h := newHarness(t)
+	code := h.run(h.options(native("lint", "echo real.go:1:2: broken; exit 1"), registrypb.Stage_STAGE_FULL))
+	if code != ExitFailed || !strings.Contains(h.out.String(), "lint real.go:1:2: broken (rerun: rerun-me)") {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+}
+
+func TestSignalNeverBlocks(t *testing.T) {
+	h := newHarness(t)
+	body := strings.Replace(native("advice", "exit 1"), "CLASSIFICATION_GUARANTEE", "CLASSIFICATION_SIGNAL", 1)
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	if !strings.Contains(h.out.String(), "FAILED") {
+		t.Fatalf("a failing signal was hidden:\n%s", h.out.String())
+	}
+}
+
+func TestEvidenceUnavailableIsDistinct(t *testing.T) {
+	h := newHarness(t)
+	if code := h.run(h.options(native("baseline", "exit 11"), registrypb.Stage_STAGE_FULL)); code != ExitNoEvidence {
+		t.Fatalf("exit %d", code)
+	}
+}
+
+func TestZeroInputs(t *testing.T) {
+	selector := `selector { include: "\\.nothing$" }`
+	h := newHarness(t)
+	if code := h.run(h.options(native("empty", "exit 0", selector), registrypb.Stage_STAGE_FULL)); code != ExitEmptyInput {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	h = newHarness(t)
+	if code := h.run(h.options(native("empty", "exit 0", selector, "allow_empty: true"), registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("allow_empty: exit %d", code)
+	}
+	h = newHarness(t)
+	body := strings.Replace(native("empty", "exit 1", selector), "[STAGE_FULL]", "[STAGE_FULL, STAGE_PRE_PUSH]", 1)
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_PRE_PUSH)); code != ExitOK {
+		t.Fatalf("below full, no inputs is not applicable: exit %d", code)
+	}
+}
+
+func TestSelectorsSeeOnlyTheirFiles(t *testing.T) {
+	h := newHarness(t)
+	list := filepath.Join(t.TempDir(), "seen")
+	body := native("list", `tr "\0" "\n" <"$0" >`+list, `selector { include: "\\.(go|sh)$" }`)
+	options := h.options(strings.Replace(body, `"-c", `, `"-c", `, 1), registrypb.Stage_STAGE_FULL)
+	check := options.Registry.GetChecks()[0]
+	check.Command = append(check.GetCommand(), "{list}")
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	seen, _ := os.ReadFile(list)
+	if string(seen) != "real.go\n" {
+		t.Fatalf("selected %q; vendored and fixture files must stay out, and real.go in", seen)
+	}
+}
+
+func TestOfflineSkipIsNotAPass(t *testing.T) {
+	h := newHarness(t)
+	options := h.options(native("network", "exit 1", "needs_network: true"), registrypb.Stage_STAGE_FULL)
+	options.Offline = true
+	options.ReceiptPath = filepath.Join(t.TempDir(), "r.json")
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("exit %d", code)
+	}
+	data, _ := os.ReadFile(options.ReceiptPath)
+	if !bytes.Contains(data, []byte(`"result": "INCOMPLETE"`)) || !bytes.Contains(data, []byte(`"SKIPPED"`)) {
+		t.Fatalf("receipt: %s", data)
+	}
+}
+
+func alive(pid int) bool {
+	if err := syscall.Kill(pid, 0); err != nil {
+		return false
+	}
+	stat, err := os.ReadFile(fmt.Sprintf("/proc/%d/stat", pid))
+	if err != nil {
+		return false
+	}
+	return !strings.Contains(string(stat[bytes.LastIndexByte(stat, ')'):]), ") Z")
+}
+
+func readPid(t *testing.T, path string) int {
+	t.Helper()
+	data, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatalf("the check never reported its child: %v", err)
+	}
+	pid, err := strconv.Atoi(strings.TrimSpace(string(data)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	return pid
+}
+
+func TestStdinIsClosed(t *testing.T) {
+	// The caller's stdin stays open and silent, as a terminal's does, so a reader that inherited it
+	// would wait until its deadline.
+	reader, writer, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = reader.Close(); _ = writer.Close() }()
+	saved := os.Stdin
+	os.Stdin = reader
+	defer func() { os.Stdin = saved }()
+	h := newHarness(t)
+	body := strings.Replace(native("reader", "cat"), "timeout_seconds: 30", "timeout_seconds: 2", 1)
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+}
+
+func TestHungTreeIsRemovedAtItsDeadline(t *testing.T) {
+	h := newHarness(t)
+	pidfile := filepath.Join(t.TempDir(), "pid")
+	script := `trap "" TERM INT
+setsid sh -c 'trap "" TERM INT; echo $$ >` + pidfile + `; sleep 300; sleep 300' &
+while :; do sleep 1; done`
+	body := strings.Replace(native("hung", script), "timeout_seconds: 30", "timeout_seconds: 1", 1)
+	started := time.Now()
+	code := h.run(h.options(body, registrypb.Stage_STAGE_FULL))
+	if code != ExitInterrupted || !strings.Contains(h.out.String(), "TIMED_OUT") {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	if elapsed := time.Since(started); elapsed > 16*time.Second {
+		t.Fatalf("took %s, past the deadline plus 15 s", elapsed)
+	}
+	if pid := readPid(t, pidfile); alive(pid) {
+		_ = syscall.Kill(pid, syscall.SIGKILL)
+		t.Fatalf("the setsid child %d survived", pid)
+	}
+}
+
+func TestDaemonLeftByAPassingCheckIsRemoved(t *testing.T) {
+	h := newHarness(t)
+	pidfile := filepath.Join(t.TempDir(), "pid")
+	script := `setsid sh -c 'echo $$ >` + pidfile + `; exec sleep 300' &
+sleep 0.3`
+	if code := h.run(h.options(native("leaky", script), registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	if pid := readPid(t, pidfile); alive(pid) {
+		_ = syscall.Kill(pid, syscall.SIGKILL)
+		t.Fatalf("the daemon %d survived its check", pid)
+	}
+}
+
+func fakeBazel(h *harness, body string) string {
+	calls := filepath.Join(h.t.TempDir(), "calls")
+	h.writeAbs(h.bazel, fmt.Sprintf("#!/bin/bash\n[ \"$1\" = --path ] && exit 1\necho \"$*\" >>%q\n%s\n", calls, body), 0o755)
+	return calls
+}
+
+func bazelCheck(id, target string, stages string) string {
+	return fmt.Sprintf(`checks { id: %q stages: [%s] classification: CLASSIFICATION_GUARANTEE kind: KIND_BAZEL
+ timeout_seconds: 30 witness: "w" targets: [%q] }
+`, id, stages, target)
+}
+
+func TestOneBazelInvocationPerStage(t *testing.T) {
+	h := newHarness(t)
+	calls := fakeBazel(h, `echo "//a:t   PASSED in 1s"; echo "//web:t   PASSED in 1s"`)
+	body := bazelCheck("tests", "//a/...", "STAGE_FULL") + bazelCheck("e2e", "//web/...", "STAGE_FULL") + bazelCheck("rules", "//a:t", "STAGE_FULL")
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	data, _ := os.ReadFile(calls)
+	if lines := strings.Count(string(data), "\n"); lines != 1 {
+		t.Fatalf("%d Bazel invocations: %s", lines, data)
+	}
+	if !strings.Contains(string(data), "--nocache_test_results") || !strings.Contains(string(data), "//web/...") {
+		t.Fatalf("args: %s", data)
+	}
+}
+
+func TestPrePushSubtractsFullOnlyTargets(t *testing.T) {
+	h := newHarness(t)
+	calls := fakeBazel(h, `echo "//a:t   (cached) PASSED in 1s"`)
+	body := bazelCheck("tests", "//...", "STAGE_PRE_PUSH, STAGE_FULL") + bazelCheck("e2e", "//web/...", "STAGE_FULL")
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_PRE_PUSH)); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	data, _ := os.ReadFile(calls)
+	if !strings.Contains(string(data), "-- //... -//web/...") || strings.Contains(string(data), "--nocache_test_results") {
+		t.Fatalf("args: %s", data)
+	}
+}
+
+func TestDeadlineInterruptsOnlyOurClientOnce(t *testing.T) {
+	saved := clientGrace
+	clientGrace = 300 * time.Millisecond
+	defer func() { clientGrace = saved }()
+	h := newHarness(t)
+	signals := filepath.Join(t.TempDir(), "signals")
+	fakeBazel(h, `trap 'echo INT >>`+signals+`' INT; while :; do sleep 0.05; done`)
+	options := h.options(bazelCheck("tests", "//...", "STAGE_FULL"), registrypb.Stage_STAGE_FULL)
+	options.Deadline = 500 * time.Millisecond
+	code := h.run(options)
+	if code != ExitInterrupted {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	data, _ := os.ReadFile(signals)
+	if string(data) != "INT\n" {
+		t.Fatalf("want exactly one interrupt, because repeated ones ask Bazel to kill its server: %q", data)
+	}
+	if !strings.Contains(h.out.String(), "a shared server is left running") {
+		t.Fatalf("the run must say what it left:\n%s", h.out.String())
+	}
+}
+
+func startProcess(t *testing.T, args ...string) *exec.Cmd {
+	t.Helper()
+	command := exec.Command(args[0], args[1:]...)
+	if err := command.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = command.Process.Kill(); _ = command.Wait() })
+	return command
+}
+
+func TestServerStopRequiresExactIdentity(t *testing.T) {
+	base := t.TempDir()
+	pidfile := filepath.Join(base, "server", "server.pid.txt")
+	if err := os.MkdirAll(filepath.Dir(pidfile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	loop := "while :; do sleep 0.05; done"
+	bystander := startProcess(t, "sh", "-c", loop, "--output_base="+base+"-other")
+	if err := os.WriteFile(pidfile, []byte(strconv.Itoa(bystander.Process.Pid)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := StopOwnedServer(base); err == nil || !strings.Contains(err.Error(), "left running") {
+		t.Fatalf("a process that is not this base's server: %v", err)
+	}
+	if !alive(bystander.Process.Pid) {
+		t.Fatal("the bystander was signaled on the word of a PID file")
+	}
+
+	owned := startProcess(t, "sh", "-c", loop, "--output_base="+base)
+	done := make(chan error, 1)
+	go func() { done <- owned.Wait() }()
+	if err := os.WriteFile(pidfile, []byte(strconv.Itoa(owned.Process.Pid)), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := StopOwnedServer(base); err != nil {
+		t.Fatal(err)
+	}
+	select {
+	case <-done:
+	case <-time.After(3 * time.Second):
+		t.Fatal("the proved owned server is still running")
+	}
+	if err := os.Remove(pidfile); err != nil {
+		t.Fatal(err)
+	}
+	if err := StopOwnedServer(base); err != nil {
+		t.Fatalf("no server to stop: %v", err)
+	}
+}
+
+func TestSlotWaitsWhileForegroundWorkHoldsIt(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "slot")
+	holder, err := Acquire(context.Background(), []string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	short, cancel := context.WithTimeout(context.Background(), 300*time.Millisecond)
+	defer cancel()
+	if _, err := Acquire(short, []string{path}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("a held slot was granted: %v", err)
+	}
+	holder.Release()
+	next, err := Acquire(context.Background(), []string{path})
+	if err != nil {
+		t.Fatalf("a released slot was not granted: %v", err)
+	}
+	next.Release()
+}
+
+func TestSlotDoesNotOutliveTheParent(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "slot")
+	holder, err := Acquire(context.Background(), []string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	daemon := startProcess(t, "sleep", "30")
+	holder.Release()
+	short, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+	next, err := Acquire(short, []string{path})
+	if err != nil {
+		t.Fatalf("a child kept the slot after the parent let go: %v", err)
+	}
+	next.Release()
+	if !alive(daemon.Process.Pid) {
+		t.Fatal("the control needs the child alive")
+	}
+
+	// The control: an inherited descriptor keeps the flock, so the check above can see a leak.
+	holder, err = Acquire(context.Background(), []string{path})
+	if err != nil {
+		t.Fatal(err)
+	}
+	leaky := exec.Command("sleep", "30")
+	leaky.ExtraFiles = []*os.File{holder.file}
+	if err := leaky.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = leaky.Process.Kill(); _ = leaky.Wait() })
+	holder.Release()
+	short2, cancel2 := context.WithTimeout(context.Background(), 400*time.Millisecond)
+	defer cancel2()
+	if _, err := Acquire(short2, []string{path}); !errors.Is(err, context.DeadlineExceeded) {
+		t.Fatalf("the inherited-lock control did not hold the slot: %v", err)
+	}
+}
+
+func TestDiscover(t *testing.T) {
+	h := newHarness(t)
+	h.write("sp ace/authored file.sh", "#!/bin/sh\n")
+	h.write("noextension", "#!/usr/bin/env bash\n")
+	h.write("notes.txt", "hello\n")
+	h.write("BUILD", "\n")
+	h.write("gone.sh", "#!/bin/sh\n")
+	h.write("excluded.sh", "#!/bin/sh\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "first")
+	h.write("untracked.sh", "#!/bin/sh\n")
+	if err := os.Remove(filepath.Join(h.dir, "gone.sh")); err != nil {
+		t.Fatal(err)
+	}
+	h.write(".git/info/exclude", "excluded.sh\nhidden.sh\n")
+	h.write("hidden.sh", "#!/bin/sh\n")
+	if err := os.Symlink("nowhere", filepath.Join(h.dir, "dangling")); err != nil {
+		t.Fatal(err)
+	}
+	registry := h.registry(baseCheck)
+	inputs, err := Discover(context.Background(), Git{Dir: h.dir, Env: gitEnv()}, registry)
+	if err != nil {
+		t.Fatal(err)
+	}
+	check := &registrypb.Check{Selector: &registrypb.Selector{Include: []string{`\.(sh|bash)$`}, ShellScripts: true}}
+	shell := Select(check, inputs)
+	for _, want := range []string{"sp ace/authored file.sh", "untracked.sh", "noextension", "hidden.sh", "excluded.sh"} {
+		if !slices.Contains(shell, want) {
+			t.Errorf("%q was lost: %v", want, shell)
+		}
+	}
+	for _, reject := range []string{"vendored.sh", "notes.txt", "dangling", "gone.sh"} {
+		if slices.Contains(shell, reject) {
+			t.Errorf("%q was selected", reject)
+		}
+	}
+	if !slices.Contains(inputs.All, "vendored.sh") || !slices.Contains(inputs.Deleted, "gone.sh") || slices.Contains(inputs.All, "gone.sh") {
+		t.Errorf("all %v deleted %v", inputs.All, inputs.Deleted)
+	}
+	h.write("tools/speckit/scaffold.sha256", strings.Repeat("0", 64)+"  missing.sh\n")
+	if _, err := Discover(context.Background(), Git{Dir: h.dir, Env: gitEnv()}, registry); err == nil {
+		t.Fatal("a missing vendored entry passed")
+	}
+	h.write("tools/speckit/scaffold.sha256", "")
+	if _, err := Discover(context.Background(), Git{Dir: h.dir, Env: gitEnv()}, registry); err == nil {
+		t.Fatal("an empty manifest passed")
+	}
+}
+
+func TestTestedTree(t *testing.T) {
+	h := newHarness(t)
+	h.write("MODULE.bazel", "module(name = \"a\")\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "first")
+	git := Git{Dir: h.dir, Env: gitEnv()}
+	registry := h.registry(baseCheck)
+	measure := func() (string, string) {
+		inputs, err := Discover(context.Background(), git, registry)
+		if err != nil {
+			t.Fatal(err)
+		}
+		tree, digest, err := TestedTree(context.Background(), git, inputs, t.TempDir())
+		if err != nil {
+			t.Fatal(err)
+		}
+		return tree, digest
+	}
+	tree, digest := measure()
+	if tree != h.git("rev-parse", "HEAD^{tree}") {
+		t.Fatal("a clean checkout must equal HEAD's tree")
+	}
+	status := h.git("status", "--porcelain")
+	h.write("MODULE.bazel", "module(name = \"b\")\n")
+	h.git("update-index", "--skip-worktree", "MODULE.bazel")
+	tree2, digest2 := measure()
+	if tree2 == tree || digest2 == digest {
+		t.Fatal("a skip-worktree edit looked clean")
+	}
+	if status != "" {
+		t.Fatalf("measuring changed the repository: %q", status)
+	}
+}
+
+func snapshot(t *testing.T, h *harness, env []string) (*Inputs, string) {
+	t.Helper()
+	scratch := t.TempDir()
+	inputs, err := Snapshot(context.Background(), Git{Dir: h.dir, Env: env}, h.registry(baseCheck), scratch)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return inputs, scratch
+}
+
+func TestSnapshotReadsTheIndex(t *testing.T) {
+	h := newHarness(t)
+	h.write("keep.txt", "committed\n")
+	h.write("old name.txt", "renamed\n")
+	h.write("delete.txt", "gone\n")
+	h.write("tool.sh", "#!/bin/sh\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "first")
+
+	h.write("keep.txt", "staged\n")
+	h.git("add", "keep.txt")
+	h.write("keep.txt", "unstaged\n")
+	h.git("mv", "old name.txt", "new name.txt")
+	h.git("rm", "-q", "delete.txt")
+	h.write("line\nbreak.txt", "odd\n")
+	h.git("add", "line\nbreak.txt")
+	h.git("update-index", "--chmod=+x", "real.go")
+	if err := os.Symlink("real.go", filepath.Join(h.dir, "link")); err != nil {
+		t.Fatal(err)
+	}
+	h.git("add", "link")
+	h.write("untracked.txt", "bad\n")
+	indexBefore, _ := os.ReadFile(filepath.Join(h.dir, ".git", "index"))
+	status := h.git("status", "--porcelain")
+
+	inputs, scratch := snapshot(t, h, gitEnv())
+
+	read := func(name string) string {
+		data, err := os.ReadFile(filepath.Join(scratch, name))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(data)
+	}
+	if got := read("keep.txt"); got != "staged\n" {
+		t.Errorf("read the working tree, not the index: %q", got)
+	}
+	if got := read("line\nbreak.txt"); got != "odd\n" {
+		t.Errorf("newline path: %q", got)
+	}
+	if got := read("new name.txt"); got != "renamed\n" {
+		t.Errorf("rename: %q", got)
+	}
+	if got := read("link"); got != "real.go" {
+		t.Errorf("symlink: %q", got)
+	}
+	if info, err := os.Stat(filepath.Join(scratch, "real.go")); err != nil || info.Mode()&0o111 == 0 {
+		t.Errorf("mode lost: %v %v", info, err)
+	}
+	for _, absent := range []string{"untracked.txt", "tool.sh", "old name.txt"} {
+		if _, err := os.Stat(filepath.Join(scratch, absent)); err == nil {
+			t.Errorf("%s reached the snapshot", absent)
+		}
+	}
+	if !slices.Contains(inputs.Deleted, "delete.txt") || !slices.Contains(inputs.Deleted, "old name.txt") {
+		t.Errorf("deleted: %v", inputs.Deleted)
+	}
+	indexAfter, _ := os.ReadFile(filepath.Join(h.dir, ".git", "index"))
+	if !bytes.Equal(indexBefore, indexAfter) || h.git("status", "--porcelain") != status {
+		t.Error("the snapshot changed the index or the working tree")
+	}
+}
+
+func TestSnapshotFollowsTheIndexGitNamed(t *testing.T) {
+	h := newHarness(t)
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "first")
+	h.write("real.go", "package staged\n")
+	h.git("add", "real.go")
+	h.write("real.go", "package other\n")
+	alternate := filepath.Join(t.TempDir(), "next-index")
+	if data, err := os.ReadFile(filepath.Join(h.dir, ".git", "index")); err != nil {
+		t.Fatal(err)
+	} else if err := os.WriteFile(alternate, data, 0o644); err != nil {
+		t.Fatal(err)
+	}
+	env := append(gitEnv(), "GIT_INDEX_FILE="+alternate)
+	if _, err := (Git{Dir: h.dir, Env: env}).Run(context.Background(), nil, "add", "real.go"); err != nil {
+		t.Fatal(err)
+	}
+	_, scratch := snapshot(t, h, env)
+	if data, _ := os.ReadFile(filepath.Join(scratch, "real.go")); string(data) != "package other\n" {
+		t.Fatalf("read the main index: %q", data)
+	}
+	_, scratch = snapshot(t, h, gitEnv())
+	if data, _ := os.ReadFile(filepath.Join(scratch, "real.go")); string(data) != "package staged\n" {
+		t.Fatalf("control: %q", data)
+	}
+}
+
+func TestDeletionOnlyCommitHasNoInputs(t *testing.T) {
+	h := newHarness(t)
+	h.write("delete.txt", "gone\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "first")
+	h.git("rm", "-q", "delete.txt")
+	inputs, _ := snapshot(t, h, gitEnv())
+	if len(inputs.All) != 0 || len(inputs.Deleted) != 1 {
+		t.Fatalf("%+v", inputs)
+	}
+}
+
+func TestEscalation(t *testing.T) {
+	h := newHarness(t)
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "first")
+	base := h.git("rev-parse", "HEAD")
+	h.write("src.go", "package a\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "second")
+	ordinary := h.git("rev-parse", "HEAD")
+	h.write("quality/x", "y\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "third")
+	policy := h.git("rev-parse", "HEAD")
+	git := Git{Dir: h.dir, Env: gitEnv()}
+	patterns := []string{"^quality/"}
+	cases := []struct {
+		name, from, to string
+		want           bool
+	}{
+		{"ordinary edit", base, ordinary, false},
+		{"policy edit", ordinary, policy, true},
+		{"unknown base", "", policy, true},
+		{"zero base", strings.Repeat("0", 40), ordinary, true},
+		{"unreadable base", strings.Repeat("a", 40), ordinary, true},
+	}
+	for _, test := range cases {
+		got, err := Escalates(context.Background(), git, patterns, test.from, test.to)
+		if err != nil || got != test.want {
+			t.Errorf("%s: %v, %v", test.name, got, err)
+		}
+	}
+}
+
+func TestPushWorktreeIsExactlyThePushedCommit(t *testing.T) {
+	h := newHarness(t)
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "first")
+	first := h.git("rev-parse", "HEAD")
+	h.write("src.go", "package a\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "second")
+	second := h.git("rev-parse", "HEAD")
+	git := Git{Dir: h.dir, Env: gitEnv()}
+	worktree := filepath.Join(t.TempDir(), "push worktree")
+	if err := prepareWorktree(context.Background(), git, worktree, second); err != nil {
+		t.Fatal(err)
+	}
+	h.writeAbs(filepath.Join(worktree, "src.go"), "changed\n", 0o644)
+	h.writeAbs(filepath.Join(worktree, "left-behind.go"), "stale\n", 0o644)
+	if err := prepareWorktree(context.Background(), git, worktree, first); err != nil {
+		t.Fatal(err)
+	}
+	for _, absent := range []string{"src.go", "left-behind.go"} {
+		if _, err := os.Stat(filepath.Join(worktree, absent)); err == nil {
+			t.Errorf("%s survived into the next push", absent)
+		}
+	}
+	out, _ := (Git{Dir: worktree, Env: gitEnv()}).Run(context.Background(), nil, "rev-parse", "HEAD")
+	if strings.TrimSpace(string(out)) != first {
+		t.Errorf("at %s", out)
+	}
+	if h.git("rev-parse", "--abbrev-ref", "HEAD") != "main" {
+		t.Error("the push moved the checkout")
+	}
+	if err := os.RemoveAll(worktree); err != nil {
+		t.Fatal(err)
+	}
+	if err := prepareWorktree(context.Background(), git, worktree, second); err != nil {
+		t.Fatalf("a removed worktree must come back: %v", err)
+	}
+}
+
+func TestRegistryTextRoundTrips(t *testing.T) {
+	registry := &registrypb.Registry{}
+	if err := prototext.Unmarshal([]byte(baseCheck), registry); err != nil {
+		t.Fatal(err)
+	}
+	if registry.GetChecks()[0].GetId() != "good" {
+		t.Fatal("generated schema mismatch")
+	}
+}

@@ -5,7 +5,7 @@
 # repository's own scans never see them.
 set -euo pipefail
 for pair in "$@"; do export "${pair%%=*}=$(realpath "${pair#*=}")"; done
-native="$PWD/tools/checks/native.sh"
+native="$NATIVE"
 repo_gitleaks_config="$PWD/.gitleaks.toml"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT

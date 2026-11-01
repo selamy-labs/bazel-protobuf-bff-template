@@ -1,6 +1,7 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@npm//:defs.bzl", "npm_link_all_packages")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
+load("@rules_go//go:def.bzl", "go_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
@@ -8,7 +9,6 @@ exports_files(
     [
         "tools/checks/dependency_rules.sh",
         "tools/checks/dependency_rules_test.sh",
-        "tools/checks/native.sh",
     ],
     visibility = [
         "//api:__pkg__",
@@ -87,6 +87,7 @@ TOOLS = {
     "GITLEAKS": "@bff_template_quality//tools:gitleaks",
     "GOFMT": "@go_sdk//:bin/gofmt",
     "PRETTIER": "//:prettier",
+    "PREK": "@bff_template_quality//tools:prek",
     "SHELLCHECK": "@bff_template_quality//tools:shellcheck",
     "SUPPRESSION": "@bff_template_quality//checks/suppression:suppression-ban",
     "TYPOS": "@bff_template_quality//tools:typos",
@@ -95,6 +96,22 @@ TOOLS = {
     "YQ": "@bff_template_quality//tools:yq",
     "ZIZMOR": "@bff_template_quality//tools:zizmor",
 }
+
+# The one runner, with this repository's pinned tools (spec 006 FR-004). The label differs from the
+# contract's first draft because quality/ is its own module.
+go_binary(
+    name = "quality",
+    args = [
+        "--registry=$(rootpath @bff_template_quality//:registry.textproto)",
+        "--adapter=$(rootpath @bff_template_quality//adapters:native.sh)",
+    ] + ["--tool=%s=$(rootpath %s)" % (name, label) for name, label in sorted(TOOLS.items())],
+    data = sorted(TOOLS.values()) + [
+        "@bff_template_quality//:registry.textproto",
+        "@bff_template_quality//adapters:native.sh",
+    ],
+    embed = ["@bff_template_quality//runner/cmd"],
+    visibility = ["//visibility:public"],
+)
 
 # Resolves the pinned tools once; the verifier then runs them from the repository root.
 sh_binary(
@@ -108,10 +125,12 @@ sh_test(
     name = "native_fixtures_test",
     size = "small",
     srcs = ["tools/checks/native_fixtures_test.sh"],
-    args = ["%s=$(rootpath %s)" % (name, label) for name, label in sorted(TOOLS.items())],
+    args = ["%s=$(rootpath %s)" % (name, label) for name, label in sorted(TOOLS.items())] + [
+        "NATIVE=$(rootpath @bff_template_quality//adapters:native.sh)",
+    ],
     data = sorted(TOOLS.values()) + [
         ".gitleaks.toml",
-        "tools/checks/native.sh",
+        "@bff_template_quality//adapters:native.sh",
     ],
 )
 

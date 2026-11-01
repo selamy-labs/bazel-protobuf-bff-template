@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+// The one definition of each quality rule (spec 006 FR-001, FR-002). Hooks, the verifier and CI
+// select from an instance of this schema; none of them carries a list of its own.
+package template.quality.v1;
+
+option go_package = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb";
+
+enum Stage {
+  STAGE_UNSPECIFIED = 0;
+  STAGE_PRE_COMMIT = 1;
+  STAGE_COMMIT_MSG = 2;
+  STAGE_PRE_PUSH = 3;
+  STAGE_FULL = 4;
+}
+
+enum Classification {
+  CLASSIFICATION_UNSPECIFIED = 0;
+  // A failure blocks.
+  CLASSIFICATION_GUARANTEE = 1;
+  // Reported, never blocks.
+  CLASSIFICATION_SIGNAL = 2;
+}
+
+enum Kind {
+  KIND_UNSPECIFIED = 0;
+  // Composed into the stage's single Bazel invocation.
+  KIND_BAZEL = 1;
+  // Run in the bounded pool.
+  KIND_NATIVE = 2;
+}
+
+enum Direction {
+  DIRECTION_UNSPECIFIED = 0;
+  DIRECTION_MIN = 1;
+  DIRECTION_MAX = 2;
+}
+
+// A typed limit. A SIGNAL cannot carry one, because it could not fail.
+message Threshold {
+  Direction direction = 1;
+  double value = 2;
+}
+
+// Which paths a check judges.
+message Selector {
+  // RE2 patterns over repository-relative paths. Empty means every file in scope.
+  repeated string include = 1;
+  // Also select files whose first line names a shell.
+  bool shell_scripts = 2;
+  // Vendored manifest entries are skipped unless this is set.
+  bool include_vendored = 3;
+  // Enrolled defect fixtures are skipped unless this is set.
+  bool include_fixtures = 4;
+  // Paths this check reads besides its inputs. In a staged snapshot they come from the same index.
+  repeated string context = 5;
+}
+
+message Check {
+  // Stable and kebab-case. Never reused for a different rule.
+  string id = 1;
+  // The Tool that does the work. Empty for a repository script or a Bazel target.
+  string tool = 2;
+  Selector selector = 3;
+  repeated Stage stages = 4;
+  Classification classification = 5;
+  Kind kind = 6;
+  uint32 timeout_seconds = 7;
+  // Zero inputs at `full` is not an error for this check.
+  bool allow_empty = 8;
+  // KIND_NATIVE: argv. {adapter}, {list}, {list_nl}, {root}, {bazel_log} and {isolation} expand, as
+  // does {NAME} for a Tool.
+  repeated string command = 9;
+  // KIND_BAZEL: target patterns.
+  repeated string targets = 10;
+  // Runs after the stage's Bazel invocation, because it judges its log.
+  bool after_bazel = 11;
+  // Runs alone, after the pool, because it starts its own Bazel.
+  bool exclusive = 12;
+  // Where the defect and corrected cases live: a required test target or a fixture check id.
+  string witness = 13;
+  Threshold threshold = 14;
+  // Skipped with --offline, because it needs the network. A skipped run cannot be PASSED.
+  bool needs_network = 15;
+}
+
+// A pinned tool, as the root target passes it in NAME=path form.
+message Tool {
+  string name = 1;
+  // Prints the version recorded in a receipt. Empty for a data file.
+  repeated string version_args = 2;
+}
+
+message Registry {
+  // The semantic version of the quality module.
+  string version = 1;
+  // RE2 patterns: a pushed change to one of these paths escalates pre-push to full.
+  repeated string escalate = 2;
+  // Manifests of vendored files and enrolled fixtures, as `<sha256>  <path>` lines.
+  string vendored_manifest = 3;
+  string fixture_manifest = 4;
+  repeated Tool tools = 5;
+  repeated Check checks = 6;
+}

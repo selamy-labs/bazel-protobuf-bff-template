@@ -1,0 +1,13 @@
+load("@rules_go//go:def.bzl", "go_library")
+
+# Consumers embed this in a go_binary that passes their pinned tools; see the root BUILD.bazel.
+go_library(
+    name = "cmd",
+    srcs = ["main.go"],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/runner/cmd",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//proto:registrypb",
+        "//runner",
+    ],
+)

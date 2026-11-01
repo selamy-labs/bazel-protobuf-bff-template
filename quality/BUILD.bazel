@@ -1,1 +1,7 @@
-exports_files(["multitool.lock.json"])
+exports_files(
+    [
+        "multitool.lock.json",
+        "registry.textproto",
+    ],
+    visibility = ["//visibility:public"],
+)

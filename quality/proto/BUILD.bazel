@@ -1,4 +1,5 @@
 load("@rules_go//go:def.bzl", "go_library", "go_test")
+load(":defs.bzl", "buf_generate")
 
 exports_files(
     ["buf.yaml"],
@@ -17,4 +18,26 @@ go_test(
     size = "small",
     srcs = ["baseline_test.go"],
     embed = [":proto"],
+)
+
+exports_files(["registry.proto"])
+
+buf_generate(
+    name = "registry_go_gen",
+    outs = ["template/quality/v1/registry.pb.go"],
+    opts = ["paths=source_relative"],
+    plugin = "@org_golang_google_protobuf//cmd/protoc-gen-go",
+    schema = "registry.proto",
+    schema_path = "template/quality/v1/registry.proto",
+)
+
+go_library(
+    name = "registrypb",
+    srcs = [":registry_go_gen"],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/proto/registrypb",
+    visibility = ["//runner:__subpackages__"],
+    deps = [
+        "@org_golang_google_protobuf//reflect/protoreflect",
+        "@org_golang_google_protobuf//runtime/protoimpl",
+    ],
 )
