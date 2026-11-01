@@ -82,12 +82,12 @@ func internal(ctx context.Context, logger *slog.Logger, spec connect.Spec, cause
 }
 
 // bounded gives every call a deadline. A client's shorter deadline stays in force.
-func bounded() connect.ServerInterceptor {
+func bounded(limits Limits) connect.ServerInterceptor {
 	return func(next connect.ServerFunc) connect.ServerFunc {
 		return func(ctx context.Context, spec connect.Spec, stream connect.ServerStream) error {
-			limit := MaxDeadline
+			limit := limits.MaxDeadline
 			if _, ok := ctx.Deadline(); !ok {
-				limit = DefaultDeadline
+				limit = limits.DefaultDeadline
 			}
 			ctx, cancel := context.WithTimeout(ctx, limit)
 			defer cancel()

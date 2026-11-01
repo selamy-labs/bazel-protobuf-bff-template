@@ -24,34 +24,64 @@ import (
 	"example.com/bfftemplate/bff/ports"
 )
 
-const (
-	// DefaultDeadline applies when the client sets no deadline.
-	DefaultDeadline = 2 * time.Second
+// Limits are the call bounds a composition declares once (spec 011 FR-016); the handler carries no default
+// of its own, and Check refuses a value outside the invariants below, whatever configuration asked for it.
+type Limits struct {
+	// DefaultDeadline applies to a call that sets no deadline.
+	DefaultDeadline time.Duration
 	// MaxDeadline caps any deadline a client asks for.
-	MaxDeadline = 10 * time.Second
-	// MaxRequestBytes fits a maximum note and is enforced before decoding.
-	MaxRequestBytes = 64 << 10
+	MaxDeadline time.Duration
+	// MaxRequestBytes is enforced before decoding.
+	MaxRequestBytes int
+}
+
+// The invariants no configuration can weaken: a deadline beyond a minute would let a hung call hold a
+// worker, and a request body must hold the schema's largest note yet never an unbounded one.
+const (
+	deadlineCeiling     = time.Minute
+	requestBytesFloor   = 8 << 10
+	requestBytesCeiling = 1 << 20
 )
 
-// Options configures the handler.
+// Check refuses a missing bound, an inverted pair or a value outside the invariants, naming the field.
+func (l Limits) Check() error {
+	switch {
+	case l.DefaultDeadline <= 0:
+		return errors.New("calls.default_deadline: required and positive")
+	case l.MaxDeadline <= 0:
+		return errors.New("calls.max_deadline: required and positive")
+	case l.DefaultDeadline > l.MaxDeadline:
+		return fmt.Errorf("calls.default_deadline: %s exceeds calls.max_deadline %s", l.DefaultDeadline, l.MaxDeadline)
+	case l.MaxDeadline > deadlineCeiling:
+		return fmt.Errorf("calls.max_deadline: %s exceeds the ceiling %s; the ceiling is an invariant, not a setting", l.MaxDeadline, deadlineCeiling)
+	case l.MaxRequestBytes < requestBytesFloor:
+		return fmt.Errorf("calls.max_request_bytes: %d is below %d, which the schema's largest note needs", l.MaxRequestBytes, requestBytesFloor)
+	case l.MaxRequestBytes > requestBytesCeiling:
+		return fmt.Errorf("calls.max_request_bytes: %d exceeds the ceiling %d; the ceiling is an invariant, not a setting", l.MaxRequestBytes, requestBytesCeiling)
+	}
+	return nil
+}
+
+// Options configures the handler. Limits must have passed Check.
 type Options struct {
 	Notes             *app.Notes
 	Authenticator     identity.Authenticator
 	AllowTestIdentity bool
 	AllowedOrigin     string
 	Logger            *slog.Logger
+	Limits            Limits
 }
 
 // NewHandler returns the HTTP handler for the notes service.
 func NewHandler(options Options) http.Handler {
 	server := connect.NewServer(
 		masking(options.Logger),
-		bounded(),
+		bounded(options.Limits),
 		authenticating(options.Authenticator, options.AllowTestIdentity),
 	)
 	notesv1connect.RegisterNoteServiceHandler(server, notes{app: options.Notes})
 	mux := http.NewServeMux()
-	connecthttp.Mount(mux, server, connecthttp.WithReadMaxBytes(MaxRequestBytes))
+	connecthttp.Mount(mux, server, connecthttp.WithReadMaxBytes(options.Limits.MaxRequestBytes))
 	return cors(options.AllowedOrigin, mux)
 }
 

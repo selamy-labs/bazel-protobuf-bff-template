@@ -30,9 +30,47 @@ const (
 	ModeDev Mode = "dev"
 )
 
-const shutdownBound = 5 * time.Second
+// CallLimits are the call bounds the composition declares (bff/transport); the server requires them.
+type CallLimits = transport.Limits
 
-// Config is everything a server needs.
+// ListenerLimits bound the HTTP listener. The composition declares them once; the server requires them and
+// derives the write timeout from the call bounds, since a response may take a whole call deadline to form.
+type ListenerLimits struct {
+	ReadHeaderTimeout time.Duration
+	ReadTimeout       time.Duration
+	IdleTimeout       time.Duration
+	MaxHeaderBytes    int
+	// ShutdownBound is how long a stop drains before open connections are closed.
+	ShutdownBound time.Duration
+}
+
+// The listener's invariants: a drain beyond thirty seconds would hold a rollout, and headers stay small.
+const (
+	shutdownCeiling    = 30 * time.Second
+	headerBytesFloor   = 1 << 10
+	headerBytesCeiling = 1 << 20
+)
+
+// Check refuses a missing or inverted listener bound by name.
+func (l ListenerLimits) Check() error {
+	switch {
+	case l.ReadHeaderTimeout <= 0:
+		return errors.New("listener.read_header_timeout: required and positive")
+	case l.ReadTimeout < l.ReadHeaderTimeout:
+		return fmt.Errorf("listener.read_timeout: %s is below listener.read_header_timeout %s", l.ReadTimeout, l.ReadHeaderTimeout)
+	case l.IdleTimeout <= 0:
+		return errors.New("listener.idle_timeout: required and positive")
+	case l.MaxHeaderBytes < headerBytesFloor || l.MaxHeaderBytes > headerBytesCeiling:
+		return fmt.Errorf("listener.max_header_bytes: %d is outside %d to %d", l.MaxHeaderBytes, headerBytesFloor, headerBytesCeiling)
+	case l.ShutdownBound <= 0:
+		return errors.New("listener.shutdown_bound: required and positive")
+	case l.ShutdownBound > shutdownCeiling:
+		return fmt.Errorf("listener.shutdown_bound: %s exceeds the ceiling %s; the ceiling is an invariant, not a setting", l.ShutdownBound, shutdownCeiling)
+	}
+	return nil
+}
+
+// Config is everything a server needs. Every bound is required: nothing here has a default.
 type Config struct {
 	Mode          Mode
 	Addr          string
@@ -41,6 +79,8 @@ type Config struct {
 	Store         ports.Store
 	Logger        *slog.Logger
 	Stdout        io.Writer
+	Calls         CallLimits
+	Listener      ListenerLimits
 }
 
 // Check refuses a configuration before anything is served.
@@ -52,6 +92,12 @@ func (c Config) Check() error {
 		return errors.New("no store is configured")
 	}
 	if err := checkOrigin(c.AllowedOrigin); err != nil {
+		return err
+	}
+	if err := c.Calls.Check(); err != nil {
+		return err
+	}
+	if err := c.Listener.Check(); err != nil {
 		return err
 	}
 	switch c.Mode {
@@ -98,6 +144,7 @@ func NewHandler(config Config) http.Handler {
 		AllowTestIdentity: config.Mode == ModeDev,
 		AllowedOrigin:     config.AllowedOrigin,
 		Logger:            config.Logger,
+		Limits:            config.Calls,
 	})
 }
 
@@ -120,11 +167,11 @@ func Run(ctx context.Context, config Config) error {
 	}
 	server := &http.Server{
 		Handler:           NewHandler(config),
-		ReadHeaderTimeout: 5 * time.Second,
-		ReadTimeout:       15 * time.Second,
-		WriteTimeout:      transport.MaxDeadline + 5*time.Second,
-		IdleTimeout:       60 * time.Second,
-		MaxHeaderBytes:    16 << 10,
+		ReadHeaderTimeout: config.Listener.ReadHeaderTimeout,
+		ReadTimeout:       config.Listener.ReadTimeout,
+		WriteTimeout:      config.Calls.MaxDeadline + 5*time.Second, // derived: a whole call, then the write
+		IdleTimeout:       config.Listener.IdleTimeout,
+		MaxHeaderBytes:    config.Listener.MaxHeaderBytes,
 	}
 	served := make(chan error, 1)
 	go func() { served <- server.Serve(listener) }()
@@ -142,7 +189,7 @@ func Run(ctx context.Context, config Config) error {
 		return err
 	case <-ctx.Done():
 	}
-	drain, cancel := context.WithTimeout(context.Background(), shutdownBound)
+	drain, cancel := context.WithTimeout(context.Background(), config.Listener.ShutdownBound)
 	defer cancel()
 	if err := server.Shutdown(drain); err != nil {
 		return errors.Join(err, server.Close())

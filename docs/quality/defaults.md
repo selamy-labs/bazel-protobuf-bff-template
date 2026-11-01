@@ -48,14 +48,14 @@ inventory: they are not configurable behavior of the product.
 
 ## Transport and server internals, `bff/transport`, `bff/server`
 
-| Site                             | Value                                                                                                                        | Boundary                                                                                     |
-| -------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
-| `handlers.go` `DefaultDeadline`  | 2 s for a call that sets no deadline                                                                                         | scattered: an inner default not set at the composition. Owner T020                           |
-| `handlers.go` `MaxDeadline`      | 10 s cap on any client deadline                                                                                              | scattered (a bound). Owner T020: composition parameter, or a fixed bound with its reason     |
-| `handlers.go` `MaxRequestBytes`  | 64 KiB                                                                                                                       | scattered (a bound). Owner T020                                                              |
-| `server.go` `shutdownBound`      | 5 s drain                                                                                                                    | scattered. Owner T020                                                                        |
-| `server.go` `http.Server`        | `ReadHeaderTimeout` 5 s, `ReadTimeout` 15 s, `WriteTimeout` `MaxDeadline` + 5 s, `IdleTimeout` 60 s, `MaxHeaderBytes` 16 KiB | scattered. Owner T020                                                                        |
-| `interceptors.go` correlation id | 8 random bytes, hex                                                                                                          | contract (specs/001 contracts/notes-api.md: an internal error carries only a correlation id) |
+| Site                                                                                                              | Value                                                                                                                        | Boundary                                                                                                         |
+| ----------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| `bff/cmd/bff/config.go` `--default-deadline` (`BFF_DEFAULT_DEADLINE`), formerly `handlers.go` `DefaultDeadline`   | 2 s for a call that sets no deadline                                                                                         | composition (moved at T020; the development composition declares its own copy in `bff-dev/main.go`)              |
+| `bff/cmd/bff/config.go` `--max-deadline` (`BFF_MAX_DEADLINE`), formerly `handlers.go` `MaxDeadline`               | 10 s cap on any client deadline                                                                                              | composition, with the ceiling of one minute an invariant the server's check enforces whatever configuration asks |
+| `bff/cmd/bff/config.go` `--max-request-bytes` (`BFF_MAX_REQUEST_BYTES`), formerly `handlers.go` `MaxRequestBytes` | 64 KiB                                                                                                                       | scattered (a bound). Owner T020                                                                                  |
+| `bff/cmd/bff/config.go` `--shutdown-bound` (`BFF_SHUTDOWN_BOUND`), formerly `server.go` `shutdownBound`           | 5 s drain                                                                                                                    | composition, with a ceiling of thirty seconds an invariant                                                       |
+| `bff/cmd/bff/config.go` `listener`, formerly `server.go` `http.Server`                                            | `ReadHeaderTimeout` 5 s, `ReadTimeout` 15 s, `WriteTimeout` `MaxDeadline` + 5 s, `IdleTimeout` 60 s, `MaxHeaderBytes` 16 KiB | composition: set once in the composition, required by the server, the write timeout derived from the call bounds |
+| `interceptors.go` correlation id                                                                                  | 8 random bytes, hex                                                                                                          | contract (specs/001 contracts/notes-api.md: an internal error carries only a correlation id)                     |
 
 ## Application and adapters, `bff/app`, `bff/adapters`
 
@@ -95,9 +95,9 @@ inventory: they are not configurable behavior of the product.
 
 | Boundary    | Rows |
 | ----------- | ---- |
-| composition | 14   |
+| composition | 19   |
 | input       | 4    |
 | contract    | 8    |
-| scattered   | 12   |
+| scattered   | 7    |
 
 The scattered rows are the open work of T020, each with an owner above; none is waived.

@@ -32,6 +32,8 @@ func valid() Config {
 		Authenticator: verified{},
 		Store:         memory.New(),
 		Logger:        slog.New(slog.DiscardHandler),
+		Calls:         CallLimits{DefaultDeadline: 2 * time.Second, MaxDeadline: 10 * time.Second, MaxRequestBytes: 64 << 10},
+		Listener:      ListenerLimits{ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ShutdownBound: 5 * time.Second},
 	}
 }
 
@@ -56,6 +58,19 @@ func TestCheck(t *testing.T) {
 		{"wildcard origin", func(c *Config) { c.AllowedOrigin = "*" }, "exact"},
 		{"empty origin", func(c *Config) { c.AllowedOrigin = "" }, "exact"},
 		{"origin with a path", func(c *Config) { c.AllowedOrigin = "https://a.example/x" }, "exact"},
+		// The bounds are required (omitted), checked (invalid), and no configuration bypasses an invariant.
+		{"call limits omitted", func(c *Config) { c.Calls = CallLimits{} }, "calls.default_deadline: required"},
+		{"max deadline omitted", func(c *Config) { c.Calls.MaxDeadline = 0 }, "calls.max_deadline: required"},
+		{"default above the maximum", func(c *Config) { c.Calls.DefaultDeadline = 11 * time.Second }, "exceeds calls.max_deadline"},
+		{"max deadline beyond the ceiling", func(c *Config) { c.Calls.MaxDeadline = 2 * time.Minute }, "calls.max_deadline: 2m0s exceeds the ceiling"},
+		{"request bytes below the floor", func(c *Config) { c.Calls.MaxRequestBytes = 1024 }, "calls.max_request_bytes: 1024 is below"},
+		{"request bytes beyond the ceiling", func(c *Config) { c.Calls.MaxRequestBytes = 2 << 20 }, "calls.max_request_bytes: 2097152 exceeds the ceiling"},
+		{"listener omitted", func(c *Config) { c.Listener = ListenerLimits{} }, "listener.read_header_timeout: required"},
+		{"read below read header", func(c *Config) { c.Listener.ReadTimeout = time.Second }, "listener.read_timeout: 1s is below"},
+		{"idle omitted", func(c *Config) { c.Listener.IdleTimeout = 0 }, "listener.idle_timeout: required"},
+		{"header bytes too small", func(c *Config) { c.Listener.MaxHeaderBytes = 100 }, "listener.max_header_bytes: 100 is outside"},
+		{"shutdown omitted", func(c *Config) { c.Listener.ShutdownBound = 0 }, "listener.shutdown_bound: required"},
+		{"shutdown beyond the ceiling", func(c *Config) { c.Listener.ShutdownBound = time.Minute }, "listener.shutdown_bound: 1m0s exceeds the ceiling"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

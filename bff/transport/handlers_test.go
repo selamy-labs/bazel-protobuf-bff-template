@@ -57,7 +57,14 @@ func (b *syncBuffer) String() string {
 	return b.buf.String()
 }
 
+// The bounds these tests declare; the handler has none of its own.
+var limits = transport.Limits{DefaultDeadline: 2 * time.Second, MaxDeadline: 10 * time.Second, MaxRequestBytes: 64 << 10}
+
 func start(t *testing.T, store ports.Store, allowTestIdentity bool) harness {
+	return startWith(t, store, allowTestIdentity, limits)
+}
+
+func startWith(t *testing.T, store ports.Store, allowTestIdentity bool, bounds transport.Limits) harness {
 	t.Helper()
 	log := &syncBuffer{}
 	server := httptest.NewServer(transport.NewHandler(transport.Options{
@@ -66,6 +73,7 @@ func start(t *testing.T, store ports.Store, allowTestIdentity bool) harness {
 		AllowTestIdentity: allowTestIdentity,
 		AllowedOrigin:     origin,
 		Logger:            slog.New(slog.NewJSONHandler(log, nil)),
+		Limits:            bounds,
 	}))
 	t.Cleanup(server.Close)
 	client := notesv1connect.NewNoteServiceClient(connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)))
@@ -312,6 +320,7 @@ func serve(t *testing.T, store ports.Store, authenticator identity.Authenticator
 		AllowTestIdentity: allowTestIdentity,
 		AllowedOrigin:     origin,
 		Logger:            slog.New(slog.NewJSONHandler(log, nil)),
+		Limits:            limits,
 	}))
 	t.Cleanup(server.Close)
 	client := notesv1connect.NewNoteServiceClient(connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)))
@@ -430,8 +439,8 @@ func TestDeadlinesReachStorage(t *testing.T) {
 		high     time.Duration
 		testsEnd bool
 	}{
-		{"default", "", transport.DefaultDeadline - time.Second, transport.DefaultDeadline, false},
-		{"client asks for more than the maximum", "60000", transport.MaxDeadline - time.Second, transport.MaxDeadline, false},
+		{"default", "", limits.DefaultDeadline - time.Second, limits.DefaultDeadline, false},
+		{"client asks for more than the maximum", "60000", limits.MaxDeadline - time.Second, limits.MaxDeadline, false},
 		{"client asks for less", "150", 0, 150 * time.Millisecond, true},
 	}
 	for _, c := range cases {
@@ -554,6 +563,7 @@ func TestVerifierFailureIsInternalNotAReject(t *testing.T) {
 		Authenticator: brokenAuthenticator{},
 		AllowedOrigin: origin,
 		Logger:        slog.New(slog.NewJSONHandler(log, nil)),
+		Limits:        limits,
 	}))
 	t.Cleanup(server.Close)
 	client := notesv1connect.NewNoteServiceClient(connect.NewClient(connecthttp.NewTransport(server.Client(), server.URL)))
@@ -571,7 +581,7 @@ func (brokenAuthenticator) Authenticate(context.Context, string) (identity.Princ
 
 func TestRequestBodyLimit(t *testing.T) {
 	h := start(t, panicStore{}, true)
-	body := `{"note":{"title":"` + strings.Repeat("a", transport.MaxRequestBytes) + `"}}`
+	body := `{"note":{"title":"` + strings.Repeat("a", limits.MaxRequestBytes) + `"}}`
 	status, response := post(t, h, "CreateNote", body, http.Header{"Authorization": {testidentity.Header("ana")}})
 	if status == http.StatusOK || !bytes.Contains(response, []byte(`"resource_exhausted"`)) {
 		t.Fatalf("status %d: %s", status, response)
@@ -631,5 +641,56 @@ func TestCORS(t *testing.T) {
 	status, _ := post(t, h, "GetNote", `{"name":"notes/a"}`, http.Header{"Origin": {origin}})
 	if status != http.StatusUnauthorized {
 		t.Fatalf("status %d", status)
+	}
+}
+
+// Configuration alone changes the behavior (spec 011 FR-016, T021): the same handler with a smaller
+// maximum caps a client that asks for a minute at that maximum, and a smaller body bound refuses a body
+// the default bound accepted.
+func TestTheBoundsAreConfiguration(t *testing.T) {
+	tight := transport.Limits{DefaultDeadline: 200 * time.Millisecond, MaxDeadline: 300 * time.Millisecond, MaxRequestBytes: 8 << 10}
+	store := newWatchingStore()
+	h := startWith(t, store, true, tight)
+	header := http.Header{"Authorization": {testidentity.Header("ana")}, "Connect-Timeout-Ms": {"60000"}}
+	post(t, h, "CreateNote", `{"note":{"title":"a"}}`, header) // returns once the configured deadline ends the call
+	deadline := <-store.deadline
+	if deadline > tight.MaxDeadline || deadline < tight.MaxDeadline-100*time.Millisecond {
+		t.Fatalf("the configured maximum did not bound the call: storage saw %v", deadline)
+	}
+	body := `{"note":{"title":"` + strings.Repeat("a", 10<<10) + `"}}`
+	status, response := post(t, h, "CreateNote", body, http.Header{"Authorization": {testidentity.Header("ana")}})
+	if status == http.StatusOK || !bytes.Contains(response, []byte(`"resource_exhausted"`)) {
+		t.Fatalf("the configured body bound did not refuse: %d %s", status, response)
+	}
+	// Under the larger bound the same body is decoded, and then the schema refuses its title: a different
+	// refusal, from the configuration alone.
+	status, response = post(t, start(t, memory.New(), true), "CreateNote", body, http.Header{"Authorization": {testidentity.Header("ana")}})
+	if status != http.StatusBadRequest || !bytes.Contains(response, []byte(`"invalid_argument"`)) {
+		t.Fatalf("the same body under the larger bound: %d %s", status, response)
+	}
+}
+
+// Every refusal of a bound names its field, and a valid set passes.
+func TestLimitsCheck(t *testing.T) {
+	cases := map[string]struct {
+		limits transport.Limits
+		want   string
+	}{
+		"valid":                  {limits, ""},
+		"default omitted":        {transport.Limits{MaxDeadline: time.Second, MaxRequestBytes: 64 << 10}, "calls.default_deadline: required"},
+		"maximum omitted":        {transport.Limits{DefaultDeadline: time.Second, MaxRequestBytes: 64 << 10}, "calls.max_deadline: required"},
+		"default above maximum":  {transport.Limits{DefaultDeadline: 2 * time.Second, MaxDeadline: time.Second, MaxRequestBytes: 64 << 10}, "exceeds calls.max_deadline"},
+		"maximum beyond ceiling": {transport.Limits{DefaultDeadline: time.Second, MaxDeadline: time.Hour, MaxRequestBytes: 64 << 10}, "exceeds the ceiling"},
+		"bytes below floor":      {transport.Limits{DefaultDeadline: time.Second, MaxDeadline: time.Second, MaxRequestBytes: 100}, "is below"},
+		"bytes beyond ceiling":   {transport.Limits{DefaultDeadline: time.Second, MaxDeadline: time.Second, MaxRequestBytes: 8 << 20}, "exceeds the ceiling"},
+	}
+	for name, c := range cases {
+		err := c.limits.Check()
+		switch {
+		case c.want == "" && err != nil:
+			t.Errorf("%s: %v", name, err)
+		case c.want != "" && (err == nil || !strings.Contains(err.Error(), c.want)):
+			t.Errorf("%s: got %v, want %q", name, err, c.want)
+		}
 	}
 }

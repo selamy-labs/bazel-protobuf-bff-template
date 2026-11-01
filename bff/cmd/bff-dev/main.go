@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"example.com/bfftemplate/bff/adapters/memory"
 	"example.com/bfftemplate/bff/adapters/store/local"
@@ -42,6 +43,9 @@ func main() {
 		Store:         faults.Store{Next: store},
 		Logger:        slog.New(slog.NewJSONHandler(os.Stderr, nil)),
 		Stdout:        os.Stdout,
+		// The local demo's bounds, declared once here (spec 011 FR-016); the server carries none.
+		Calls:    server.CallLimits{DefaultDeadline: 2 * time.Second, MaxDeadline: 10 * time.Second, MaxRequestBytes: 64 << 10},
+		Listener: server.ListenerLimits{ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, IdleTimeout: 60 * time.Second, MaxHeaderBytes: 16 << 10, ShutdownBound: 5 * time.Second},
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "bff-dev: %v\n", err)
