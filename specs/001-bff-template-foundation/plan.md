@@ -10,7 +10,7 @@ Build a public, neutral starter that shows a real browser → BFF slice over gen
 Protobuf/Connect clients, with Bazel owning toolchains, code generation and tests. Quality checks
 ship as a versioned shared Bazel module with one declarative registry. Thin adapters run that
 registry through prek hooks, the full verifier and CI. Evidence is bound to the exact revision.
-Delivery is milestone-by-milestone (M1–M10 in the spec). This plan covers the whole roadmap at
+Delivery is milestone-by-milestone (M1–M11 in the spec). This plan covers the whole roadmap at
 design depth and the first slice (M1–M4 plus minimal M5/M6 gates) at task depth. M0 (this package)
 stops before any application code.
 
@@ -86,7 +86,7 @@ No violations. Complexity Tracking is empty.
 
 ```text
 specs/001-bff-template-foundation/
-├── spec.md               # spec of specs (milestones M0–M10)
+├── spec.md               # spec of specs (milestones M0–M11)
 ├── plan.md               # this file
 ├── research.md           # Phase 0 decisions R-01…R-16
 ├── data-model.md         # Phase 1 entities
@@ -131,7 +131,7 @@ tools/
 └── speckit/                  # pinned Spec Kit bootstrap/verify
 .github/workflows/ci.yml      # local file; never pushed in M0
 docs/  (provenance.md, public-release-review.md, budgets/, extending/)
-deploy/gcp/                   # M9 optional profile
+deploy/gcp/                   # M10 optional profile
 governance/github/            # M8 declarative repository settings (not applied)
 ```
 

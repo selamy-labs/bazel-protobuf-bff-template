@@ -39,7 +39,7 @@ by one pin.
 | Quality rules and their release | `bff_template_quality` | [006](../006-quality-hooks/), [008](../008-second-consumer/) |
 | Application images | rules_oci, through Bazel | [009](../009-bff-image/) |
 | Repository settings, as a reviewed plan | OpenTofu, applied only by an operator | [010](../010-release-readiness/) |
-| Infrastructure lifecycle | OpenTofu | M9, optional |
+| Infrastructure lifecycle | OpenTofu | M10, optional |
 | Workloads, where they apply | GitOps | Outside this repository |
 | Managed runtimes | The provider, as supported | Outside this repository |
 | NixOS on self-managed hosts | Shared host operations | Outside this repository; the consumer side is [host-profile](contracts/host-profile.md) |
@@ -420,8 +420,9 @@ strict; parallel-safe pairs are marked.
 | M7 | Second neutral consumer and upgrade | M6 | FR-027, FR-029 | #30 |
 | M8a | BFF container image | M7 | FR-034, SC-010 | #30 |
 | M8 | Public-release readiness and repository provisioning plan | M7, M8a | FR-032, FR-033 | #31 |
-| M9 | Optional GCP deployment profile | M6, M8a (optional) | FR-030 | #30 |
-| M10 | Optional worker-integration conformance | M6 (optional) | FR-031 | #29 |
+| M9 | Quality baseline: every control measured, budgets that only ratchet stricter, gates with planted defects; mandatory for initiative closure (amendment of 2026-11-01) | M8 frozen | FR-019, FR-020, FR-026 | — |
+| M10 | Optional GCP deployment profile | M6, M8a (optional) | FR-030 | #30 |
+| M11 | Optional worker-integration conformance | M6 (optional) | FR-031 | #29 |
 
 The **first implementation slice** is M1 → M4 with the minimal M5/M6 gates needed to keep them
 honest (pins, schema checks, suppression ban, single CI aggregate).

@@ -192,7 +192,13 @@ Tasks are in [spec 009](../009-bff-image/tasks.md). They land before M8, so that
 
 ---
 
-## Phase 9: User Story 6 — Optional GCP profile (Priority: P3) — M9 (optional)
+## Phase 9: Quality baseline — M9 (mandatory for closure; spec 011)
+
+The amendment of 2026-11-01 makes the quality baseline a milestone of its own. Its tasks are in [011](../011-quality-baseline/tasks.md); nothing here duplicates them.
+
+---
+
+## Phase 10: User Story 6 — Optional GCP profile (Priority: P3) — M10 (optional)
 
 - [ ] T081 [US6] Bootstrap module (state bucket, local→remote state migration runbook) in `deploy/gcp/bootstrap/`
 - [ ] T082 [US6] Runtime module (Artifact Registry, Cloud Run, least-privilege service accounts) in `deploy/gcp/runtime/`
@@ -202,7 +208,7 @@ Tasks are in [spec 009](../009-bff-image/tasks.md). They land before M8, so that
 
 ---
 
-## Phase 10: Optional worker-integration conformance — M10 (deferred)
+## Phase 11: Optional worker-integration conformance — M11 (deferred)
 
 - [ ] T086 Consume py#29 profile when released: document how the runner's deadlines, stdin closure and failure taxonomy satisfy it in `docs/extending/worker-conformance.md`; no runtime, no paid calls
 

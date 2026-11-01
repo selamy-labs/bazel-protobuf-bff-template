@@ -33,7 +33,7 @@ typescript PR #16) and are not reinstated here.
 | Spec Kit vendored with pinned upstream, hashes and an offline reproduction test | Implemented | **Yes** (R-15) |
 | Lifecycle hooks | None | New (M5) |
 | Remote cache / remote execution | Optional / design | **Excluded** (constitution X) |
-| Deployment and repository settings as code | Planned only | Pattern only (M8/M9) |
+| Deployment and repository settings as code | Planned only | Pattern only (M8/M10) |
 | Measured feedback budgets | None | New (M1, M5) |
 
 **Implication (material)**: the reference is strongest at hermeticity, contracts and quality gates.
@@ -86,7 +86,7 @@ Only releases at least 14 days old at pin time are used.
 
 **Not adopted yet**:
 
-- **OCI image rules.** No image is needed until M9.
+- **OCI image rules.** No image was needed before M8a, which adopted them.
 - **rules_python.** The slice has no Python consumer (R-12).
 - **googleapis.** Only adopted if an AIP type is actually used.
 - **Remote cache configuration.** Excluded.
@@ -337,7 +337,7 @@ Python is the worked design example. It uses rules_python and protobuf/Connect P
 generation, and reuses the Relentless CI Python rule choices. It is implemented only when a real
 consumer exists. No placeholder service is added.
 
-## R-13 Optional GCP deployment profile (design only, M9)
+## R-13 Optional GCP deployment profile (design only, M10)
 
 The profile is optional and lives in `deploy/gcp/`. `tools/verify.sh` never requires it.
 

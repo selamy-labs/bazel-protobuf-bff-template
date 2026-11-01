@@ -1,0 +1,43 @@
+# Tasks: Quality baseline
+
+**Input**: Design documents from `specs/011-quality-baseline/`
+**Prerequisites**: plan.md, spec.md, research.md, acceptance-matrix.md
+**Tests**: required by the spec. Every gate has a planted defect and a restored control; every budget has a measurement older than itself. One integrator owns the shared files; each slice delivers only its own new files and a measured result. A probe precedes every pin.
+
+## Phase 1: Setup
+
+- [x] T001 Land spec, plan, research and matrix in `specs/011-quality-baseline/` through the installed Spec Kit workflow, with the control table drafted at its measured state
+- [ ] T002 Write `docs/quality/baseline.md`, the control table with state, gate, measured value, threshold source, exclusions and owner per control, reconciled with the registry; every row starts at its measured state, none at enforced without a gate
+- [ ] T003 Inventory the first-party Python (`tools/release/inventory_tables.py`, `tools/pins/gen_browser_libs.py`, `tools/pins/gen_multitool_lock.py`) and the type escape hatches (`as`, `any`, directives in TypeScript; type assertions in Go outside tests), each with a justification or a removal task, in `docs/quality/type-escapes.md`
+
+## Phase 2: User Story 1 - Every control with its real state (Priority: P1)
+
+- [ ] T004 [P] [US1] Q1: adopt the independent `dupl` v1.1.0 advisory at `00a4c6b` (zero pairs at 100 nodes, planted pair detected) as the Go baseline; probe `jscpd` for TypeScript and a Python duplication tool through the pinned uv route; record false positives; semantic confirmation before any deletion
+- [ ] T005 [P] [US1] Q2 probe: staticcheck `U1000` through `nogo` and x/tools `deadcode` with declared entry points; `knip` against the web workspace; findings recorded
+- [ ] T006 [P] [US1] Q3: adopt the independent advisory measurement at `00a4c6b` (`m9-go-complexity-result.json`: cyclomatic 34, cognitive 40, the named debt functions) as the Go baseline in `quality/analysis/complexity/baseline.json` with its tool identities; probe `gocognit.Analyzer` (v1.3.0, h1:Xdw5JwAoYmX3WAB+wsXY3nxEwdw7+MWAnM0wCAAv7A4=) under `nogo` and Go 1.27 and an adapter over `gocyclo.Complexity`; ESLint `complexity` and a pinned cognitive rule for TypeScript measured the same way
+- [ ] T007 [P] [US1] Q5 probe: `gobco` under Bazel with the adversarial fixtures (early return, implicit else, switch default, loop exit, short circuit, `select`), its reported constructs and gaps recorded; Playwright V8 coverage into the merger probed
+- [ ] T008 [P] [US1] Q7 probe: a Go mutation tool and Stryker under rules_js, runtime on `quality/runner` and `web/client` recorded with the pristine pass before any kill
+- [ ] T009 [P] [US1] Q6: `fast-check` under rules_js; property tests for the client's error mapping and transport, and for the runner's selectors in Go; Hypothesis through the pinned uv Python for the generators' invariants
+- [ ] T010 [P] [US1] Q8: a contract suite for `ports.Store` run against the memory fake, in `bff/ports/contract_test.go`
+- [ ] T011 [US1] Integrator: pin each tool the probes accepted, by checksum, with its provenance row and license read from the artifact
+
+## Phase 3: User Story 2 - Budgets that cannot be met by weakening (Priority: P1)
+
+- [ ] T012 [US2] `quality/complexity_budgets.json`: per function at or over the new-function ceiling, a named ceiling equal to its measured value, as debt with an owner; for every other function, the new-function ceiling, taken from the tools' documented default thresholds and verified at landing, never invented; a ceiling only falls, and the base evaluator refuses a rise; enrolled as a policy input in `escalate`
+- [ ] T012a [US2] The budget comparator as its own anchor commit: the base evaluator reads `quality/complexity_budgets.json` and refuses a ceiling that rises or a floor that falls by comparison with the base (research R9); recorded with its refusal at the anchor and held for independent review at that SHA, as M6 did for `floors-from-base`; no witness names a base before it
+- [ ] T013 [US2] Bind each new check in `quality/registry.textproto` with its planted defect and restored control, and the direction controls: stricter passes, weaker refused, for complexity, coverage and mutation
+- [ ] T014 [US2] Delete confirmed duplicates and dead code in focused commits, one concern each, with the affected checks rerun
+
+## Phase 4: User Story 3 - Disjoint slices (Priority: P2)
+
+- [ ] T015 [US3] The slice table in `specs/011-quality-baseline/plan.md` names each worker's new files and the integrator's shared files; a path check in the evidence record shows no overlap
+
+## Phase 5: Archive path and closure
+
+- [ ] T016 Land `tools/release/archive_ref.sh` and `tools/release/archive_handoff.sh` with their controls as `//:archive_ref_test` and `//:archive_handoff_test` (a bare object id refused with no bundle; a named ref bundled, verified and restored to the exact commit and tree; a truncated bundle fails the fresh restore; a failed archive leaves no eligibility record; a directory or a link to a directory arriving at the destination after the restore is refused with nothing written and no archive reported; no unowned path removed; no clobber; the reported digest is the published bundle's), with the incident record and the loss recorded as unrecovered; neither script holds a cleanup step
+- [ ] T017 Evidence record `docs/evidence/m9.md`, `docs/quality/baseline.md` at its measured state, statuses, the full verifier, freeze, independent review at the exact revision
+- [ ] T018 Closure only when every applicable control is enforced and evidenced; any remaining applicable gap is an owned open task, and the initiative is not closed
+
+## Dependencies
+
+- T001 to T003 first. T004 to T010 are probes and tests on disjoint files and run together. T011 waits for the probes it pins. T012 waits for T006, T007 and T008's measurements; T012a follows T012 and is reviewed at its own SHA; T013's direction controls name a base at or after T012a. T014 waits for T004 and T005. T016 is independent. T017 and T018 come last.

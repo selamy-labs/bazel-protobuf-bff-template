@@ -36,7 +36,7 @@ flowchart LR
 | D5 | One declarative registry and one runner; one prek hook per stage; one Bazel invocation per stage; pre-commit reads staged blobs, pre-push checks the pushed commit in a detached worktree | One definition per rule; Bazel's output-base lock; prek stashes only unstaged (not untracked) changes and checks only the working tree (R-08) | Imperative shell dispatcher; per-tool prek hooks; Bazel builds over the working tree in hooks |
 | D6 | Only bans and base-built floors locally; #26 policy-diff, #27 evidence validator and #28 analyzer adopted on release | No duplicate of active issue work (issue-map.md); evaluator built from base cannot be replaced by the proposal | Re-implementing the shared contracts here |
 | D7 | Git, bash, curl and coreutils on the host, with Bazel itself fetched by verified pin; network off in the sandbox; pinned browsers | Constitution III; SC-001 | Host Node/Go installs |
-| D8 | Deployment is an optional GCP profile with operator gates, design only until M9. Images come only from Bazel and rules_oci | RFC #30: keep the provider optional (R-13) | Deploy in the core path |
+| D8 | Deployment is an optional GCP profile with operator gates, design only until M10. Images come only from Bazel and rules_oci | RFC #30: keep the provider optional (R-13) | Deploy in the core path |
 
 ## 3. Boundaries and dependency rules (deterministic, T038)
 

@@ -18,7 +18,8 @@ result holds only for the revision and profile its evidence names.
 | [008-second-consumer](008-second-consumer/) | M7: second consumer and upgrade | M6 | Accepted at `e982dd7` (2026-11-01) for the qualified local Linux profile, tagged `quality-v1.0.0`. Evidence is in [m7](../docs/evidence/m7.md). |
 | [009-bff-image](009-bff-image/) | M8a: BFF container image | M7 | Implemented and tested locally at `05d2545`; the artifact executed independently in a real runtime; independent source review pending. Evidence is in [m8a](../docs/evidence/m8a.md). Not deployed. |
 | [010-release-readiness](010-release-readiness/) | M8: public-release readiness and provisioning plan | M7, M8a | Implemented and tested locally; the private scan and the review run at the freeze. Evidence is in [m8](../docs/evidence/m8.md). Not published. |
-| None yet | M9, M10: optional profiles | M6, and M8a for M9 | Proposed. Each is created with `/speckit-specify` when it starts |
+| [011-quality-baseline](011-quality-baseline/) | M9: quality baseline | M8 frozen | Specified 2026-11-01. The control table lands at its measured state; closure needs every applicable control enforced and evidenced. No tool pinned yet. |
+| None yet | M10, M11: optional profiles | M6, and M8a for M10 | Proposed. Each is created with `/speckit-specify` when it starts |
 
 Start with [design.md](001-bff-template-foundation/design.md) to review the package, then read
 [issue-map.md](001-bff-template-foundation/issue-map.md) and

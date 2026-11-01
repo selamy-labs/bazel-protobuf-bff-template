@@ -7,7 +7,7 @@ Not every issue lands in the first slice.
 
 | Issue | Ownership here | Requirements | Milestone | Acceptance witnesses (tasks) | Explicitly deferred / not done here |
 | --- | --- | --- | --- | --- | --- |
-| [py#30](https://github.com/selamy-labs/relentless-ci-python/issues/30) RFC: polyglot Bazel/Protobuf BFF template | **Primary**. This repository is the RFC's design response | FR-001–FR-012, FR-025–FR-030 | M0 design; M1–M4 first slice; M7 second consumer | T014, T026, T041, T042, T073 | Remote cache, multiworker, control plane (excluded by the RFC); provider deploy optional (M9) |
+| [py#30](https://github.com/selamy-labs/relentless-ci-python/issues/30) RFC: polyglot Bazel/Protobuf BFF template | **Primary**. This repository is the RFC's design response | FR-001–FR-012, FR-025–FR-030 | M0 design; M1–M4 first slice; M7 second consumer | T014, T026, T041, T042, T073 | Remote cache, multiworker, control plane (excluded by the RFC); provider deploy optional (M10) |
 | [py#31](https://github.com/selamy-labs/relentless-ci-python/issues/31) Tracker | Traceability only | FR-020, FR-024, FR-032 | all | acceptance-matrix.md rows link back | Does not dispatch or change settings |
 | [py#25](https://github.com/selamy-labs/relentless-ci-python/issues/25) Python prek adapter | **Consumer of the shared stage/diagnostic contract**; implements only the Bazel adapter | FR-015–FR-018 | M5 | T043, T044, T056–T059 | Python adapter implementation stays upstream; commit-msg stage off until adopted |
 | [ts#20](https://github.com/selamy-labs/relentless-ci-typescript/issues/20) TypeScript prek adapter | Same as #25; TS checks here run through Bazel/pnpm-locked tools | FR-013–FR-018 | M5 | T043, T046, T054 | npm/Mise TS adapter stays upstream |

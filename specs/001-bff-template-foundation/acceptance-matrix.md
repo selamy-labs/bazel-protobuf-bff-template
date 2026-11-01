@@ -50,7 +50,7 @@ Every **G** witness has a defect case that must fail and a corrected counterpart
 | FR-027 | second consumer upgrade (T072, T073) | upgrade changes rules not in release notes → rule-diff fails | G | loc | M7 |
 | FR-028 | Bzlmod lock policy, registry, governance files (T006, T050, T079) | console-only setting → not representable; review | G (locks) / S (settings) | loc, hum | M1–M8 |
 | FR-029 | language profile doc (T074) | placeholder service added → consumer report flags | S | hum | M7 |
-| FR-030 | offline tofu tests (T084), runbook (T085) | apply without approval → pipeline config test fails | G (config) / R (live) | off / dep | M9 |
+| FR-030 | offline tofu tests (T084), runbook (T085) | apply without approval → pipeline config test fails | G (config) / R (live) | off / dep | M10 |
 | FR-031 | worker-conformance doc (T086) | — | S | hum | M10 |
 | FR-034 | spec 009 matrix | a second image builder → review rejects; a defect in the image → `image_test` fails | G / S | off, hum | M8a |
 | FR-035 | T092's unchanged gates, queued, no result yet | NixOS required of a template user → review rejects | S | hum | T092 |
