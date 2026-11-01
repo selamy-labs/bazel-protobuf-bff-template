@@ -4,11 +4,11 @@
 package release
 
 import (
+	"errors"
 	"fmt"
 	"io/fs"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"slices"
 	"strings"
 
@@ -23,9 +23,16 @@ const Catalog = "rules.textproto"
 // maxLines bounds what the notes quote of one changed definition file.
 const maxLines = 20
 
-// Load reads a tree's catalog, and fails if a rule names a definition the tree does not hold.
+// Load reads a tree's catalog, and fails if a rule names a definition the tree does not hold. Every read
+// here and in files goes through os.Root, because the notes quote what they read: a path or a symbolic
+// link that leaves the selected tree is refused. A link that stays inside it is an ordinary path.
 func Load(root string) (*registrypb.Registry, error) {
-	data, err := os.ReadFile(filepath.Join(root, Catalog))
+	tree, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer tree.Close()
+	data, err := tree.ReadFile(Catalog)
 	if err != nil {
 		return nil, err
 	}
@@ -33,17 +40,19 @@ func Load(root string) (*registrypb.Registry, error) {
 	if err := (prototext.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(data, catalog); err != nil {
 		return nil, fmt.Errorf("%s: %w", root, err)
 	}
-	if module, err := os.ReadFile(filepath.Join(root, "MODULE.bazel")); err == nil {
-		if want := `version = "` + catalog.GetVersion() + `"`; !strings.Contains(string(module), want) {
-			return nil, fmt.Errorf("%s: MODULE.bazel lacks %s", root, want)
-		}
+	module, err := tree.ReadFile("MODULE.bazel")
+	if err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return nil, fmt.Errorf("%s: %w", root, err)
+	}
+	if want := `version = "` + catalog.GetVersion() + `"`; err == nil && !strings.Contains(string(module), want) {
+		return nil, fmt.Errorf("%s: MODULE.bazel lacks %s", root, want)
 	}
 	for _, rule := range catalog.GetChecks() {
 		if len(rule.GetDefinition()) == 0 {
 			return nil, fmt.Errorf("%s: rule %s names no definition", root, rule.GetId())
 		}
 		for _, path := range rule.GetDefinition() {
-			if _, err := os.Stat(filepath.Join(root, path)); err != nil {
+			if _, err := tree.Stat(path); err != nil {
 				return nil, fmt.Errorf("%s: rule %s: %w", root, rule.GetId(), err)
 			}
 		}
@@ -53,21 +62,26 @@ func Load(root string) (*registrypb.Registry, error) {
 
 // files lists the regular files of a definition: the path itself, or a directory's files without tests.
 func files(root, path string) (map[string]string, error) {
+	tree, err := os.OpenRoot(root)
+	if err != nil {
+		return nil, err
+	}
+	defer tree.Close()
+	files := tree.FS()
 	found := map[string]string{}
-	err := filepath.WalkDir(filepath.Join(root, path), func(name string, entry fs.DirEntry, err error) error {
+	err = fs.WalkDir(files, path, func(name string, entry fs.DirEntry, err error) error {
 		if err != nil {
-			if os.IsNotExist(err) {
+			if errors.Is(err, fs.ErrNotExist) {
 				return nil
 			}
 			return err
 		}
-		relative, err := filepath.Rel(root, name)
-		if err != nil || entry.IsDir() || strings.HasSuffix(name, "_test.go") {
-			return err
+		if entry.IsDir() || strings.HasSuffix(name, "_test.go") {
+			return nil
 		}
-		data, err := os.ReadFile(name)
+		data, err := fs.ReadFile(files, name)
 		if err == nil {
-			found[relative] = string(data)
+			found[name] = string(data)
 		}
 		return err
 	})

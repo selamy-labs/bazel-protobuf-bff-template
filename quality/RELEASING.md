@@ -26,7 +26,9 @@ its prek configuration follows it. The tag is a name for readers, and a pin neve
 The notes compare the catalog entry of each rule, and the files the rule names in `definition`, so a change
 inside a rule shows when its entry does not change. A file with lines removed or replaced is flagged for
 review, because a tool cannot know that a replacement is at least as strict. An added line is not flagged.
-The notes inform a reader and gate nothing. Detecting and authorizing a weakening is upstream #26's.
+Everything the notes read stays inside the selected tree: a definition or catalog that leaves it by `..`, an
+absolute path or a symbolic link is refused, and nothing from outside is quoted. A link that stays inside is an
+ordinary path. The notes inform a reader and gate nothing. Detecting and authorizing a weakening is upstream #26's.
 
 ## Compatibility
 

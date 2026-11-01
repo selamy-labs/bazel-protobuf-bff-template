@@ -162,6 +162,123 @@ func TestAMissingDefinitionFails(t *testing.T) {
 	}
 }
 
+const secret = "operator-only-text"
+
+func plant(t *testing.T, path, content string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(path, []byte(content), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
+func link(t *testing.T, target, path string) {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(target, path); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// Each case changes a definition between two valid trees, so a read outside the tree would be quoted.
+func TestNothingOutsideTheTreeIsRead(t *testing.T) {
+	outside := filepath.Join(t.TempDir(), "outside")
+	plant(t, filepath.Join(outside, "file"), secret+"\n")
+	plant(t, filepath.Join(outside, "other"), secret+" again\n")
+	definition := func(path string) string {
+		return strings.ReplaceAll(catalogText, `"checks/rules.go"`, `"`+path+`"`)
+	}
+	cases := map[string]func(older, newer string) (string, string){
+		"a dotted path": func(older, newer string) (string, string) {
+			plant(t, filepath.Join(filepath.Dir(older), "outside"), secret+"\n")
+			plant(t, filepath.Join(filepath.Dir(newer), "outside"), secret+" again\n")
+			return definition("../outside"), definition("../outside")
+		},
+		"a dotted path through the tree": func(older, newer string) (string, string) {
+			plant(t, filepath.Join(filepath.Dir(older), "outside"), secret+"\n")
+			plant(t, filepath.Join(filepath.Dir(newer), "outside"), secret+" again\n")
+			return definition("checks/../../outside"), definition("checks/../../outside")
+		},
+		"an absolute path": func(_, _ string) (string, string) {
+			return definition(filepath.Join(outside, "file")), definition(filepath.Join(outside, "other"))
+		},
+		"a linked file": func(older, newer string) (string, string) {
+			link(t, filepath.Join(outside, "file"), filepath.Join(older, "checks/rules.go"))
+			link(t, filepath.Join(outside, "other"), filepath.Join(newer, "checks/rules.go"))
+			return catalogText, catalogText
+		},
+		"a relative link": func(older, newer string) (string, string) {
+			plant(t, filepath.Join(filepath.Dir(older), "outside"), secret+"\n")
+			plant(t, filepath.Join(filepath.Dir(newer), "outside"), secret+" again\n")
+			link(t, "../../outside", filepath.Join(older, "checks/rules.go"))
+			link(t, "../../outside", filepath.Join(newer, "checks/rules.go"))
+			return catalogText, catalogText
+		},
+		"a linked parent directory": func(older, newer string) (string, string) {
+			link(t, outside, filepath.Join(older, "linked"))
+			link(t, outside, filepath.Join(newer, "linked"))
+			plant(t, filepath.Join(outside, "both"), secret+"\n")
+			return definition("linked/file"), definition("linked/other")
+		},
+		"a link inside a definition directory": func(older, newer string) (string, string) {
+			link(t, filepath.Join(outside, "file"), filepath.Join(older, "checks/extra.go"))
+			link(t, filepath.Join(outside, "other"), filepath.Join(newer, "checks/extra.go"))
+			return definition("checks"), definition("checks")
+		},
+		"a link at a path only the old rule names": func(_, newer string) (string, string) {
+			link(t, filepath.Join(outside, "other"), filepath.Join(newer, "checks/rules.go"))
+			plant(t, filepath.Join(newer, "checks/kept.go"), "kept\n")
+			return catalogText, definition("checks/kept.go")
+		},
+		"a linked catalog": func(_, newer string) (string, string) {
+			plant(t, filepath.Join(outside, Catalog), strings.ReplaceAll(catalogText, "%VERSION%", secret))
+			link(t, filepath.Join(outside, Catalog), filepath.Join(newer, Catalog))
+			return catalogText, catalogText
+		},
+		"a linked module file": func(_, newer string) (string, string) {
+			plant(t, filepath.Join(outside, "module"), `module(version = "2")`)
+			link(t, filepath.Join(outside, "module"), filepath.Join(newer, "MODULE.bazel"))
+			return catalogText, catalogText
+		},
+	}
+	for name, arrange := range cases {
+		t.Run(name, func(t *testing.T) {
+			older, newer := tree(t, "1", catalogText, rulesText), tree(t, "2", catalogText, rulesText)
+			before, after := arrange(older, newer)
+			plant(t, filepath.Join(older, Catalog), strings.ReplaceAll(before, "%VERSION%", "1"))
+			if fi, err := os.Lstat(filepath.Join(newer, Catalog)); err == nil && fi.Mode().IsRegular() {
+				plant(t, filepath.Join(newer, Catalog), strings.ReplaceAll(after, "%VERSION%", "2"))
+			}
+			text, err := Notes(older, newer)
+			if err == nil {
+				t.Fatalf("a read outside the tree passed:\n%s", text)
+			}
+			if strings.Contains(text, secret) || strings.Contains(err.Error(), secret) {
+				t.Fatalf("outside text was quoted: %q %v", text, err)
+			}
+		})
+	}
+}
+
+// A link that stays inside the tree is an ordinary definition, and a change through it still shows.
+func TestALinkInsideTheTreeStillShowsItsChange(t *testing.T) {
+	definition := strings.ReplaceAll(catalogText, `"checks/rules.go"`, `"checks/current.go"`)
+	make := func(version, rules string) string {
+		root := tree(t, version, definition, rules)
+		link(t, "rules.go", filepath.Join(root, "checks/current.go"))
+		return root
+	}
+	changed := strings.Replace(rulesText, "re(`two`)", "re(`two|2`)", 1)
+	wants(t, notes(t, make("1", rulesText), make("2", changed)), "| `ban` | `checks/current.go` changed |", "+ {\"S002\", \"second\", re(`two|2`)},")
+}
+
 const (
 	shaOne = "1111111111111111111111111111111111111111"
 	shaTwo = "2222222222222222222222222222222222222222"
