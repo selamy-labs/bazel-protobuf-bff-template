@@ -44,6 +44,11 @@ T = [
         ("linux", "arm64", f"{G}/bufbuild/buf/releases/download/v1.74.0/buf-Linux-aarch64", "d42b471501a85dbadb40062960492dd81ce5ca4e413f4133d514d3ae3c0af4df"),
         ("macos", "arm64", f"{G}/bufbuild/buf/releases/download/v1.74.0/buf-Darwin-arm64", "602d73e39a8835efd29a02ba6db6060ae86e4a0df19b8ac4403032b5deae3569"),
     ]),
+    ("prek", "*/prek", [
+        ("linux", "x86_64", f"{G}/j178/prek/releases/download/v0.5.5/prek-x86_64-unknown-linux-musl.tar.gz", "57948d4772f4eb58387ce4a6d619ecd2d8d7e9d765eed6a316f5b3f92c86d951"),
+        ("linux", "arm64", f"{G}/j178/prek/releases/download/v0.5.5/prek-aarch64-unknown-linux-musl.tar.gz", "e7208e5d42daaa8d9167971e7d2d3388d80cce241d1cecea745a6c88d6b6368e"),
+        ("macos", "arm64", f"{G}/j178/prek/releases/download/v0.5.5/prek-aarch64-apple-darwin.tar.gz", "e4bc3132023b50020e62b073bc3147082828bf250d8b9282850c6f2bed5471b6"),
+    ]),
     ("buildifier", None, [
         ("linux", "x86_64", f"{G}/bazelbuild/buildtools/releases/download/v10.1.0/buildifier-linux-amd64", "31b6a8aa1e5c746696788f428729701770ad91925873d8256cb885c60e12c77e"),
         ("linux", "arm64", f"{G}/bazelbuild/buildtools/releases/download/v10.1.0/buildifier-linux-arm64", "38d2ed845f560b4a16ddee41de906508a95f8dc85b04e0851b0a71e3a70d3890"),

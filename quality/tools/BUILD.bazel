@@ -10,6 +10,7 @@
         "buf",
         "buildifier",
         "gitleaks",
+        "prek",
         "shellcheck",
         "typos",
         "uv",
