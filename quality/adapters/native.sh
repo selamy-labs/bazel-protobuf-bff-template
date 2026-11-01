@@ -2,9 +2,9 @@
 # The one definition of how each native check is invoked (specs/002-hermetic-skeleton T026, T027,
 # T034). Every tool runs with its implicit configuration disabled, so a stray config file, a host
 # rc file or a helper on PATH cannot change the verdict. The verifier and the fixtures both use
-# this script. Tool paths come from the environment, as produced by //:tool_paths.
+# this script. Tool paths come from the environment, as the runner passes them.
 #
-#   tools/checks/native.sh <check> <arguments>
+#   quality/adapters/native.sh <check> <arguments>
 #
 # Run from the repository root. File lists are NUL-delimited relative paths.
 set -euo pipefail
@@ -49,8 +49,9 @@ case "$check" in
     [[ -n "$(find "$scratch/new" -name '*.proto' -not -path '*/buf/validate/*' -print -quit)" ]] ||
       { echo "$check: no schema files under $schema" >&2; exit 1; }
     case "$check" in
-      format-proto) buf format "$scratch/new" --exclude-path "$scratch/new/buf" --diff --exit-code ;;
-      lint-proto) buf lint "$scratch/new" --exclude-path "$scratch/new/buf" --error-format=json ;;
+      # From inside the assembled schema, so a diagnostic names the file, not this scratch directory.
+      format-proto) cd "$scratch/new" && buf format . --exclude-path buf --diff --exit-code ;;
+      lint-proto) cd "$scratch/new" && buf lint . --exclude-path buf --error-format=json ;;
       proto-breaking)
         status="$("$BASELINE" -repo . -marker "$2" -schema "$schema" -out "$scratch/old")"
         echo "proto-breaking: $status"
@@ -72,8 +73,11 @@ case "$check" in
     snapshot="$(mktemp -d)"
     trap 'rm -rf "$snapshot"' EXIT
     tar -cf - --null -T "$list" | tar -xf - -C "$snapshot"
-    "$GITLEAKS" dir --no-banner --redact --no-color --exit-code 1 --ignore-gitleaks-allow \
-      --gitleaks-ignore-path /dev/null --config "$config" "$snapshot"
+    # --verbose names the file; --redact keeps the finding out of the output. Scanning from inside
+    # the snapshot keeps the reported paths relative to the repository.
+    cd "$snapshot"
+    "$GITLEAKS" dir --no-banner --redact --verbose --no-color --exit-code 1 --ignore-gitleaks-allow \
+      --gitleaks-ignore-path /dev/null --config "$config" .
     ;;
   typos) # <newline list> <config>
     [[ -s "$1" ]] || { echo "typos: empty input list" >&2; exit 1; }

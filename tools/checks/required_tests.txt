@@ -12,6 +12,7 @@
 //bff/transport:transport_test
 //bff:dependency_rules_test
 //tools/dev:dev_test
+//tools/hooks:fixtures_test
 //web/app:bundle_test
 //web/client:errors_test
 //web/e2e:browser_smoke_test

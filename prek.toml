@@ -1,0 +1,40 @@
+# The lifecycle stages (spec 006, contracts/hook-stages.md). One local hook per stage. The runner
+# derives its own inputs, so prek passes no filenames, and the registry says what each stage checks.
+# Install with: tools/bootstrap/bazel.sh run //tools/hooks:install
+#
+# The shared stage contract (selamy-labs/relentless-ci-python#25, relentless-ci-typescript#20) has no
+# release yet, so there is no revision to cite. This follows the contract recorded in this repository
+# and adopts upstream's when it ships.
+
+[[repos]]
+repo = "local"
+
+[[repos.hooks]]
+id = "pre-commit"
+name = "staged content"
+language = "system"
+entry = "tools/hooks/stage.sh pre-commit"
+pass_filenames = false
+always_run = true
+require_serial = true
+stages = ["pre-commit"]
+
+[[repos.hooks]]
+id = "pre-push"
+name = "the pushed commit"
+language = "system"
+entry = "tools/hooks/stage.sh pre-push"
+pass_filenames = false
+always_run = true
+require_serial = true
+stages = ["pre-push"]
+
+[[repos.hooks]]
+id = "full"
+name = "the full policy"
+language = "system"
+entry = "tools/verify.sh"
+pass_filenames = false
+always_run = true
+require_serial = true
+stages = ["manual"]

@@ -4,6 +4,7 @@ load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_go//go:def.bzl", "go_binary")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
+load("//tools/hooks:tools.bzl", "QUALITY_TOOLS")
 
 exports_files(
     [
@@ -16,9 +17,21 @@ exports_files(
     ],
 )
 
+exports_files(
+    [
+        ".gitleaks.toml",
+        "_typos.toml",
+        "prek.toml",
+    ],
+    visibility = ["//tools/hooks:__pkg__"],
+)
+
 npm_link_all_packages(name = "node_modules")
 
-prettier_bin.prettier_binary(name = "prettier")
+prettier_bin.prettier_binary(
+    name = "prettier",
+    visibility = ["//tools/hooks:__pkg__"],
+)
 
 # Runs the app locally with test identity. See tools/dev/dev.sh.
 alias(
@@ -78,24 +91,7 @@ sh_test(
     env = {"SCAFFOLD_LIST": "$(rootpath :scaffold_list)"},
 )
 
-TOOLS = {
-    "ACTIONLINT": "@bff_template_quality//tools:actionlint",
-    "BASELINE": "@bff_template_quality//proto/cmd:baseline",
-    "BUF": "@bff_template_quality//tools:buf",
-    "BUF_CONFIG_FILE": "@bff_template_quality//proto:buf.yaml",
-    "BUILDIFIER": "@bff_template_quality//tools:buildifier",
-    "GITLEAKS": "@bff_template_quality//tools:gitleaks",
-    "GOFMT": "@go_sdk//:bin/gofmt",
-    "PRETTIER": "//:prettier",
-    "PREK": "@bff_template_quality//tools:prek",
-    "SHELLCHECK": "@bff_template_quality//tools:shellcheck",
-    "SUPPRESSION": "@bff_template_quality//checks/suppression:suppression-ban",
-    "TYPOS": "@bff_template_quality//tools:typos",
-    "UV": "@bff_template_quality//tools:uv",
-    "VALIDATE_PROTO_FILE": "@protovalidate_proto//file",
-    "YQ": "@bff_template_quality//tools:yq",
-    "ZIZMOR": "@bff_template_quality//tools:zizmor",
-}
+TOOLS = QUALITY_TOOLS
 
 # The one runner, with this repository's pinned tools (spec 006 FR-004). The label differs from the
 # contract's first draft because quality/ is its own module.

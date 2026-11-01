@@ -24,8 +24,10 @@ type PushOptions struct {
 	Isolation string
 	Offline   bool
 	CacheDir  string
-	Deadline  time.Duration
-	Stdout    io.Writer
+	// Receipt is where the pushed commit's runner writes its evidence.
+	Receipt  string
+	Deadline time.Duration
+	Stdout   io.Writer
 }
 
 func pushPaths(ctx context.Context, git Git, cache string) (worktree, outputBase, lock string, err error) {
@@ -121,6 +123,12 @@ func RunPush(ctx context.Context, options PushOptions) (int, error) {
 	}
 	if options.Offline {
 		args = append(args, "--offline")
+	}
+	if options.Receipt != "" {
+		args = append(args, "--receipt="+options.Receipt)
+	}
+	for _, option := range startup {
+		args = append(args, "--bazel-startup="+option)
 	}
 	code, runErr = runInner(ctx, script, args, worktree, options.Env, options.Stdout)
 	if runErr != nil {

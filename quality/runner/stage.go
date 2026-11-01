@@ -23,23 +23,25 @@ import (
 
 // Options is one stage run.
 type Options struct {
-	Registry    *registrypb.Registry
-	Stage       registrypb.Stage
-	Requested   registrypb.Stage
-	Root        string
-	Adapter     string
-	Bazel       string
-	Tools       map[string]string
-	Env         []string
-	Isolation   string
-	Offline     bool
-	ReceiptPath string
-	Rerun       string
-	Jobs        int
-	Deadline    time.Duration
-	Slots       []string
-	Inputs      func(ctx context.Context, git Git, scratch string) (*Inputs, error)
-	Stdout      io.Writer
+	Registry  *registrypb.Registry
+	Stage     registrypb.Stage
+	Requested registrypb.Stage
+	Root      string
+	Adapter   string
+	Bazel     string
+	// BazelStartup holds startup options, for a run on an isolated output base.
+	BazelStartup []string
+	Tools        map[string]string
+	Env          []string
+	Isolation    string
+	Offline      bool
+	ReceiptPath  string
+	Rerun        string
+	Jobs         int
+	Deadline     time.Duration
+	Slots        []string
+	Inputs       func(ctx context.Context, git Git, scratch string) (*Inputs, error)
+	Stdout       io.Writer
 }
 
 // StageNames maps the command line's stage names.
@@ -402,7 +404,8 @@ func (e *execution) runBazel(ctx context.Context) {
 	}
 	bazelCtx, cancel := context.WithTimeout(ctx, plan.Timeout)
 	defer cancel()
-	code, runErr := RunBazel(bazelCtx, e.options.Bazel, plan.Args, e.options.Root, e.options.Env, log)
+	args := append(slices.Clone(e.options.BazelStartup), plan.Args...)
+	code, runErr := RunBazel(bazelCtx, e.options.Bazel, args, e.options.Root, e.options.Env, log)
 	seconds := time.Since(started).Seconds()
 	if runErr != nil && !errors.Is(runErr, context.DeadlineExceeded) && !errors.Is(runErr, context.Canceled) {
 		fail(Errored, runErr.Error(), "")

@@ -34,6 +34,15 @@ func (t toolFlag) Set(value string) error {
 	return nil
 }
 
+type stringList []string
+
+func (s *stringList) String() string { return strings.Join(*s, " ") }
+
+func (s *stringList) Set(value string) error {
+	*s = append(*s, value)
+	return nil
+}
+
 // deadlines bound a stage inside its caller: hooks by their budgets, full inside tools/verify.sh.
 var deadlines = map[registrypb.Stage]time.Duration{
 	registrypb.Stage_STAGE_PRE_COMMIT: 2 * time.Minute,
@@ -67,6 +76,8 @@ func run() int {
 	to := flags.String("to", "", "pushed commit")
 	inner := flags.Bool("inner", false, "judge the current worktree as the pushed commit")
 	flags.Var(tools, "tool", "NAME=path, repeated")
+	var startup stringList
+	flags.Var(&startup, "bazel-startup", "a Bazel startup option, repeated")
 	if err := flags.Parse(os.Args[1:]); err != nil {
 		return runner.ExitConfig
 	}
@@ -111,7 +122,7 @@ func run() int {
 	if stage == registrypb.Stage_STAGE_PRE_PUSH && !*inner {
 		code, err := runner.RunPush(ctx, runner.PushOptions{
 			Root: root, Bazel: bazel, Env: env, From: *from, To: *to, Isolation: *isolation,
-			Offline: *offline, CacheDir: cache, Deadline: limit, Stdout: os.Stdout,
+			Offline: *offline, CacheDir: cache, Receipt: *receipt, Deadline: limit, Stdout: os.Stdout,
 		})
 		if err != nil {
 			return fail(err)
@@ -120,7 +131,8 @@ func run() int {
 	}
 	options := runner.Options{
 		Registry: registry, Stage: stage, Requested: stage, Root: root, Adapter: adapterPath, Bazel: bazel,
-		Tools: tools, Env: env, Isolation: *isolation, Offline: *offline, ReceiptPath: *receipt,
+		BazelStartup: startup,
+		Tools:        tools, Env: env, Isolation: *isolation, Offline: *offline, ReceiptPath: *receipt,
 		Rerun: *rerun, Jobs: *jobs, Deadline: limit, Stdout: os.Stdout,
 	}
 	if options.Rerun == "" {
