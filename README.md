@@ -6,11 +6,10 @@ This is a neutral starter for contract-first web applications. A browser client 
 backend-for-frontend talk only through generated Protocol Buffer/Connect clients, and Bazel owns the
 toolchains, code generation and tests. The aim is shared, versioned quality checks that run the same
 way in Git hooks, in the local verifier and in CI. The local hooks and the one check registry exist, and a
-separate repository consumes the checks at `quality-v1.0.0` by one pin; hosted CI runs, and no green gate is recorded yet.
+separate repository consumes the checks at `quality-v1.0.0` by one pin; hosted GitHub Actions CI runs on pull requests and recorded green gates on PR #1 (runs 41536411991 at f510f8e and 41542211806 at e82bc8f), while ruleset `main` (`id: 26410174`) is active on the default branch (requiring pull requests and `build-test`, `e2e`, `policy`, and `gate`), while post-merge `main` neutrality restoration (`d9f97dd9`) and any tagged release or package publication remain pending.
 
 **Status: M1 to M8 are implemented and independently accepted at their revisions, locally; M8a's image is built,
-tested and executed independently; the repository is public, hosted CI runs, no green gate is recorded yet, and no
-release or package is published. The quality baseline (M9) is
+tested and executed independently; the repository is public at `2d0ecf9`, PR #1 (`feat/012-hosted-telemetry-wiring`) passed all 4 hosted GitHub Actions CI jobs (`build-test`, `e2e`, `policy`, `gate`) at `f510f8e` (run `41536411991`) and `e82bc8f` (run `41542211806`) and merged to `main` at `d9f97dd`, while post-merge `main` run `41544265549` passed `build-test` and `e2e` but failed `policy` (`neutrality`) because the GitHub squash-merge commit `d9f97dd` recorded commit metadata outside `tools/release/neutrality.allow`, and ruleset `main` (`id: 26410174`) is active since `2026-11-03`, requiring pull requests and `build-test`, `e2e`, `policy`, and `gate` (strict). Linux local-demo acceptance (M10 at `30498f4`/`2d0ecf9`) and Linux `file://` second-consumer adoption (M7 at `e982dd7`) are verified locally, while current-revision native macOS local-demo acceptance and native macOS template-adoption evidence remain unverified. The quality baseline (M9) is
 open: the Go complexity, Go and TypeScript duplication, Go dead-code and Python lint gates are enforced from this
 tree's measurements, property tests run for Go and TypeScript, mutation is probed but not bound, Go branch outcomes
 are an open blocking gap, and every control is at its measured state in the [baseline](docs/quality/baseline.md).
@@ -20,11 +19,7 @@ made.** The app works:
 `CreateNote` and `GetNote` run from a React page through a Go server, tested in a pinned browser. The
 [specification index](specs/README.md) is the one authority on each milestone's status, the evidence
 pages under [docs/evidence](docs/evidence/) list what has and has not been observed at which revision,
-and [capability states](docs/quality/capability-states.md) has the summary. macOS and hosted CI are
-unverified. The repository ships no identity provider, only a verifier adapter for one, so the production
-server refuses to start until an issuer and its telemetry inputs are named ([bff/README.md](bff/README.md)). The same server is packaged as
-one container image by the build graph, and that image shows the same refusal: a healthy production deployment is
-unsupported until a real issuer exists ([spec 009](specs/009-bff-image/contracts/image.md)).
+and [capability states](docs/quality/capability-states.md) has the summary. Current-revision native macOS remains unverified. The production server and its container image refuse to start without an issuer and its telemetry inputs ([bff/README.md](bff/README.md), [spec 009](specs/009-bff-image/contracts/image.md)), and a healthy production deployment remains unsupported until a real issuer exists. The hosted deployment input funnel ([deploy/gcp/inputs/telemetry.go](deploy/gcp/inputs/telemetry.go) at `e82bc8f`) additionally rejects browser origins with IPv6 zone indices (%), private/loopback/link-local IP literals, and non-ASCII hosts before provisioning.
 
 ## How to use and test
 
@@ -108,5 +103,4 @@ tools/speckit/bootstrap.sh verify
 ## Owner
 
 Proposed: Sélamy Labs, pending the operator's approval of the public identity, recorded in the external
-release packet. No public repository exists yet; public development of this reviewed core is authorized after
-the existing publication checks, and one exact candidate is frozen for it. See research R-14.
+release packet. The public source repository is published at 2d0ecf9 after the publication and neutrality checks; tagged releases, package publication and hosted deployment remain behind their operator gates. See research R-14.
