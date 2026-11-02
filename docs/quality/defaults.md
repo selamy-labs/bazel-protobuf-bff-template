@@ -152,7 +152,9 @@ A key set with no eligible signing key cannot start the verifier.
 
 Telemetry defaults, required fields, source precedence, privacy invariants and
 negative controls are recorded in `docs/quality/telemetry.md`. All adjustable
-telemetry defaults live in `bff/cmd/bff/telemetry.go`, never in the runtime adapter.
+telemetry defaults live in `bff/cmd/bff/telemetry.go`, never in the runtime adapter. A hosted run sets the
+endpoint, the revision, the environment and the sample ratio from the input funnel, and keeps the others' composition
+values.
 
 ## TypeScript duplication scan contract
 

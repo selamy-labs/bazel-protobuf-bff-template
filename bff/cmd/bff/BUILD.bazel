@@ -29,6 +29,7 @@ go_binary(
     pure = "on",
     visibility = [
         "//bff:__subpackages__",
+        "//deploy/gcp/inputs:__pkg__",
         "//web/e2e:__pkg__",
     ],
 )

@@ -38,7 +38,8 @@ bff: no verifier is configured: name the issuer with --verifier-issuer, --verifi
 ```
 
 To run in production, name your issuer with `--verifier-issuer`, `--verifier-audience` and `--verifier-jwks-url` (or
-the `BFF_VERIFIER_*` variables): a token is accepted only when its signature checks against the issuer's current
+the `BFF_VERIFIER_*` variables), and set `BFF_OTEL_ENDPOINT` and `BFF_RELEASE_REVISION`, which the binary also refuses
+to start without ([telemetry](../docs/quality/telemetry.md)). A token is accepted only when its signature checks against the issuer's current
 keys and its issuer, audience and expiry hold, and a rejected token says nothing about why. Run the development
 binary locally. It accepts any subject, listens only on loopback, and is labeled `TEST IDENTITY`.
 

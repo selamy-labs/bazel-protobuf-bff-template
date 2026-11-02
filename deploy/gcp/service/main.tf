@@ -9,6 +9,9 @@ locals {
   # The digest to serve: the release's serving digest, which the funnel has already tied to the image digest or
   # the previous one. Nothing else can be deployed, and nothing is rebuilt.
   image = "${local.inputs.contract.artifact_registry}@${local.inputs.release.serving_digest}"
+  # The revision of the digest served, which the service reports in its telemetry. A rollback serves the previous
+  # digest while image.source_revision still names the newer one, so the release's own revision is read there.
+  serving_revision = local.inputs.release.serving_digest == local.inputs.image.digest ? local.inputs.image.source_revision : local.inputs.release.previous_revision
 }
 
 resource "google_cloud_run_v2_service" "bff" {
@@ -59,6 +62,24 @@ resource "google_cloud_run_v2_service" "bff" {
         name  = "BFF_OBJECT_BUCKET"
         value = local.inputs.contract.notes_bucket
       }
+      # What the production binary requires to start, and what it would otherwise default (spec 011 G09). Neither
+      # the endpoint nor the revision has a default in the binary: without them it refuses, and the revision fails.
+      env {
+        name  = "BFF_OTEL_ENDPOINT"
+        value = local.inputs.runtime.telemetry.endpoint
+      }
+      env {
+        name  = "BFF_RELEASE_REVISION"
+        value = local.serving_revision
+      }
+      env {
+        name  = "BFF_OTEL_ENVIRONMENT"
+        value = local.inputs.runtime.telemetry.environment
+      }
+      env {
+        name  = "BFF_OTEL_SAMPLE_RATIO"
+        value = tostring(local.inputs.runtime.telemetry.sample_ratio)
+      }
     }
   }
 
@@ -87,6 +108,7 @@ output "serving" {
   description = "What the plan would serve: the image reference by digest, the port and the origin."
   value = {
     image          = local.image
+    revision       = local.serving_revision
     port           = local.inputs.runtime.port
     allowed_origin = local.inputs.runtime.allowed_origin
     max_instances  = local.inputs.bounds.max_instances

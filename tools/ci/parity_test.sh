@@ -92,7 +92,7 @@ rc=0
 [[ -s "$work/gate.sh" ]] || fail "could not extract the gate run block"
 # The run block's input is what `needs` reports: the latest result of each leg. So a leg that failed and
 # was rerun to success, beside legs from an earlier attempt, is three successes (spec 007 R4). That
-# GitHub reports it so is unobserved here: no hosted run exists.
+# GitHub reports it so is unobserved here: no hosted run has yet rerun a failed leg.
 gate() { # gate <results> <want>
   local got=0
   RESULTS="$1" EXPECTED_LEGS=3 sh "$work/gate.sh" 2>/dev/null || got=1

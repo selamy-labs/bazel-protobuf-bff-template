@@ -6,6 +6,7 @@ exports_files(
         "example.inputs.json",
         "testdata/cancel.inputs.json",
         "testdata/rollback.inputs.json",
+        "testdata/zero-sample.inputs.json",
     ],
     visibility = [
         "//deploy:__subpackages__",
@@ -15,7 +16,11 @@ exports_files(
 
 go_library(
     name = "inputs",
-    srcs = ["inputs.go"],
+    srcs = [
+        "inputs.go",
+        "resolve.go",
+        "telemetry.go",
+    ],
     importpath = "example.com/bfftemplate/deploy/gcp/inputs",
     visibility = ["//deploy:__subpackages__"],
 )
@@ -23,15 +28,22 @@ go_library(
 go_test(
     name = "inputs_test",
     size = "small",
-    srcs = ["inputs_test.go"],
+    srcs = [
+        "inputs_test.go",
+        "plan_test.go",
+        "resolve_test.go",
+        "start_test.go",
+    ],
     data = [
         "contract.schema.json",
         "example.inputs.json",
         "inputs.schema.json",
+        "//bff/cmd/bff",
         "//deploy/gcp:service/main.tf",
     ],
     embed = [":inputs"],
     env = {
+        "BFF_BIN": "$(rlocationpath //bff/cmd/bff)",
         "CONTRACT_SCHEMA": "$(rlocationpath contract.schema.json)",
         "EXAMPLE": "$(rlocationpath example.inputs.json)",
         "MAIN_TF": "$(rlocationpath //deploy/gcp:service/main.tf)",

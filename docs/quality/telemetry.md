@@ -35,6 +35,28 @@ The browser production witness explicitly uses a loopback unavailable collector,
 sampling zero, synthetic revision and dev environment; its purpose is browser
 identity behavior, not a live telemetry assertion.
 
+## The hosted service
+
+`deploy/gcp/service` passes `BFF_OTEL_ENDPOINT`, `BFF_RELEASE_REVISION`, `BFF_OTEL_ENVIRONMENT` and
+`BFF_OTEL_SAMPLE_RATIO` from the input funnel. The revision is the served digest's, so a rollback reports the older
+revision. `//deploy/gcp/inputs:inputs_test` starts the real production binary with the module's variable names and the funnel's values and
+reads back what it resolved, and shows it refusing without the endpoint or the revision. This is offline: no hosted
+export has been observed.
+
+A hosted run must still settle three things. None is decided here, and each is a gate input of spec 012 T017:
+
+- **Where the export goes.** The exporter sends no credentials, so a backend that requires them needs a collector
+  in front of it. A collector beside the service would be on loopback, which the binary accepts and the funnel
+  refuses in any spelling until the module declares one. A reachable collector is still not proven by the funnel.
+- **CPU between requests.** The service scales to zero under request-based billing, where the platform allocates
+  CPU only during requests. Batches and metric intervals can therefore wait for the next request, and metrics
+  from an idle instance may arrive late or not at all. Instance-based billing changes this and changes the cost.
+- **The shutdown window.** The platform allows 10 seconds between SIGTERM and SIGKILL. The server's drain bound and
+  the telemetry shutdown bound are 5 seconds each and run in turn, so the worst case uses the whole window, and
+  a slow collector can lose the final batch. Failed batches are never replayed, so this loses data, not requests.
+
+## The local viewer
+
 `tools/otel/view.sh` runs the checksum-pinned Collector 0.164.0 locally.
 `tools/otel/smoke.mjs` drives the production binary through a synthetic local issuer,
 then verifies real Collector trace/metric export and absence of synthetic secrets.

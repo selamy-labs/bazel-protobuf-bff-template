@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -35,7 +36,7 @@ func TestTheSyntheticExampleValidates(t *testing.T) {
 	if in.Contract.ProjectID != "example-bff-hosted-000000" || in.Frontend.BasePath != "/bazel-protobuf-bff-template/" {
 		t.Errorf("%+v", in)
 	}
-	for _, value := range []string{in.Contract.ProjectID, in.Contract.RuntimeIdentity, in.Project.OwnerGroup, in.Runtime.Verifier.Issuer, in.Frontend.RPCBaseURL} {
+	for _, value := range []string{in.Contract.ProjectID, in.Contract.RuntimeIdentity, in.Project.OwnerGroup, in.Runtime.Verifier.Issuer, in.Runtime.Telemetry.Endpoint, in.Frontend.RPCBaseURL} {
 		if !strings.Contains(value, "example") {
 			t.Errorf("the public example holds a value that does not look synthetic: %q", value)
 		}
@@ -111,6 +112,28 @@ func TestEveryRefusalNamesTheField(t *testing.T) {
 		"bad currency":              {`"budget_alert_currency": "USD"`, `"budget_alert_currency": "dollars"`, "bounds.budget_alert_currency"},
 		"bad previous digest":       {`"previous_digest": null`, `"previous_digest": "sha256:short"`, "release.previous_digest"},
 		"bad serving digest":        {`"serving_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"`, `"serving_digest": "v1"`, "release.serving_digest"},
+		"plain http telemetry":      {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "http://otel.example.invalid"`, "runtime.telemetry.endpoint"},
+		"telemetry with a path":     {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://otel.example.invalid/v1/traces"`, "runtime.telemetry.endpoint"},
+		"unknown environment":       {`"environment": "prod"`, `"environment": "production"`, "runtime.telemetry.environment"},
+		"sample ratio above one":    {`"sample_ratio": 1`, `"sample_ratio": 1.5`, "runtime.telemetry.sample_ratio"},
+		"sample ratio below zero":   {`"sample_ratio": 1`, `"sample_ratio": -0.1`, "runtime.telemetry.sample_ratio"},
+		"revision without a digest": {`"previous_revision": null`, `"previous_revision": "2222222222222222222222222222222222222222"`, "release.previous_revision"},
+		"telemetry with no host":    {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://:443"`, "runtime.telemetry.endpoint"},
+		"telemetry on localhost":    {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://localhost:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry on upper case":   {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://LOCALHOST:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry on a dotted one": {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://localhost.:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry on a subdomain":  {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://otel.localhost:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry on loopback":     {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://127.0.0.1:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry on ipv6":         {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://[::1]:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry on mapped ipv4":  {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://[::ffff:127.0.0.1]:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry unspecified":     {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://0.0.0.0:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry unspecified v6":  {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://[::]:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry short form":      {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://127.1:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry decimal form":    {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://2130706433:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry hex form":        {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://0x7f.0.0.1:4318"`, "runtime.telemetry.endpoint"},
+		"telemetry only a dot":      {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://.:4318"`, "runtime.telemetry.endpoint"},
+		"page on loopback":          {`"allowed_origin": "https://example-owner.github.example.invalid"`, `"allowed_origin": "https://localhost:3000"`, "runtime.allowed_origin"},
+		"rpc url on loopback":       {`"rpc_base_url": "https://bff.example.invalid"`, `"rpc_base_url": "https://127.0.0.1:8080"`, "frontend.rpc_base_url"},
 	}
 	for name, c := range cases {
 		text := strings.Replace(base, c.old, c.new, 1)
@@ -124,262 +147,107 @@ func TestEveryRefusalNamesTheField(t *testing.T) {
 	}
 }
 
+const (
+	previousDigest   = `"previous_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"`
+	previousRevision = `"previous_revision": "2222222222222222222222222222222222222222"`
+)
+
+// The previous digest and its revision come together: the service reports the revision of the digest it serves.
+func TestThePreviousDigestNamesItsRevision(t *testing.T) {
+	withDigest := strings.Replace(example(t), `"previous_digest": null`, previousDigest, 1)
+	sameDigest := strings.ReplaceAll(withDigest, previousDigest, `"previous_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"`)
+	for name, text := range map[string]string{
+		"a digest without a revision":  withDigest,
+		"a revision that is not one":   strings.Replace(withDigest, `"previous_revision": null`, `"previous_revision": "main"`, 1),
+		"two revisions for one digest": strings.Replace(sameDigest, `"previous_revision": null`, previousRevision, 1),
+	} {
+		if _, err := Load(write(t, text)); err == nil || !strings.Contains(err.Error(), "release.previous_revision") {
+			t.Errorf("%s: got %v, want a refusal naming release.previous_revision", name, err)
+		}
+	}
+	same := strings.Replace(sameDigest, `"previous_revision": null`, `"previous_revision": "0000000000000000000000000000000000000000"`, 1)
+	if _, err := Load(write(t, same)); err != nil {
+		t.Errorf("the image's own digest and revision as the previous pair: %v", err)
+	}
+}
+
+// A sample ratio of zero is present, not absent: it is valid and keeps no trace, as the binary reads it.
+func TestASampleRatioOfZeroIsAValue(t *testing.T) {
+	for _, zero := range []string{"0", "0.0"} {
+		_, _, effective, err := Resolve(write(t, strings.Replace(example(t), `"sample_ratio": 1`, `"sample_ratio": `+zero, 1)))
+		if err != nil {
+			t.Fatalf("%s: %v", zero, err)
+		}
+		if !strings.Contains(string(effective), `"sample_ratio": `+zero) {
+			t.Errorf("%s did not reach the effective document", zero)
+		}
+	}
+}
+
+// A hosted origin is a name a hosted service can reach, whatever its port.
+// TestAnOriginThatIsNotHostedIsRefusedForThatReason holds every field exactOrigin serves to the same hosts, and names
+// the reason, so that a host refused for something else entirely cannot stand in for this rule. The fullwidth and
+// ideographic spellings are the ones net/http maps through IDNA to localhost and 127.0.0.1 before it dials.
+func TestAnOriginThatIsNotHostedIsRefusedForThatReason(t *testing.T) {
+	const notHosted, notASCII = "not a hosted origin", "in ASCII"
+	origins := map[string]string{
+		"https://[::1%25lo]:4318":                                             notHosted,
+		"https://[::%25lo]:4318":                                              notHosted,
+		"https://[::ffff:127.0.0.1%25lo]:4318":                                notHosted,
+		"https://[fe80::1%25eth0]:4318":                                       notHosted,
+		"https://[2001:db8::1%25eth0]:4318":                                   notHosted,
+		"https://[fe80::1]:4318":                                              notHosted,
+		"https://169.254.169.254":                                             notHosted,
+		"https://[::ffff:169.254.169.254]":                                    notHosted,
+		"https://10.0.0.1:4318":                                               notHosted,
+		"https://172.16.0.1:4318":                                             notHosted,
+		"https://192.168.1.1:4318":                                            notHosted,
+		"https://[::ffff:10.0.0.1]:4318":                                      notHosted,
+		"https://[fd00::1]:4318":                                              notHosted,
+		"https://224.0.0.1:4318":                                              notHosted,
+		"https://[ff02::1]:4318":                                              notHosted,
+		"https://[::ffff:224.0.0.1]:4318":                                     notHosted,
+		"https://[::ffff:255.255.255.255]:4318":                               notHosted,
+		"https://[::ffff:0.0.0.0]:4318":                                       notHosted,
+		"https://255.255.255.255:4318":                                        notHosted,
+		"https://\uff4c\uff4f\uff43\uff41\uff4c\uff48\uff4f\uff53\uff54:4318": notASCII,
+		"https://\uff11\uff12\uff17.\uff10.\uff10.\uff11:4318":                notASCII,
+		"https://127\u30020\u30020\u30021:4318":                               notASCII,
+		"https://%EF%BD%8Cocalhost:4318":                                      notASCII,
+	}
+	fields := map[string]string{
+		"runtime.telemetry.endpoint": `"https://otel.example.invalid"`,
+		"runtime.allowed_origin":     `"https://example-owner.github.example.invalid"`,
+		"frontend.rpc_base_url":      `"https://bff.example.invalid"`,
+	}
+	base := example(t)
+	for field, value := range fields {
+		for origin, reason := range origins {
+			text := strings.Replace(base, value, strconv.Quote(origin), 1)
+			if text == base {
+				t.Fatalf("%s: the mutation changed nothing", field)
+			}
+			_, err := Load(write(t, text))
+			if err == nil || !strings.Contains(err.Error(), field) || !strings.Contains(err.Error(), reason) {
+				t.Errorf("%s = %s: got %v, want a refusal naming the field and %q", field, origin, err, reason)
+			}
+		}
+	}
+}
+
+func TestAnExternalHostStaysAccepted(t *testing.T) {
+	for _, endpoint := range []string{"https://otel.example.invalid:4318", "https://xn--bcher-kva.example.invalid:4318", "https://203.0.113.7:4318", "https://[2001:db8::1]:4318"} {
+		if _, err := Load(write(t, strings.Replace(example(t), `"https://otel.example.invalid"`, `"`+endpoint+`"`, 1))); err != nil {
+			t.Errorf("%s: %v", endpoint, err)
+		}
+	}
+}
+
 func TestARollbackServesThePreviousDigest(t *testing.T) {
-	text := strings.Replace(example(t), `"previous_digest": null`, `"previous_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"`, 1)
+	text := strings.Replace(example(t), `"previous_digest": null`, previousDigest, 1)
+	text = strings.Replace(text, `"previous_revision": null`, previousRevision, 1)
 	text = strings.Replace(text, `"serving_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"`, `"serving_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"`, 1)
 	if _, err := Load(write(t, text)); err != nil {
 		t.Fatalf("a rollback to the previous digest was refused: %v", err)
-	}
-}
-
-func overlay(t *testing.T, name, text string) string {
-	t.Helper()
-	path := filepath.Join(t.TempDir(), name)
-	if err := os.WriteFile(path, []byte(text), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	return path
-}
-
-// The later file wins per leaf, every other leaf keeps the base's value, and each leaf names the file that gave it.
-func TestAnOverlayWinsPerLeafAndEveryLeafNamesItsSource(t *testing.T) {
-	base := write(t, example(t))
-	first := overlay(t, "operator.json", `{"bounds": {"max_instances": 3}, "release": {"cancel_in_flight": true}}`)
-	second := overlay(t, "contract.json", `{"bounds": {"max_instances": 4}}`)
-	in, provenance, effective, err := Resolve(base, first, second)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if in.Bounds.MaxInstances != 4 || in.Bounds.Concurrency != 20 || !in.Release.CancelInFlight {
-		t.Errorf("%+v %+v", in.Bounds, in.Release)
-	}
-	for path, want := range map[string]string{
-		"bounds.max_instances": "contract.json", "release.cancel_in_flight": "operator.json",
-		"bounds.concurrency": "inputs.json", "release.previous_digest": "inputs.json", "contract.project_id": "inputs.json",
-	} {
-		if provenance[path] != want {
-			t.Errorf("%s: from %q, want %q", path, provenance[path], want)
-		}
-	}
-	leaves, _ := shape()
-	if len(provenance) != len(leaves) {
-		t.Errorf("%d leaves with a source, the schema has %d", len(provenance), len(leaves))
-	}
-	// The effective document is the merged one, canonical, and reads back as the same inputs.
-	again, err := Load(write(t, string(effective)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !reflect.DeepEqual(again, in) {
-		t.Errorf("the effective document reads back differently:\n%+v\n%+v", again, in)
-	}
-	lines, err := Render(effective, provenance)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(lines) != len(leaves) || !contains(lines, `bounds.max_instances=4 # from contract.json`) ||
-		!contains(lines, `release.previous_digest=null # from inputs.json`) ||
-		!contains(lines, `contract.project_id="example-bff-hosted-000000" # from inputs.json`) {
-		t.Errorf("rendered:\n%s", strings.Join(lines, "\n"))
-	}
-}
-
-func contains(lines []string, want string) bool {
-	for _, line := range lines {
-		if line == want {
-			return true
-		}
-	}
-	return false
-}
-
-// A leaf given by no file is refused by name: a struct decode would have read its zero value silently.
-func TestALeafGivenByNoFileIsRefusedByName(t *testing.T) {
-	text := strings.Replace(example(t), ",\n    \"cancel_in_flight\": false", "", 1)
-	if text == example(t) {
-		t.Fatal("the mutation changed nothing")
-	}
-	_, err := Load(write(t, text))
-	if err == nil || !strings.Contains(err.Error(), "release.cancel_in_flight: given by no file") {
-		t.Errorf("got %v", err)
-	}
-	// Given by the overlay, it is complete again.
-	in, provenance, _, err := Resolve(write(t, text), overlay(t, "operator.json", `{"release": {"cancel_in_flight": true}}`))
-	if err != nil || !in.Release.CancelInFlight || provenance["release.cancel_in_flight"] != "operator.json" {
-		t.Errorf("%v %+v %v", err, in, provenance)
-	}
-}
-
-// A file is read in the schema's shape only, and each refusal names the file and the key.
-func TestAnOverlayOutsideTheShapeIsRefusedNamingTheFile(t *testing.T) {
-	base := write(t, example(t))
-	cases := map[string]struct{ text, want string }{
-		"a key outside the schema":   {`{"bounds": {"waiver": true}}`, "operator.json: bounds.waiver: not in the schema"},
-		"a section given as a value": {`{"bounds": 5}`, "operator.json: bounds: is a section of the schema, not a value"},
-		"a value given as a section": {`{"region": {"name": "x"}}`, "operator.json: region: is a value of the schema, not a section"},
-		"not an object":              {`[1]`, "operator.json"},
-		"not json":                   {`{`, "operator.json"},
-	}
-	for name, c := range cases {
-		_, _, _, err := Resolve(base, overlay(t, "operator.json", c.text))
-		if err == nil || !strings.Contains(err.Error(), c.want) {
-			t.Errorf("%s: got %v, want a refusal naming %q", name, err, c.want)
-		}
-	}
-	if _, _, _, err := Resolve(base, filepath.Join(t.TempDir(), "absent.json")); err == nil {
-		t.Error("an absent overlay was accepted")
-	}
-	// A wrong type reaches the struct decode, which names the leaf; validation then sees the merged document.
-	_, _, _, err := Resolve(base, overlay(t, "operator.json", `{"bounds": {"max_instances": "two"}}`))
-	if err == nil || !strings.Contains(err.Error(), "max_instances") {
-		t.Errorf("got %v", err)
-	}
-	_, _, _, err = Resolve(base, overlay(t, "operator.json", `{"bounds": {"max_instances": 50}}`))
-	if err == nil || !strings.Contains(err.Error(), "bounds.max_instances: 50") {
-		t.Errorf("got %v", err)
-	}
-}
-
-func TestRenderRefusesWhatIsNotADocument(t *testing.T) {
-	if _, err := Render([]byte("{"), nil); err == nil {
-		t.Error("accepted")
-	}
-}
-
-func mainTF(t *testing.T) string {
-	t.Helper()
-	data, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("MAIN_TF")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	return string(data)
-}
-
-// The cost bounds are typed inputs, enumerated in the plan (spec 012 FR-010): every bound the service consumes
-// is read from the funnel, the budget alert is the infrastructure owner's and appears in no resource here, and
-// the schema itself says the alert is never a cap.
-func TestTheCostBoundsAreEnumeratedInThePlan(t *testing.T) {
-	var fields []string
-	typ := reflect.TypeOf(Bounds{})
-	for i := 0; i < typ.NumField(); i++ {
-		fields = append(fields, typ.Field(i).Tag.Get("json"))
-	}
-	want := []string{"max_instances", "concurrency", "request_timeout_seconds", "budget_alert_amount", "budget_alert_currency"}
-	if !reflect.DeepEqual(fields, want) {
-		t.Fatalf("the bounds are %v, the enumeration knows %v", fields, want)
-	}
-	plan := mainTF(t)
-	for _, consumed := range []string{"max_instances", "concurrency", "request_timeout_seconds"} {
-		if !strings.Contains(plan, "local.inputs.bounds."+consumed) {
-			t.Errorf("the plan does not read bounds.%s from the funnel", consumed)
-		}
-	}
-	for _, owner := range []string{"budget_alert_amount", "budget_alert_currency"} {
-		if strings.Contains(plan, owner) {
-			t.Errorf("the plan consumes %s; the budget alert is the infrastructure owner's, declared against the contract", owner)
-		}
-	}
-	if strings.Contains(plan, "cap") {
-		t.Error("the plan speaks of a cap; no bound here is a monetary cap")
-	}
-	schema, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("SCHEMA")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if !strings.Contains(string(schema), "never a cap") {
-		t.Error("the schema does not say the budget alert is never a cap")
-	}
-}
-
-// The identities and bindings are enumerated (spec 012 FR-004): the service runs as the contract's runtime
-// identity, the one binding is the public invoker, no other role or member is granted, and the build identity
-// is granted nothing here, so the runtime identity holds no deploy or build permission from this module.
-func TestTheIdentitiesAndBindingsAreEnumerated(t *testing.T) {
-	plan := mainTF(t)
-	if strings.Count(plan, "\nresource \"") != 2 {
-		t.Fatalf("the plan declares %d resources, not the two enumerated", strings.Count(plan, "\nresource \""))
-	}
-	if !strings.Contains(plan, "service_account                  = local.inputs.contract.runtime_identity") {
-		t.Error("the service does not run as the contract's runtime identity")
-	}
-	for _, line := range strings.Split(plan, "\n") {
-		trimmed := strings.TrimSpace(line)
-		switch {
-		case strings.HasPrefix(trimmed, "role "):
-			if trimmed != `role     = "roles/run.invoker"` {
-				t.Errorf("an unenumerated role: %s", trimmed)
-			}
-		case strings.HasPrefix(trimmed, "member "):
-			if trimmed != `member   = "allUsers"` {
-				t.Errorf("an unenumerated member: %s", trimmed)
-			}
-		}
-	}
-	bindings := 0
-	for _, line := range strings.Split(plan, "\n") {
-		if strings.HasPrefix(line, "resource \"") && strings.Contains(line, "iam") {
-			bindings++
-			if line != `resource "google_cloud_run_v2_service_iam_member" "public_invoker" {` {
-				t.Errorf("an unenumerated binding: %s", line)
-			}
-		}
-	}
-	if bindings != 1 {
-		t.Errorf("%d bindings declared, not the one public invoker", bindings)
-	}
-	for _, absent := range []string{"build_identity", "roles/run.admin", "roles/owner", "roles/editor", "serviceAccountUser", "iam_binding", "iam_policy"} {
-		if strings.Contains(plan, absent) {
-			t.Errorf("the plan mentions %s; the module grants nothing beyond the public invoker", absent)
-		}
-	}
-}
-
-// The contract the infrastructure owner publishes is the one the funnel consumes (spec 012 T002, R1): the
-// published schema's fields are the struct's, the inputs schema references it rather than restating it, and
-// the version is the one supported.
-func TestTheContractSchemaIsTheOneTheFunnelConsumes(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("CONTRACT_SCHEMA")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var published struct {
-		Required   []string                   `json:"required"`
-		Properties map[string]json.RawMessage `json:"properties"`
-	}
-	if err := json.Unmarshal(raw, &published); err != nil {
-		t.Fatal(err)
-	}
-	var fields []string
-	typ := reflect.TypeOf(Contract{})
-	for i := 0; i < typ.NumField(); i++ {
-		fields = append(fields, typ.Field(i).Tag.Get("json"))
-	}
-	if !reflect.DeepEqual(fields, published.Required) {
-		t.Errorf("struct fields %v, the published contract requires %v", fields, published.Required)
-	}
-	for _, field := range fields {
-		if _, ok := published.Properties[field]; !ok {
-			t.Errorf("the published contract lacks %s", field)
-		}
-	}
-	if !strings.Contains(string(published.Properties["version"]), `"const": 1`) {
-		t.Error("the published contract's version is not the one supported")
-	}
-	inputs, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("SCHEMA")))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var funnel struct {
-		Properties struct {
-			Contract struct {
-				Ref string `json:"$ref"`
-			} `json:"contract"`
-		} `json:"properties"`
-	}
-	if err := json.Unmarshal(inputs, &funnel); err != nil {
-		t.Fatal(err)
-	}
-	if funnel.Properties.Contract.Ref != "contract.schema.json" {
-		t.Errorf("the inputs schema restates the contract instead of referencing it: %q", funnel.Properties.Contract.Ref)
 	}
 }

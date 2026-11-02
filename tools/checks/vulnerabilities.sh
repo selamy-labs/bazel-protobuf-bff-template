@@ -12,8 +12,6 @@
 #
 # Exit 0 passed, 1 a finding, 11 nothing could be judged.
 set -euo pipefail
-# govulncheck links the Go telemetry library; nothing here reports anything anywhere.
-export GOTELEMETRY=off
 wrapper="$1"
 isolation="$2"
 govulncheck="$3"
@@ -30,7 +28,17 @@ if [[ "$isolation" == weakened ]]; then flags+=(--config=weak-isolation); fi
 binary="$("$wrapper" cquery "${flags[@]}" --output=files "$label" </dev/null 2>/dev/null | tail -n 1)"
 [[ -n "$binary" && -f "$binary" ]] || refuse "the output of $label was not found"
 work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
+# Go leaves a module cache read-only, so the tree is made writable before it is removed.
+trap 'chmod -R u+w "$work" 2>/dev/null || true; rm -rf "$work"' EXIT
+# `govulncheck -version` runs `go env GOVERSION` when a go command is on PATH, and that go would honor go.mod by
+# downloading a toolchain into HOME. The scan reads the binary's own version, so nothing here needs one.
+export GOTOOLCHAIN=local
+# govulncheck links the Go telemetry library, which reads no environment variable for this: only its mode file
+# turns it off. Left on, it starts a child that outlives the scan and writes under the configuration directory
+# while the trap removes it, and that directory is the host's whenever XDG_CONFIG_HOME is set.
+export XDG_CONFIG_HOME="$work/.config"
+mkdir -p "$XDG_CONFIG_HOME/go/telemetry"
+echo off >"$XDG_CONFIG_HOME/go/telemetry/mode"
 updated="$(HOME="$work" "$govulncheck" -version -db "$database" 2>&1 | sed -nE 's/^DB updated: (.*)$/\1/p' | head -n 1)"
 [[ -n "$updated" ]] || refuse "the database at $database could not be read"
 rc=0

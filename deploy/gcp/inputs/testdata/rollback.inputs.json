@@ -32,6 +32,11 @@
     "persistence": {
       "kind": "managed-store",
       "statement": "a note survives a revision change and a restart; it is read by its owner only"
+    },
+    "telemetry": {
+      "endpoint": "https://otel.example.invalid",
+      "environment": "prod",
+      "sample_ratio": 1
     }
   },
   "frontend": {
@@ -49,6 +54,7 @@
   "release": {
     "serving_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
     "previous_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222",
+    "previous_revision": "2222222222222222222222222222222222222222",
     "cancel_in_flight": false
   }
 }

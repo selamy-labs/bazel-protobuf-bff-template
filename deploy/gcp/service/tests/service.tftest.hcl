@@ -49,8 +49,41 @@ run "the_origin_port_and_bounds_come_from_the_funnel" {
   }
 }
 
+# The telemetry the production binary requires (spec 011 G09): without the endpoint or the revision it refuses to
+# start, and the revision fails. //deploy/gcp/inputs:inputs_test starts the real binary with this environment.
+run "the_telemetry_inputs_come_from_the_funnel" {
+  command = plan
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_OTEL_ENDPOINT"]) == "https://otel.example.invalid"
+    error_message = "the telemetry endpoint is the funnel's"
+  }
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_RELEASE_REVISION"]) == "0000000000000000000000000000000000000000"
+    error_message = "the service reports the revision of the image it serves"
+  }
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_OTEL_ENVIRONMENT"]) == "prod" && one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_OTEL_SAMPLE_RATIO"]) == "1"
+    error_message = "the environment and the sample ratio are the funnel's"
+  }
+}
+
+# A ratio of zero is a value: it keeps no trace. The binary defaults an empty one to 1, so it must arrive as "0".
+run "a_sample_ratio_of_zero_reaches_the_service_as_zero" {
+  command = plan
+
+  variables {
+    inputs_file = "../inputs/testdata/zero-sample.inputs.json"
+  }
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_OTEL_SAMPLE_RATIO"]) == "0"
+    error_message = "a sample ratio of zero is the string 0, never empty"
+  }
+}
+
 # Rollback as an input (spec 012 FR-009): the same configuration with the previous digest serving. The image
-# is the previous digest; every other declared value is unchanged.
+# is the previous digest and the reported revision is that digest's; every other declared value is unchanged.
 run "a_rollback_changes_only_the_digest" {
   command = plan
 
@@ -63,8 +96,12 @@ run "a_rollback_changes_only_the_digest" {
     error_message = "a rollback serves the previous digest"
   }
   assert {
+    condition     = one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_RELEASE_REVISION"]) == "2222222222222222222222222222222222222222"
+    error_message = "a rollback reports the revision of the digest it serves, not the newer image's"
+  }
+  assert {
     condition     = google_cloud_run_v2_service.bff.template[0].service_account == "bff-runtime@example.invalid" && google_cloud_run_v2_service.bff.template[0].scaling[0].max_instance_count == 2 && google_cloud_run_v2_service.bff.template[0].max_instance_request_concurrency == 20 && google_cloud_run_v2_service.bff.template[0].timeout == "30s" && google_cloud_run_v2_service.bff.template[0].containers[0].ports[0].container_port == 8080
-    error_message = "a rollback changes nothing but the digest"
+    error_message = "a rollback changes nothing but the digest and the revision reported for it"
   }
 }
 

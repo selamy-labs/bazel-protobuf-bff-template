@@ -24,6 +24,7 @@ sh_test(
         "//deploy/gcp/inputs:example.inputs.json",
         "//deploy/gcp/inputs:testdata/cancel.inputs.json",
         "//deploy/gcp/inputs:testdata/rollback.inputs.json",
+        "//deploy/gcp/inputs:testdata/zero-sample.inputs.json",
         "//deploy/gcp/inputs:validate",
         "@opentofu//:tofu",
         "@terraform_provider_google//file",
