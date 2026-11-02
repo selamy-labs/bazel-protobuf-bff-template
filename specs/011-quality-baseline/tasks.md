@@ -49,7 +49,7 @@
 ## Phase 7: Archive primitive and closure
 
 - [x] T016 (landed as `//:archive_ref_test` and `//:archive_handoff_test`; prevention only, the 2026-11-01 loss stays unrecovered) Land `tools/release/archive_ref.sh` and `tools/release/archive_handoff.sh` with their controls as `//:archive_ref_test` and `//:archive_handoff_test` (a bare object id refused with no bundle; a named ref bundled, verified and restored to the exact commit and tree; a truncated bundle fails the fresh restore; a failed archive leaves no eligibility record; a directory or a link to a directory arriving at the destination after the restore is refused with nothing written and no archive reported; no unowned path removed; no clobber; the reported digest is the published bundle's), with the incident record and the loss recorded as unrecovered; neither script holds a cleanup step
-- [ ] T017 Evidence record `docs/evidence/m9.md`, `docs/quality/baseline.md` at its measured state, statuses, the full verifier, freeze, independent review at the exact revision
+- [ ] T017 (the evidence record and the baseline reconciled through `30498f4`: the TypeScript ceiling from the base, the client's properties and the defect they found, TypeScript duplication; the freeze and the independent review remain) Evidence record `docs/evidence/m9.md`, `docs/quality/baseline.md` at its measured state, statuses, the full verifier, freeze, independent review at the exact revision
 - [ ] T018 Closure only when every applicable control is enforced and evidenced; any remaining applicable gap is an owned open task, and the initiative is not closed
 
 ## Dependencies
