@@ -127,7 +127,7 @@
             "endpoint": {
               "type": "string",
               "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?$",
-              "description": "The OTLP/HTTP collector's exact origin, no path, on an external host: a loopback or unspecified host is refused, since no collector is declared beside the service. The exporter sends no credentials, so this collector accepts the export without them."
+              "description": "The OTLP/HTTP collector's exact origin, no path, on an external host in ASCII: a loopback, unspecified, link-local, multicast, private or zoned host is refused, since no collector is declared beside the service and the service declares no network of its own. The exporter sends no credentials, so this collector accepts the export without them."
             },
             "environment": {
               "enum": ["dev", "staging", "prod"]

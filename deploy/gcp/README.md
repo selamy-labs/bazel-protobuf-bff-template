@@ -17,7 +17,9 @@ The service passes the production binary its telemetry inputs from the funnel: `
 `.environment` and `.sample_ratio`, and the revision of the digest it serves, which is `image.source_revision` or,
 in a rollback, `release.previous_revision`. The binary refuses to start without an endpoint and a revision, so these
 are required here too. The endpoint is an https origin the service exports to without credentials: no collector is
-declared in this module, and `docs/quality/telemetry.md` lists what a hosted run must decide first.
+declared in this module, and `docs/quality/telemetry.md` lists what a hosted run must decide first. The funnel
+refuses an origin the service could not reach: a loopback, unspecified, link-local, multicast, private or zoned host,
+or one not spelled in ASCII, which a transport would map to something else before it dials.
 
 The infrastructure owner composes the project, bootstrap, billing, APIs, IAM and state in its own repository and
 publishes a versioned output contract; `inputs.schema.json` names the fields this repository consumes from it.

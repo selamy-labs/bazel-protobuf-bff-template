@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -184,8 +185,58 @@ func TestASampleRatioOfZeroIsAValue(t *testing.T) {
 }
 
 // A hosted origin is a name a hosted service can reach, whatever its port.
+// TestAnOriginThatIsNotHostedIsRefusedForThatReason holds every field exactOrigin serves to the same hosts, and names
+// the reason, so that a host refused for something else entirely cannot stand in for this rule. The fullwidth and
+// ideographic spellings are the ones net/http maps through IDNA to localhost and 127.0.0.1 before it dials.
+func TestAnOriginThatIsNotHostedIsRefusedForThatReason(t *testing.T) {
+	const notHosted, notASCII = "not a hosted origin", "in ASCII"
+	origins := map[string]string{
+		"https://[::1%25lo]:4318":                                             notHosted,
+		"https://[::%25lo]:4318":                                              notHosted,
+		"https://[::ffff:127.0.0.1%25lo]:4318":                                notHosted,
+		"https://[fe80::1%25eth0]:4318":                                       notHosted,
+		"https://[2001:db8::1%25eth0]:4318":                                   notHosted,
+		"https://[fe80::1]:4318":                                              notHosted,
+		"https://169.254.169.254":                                             notHosted,
+		"https://[::ffff:169.254.169.254]":                                    notHosted,
+		"https://10.0.0.1:4318":                                               notHosted,
+		"https://172.16.0.1:4318":                                             notHosted,
+		"https://192.168.1.1:4318":                                            notHosted,
+		"https://[::ffff:10.0.0.1]:4318":                                      notHosted,
+		"https://[fd00::1]:4318":                                              notHosted,
+		"https://224.0.0.1:4318":                                              notHosted,
+		"https://[ff02::1]:4318":                                              notHosted,
+		"https://[::ffff:224.0.0.1]:4318":                                     notHosted,
+		"https://[::ffff:255.255.255.255]:4318":                               notHosted,
+		"https://[::ffff:0.0.0.0]:4318":                                       notHosted,
+		"https://255.255.255.255:4318":                                        notHosted,
+		"https://\uff4c\uff4f\uff43\uff41\uff4c\uff48\uff4f\uff53\uff54:4318": notASCII,
+		"https://\uff11\uff12\uff17.\uff10.\uff10.\uff11:4318":                notASCII,
+		"https://127\u30020\u30020\u30021:4318":                               notASCII,
+		"https://%EF%BD%8Cocalhost:4318":                                      notASCII,
+	}
+	fields := map[string]string{
+		"runtime.telemetry.endpoint": `"https://otel.example.invalid"`,
+		"runtime.allowed_origin":     `"https://example-owner.github.example.invalid"`,
+		"frontend.rpc_base_url":      `"https://bff.example.invalid"`,
+	}
+	base := example(t)
+	for field, value := range fields {
+		for origin, reason := range origins {
+			text := strings.Replace(base, value, strconv.Quote(origin), 1)
+			if text == base {
+				t.Fatalf("%s: the mutation changed nothing", field)
+			}
+			_, err := Load(write(t, text))
+			if err == nil || !strings.Contains(err.Error(), field) || !strings.Contains(err.Error(), reason) {
+				t.Errorf("%s = %s: got %v, want a refusal naming the field and %q", field, origin, err, reason)
+			}
+		}
+	}
+}
+
 func TestAnExternalHostStaysAccepted(t *testing.T) {
-	for _, endpoint := range []string{"https://otel.example.invalid:4318", "https://203.0.113.7:4318", "https://[2001:db8::1]:4318"} {
+	for _, endpoint := range []string{"https://otel.example.invalid:4318", "https://xn--bcher-kva.example.invalid:4318", "https://203.0.113.7:4318", "https://[2001:db8::1]:4318"} {
 		if _, err := Load(write(t, strings.Replace(example(t), `"https://otel.example.invalid"`, `"`+endpoint+`"`, 1))); err != nil {
 			t.Errorf("%s: %v", endpoint, err)
 		}

@@ -3,10 +3,11 @@ package inputs
 import (
 	"errors"
 	"fmt"
-	"net"
+	"net/netip"
 	"net/url"
 	"regexp"
 	"strings"
+	"unicode"
 )
 
 // validateTelemetry is stricter than the binary, which also accepts a loopback endpoint: this module declares no
@@ -57,31 +58,38 @@ func (in *Inputs) validatePreviousRevision() error {
 }
 
 // exactOrigin accepts one https origin with a host and nothing else: no path, query, user or fragment. It is an
-// origin a hosted service reaches, so a host that names the machine it runs on is refused too: https on loopback
-// passes every other rule and exports to nothing.
+// origin a hosted service reaches, so a host that cannot be one is refused too: https on loopback passes every other
+// rule and exports to nothing. The host stays in ASCII because a transport maps any other spelling through IDNA before
+// it dials, so fullwidth localhost would reach this machine while reading here as a name.
 func exactOrigin(name, raw string) error {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "https" || u.Hostname() == "" || u.Path != "" || u.RawQuery != "" || u.User != nil || u.Fragment != "" || strings.Contains(u.Host, "*") {
 		return fmt.Errorf("%s: %q must be one exact https origin with no path", name, raw)
 	}
-	if local(u.Hostname()) {
-		return fmt.Errorf("%s: %q names this machine, not a hosted origin", name, raw)
+	host := u.Hostname()
+	if strings.ContainsFunc(host, func(r rune) bool { return r > unicode.MaxASCII }) {
+		return fmt.Errorf("%s: %q must spell its host in ASCII; an international name goes in its xn-- form", name, raw)
+	}
+	if notHosted(host) {
+		return fmt.Errorf("%s: %q is this machine or a private network, not a hosted origin", name, raw)
 	}
 	return nil
 }
 
 // numericLabel is a final label a resolver reads as an IPv4 address however it is spelled: 127.1, 2130706433 and
-// 0x7f.0.0.1 are not names, and net.ParseIP knows none of them.
+// 0x7f.0.0.1 are not names, and netip knows none of them.
 var numericLabel = regexp.MustCompile(`^(0x[0-9a-f]*|[0-9]+)$`)
 
-// local reports a host that is loopback or unspecified, in any spelling a URL can carry.
-func local(host string) bool {
+// notHosted reports a host no hosted origin can have, in any spelling a URL can carry. A zone names an interface of
+// this machine whatever address it follows. An address outside global unicast, or a private one, has no route from a
+// service that declares no network of its own, and that takes in the metadata server's link-local address.
+func notHosted(host string) bool {
 	name := strings.TrimSuffix(strings.ToLower(host), ".")
-	if name == "" || name == "localhost" || strings.HasSuffix(name, ".localhost") {
+	if name == "" || name == "localhost" || strings.HasSuffix(name, ".localhost") || strings.Contains(name, "%") {
 		return true
 	}
-	if ip := net.ParseIP(name); ip != nil {
-		return ip.IsLoopback() || ip.IsUnspecified()
+	if addr, err := netip.ParseAddr(name); err == nil {
+		return !addr.IsGlobalUnicast() || addr.IsPrivate()
 	}
 	return numericLabel.MatchString(name[strings.LastIndex(name, ".")+1:])
 }
