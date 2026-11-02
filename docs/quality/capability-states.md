@@ -8,8 +8,8 @@ witness beside it, and no state implies another. Local evidence cannot fill the 
 - **Executed**: it has actually run.
 - **Passed**: it passed at a named revision. See the [evidence records](../evidence/), which name
   revisions and isolation labels.
-- **Required**: a hosting platform refuses a merge without it. This repository has no remote, so
-  this is `no` for every capability.
+- **Required**: a hosting platform refuses a merge without it. No ruleset is active on the public
+  repository, so this is `no` for every capability.
 - **Verified after integration**: it was seen working on the integrated result. `no` for the same
   reason.
 
@@ -50,7 +50,7 @@ validator.
 
 | Gap                                                                                                                                                                                                                                                                                                 | Owner                                                             |
 | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------- |
-| Hosted CI has never run, and no remote exists                                                                                                                                                                                                                                                       | Operator gate                                                     |
+| No hosted CI result is recorded as evidence, and no ruleset is active                                                                                                                                                                                                                               | Operator gate                                                     |
 | A repository's first hosted push has no base, and a proposal controls its own workflow                                                                                                                                                                                                              | M8, operator gate, upstream #26                                   |
 | A consumer's proposal can pin a module whose adapter judges nothing. The base's evaluator runs only if the adapter that calls it does, and that adapter comes from the proposal's pin. `floors-from-base` then passes without judging, and a person reading the pin change is the only control here | Upstream #26                                                      |
 | macOS is unverified. The browser tests cannot run there, and stock macOS has no `flock`                                                                                                                                                                                                             | Open                                                              |

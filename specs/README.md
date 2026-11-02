@@ -3,7 +3,7 @@
 Spec Kit feature directories, one per milestone. [001](001-bff-template-foundation/spec.md) is the
 umbrella spec (the "spec of specs") and holds the milestone map that the later specs trace to.
 
-Each status is a separate claim. Deployed is no for every row, and hosted CI has never run. A qualified
+Each status is a separate claim. Deployed is no for every row, and no hosted CI result is recorded as evidence. A qualified
 result holds only for the revision and profile its evidence names.
 
 | Spec                                                        | Milestone                                                                                 | Depends on       | Status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
