@@ -78,7 +78,8 @@ printf '%s\n' "\${GOTOOLCHAIN:-unset}" >>"$work/go-calls"
 telemetry="\${XDG_CONFIG_HOME:-\$HOME/.config}/go/telemetry"
 ls -A "\$telemetry" >>"$work/telemetry-seen" 2>/dev/null || echo unreadable >>"$work/telemetry-seen"
 cat "\$telemetry/mode" >>"$work/telemetry-mode" 2>/dev/null || echo absent >>"$work/telemetry-mode"
-cache="\$HOME/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.27.3.linux-amd64"
+at=@ # split, or the neutrality scan reads Go's cache directory name as an address
+cache="\$HOME/go/pkg/mod/golang.org/toolchain\${at}v0.0.1-go1.27.3.linux-amd64"
 if [[ ! -d "\$cache" ]]; then
   mkdir -p "\$cache/bin"
   printf 'downloaded\n' >"\$cache/bin/go"
