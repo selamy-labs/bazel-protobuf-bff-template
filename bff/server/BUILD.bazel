@@ -15,6 +15,7 @@ go_library(
         "//bff/identity",
         "//bff/ports",
         "//bff/transport",
+        "@com_connectrpc_connect_v2//:connect",
     ],
 )
 

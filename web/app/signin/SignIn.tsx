@@ -51,12 +51,15 @@ function initial(config: SignInConfig | undefined, ports: Ports): SignInState {
   if (returned(location.search) !== null) {
     return { status: "completing" };
   }
-  const session = current(ports);
+  const session = current(ports, config);
   return session === null ? { status: "signed-out" } : { status: "signed-in", session };
 }
 
 function failed(error: unknown): SignInState {
-  return { status: "failed", reason: error instanceof SignInError ? error.reason : "token" };
+  return {
+    status: "failed",
+    reason: error instanceof SignInError ? error.reason : "token",
+  };
 }
 
 export type SignIn = {
@@ -86,12 +89,12 @@ export function useSignIn(config: SignInConfig | undefined): SignIn {
   }, [config, ports]);
   // The session may have ended since it was shown: a call then goes without a credential, and the panel says so.
   const credential = useCallback(() => {
-    const session = current(ports);
+    const session = current(ports, config);
     if (session === null) {
       setState((shown) => (shown.status === "signed-in" ? { status: "signed-out" } : shown));
     }
     return session?.credential ?? null;
-  }, [ports]);
+  }, [ports, config]);
   const signIn = useCallback(() => {
     if (config === undefined) {
       return;

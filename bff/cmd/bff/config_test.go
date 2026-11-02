@@ -29,7 +29,7 @@ func TestShippedBinaryRefusesWithoutAnIssuer(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := configure(parsed, newVerifier); err == nil || !strings.Contains(err.Error(), "no verifier is configured") {
+	if _, err := configure(parsed, func(s oidc.Settings) (identity.Verifier, error) { return newVerifier(t.Context(), s) }); err == nil || !strings.Contains(err.Error(), "no verifier is configured") {
 		t.Fatalf("got %v", err)
 	}
 }
@@ -47,7 +47,7 @@ func TestTheIssuerIsTheComposition(t *testing.T) {
 	if _, err := configure(parsed, capture); err != nil {
 		t.Fatal(err)
 	}
-	want := oidc.Settings{Issuer: "https://issuer.example/", Audience: "bff", JWKSURL: "https://issuer.example/jwks"}
+	want := oidc.Settings{Issuer: "https://issuer.example/", Audience: "bff", JWKSURL: "https://issuer.example/jwks", Policy: verifierPolicy()}
 	if got != want {
 		t.Fatalf("the verifier got %+v, want %+v", got, want)
 	}
@@ -55,7 +55,7 @@ func TestTheIssuerIsTheComposition(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := configure(parsed, newVerifier); err == nil || !strings.Contains(err.Error(), "verifier.audience: required") {
+	if _, err := configure(parsed, func(s oidc.Settings) (identity.Verifier, error) { return newVerifier(t.Context(), s) }); err == nil || !strings.Contains(err.Error(), "verifier.audience: required") {
 		t.Fatalf("a partial issuer: got %v", err)
 	}
 }

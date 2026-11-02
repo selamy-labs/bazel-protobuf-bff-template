@@ -1,43 +1,62 @@
 #!/usr/bin/env bash
-# duplication (spec 011 FR-006): dupl over the selected first-party Go files at an AST node threshold. A candidate
-# clone is a finding; it is deleted in a focused change or recorded with its reason, never suppressed here.
-# Generated code, test code and fixtures are not first-party candidates, and each exclusion is named below.
-#
-#   duplication.sh <dupl> <repository root> <list file: NUL-separated repository-relative paths> <threshold>
-#
-# Exit 0 with no candidate, 1 with candidates, 11 when nothing could be judged. Each candidate line is the runner's
-# diagnostic form; the measurement line is kept in the receipt.
+# spec 011 FR-006: selected tracked Go source only; generated/test/fixture files excluded.
+# Paths use a NUL list. dupl's line protocol cannot represent newline/colon paths: refuse them.
+# Exit 0 = no candidates, 1 = candidates, 11 = tool/input failure (never a clean scan).
 set -euo pipefail
-dupl="$1"
-root="$2"
-list="$3"
-threshold="$4"
 refuse() { echo "duplication: $1" >&2; exit 11; }
+[[ $# -eq 4 ]] || refuse "expected dupl, repository, NUL list and threshold"
+dupl="$1"; root="$2"; list="$3"; threshold="$4"
 [[ -x "$dupl" ]] || refuse "no dupl at $dupl"
 [[ -d "$root" ]] || refuse "no repository root at $root"
 [[ -f "$list" ]] || refuse "no file list at $list"
-[[ "$threshold" =~ ^[0-9]+$ && "$threshold" -gt 0 ]] || refuse "the threshold must be a positive number of AST nodes, not '$threshold'"
+[[ "$threshold" =~ ^[0-9]+$ && "$threshold" -gt 0 ]] || refuse "threshold must be positive"
+[[ $(git -C "$root" rev-parse --show-prefix 2>/dev/null) == "" ]] || refuse "root must name the git top level"
+git -C "$root" rev-parse --is-inside-work-tree >/dev/null 2>&1 || refuse "root is not a git worktree"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
-# Excluded: test files (test code is judged by its own rules), generated protocol code (judged by its generator),
-# and fixtures (planted by design).
-tr '\0' '\n' <"$list" | grep -E '\.go$' | grep -vE '(_test\.go$|\.pb\.go$|\.connect\.go$|(^|/)testdata/)' | LC_ALL=C sort -u >"$work/files" || true
-count="$(grep -c '' "$work/files" || true)"
+: >"$work/files"
+untracked=0
+while :; do
+  path=''
+  if ! IFS= read -r -d '' path; then
+    [[ -z "$path" ]] || refuse "unterminated NUL path"
+    break
+  fi
+  case "$path" in
+    ''|/*|../*|*/../*|*/..|./*|*$'\n'*|*$'\r'*|*:*) refuse "unsupported or non-relative path" ;;
+  esac
+  case "$path" in
+    *_test.go|*.pb.go|*.connect.go|testdata/*|*/testdata/*) continue ;;
+    *.go) ;;
+    *) continue ;;
+  esac
+  if ! git --literal-pathspecs -C "$root" ls-files --error-unmatch -- "$path" >/dev/null 2>&1; then
+    untracked=$((untracked+1)); continue
+  fi
+  [[ -f "$root/$path" && ! -L "$root/$path" ]] || refuse "tracked input absent or symbolic: $path"
+  # Parent links must not turn a tracked relative path into an out-of-root read.
+  parent="${path%/*}"
+  while [[ "$parent" != "$path" && "$parent" != . ]]; do
+    [[ ! -L "$root/$parent" ]] || refuse "symbolic parent: $path"
+    [[ "$parent" == */* ]] || break
+    parent="${parent%/*}"
+  done
+  printf '%s\n' "$path" >>"$work/files"
+done <"$list"
+LC_ALL=C sort -u "$work/files" -o "$work/files"
+count="$(wc -l <"$work/files" | tr -d ' ')"
 if [[ "$count" -eq 0 ]]; then
-  echo "measurement: duplication 0 files compared at threshold $threshold; nothing to compare"
+  echo "measurement: duplication 0 files compared at threshold $threshold; nothing to compare ($untracked untracked excluded)"
   exit 0
 fi
 rc=0
 (cd "$root" && "$dupl" -files -plumbing -t "$threshold" <"$work/files") >"$work/out" 2>"$work/err" || rc=$?
-# Plumbing lines are "file:from-to: duplicate of file:from-to", one per ordered pair of a clone group.
-candidates="$(grep -c ': duplicate of ' "$work/out" || true)"
-if [[ $rc -ne 0 && "$candidates" -eq 0 ]]; then
-  cat "$work/err" >&2
-  refuse "dupl exited $rc"
-fi
+[[ $rc -eq 0 ]] || refuse "dupl exited $rc"
+[[ ! -s "$work/err" ]] || { cat "$work/err" >&2; refuse "dupl did not parse every input cleanly"; }
+candidates=0
 while IFS= read -r line; do
-  [[ -n "$line" ]] || continue
-  # "a.go:3-20: duplicate of b.go:5-22" becomes "duplication a.go:3:1: duplicate of b.go:5-22 (threshold N nodes)"
+  [[ "$line" =~ ^[^:]+:[0-9]+-[0-9]+:\ duplicate\ of\ [^:]+:[0-9]+-[0-9]+$ ]] || refuse "malformed dupl output"
+  candidates=$((candidates+1))
   echo "duplication $(sed -E 's/^([^:]+):([0-9]+)-[0-9]+: /\1:\2:1: /' <<<"$line") (threshold $threshold nodes)"
 done <"$work/out"
 echo "measurement: duplication $count files compared at threshold $threshold; $candidates candidate clone lines"

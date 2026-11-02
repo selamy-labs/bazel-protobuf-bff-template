@@ -8,6 +8,7 @@ go_library(
         "//bff/app:__pkg__",
         "//bff/cmd:__subpackages__",
         "//bff/server:__pkg__",
+        "//bff/telemetry:__pkg__",
         "//bff/transport:__pkg__",
         "//web/e2e:__pkg__",
     ],

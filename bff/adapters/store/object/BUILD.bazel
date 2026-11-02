@@ -13,7 +13,10 @@ go_library(
 go_test(
     name = "object_test",
     size = "small",
-    srcs = ["store_test.go"],
+    srcs = [
+        "review_regression_test.go",
+        "store_test.go",
+    ],
     embed = [":object"],
     deps = [
         "//bff/ports",

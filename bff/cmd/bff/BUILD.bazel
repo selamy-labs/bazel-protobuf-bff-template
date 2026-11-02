@@ -8,6 +8,7 @@ go_library(
     srcs = [
         "config.go",
         "main.go",
+        "telemetry.go",
         "verifier.go",
     ],
     importpath = "example.com/bfftemplate/bff/cmd/bff",
@@ -18,6 +19,7 @@ go_library(
         "//bff/identity",
         "//bff/ports",
         "//bff/server",
+        "//bff/telemetry",
     ],
 )
 
@@ -34,7 +36,10 @@ go_binary(
 go_test(
     name = "config_test",
     size = "small",
-    srcs = ["config_test.go"],
+    srcs = [
+        "config_test.go",
+        "telemetry_test.go",
+    ],
     embed = [":bff_lib"],
     deps = [
         "//bff/adapters/identity/oidc",

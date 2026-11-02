@@ -18,7 +18,7 @@
 - Q: Is config-driven behavior part of the baseline? → A: Yes, by the human baseline of 2026-11-01: typed, versioned configuration with defaults only once at the composition boundary, required inner parameters, defined precedence and effective-value provenance, and no bypass configuration for security, quality, spend or invariants.
 - Q: Which Python is first-party here? → A: The generators in `tools/release` and `tools/pins`. Vendored Spec Kit code is not first-party.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - A reviewer sees every baseline control with its real state (Priority: P1)
 
@@ -81,7 +81,7 @@ A maintainer reads one versioned schema to know every configurable behavior, whe
 - A tool's own advisory report, such as the M5 complexity scan, stays advisory until it gates with a defect.
 - The Go toolchain reports statements, not branch outcomes; a condition-coverage tool reports what it reports and is named as such.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -109,7 +109,7 @@ A maintainer reads one versioned schema to know every configurable behavior, whe
 - **Control row**: control, state, gate, measured value with revision, threshold with source, exclusions with reasons, owner, task.
 - **Budget file**: the numerical budgets, a policy input the base evaluator compares.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -124,3 +124,12 @@ A maintainer reads one versioned schema to know every configurable behavior, whe
 
 - Tool choices follow the research leads and a compatibility probe each; none is accepted by name.
 - The baseline's Hypothesis requirement applies to the first-party Python generators that exist now; vendored Spec Kit code is not first-party.
+
+### G09 telemetry amendment (FR-018)
+
+The production BFF must emit bounded, payload-free OTLP/HTTP protobuf traces and metrics through explicit
+configuration. Public trace context may only link to a new trace; baggage and tracestate must not cross the
+trust boundary. Note payloads, owner identifiers, credentials and raw errors must not be exported. Queue
+pressure and collector outages must not block RPCs; drops and export failures must be observable. Server
+drain precedes a bounded shutdown flush. A real in-process protobuf receiver and a pinned local Collector
+are the offline witnesses; hosted deployment and integrated verifier evidence remain separate gates.

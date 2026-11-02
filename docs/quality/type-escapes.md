@@ -30,3 +30,25 @@ workflow fragment with the policy's exact value.
 Nothing above weakens a boundary: every value that enters from outside (a workflow, an inputs file, a token, a
 note) is validated by name before it is used, and the generated protocol types never stand in for runtime
 validation (spec 003, spec 004).
+
+## OIDC and G09 review update
+
+`bff/adapters/identity/oidc/verifier.go` checks the JWT header's `kid` assertion before use; the JWT library's
+key callback necessarily returns `any`. `policy.go` narrows the JWK library's key interface with an explicit
+public-key type switch (RSA, approved ECDSA curves, Ed25519); every other key type is refused. These are
+boundary checks, not unchecked reinterpretations. The browser's pending-session assertion was removed:
+`takePending` now uses a full shape guard, including the token endpoint policy, before a token request.
+Test-only fixture assertions remain outside the first-party production inventory. G09 adds no `unsafe` or
+unchecked production type assertion.
+
+## Python generator output
+
+`tools/pins/gen_multitool_lock.py` uses `dict[str, Any]` for `out`: the JSON
+serialization map contains the schema string alongside tool records with lists
+of binary descriptors. Values are constructed from the source-controlled pin
+table and passed directly to `json.dump`; this map does not decode external data
+or authorize input. The `Any` is an output-shape escape, not validation or proof
+of the lock schema. Old/new generator output is byte-identical to the committed
+lock. No ignore directive or cast was added; the other two first-party Python
+scripts have concrete annotations. A future typed output model can replace this
+local escape if consumers begin reading the map.

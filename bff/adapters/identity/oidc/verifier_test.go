@@ -64,6 +64,7 @@ func newIssuer(t *testing.T) *issuer {
 	return &issuer{t: t, rsaKey: rsaKey, ecKey: ecKey, other: other, server: server, settings: Settings{
 		Issuer:   "https://issuer.example.invalid/",
 		Audience: "bff-hosted-example",
+		Policy:   testPolicy(),
 		JWKSURL:  server.URL + "/.well-known/jwks.json",
 	}}
 }
@@ -101,7 +102,7 @@ func (i *issuer) good() tokenOptions {
 
 func TestAValidTokenYieldsItsSubject(t *testing.T) {
 	issuer := newIssuer(t)
-	verifier, err := New(context.Background(), issuer.settings)
+	verifier, err := New(t.Context(), issuer.settings)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -120,7 +121,7 @@ func TestAValidTokenYieldsItsSubject(t *testing.T) {
 // Each refusal is ErrUnauthenticated and nothing more: the caller learns no reason.
 func TestEveryBadTokenIsUnauthenticated(t *testing.T) {
 	issuer := newIssuer(t)
-	verifier, err := New(context.Background(), issuer.settings)
+	verifier, err := New(t.Context(), issuer.settings)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -199,21 +200,25 @@ func TestUnreadableKeysRefuseToStart(t *testing.T) {
 	}
 }
 
-// Clock skew within the leeway is tolerated, beyond it is not.
+// Clock skew within the testPolicy().Leeway is tolerated, beyond it is not.
 func TestLeeway(t *testing.T) {
 	issuer := newIssuer(t)
-	verifier, err := New(context.Background(), issuer.settings)
+	verifier, err := New(t.Context(), issuer.settings)
 	if err != nil {
 		t.Fatal(err)
 	}
 	within := issuer.good()
-	within.expires = time.Now().Add(-leeway / 2)
+	within.expires = time.Now().Add(-testPolicy().Leeway / 2)
 	if _, err := verifier.Verify(context.Background(), issuer.token(within)); err != nil {
-		t.Errorf("expired within the leeway: %v", err)
+		t.Errorf("expired within the testPolicy().Leeway: %v", err)
 	}
 	beyond := issuer.good()
-	beyond.expires = time.Now().Add(-2 * leeway)
+	beyond.expires = time.Now().Add(-2 * testPolicy().Leeway)
 	if _, err := verifier.Verify(context.Background(), issuer.token(beyond)); !errors.Is(err, identity.ErrUnauthenticated) {
-		t.Errorf("expired beyond the leeway: %v", err)
+		t.Errorf("expired beyond the testPolicy().Leeway: %v", err)
 	}
+}
+
+func testPolicy() Policy {
+	return Policy{Leeway: 30 * time.Second, HTTPTimeout: time.Second, RefreshInterval: time.Hour, UnknownRefresh: time.Minute, UnknownWait: time.Millisecond, MaxBytes: 64 << 10, MaxKeys: 32}
 }

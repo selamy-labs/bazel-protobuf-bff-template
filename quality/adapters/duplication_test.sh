@@ -4,8 +4,8 @@
 #
 #   duplication_test.sh <duplication.sh> <dupl>
 set -euo pipefail
-script="$PWD/$1"
-dupl="$PWD/$2"
+script="$1"; [[ "$script" == /* ]] || script="$PWD/$script"
+dupl="$2"; [[ "$dupl" == /* ]] || dupl="$PWD/$dupl"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 failures=0
@@ -33,6 +33,9 @@ printf 'a/a_test.go\0gen/gen.pb.go\0testdata/c/c.go\0' >"$work/excluded"
 : >"$work/none"
 
 run() { rc=0; bash "$script" "$1" "$repo" "$2" "$3" >"$work/out" 2>&1 || rc=$?; }
+
+git -C "$repo" init -q
+git -C "$repo" add .
 
 run "$dupl" "$work/all" 100
 [[ $rc -eq 1 ]] || { fail "planted pair: exit $rc, want 1"; cat "$work/out" >&2; }
@@ -62,5 +65,25 @@ run "$dupl" "$work/all" zero
 run "$dupl" "$work/missing-list" 100
 [[ $rc -eq 11 ]] || fail "a missing list: exit $rc, want 11"
 
+# Untracked generated/work files must not join the scan, even if selected.
+body a Hidden >"$repo/untracked.go"
+printf 'a/a.go\0other.go\0untracked.go\0' >"$work/untracked"
+run "$dupl" "$work/untracked" 100
+[[ $rc -eq 0 ]] || fail "untracked clone was compared"
+# Missing tracked and invalid Go inputs must never become a clean receipt.
+printf 'package broken\nfunc {\n' >"$repo/broken.go"
+git -C "$repo" add broken.go
+printf 'broken.go\0' >"$work/broken"
+run "$dupl" "$work/broken" 100
+[[ $rc -eq 11 ]] || fail "invalid Go source: exit $rc"
+rm "$repo/broken.go"
+run "$dupl" "$work/broken" 100
+[[ $rc -eq 11 ]] || fail "missing tracked source: exit $rc"
+printf 'a/a.go' >"$work/unterminated"
+run "$dupl" "$work/unterminated" 100
+[[ $rc -eq 11 ]] || fail "unterminated list: exit $rc"
+printf 'a/line\nbreak.go\0' >"$work/newline"
+run "$dupl" "$work/newline" 100
+[[ $rc -eq 11 ]] || fail "newline path: exit $rc"
 [[ $failures -eq 0 ]] && echo "ok   duplication"
 exit "$failures"

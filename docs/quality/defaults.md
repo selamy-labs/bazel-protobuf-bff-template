@@ -117,7 +117,56 @@ T021).
 | Production server     | `TestTheBoundsAreConfiguration`: a tighter maximum caps a client asking for a minute, a tighter body bound refuses before decoding; `TestListenAddressPrecedence` and `TestBoundsPrecedence`: flag, variable, value | dev mode and test identity refused by flag and by variable; a deadline beyond a minute, a request beyond 1 MiB, a drain beyond thirty seconds, a store beyond a million notes refused by name whatever source asked |
 | Local demo profile    | `//tools/dev:dev_test`: `BFF_STORE=local` makes a note survive a restart; `BFF_PORT` moves the server, printed with its source; `TestTheFileIsTheOneDefaultSiteAndTheEnvironmentOverridesByName`                    | an identity other than the development one, an unknown store, a shared port, a bad port value, each refused by name; the development server refuses any non-loopback address and any wildcard origin                |
 | Hosted example inputs | `the_origin_port_and_bounds_come_from_the_funnel` in the service module's mock tests, and `TestAnOverlayWinsPerLeafAndEveryLeafNamesItsSource`: an operator's overlay changes the plan's bounds                     | a wildcard origin, an origin with a path, an `http` issuer, more than ten instances, a timeout beyond five minutes, a zero budget, a digest that is neither the image's nor the previous one, each refused by name  |
-| Browser client        | the lifecycle test: a 20 ms deadline ends a hanging call as a deadline failure; the composition's 2 s is what the page uses                                                                                         | the production bundle carries no credential source and no test identity (`//web/app:bundle_test`); the server, not the page, decides what a credential is worth                                                     |
+| Browser client        | the lifecycle test: a 20 ms deadline ends a hanging call as a deadline failure; the composition's 2 s is what the page uses                                                                                         | the production bundle carries configured sign-in and no test identity (`//web/app:bundle_test`); the server, not the page, decides what a credential is worth                                                       |
 | Quality runner        | `--isolation=weakened` labels every result weakened; a stage deadline override ends a hung tree at its bound (`TestHungTreeIsRemovedAtItsDeadline`)                                                                 | a lowered coverage floor or a loosened budget is refused by comparison with the base (`floors-from-base`, `complexity compare`); a policy base the event did not name is refused (exit 11)                          |
 
 Runtime evaluation: no behavior is evaluated at run time, so OpenFeature is not adopted (research R10).
+
+## Object adapter bounds and browser session policy (review follow-up)
+
+`bff/cmd/bff/config.go` declares objectHTTPTimeout (10 s), objectTokenMaxBytes (64 KiB),
+objectMaxBytes (1 MiB), and objectTokenRefreshSkew (1 minute) once. The adapter requires
+both byte limits and accepts an explicit zero refresh skew; it supplies no fallback.
+Safety ceilings of 1 MiB token response, 16 MiB object and 1 hour skew are adapter
+invariants, not defaults. Redirects are refused to keep the metadata/token and storage
+trust boundaries fixed. Put retains the port's replacement semantics, without optimistic
+concurrency; it must not be described as a compare-and-swap operation.
+
+Browser sessions are scoped to the configured issuer and client. An unconfigured page
+emits no credential. sessionStorage remains readable to same-origin JavaScript: this is
+not an HttpOnly session or an XSS containment boundary. Sign-out invalidates any token
+exchange already in flight. Browser expiry checks are presentation guards; the server
+remains responsible for authenticating each RPC.
+
+## Verifier policy and telemetry composition
+
+`bff/cmd/bff/verifier.go` declares required `oidc.Policy`: leeway 30s, HTTP timeout
+5s, refresh 1h, unknown-key refresh rate 5m with a 100ms wait, JWKS 64KiB and 32 keys.
+The adapter does not invent these values. Leeway zero is explicit, other bounds
+must be positive; absolute safety ceilings are validated by `Policy.Check`.
+The process signal context owns initial fetch and refresh; failed construction
+cancels its derived context. Key IDs are required. Public asymmetric signing keys
+must match declared purpose, operations and algorithm; redirects and URL userinfo
+are refused, responses are complete bounded JSON, duplicate key IDs are refused.
+A key set with no eligible signing key cannot start the verifier.
+
+Telemetry defaults, required fields, source precedence, privacy invariants and
+negative controls are recorded in `docs/quality/telemetry.md`. All adjustable
+telemetry defaults live in `bff/cmd/bff/telemetry.go`, never in the runtime adapter.
+
+## TypeScript duplication scan contract
+
+`tools/checks/duplication_ts.sh` takes its token threshold from the registry (50).
+Its clone minimum is five lines and its explicit per-file ceiling is 1 MiB; larger
+selected files refuse with exit 11 rather than disappearing from the measurement.
+It scans tracked TS, TSX and MJS in one owned snapshot, with jscpd's `mild` token
+mode and an explicit empty config. Ambient config, ignore files and baselines
+cannot change the scan. Test/spec files, generated `_pb.ts` and `testdata` are
+excluded before copying. Untracked files are counted separately.
+
+The measurement uses the report's analyzed-source count, not the number selected:
+files below the token minimum cannot contribute a threshold-sized clone. An empty
+selection is explicitly zero; a nonempty selection with zero analyzed sources
+refuses. Nonzero tool status, unexpected stderr, absent/malformed report, impossible
+counts or invalid clone locations refuse. The only accepted stderr text is the
+pinned tool's exact announcement of the supplied config path.

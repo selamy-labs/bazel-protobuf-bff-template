@@ -33,7 +33,7 @@ func newBucket(t *testing.T) *bucket {
 	b := &bucket{t: t, objects: map[string][]byte{}}
 	b.server = httptest.NewServer(http.HandlerFunc(b.handle))
 	t.Cleanup(b.server.Close)
-	b.settings = Settings{Bucket: "notes-bucket", Endpoint: b.server.URL, TokenURL: b.server.URL + "/token", Prefix: "notes"}
+	b.settings = Settings{Bucket: "notes-bucket", Endpoint: b.server.URL, TokenURL: b.server.URL + "/token", Prefix: "notes", TokenMaxBytes: 64 << 10, ObjectMaxBytes: 1 << 20, TokenRefreshSkew: time.Minute}
 	return b
 }
 

@@ -1,6 +1,6 @@
 // Witness for the BFF image (spec 009). It reads the image's own content and trusts no file name:
 // each blob is reached from the index, and its digest and size are checked against its bytes.
-package image_test
+package main_test
 
 import (
 	"archive/tar"

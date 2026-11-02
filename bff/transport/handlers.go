@@ -64,6 +64,7 @@ func (l Limits) Check() error {
 
 // Options configures the handler. Limits must have passed Check.
 type Options struct {
+	Telemetry         connect.ServerInterceptor
 	Notes             *app.Notes
 	Authenticator     identity.Authenticator
 	AllowTestIdentity bool
@@ -74,11 +75,11 @@ type Options struct {
 
 // NewHandler returns the HTTP handler for the notes service.
 func NewHandler(options Options) http.Handler {
-	server := connect.NewServer(
-		masking(options.Logger),
-		bounded(options.Limits),
-		authenticating(options.Authenticator, options.AllowTestIdentity),
-	)
+	interceptors := []connect.ServerInterceptor{masking(options.Logger), bounded(options.Limits), authenticating(options.Authenticator, options.AllowTestIdentity)}
+	if options.Telemetry != nil {
+		interceptors = append([]connect.ServerInterceptor{options.Telemetry}, interceptors...)
+	}
+	server := connect.NewServer(interceptors...)
 	notesv1connect.RegisterNoteServiceHandler(server, notes{app: options.Notes})
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server, connecthttp.WithReadMaxBytes(options.Limits.MaxRequestBytes))

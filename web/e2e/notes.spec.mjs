@@ -282,7 +282,10 @@ test("a cookie gives no access in the browser or outside it", async ({
   expect(blocked).toBe("TypeError");
   const direct = await request.post(`${stack.bffUrl}/template.notes.v1.NoteService/GetNote`, {
     data: { name: "notes/a" },
-    headers: { Cookie: `session=${credential}`, "Content-Type": "application/json" },
+    headers: {
+      Cookie: `session=${credential}`,
+      "Content-Type": "application/json",
+    },
   });
   expect(direct.status()).toBe(401);
   expect((await direct.json()).code).toBe("unauthenticated");
@@ -313,4 +316,18 @@ test("the client omits a cookie the browser would send", async ({ notes, stack, 
   const headers = await response.request().allHeaders();
   expect(headers.authorization).toBe("Bearer test-identity.ana");
   expect(headers.cookie).toBeUndefined();
+});
+
+test("concurrent stack shutdown requests both settle", async () => {
+  const stack = await startStack("/");
+  try {
+    let settled = false;
+    const stopped = Promise.all([stack.stopServer(), stack.stopServer()]).then(() => {
+      settled = true;
+    });
+    await expect.poll(() => settled, { timeout: 1000 }).toBe(true);
+    await stopped;
+  } finally {
+    await stack.stop();
+  }
 });

@@ -3,6 +3,7 @@
 package server
 
 import (
+	connect "connectrpc.com/connect/v2"
 	"context"
 	"encoding/json"
 	"errors"
@@ -72,6 +73,7 @@ func (l ListenerLimits) Check() error {
 
 // Config is everything a server needs. Every bound is required: nothing here has a default.
 type Config struct {
+	Telemetry     connect.ServerInterceptor
 	Mode          Mode
 	Addr          string
 	AllowedOrigin string
@@ -140,6 +142,7 @@ func checkLoopback(addr string) error {
 func NewHandler(config Config) http.Handler {
 	return transport.NewHandler(transport.Options{
 		Notes:             app.New(config.Store),
+		Telemetry:         config.Telemetry,
 		Authenticator:     config.Authenticator,
 		AllowTestIdentity: config.Mode == ModeDev,
 		AllowedOrigin:     config.AllowedOrigin,

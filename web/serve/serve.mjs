@@ -9,7 +9,11 @@ import { createServer } from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css" };
+const types = {
+  ".html": "text/html",
+  ".js": "text/javascript",
+  ".css": "text/css",
+};
 
 export async function serve(root, port, basePath) {
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
@@ -41,7 +45,9 @@ export async function serve(root, port, basePath) {
     try {
       const body = await readFile(file);
       response
-        .writeHead(200, { "Content-Type": types[path.extname(file)] ?? "application/octet-stream" })
+        .writeHead(200, {
+          "Content-Type": types[path.extname(file)] ?? "application/octet-stream",
+        })
         .end(body);
     } catch {
       response.writeHead(404).end();
@@ -58,7 +64,12 @@ export async function serve(root, port, basePath) {
       config.bffUrl = url;
     },
     // The production page signs in with this issuer as this client (spec 012 FR-016); the dev page ignores it.
-    setSignIn: ({ issuer, clientId }) => {
+    setSignIn: (signIn) => {
+      if (signIn === undefined) {
+        delete config.signIn;
+        return;
+      }
+      const { issuer, clientId } = signIn;
       config.signIn = { issuer, clientId };
     },
     close: () =>
@@ -73,7 +84,13 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   const option = (name) => process.argv[process.argv.indexOf(name) + 1];
   const site = await serve(option("--root"), Number(option("--port")), option("--base-path"));
   site.setBffUrl(option("--bff-url"));
-  console.log(JSON.stringify({ event: "ready", origin: site.origin, basePath: site.basePath }));
+  console.log(
+    JSON.stringify({
+      event: "ready",
+      origin: site.origin,
+      basePath: site.basePath,
+    }),
+  );
   for (const signal of ["SIGINT", "SIGTERM"]) {
     process.on(signal, () => site.close().then(() => process.exit(0)));
   }

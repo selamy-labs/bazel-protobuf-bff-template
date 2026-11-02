@@ -108,3 +108,12 @@ landed commit touched.
 | Exception                                            | Why                                                                         | Owner, condition                                                                                                                                                       |
 | ---------------------------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Go branch outcomes are not produced by the toolchain | the cover tool reports statements and does not probe inside `&&` and `\|\|` | Q5: a condition-coverage tool accepted only for what the probe shows, named by its construct and its `select` gap; the gap stays an owned blocking task until measured |
+
+### G09 implementation amendment
+
+The integrator owns `bff/telemetry/`, `bff/cmd/bff/telemetry.go`, `tools/otel/` and the composition, transport,
+module/dependency, required-test and provenance integration points. `telemetry.Config` v1 validates
+composition-resolved values. An outer Connect interceptor and the configured-store decorator produce
+closed-name spans and instruments; SDK filters and a bounded admission queue enforce the privacy and
+availability contract. T008a records adoption; T019a-e implement and witness it; T019f retains the exact
+landed revision's Bazel/full and deployment qualification. The acceptance mapping is FR-018 in the matrix.

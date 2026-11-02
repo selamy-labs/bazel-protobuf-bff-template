@@ -18,7 +18,6 @@
     { "pattern": "^quality/checks/suppression/testdata/", "reason": "test-data" },
     { "pattern": "^quality/analysis/u1000/testdata/", "reason": "test-data" },
     { "pattern": "^bff/ports/store\\.go$", "reason": "interfaces-only" },
-    { "pattern": "^bff/cmd/bff/verifier\\.go$", "reason": "no-statements" },
     { "pattern": "^api/tools\\.go$", "reason": "build-tag-tools" },
     { "pattern": "^quality/analysis/tools\\.go$", "reason": "build-tag-tools" },
     { "pattern": "^quality/runner/supervise_other\\.go$", "reason": "other-platform" },
@@ -29,7 +28,8 @@
     { "pattern": "^web/app/test-identity\\.tsx$", "reason": "test-tooling" },
     { "pattern": "^web/client/test_main\\.mjs$", "reason": "test-tooling" },
     { "pattern": "^web/app/signin/test_main\\.mjs$", "reason": "test-tooling" },
-    { "pattern": "^web/testing/", "reason": "test-tooling" }
+    { "pattern": "^web/testing/", "reason": "test-tooling" },
+    { "pattern": "^tools/otel/smoke\\.mjs$", "reason": "test-tooling" }
   ],
   "profiles": [
     {

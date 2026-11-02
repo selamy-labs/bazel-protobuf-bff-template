@@ -19,6 +19,7 @@ go_library(
     importpath = "example.com/bfftemplate/bff/transport",
     visibility = [
         "//bff/server:__pkg__",
+        "//bff/telemetry:__pkg__",
         "//web/e2e:__pkg__",
     ],
     deps = [

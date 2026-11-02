@@ -42,9 +42,13 @@ const (
 	maxNotes        = 10000
 	// The managed store's endpoints (spec 012 FR-017): the public bucket API, and the metadata server's token
 	// endpoint where a hosted runtime reads a token for its own identity. Declared once here, required below.
-	objectEndpoint = "https://storage.googleapis.com"
-	objectTokenURL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-	objectPrefix   = "notes"
+	objectEndpoint         = "https://storage.googleapis.com"
+	objectTokenURL         = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+	objectPrefix           = "notes"
+	objectHTTPTimeout      = 10 * time.Second
+	objectTokenMaxBytes    = 64 << 10
+	objectMaxBytes         = 1 << 20
+	objectTokenRefreshSkew = time.Minute
 	// maxNotesCeiling is an invariant: the memory store is the example's, never a production database.
 	maxNotesCeiling = 1_000_000
 )
@@ -60,6 +64,7 @@ var listener = server.ListenerLimits{
 // parse reads flags, which default to the BFF_* environment. A variable that does not parse is refused by name.
 func parse(args []string, getenv func(string) string) (options, error) {
 	var parsed options
+	parsed.verifier.Policy = verifierPolicy()
 	flags := flag.NewFlagSet("bff", flag.ContinueOnError)
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&parsed.addr, "addr", fallback(getenv("BFF_ADDR"), defaultAddr(getenv("PORT"))), "listen address")
@@ -161,7 +166,7 @@ func configure(parsed options, newVerifier func(oidc.Settings) (identity.Verifie
 	if parsed.identity != "verifier" {
 		return server.Config{}, fmt.Errorf("production mode refuses identity %q", parsed.identity)
 	}
-	if parsed.verifier == (oidc.Settings{}) {
+	if missingIssuer(parsed.verifier) {
 		return server.Config{}, errors.New("no verifier is configured: name the issuer with --verifier-issuer, --verifier-audience and --verifier-jwks-url (or BFF_VERIFIER_ISSUER, BFF_VERIFIER_AUDIENCE, BFF_VERIFIER_JWKS_URL); this repository ships no identity provider")
 	}
 	if newVerifier == nil {
@@ -209,8 +214,12 @@ func openStore(parsed options) (ports.Store, error) {
 		if parsed.bucket == "" {
 			return nil, errors.New("object-bucket: required with --store=object (or BFF_OBJECT_BUCKET)")
 		}
-		return object.Open(object.Settings{Bucket: parsed.bucket, Endpoint: objectEndpoint, TokenURL: objectTokenURL, Prefix: objectPrefix}, &http.Client{Timeout: 10 * time.Second})
+		return object.Open(object.Settings{Bucket: parsed.bucket, Endpoint: objectEndpoint, TokenURL: objectTokenURL, Prefix: objectPrefix, TokenMaxBytes: objectTokenMaxBytes, ObjectMaxBytes: objectMaxBytes, TokenRefreshSkew: objectTokenRefreshSkew}, &http.Client{Timeout: objectHTTPTimeout})
 	default:
 		return nil, fmt.Errorf("store: %q is neither memory nor object", parsed.store)
 	}
+}
+
+func missingIssuer(s oidc.Settings) bool {
+	return s.Issuer == "" && s.Audience == "" && s.JWKSURL == ""
 }

@@ -12,7 +12,7 @@
 ## Phase 2: Probes (research)
 
 - [x] T003 [P] (golang-jwt 5.3.1 and keyfunc 3.9.1 pinned by go.sum after the probe; synthetic keys in the tests; recorded in R2) Issuer and verification library probe: a maintained library for the chosen issuer, pinned by go.sum after the probe, with synthetic keys for the negative tests; recorded in research R2
-- [x] T004 [P] (an object bucket through two JSON API calls and the runtime's token, no client library; the contract suite, a restart and owner isolation against a fake of those calls; recorded in R3) Managed store probe: the simplest managed store with owner-scoped keys, run against the `ports.Store` contract suite behind an emulator or a recorded gate; recorded in research R3
+- [ ] T004 [P] (adapter and fake-based contract tests landed; independent emulator or recorded live witness still required. An object bucket through two JSON API calls and the runtime's token, no client library; the contract suite, a restart and owner isolation against a fake of those calls; recorded in R3) Managed store probe: the simplest managed store with owner-scoped keys, run against the `ports.Store` contract suite behind an emulator or a recorded gate; recorded in research R3
 - [x] T005 [P] (research R4) Cloud Run evaluation against the server: `PORT`, `0.0.0.0`, the verifier, the exact origin, bounded shutdown, in-memory versus managed persistence; what it provides and what the example still lacks; recorded in research R4
 - [x] T006 [P] (recorded in R5 from the local hosted journey; the live site is T017's) Pages base path probe: project-site path versus host origin; recorded in research R5
 
@@ -46,7 +46,7 @@
 
 ## Phase 7: Live, behind the gates
 
-- [ ] T017 After the recorded gates: apply, deploy by digest, the browser flow with a verified identity and the refused dev identity, rollback, cancellation, cost; `docs/evidence/m10.md` with endpoint, identity, digest, flow result and measured cost; the Well-Architected rows updated from live evidence, never from documents
+- [ ] T017 (before it: the service module must pass the production binary's required telemetry inputs, `BFF_OTEL_ENDPOINT` and `BFF_RELEASE_REVISION`, spec 011 G09 T019f; the binary refuses to start without them) After the recorded gates: apply, deploy by digest, the browser flow with a verified identity and the refused dev identity, rollback, cancellation, cost; `docs/evidence/m10.md` with endpoint, identity, digest, flow result and measured cost; the Well-Architected rows updated from live evidence, never from documents
 
 ## Dependencies
 

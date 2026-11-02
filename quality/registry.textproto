@@ -12,6 +12,7 @@ fixture_manifest: "quality/checks/suppression/testdata/fixtures.sha256"
 # The policy inputs: what shapes a verdict, as opposed to what is judged. A change to one widens a push
 # to full, and the receipt's policy_digest covers exactly these paths.
 escalate: "^quality/"
+escalate: "^ruff\\.toml$"
 escalate: "^prek\\.toml$"
 escalate: "^\\.bazel"
 escalate: "^MODULE\\.bazel"

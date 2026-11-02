@@ -10,8 +10,8 @@ ruff="$PWD/$2"
 config_source="$PWD/$3"
 work="$(mktemp -d)"
 trap 'rm -rf "${work:?}"' EXIT
-export HOME="$work/home"
-mkdir -p "$HOME" "$work/tree/tools/pins"
+export XDG_CONFIG_HOME="$work/user-config"
+mkdir -p "$XDG_CONFIG_HOME" "$work/tree/tools/pins"
 cp "$config_source" "$work/tree/ruff.toml"
 failures=0
 fail() { echo "FAIL $1" >&2; failures=$((failures + 1)); }
@@ -46,7 +46,7 @@ grep -qxF 'measurement: python-lint 2 files; 0 findings' "$work/out" || fail "no
 
 # A configuration beside the file, or in the home directory, changes nothing: only the named one is read.
 printf '[lint]\nselect = []\nignore = ["F401"]\n' >"$work/tree/tools/pins/ruff.toml"
-mkdir -p "$HOME/.config/ruff" && printf '[lint]\nselect = []\n' >"$HOME/.config/ruff/ruff.toml"
+mkdir -p "$XDG_CONFIG_HOME/ruff" && printf '[lint]\nselect = []\n' >"$XDG_CONFIG_HOME/ruff/ruff.toml"
 printf 'import json\n' >"$work/tree/tools/pins/planted.py"
 run
 [[ $rc -eq 1 ]] || fail "a configuration found by walking up changed the result: exit $rc"
@@ -69,6 +69,36 @@ rc=0; "$script" "$ruff" "$work/tree" missing.toml "$work/list" >"$work/out" 2>"$
 [[ $rc -eq 11 ]] || fail "a missing configuration: exit $rc, want 11"
 rc=0; "$script" "$ruff" "$work/tree" ruff.toml "$work/no-list" >"$work/out" 2>"$work/err" || rc=$?
 [[ $rc -eq 11 ]] || fail "a missing list: exit $rc, want 11"
+
+# A real lint diagnostic with a colon in its path must not disappear.
+printf 'import json\n' >"$work/tree/tools/pins/colon:name.py"
+list tools/pins/colon:name.py
+run
+[[ $rc -eq 1 ]] || fail "a colon path lost its lint finding: exit $rc"
+grep -q 'F401' "$work/out" || fail "colon-path finding absent"
+
+# Tool failures and malformed output refuse, even when the process exits 0 or 1.
+list tools/pins/planted.py
+real_ruff="$ruff"
+ruff="$work/fake-ruff"
+for scenario in silent-lint silent-format junk-lint junk-format stderr inconsistent; do
+  cat >"$ruff" <<'STUB'
+#!/usr/bin/env bash
+case "$PYTHON_LINT_SCENARIO:$1" in
+  silent-lint:check|silent-format:format) exit 1 ;;
+  junk-lint:check|junk-format:format) echo 'not a diagnostic'; exit 0 ;;
+  stderr:check) echo 'tool failed internally' >&2; exit 0 ;;
+  inconsistent:check) echo 'a.py:1:1: F401 fake'; exit 0 ;;
+esac
+exit 0
+STUB
+  chmod +x "$ruff"
+  export PYTHON_LINT_SCENARIO="$scenario"
+  run
+  [[ $rc -eq 11 ]] || fail "$scenario: exit $rc, want refusal 11"
+done
+ruff="$real_ruff"
+unset PYTHON_LINT_SCENARIO
 
 if [[ $failures -ne 0 ]]; then
   exit 1

@@ -9,7 +9,13 @@
 export type SignInConfig = { issuer: string; clientId: string };
 
 /** A signed-in identity: the credential the client sends, who it is for, and when it ends (ms since the epoch). */
-export type Session = { credential: string; subject: string; expiresAt: number };
+export type Session = {
+  credential: string;
+  subject: string;
+  expiresAt: number;
+  issuer: string;
+  clientId: string;
+};
 
 /** The browser pieces the flow touches, so a test supplies its own. */
 export type Ports = {
@@ -22,6 +28,7 @@ export type Ports = {
 /** Where this tab keeps the session, and the sign-in it started. */
 export const sessionKey = "signin.session";
 export const pendingKey = "signin.pending";
+const attemptKey = "signin.attempt";
 
 /** Why a sign-in did not complete: one of a fixed set of reasons, never token material. */
 export type Reason = "discovery" | "denied" | "state" | "token" | "claims";
@@ -98,8 +105,19 @@ async function discover(
   config: SignInConfig,
   ports: Ports,
 ): Promise<{ authorizationEndpoint: string; tokenEndpoint: string }> {
+  if (!endpoint(config.issuer) || config.clientId.trim() === "") {
+    throw new SignInError("discovery");
+  }
   const location = config.issuer.replace(/\/$/, "") + "/.well-known/openid-configuration";
-  const document = await json(await ports.fetch(location).catch(() => null));
+  const document = await json(
+    await ports
+      .fetch(location, {
+        redirect: "error",
+        credentials: "omit",
+        cache: "no-store",
+      })
+      .catch(() => null),
+  );
   if (
     !isRecord(document) ||
     document.issuer !== config.issuer ||
@@ -120,6 +138,7 @@ export async function begin(
   redirectUri: string,
   ports: Ports,
 ): Promise<string> {
+  ports.storage.removeItem(attemptKey);
   const { authorizationEndpoint, tokenEndpoint } = await discover(config, ports);
   const pending: Pending = {
     verifier: random(ports),
@@ -171,7 +190,18 @@ function parse(stored: string | null): unknown {
 function takePending(ports: Ports): Pending | null {
   const parsed = parse(ports.storage.getItem(pendingKey));
   ports.storage.removeItem(pendingKey);
-  return isRecord(parsed) && typeof parsed.state === "string" ? (parsed as Pending) : null;
+  return isPending(parsed) ? parsed : null;
+}
+
+function isPending(value: unknown): value is Pending {
+  return (
+    isRecord(value) &&
+    typeof value.state === "string" &&
+    typeof value.verifier === "string" &&
+    typeof value.nonce === "string" &&
+    typeof value.redirectUri === "string" &&
+    endpoint(value.tokenEndpoint)
+  );
 }
 
 function claimsOf(token: string): Record<string, unknown> | null {
@@ -187,28 +217,46 @@ function claimsOf(token: string): Record<string, unknown> | null {
   }
 }
 
+function audienceMatches(claims: Record<string, unknown>, clientId: string): boolean {
+  const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  return (
+    audience.includes(clientId) &&
+    (claims.azp === undefined || claims.azp === clientId) &&
+    (audience.length === 1 || claims.azp === clientId)
+  );
+}
+
 /** A token is kept only when it says it is from this issuer, for this client, for this sign-in. */
-function toSession(token: string, config: SignInConfig, nonce: string): Session {
+function toSession(token: string, config: SignInConfig, nonce: string, now: number): Session {
   const claims = claimsOf(token);
   if (claims === null) {
     throw new SignInError("claims");
   }
-  const audience = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
   if (
     claims.iss !== config.issuer ||
-    !audience.includes(config.clientId) ||
+    !audienceMatches(claims, config.clientId) ||
     claims.nonce !== nonce ||
     typeof claims.sub !== "string" ||
     claims.sub === "" ||
-    typeof claims.exp !== "number"
+    typeof claims.exp !== "number" ||
+    !Number.isFinite(claims.exp) ||
+    claims.exp * 1000 <= now
   ) {
     throw new SignInError("claims");
   }
-  return { credential: "Bearer " + token, subject: claims.sub, expiresAt: claims.exp * 1000 };
+  return {
+    credential: "Bearer " + token,
+    subject: claims.sub,
+    expiresAt: claims.exp * 1000,
+    issuer: config.issuer,
+    clientId: config.clientId,
+  };
 }
 
 /** Finishes a sign-in: the state must be this tab's, and the token must be for this client from this issuer. */
 export async function complete(config: SignInConfig, back: Return, ports: Ports): Promise<Session> {
+  ports.storage.removeItem(sessionKey);
+  ports.storage.removeItem(attemptKey);
   const pending = takePending(ports);
   if ("error" in back) {
     throw new SignInError("denied");
@@ -216,6 +264,8 @@ export async function complete(config: SignInConfig, back: Return, ports: Ports)
   if (pending === null || back.state !== pending.state) {
     throw new SignInError("state");
   }
+  const attempt = random(ports);
+  ports.storage.setItem(attemptKey, attempt);
   const body = new URLSearchParams({
     grant_type: "authorization_code",
     code: back.code,
@@ -223,7 +273,10 @@ export async function complete(config: SignInConfig, back: Return, ports: Ports)
     client_id: config.clientId,
     code_verifier: pending.verifier,
   });
-  const request = {
+  const request: RequestInit = {
+    redirect: "error",
+    credentials: "omit",
+    cache: "no-store",
     method: "POST",
     headers: { "Content-Type": "application/x-www-form-urlencoded" },
     body,
@@ -232,7 +285,11 @@ export async function complete(config: SignInConfig, back: Return, ports: Ports)
   if (!isRecord(issued) || typeof issued.id_token !== "string") {
     throw new SignInError("token");
   }
-  const session = toSession(issued.id_token, config, pending.nonce);
+  if (ports.storage.getItem(attemptKey) !== attempt) {
+    throw new SignInError("state");
+  }
+  const session = toSession(issued.id_token, config, pending.nonce, ports.now());
+  ports.storage.removeItem(attemptKey);
   ports.storage.setItem(sessionKey, JSON.stringify(session));
   return session;
 }
@@ -242,14 +299,24 @@ function isSession(value: unknown): value is Session {
     isRecord(value) &&
     typeof value.credential === "string" &&
     typeof value.subject === "string" &&
-    typeof value.expiresAt === "number"
+    typeof value.expiresAt === "number" &&
+    Number.isFinite(value.expiresAt) &&
+    typeof value.issuer === "string" &&
+    typeof value.clientId === "string"
   );
 }
 
 /** The session this tab holds, or null when there is none or it has ended. An ended one is forgotten. */
-export function current(ports: Ports): Session | null {
+export function current(ports: Ports, config: SignInConfig | undefined): Session | null {
+  if (config === undefined) {
+    return null;
+  }
   const parsed = parse(ports.storage.getItem(sessionKey));
-  if (!isSession(parsed)) {
+  if (
+    !isSession(parsed) ||
+    parsed.issuer !== config.issuer ||
+    parsed.clientId !== config.clientId
+  ) {
     return null;
   }
   if (parsed.expiresAt <= ports.now()) {
@@ -261,6 +328,7 @@ export function current(ports: Ports): Session | null {
 
 /** Forgets the session and any sign-in in progress in this tab. The issuer's own session is its own. */
 export function signOut(ports: Ports): void {
+  ports.storage.removeItem(attemptKey);
   ports.storage.removeItem(sessionKey);
   ports.storage.removeItem(pendingKey);
 }

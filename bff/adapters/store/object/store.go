@@ -17,7 +17,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"example.com/bfftemplate/bff/ports"
@@ -33,11 +32,17 @@ type Settings struct {
 	// token endpoint; its response carries access_token and expires_in.
 	TokenURL string
 	// Prefix is the object-name prefix every note lives under.
-	Prefix string
+	Prefix           string
+	TokenMaxBytes    int64
+	ObjectMaxBytes   int64
+	TokenRefreshSkew time.Duration
 }
 
 // Check refuses an incomplete setting by name.
 func (s Settings) Check() error {
+	if err := s.checkBounds(); err != nil {
+		return err
+	}
 	if s.Bucket == "" {
 		return errors.New("store.bucket: required")
 	}
@@ -58,7 +63,7 @@ type Store struct {
 	settings Settings
 	client   *http.Client
 	now      func() time.Time
-	mu       sync.Mutex
+	gate     chan struct{}
 	token    string
 	expires  time.Time
 }
@@ -80,7 +85,9 @@ func Open(settings Settings, client *http.Client) (*Store, error) {
 	if client == nil {
 		return nil, errors.New("store: an HTTP client is required")
 	}
-	return &Store{settings: settings, client: client, now: time.Now}, nil
+	owned := *client
+	owned.CheckRedirect = func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }
+	return &Store{settings: settings, client: &owned, now: time.Now, gate: make(chan struct{}, 1)}, nil
 }
 
 func (s *Store) name(owner, id string) string {
@@ -89,39 +96,33 @@ func (s *Store) name(owner, id string) string {
 
 // bearer returns the runtime's token, read from the token endpoint and kept until shortly before it expires.
 func (s *Store) bearer(ctx context.Context) (string, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	select {
+	case s.gate <- struct{}{}:
+		defer func() { <-s.gate }()
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	if s.token != "" && s.now().Before(s.expires) {
 		return s.token, nil
 	}
-	request, err := http.NewRequestWithContext(ctx, http.MethodGet, s.settings.TokenURL, nil)
+	issued, err := s.readToken(ctx)
 	if err != nil {
 		return "", err
-	}
-	request.Header.Set("Metadata-Flavor", "Google")
-	response, err := s.client.Do(request)
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = response.Body.Close() }()
-	if response.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("the token endpoint answered %d", response.StatusCode)
-	}
-	var issued struct {
-		AccessToken string `json:"access_token"`
-		ExpiresIn   int    `json:"expires_in"`
-	}
-	if err := json.NewDecoder(io.LimitReader(response.Body, 1<<16)).Decode(&issued); err != nil || issued.AccessToken == "" || issued.ExpiresIn <= 0 {
-		return "", errors.New("the token endpoint answered with no token")
 	}
 	s.token = issued.AccessToken
-	s.expires = s.now().Add(time.Duration(issued.ExpiresIn)*time.Second - time.Minute)
+	s.expires = s.now().Add(time.Duration(issued.ExpiresIn)*time.Second - s.settings.TokenRefreshSkew)
 	return s.token, nil
 }
 
 func (s *Store) call(ctx context.Context, method, target string, body []byte) (*http.Response, error) {
 	token, err := s.bearer(ctx)
 	if err != nil {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
 		return nil, fmt.Errorf("%w: %v", ports.ErrUnavailable, err)
 	}
 	var reader io.Reader
@@ -155,6 +156,9 @@ func (s *Store) Put(ctx context.Context, note ports.Note) error {
 	if err != nil {
 		return fmt.Errorf("%w: %v", ports.ErrUnavailable, err)
 	}
+	if int64(len(data)) > s.settings.ObjectMaxBytes {
+		return fmt.Errorf("%w: note exceeds object byte limit", ports.ErrUnavailable)
+	}
 	target := s.settings.Endpoint + "/upload/storage/v1/b/" + url.PathEscape(s.settings.Bucket) + "/o?uploadType=media&name=" + url.QueryEscape(s.name(note.Owner, note.ID))
 	response, err := s.call(ctx, http.MethodPost, target, data)
 	if err != nil {
@@ -186,11 +190,62 @@ func (s *Store) Get(ctx context.Context, owner, id string) (ports.Note, error) {
 		return ports.Note{}, fmt.Errorf("%w: the bucket answered %d to a get", ports.ErrUnavailable, response.StatusCode)
 	}
 	var stored record
-	if err := json.NewDecoder(io.LimitReader(response.Body, 1<<20)).Decode(&stored); err != nil {
+	if err := readDocument(response.Body, s.settings.ObjectMaxBytes, &stored); err != nil {
+		if ctx.Err() != nil {
+			return ports.Note{}, ctx.Err()
+		}
 		return ports.Note{}, fmt.Errorf("%w: the object holds no note: %v", ports.ErrUnavailable, err)
 	}
 	if stored.Owner != owner || stored.ID != id {
 		return ports.Note{}, fmt.Errorf("%w: the stored note is not the one asked for", ports.ErrUnavailable)
 	}
 	return ports.Note(stored), nil
+}
+
+// Read the entire bounded document, rejecting a valid prefix followed by excess or garbage.
+func readDocument(body io.Reader, maximum int64, value any) error {
+	data, err := io.ReadAll(io.LimitReader(body, maximum+1))
+	if err != nil {
+		return err
+	}
+	if int64(len(data)) > maximum {
+		return errors.New("document exceeds byte limit")
+	}
+	return json.Unmarshal(data, value)
+}
+
+func (s Settings) checkBounds() error {
+	if s.TokenMaxBytes < 1 || s.TokenMaxBytes > 1<<20 || s.ObjectMaxBytes < 1 || s.ObjectMaxBytes > 16<<20 {
+		return errors.New("store: required payload bounds outside safety ceilings")
+	}
+	if s.TokenRefreshSkew < 0 || s.TokenRefreshSkew > time.Hour {
+		return errors.New("store: token refresh skew outside safety ceilings")
+	}
+	return nil
+}
+
+type issuedToken struct {
+	AccessToken string `json:"access_token"`
+	ExpiresIn   int    `json:"expires_in"`
+}
+
+func (s *Store) readToken(ctx context.Context) (issuedToken, error) {
+	request, err := http.NewRequestWithContext(ctx, http.MethodGet, s.settings.TokenURL, nil)
+	if err != nil {
+		return issuedToken{}, err
+	}
+	request.Header.Set("Metadata-Flavor", "Google")
+	response, err := s.client.Do(request)
+	if err != nil {
+		return issuedToken{}, err
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusOK {
+		return issuedToken{}, fmt.Errorf("the token endpoint answered %d", response.StatusCode)
+	}
+	var issued issuedToken
+	if err := readDocument(response.Body, s.settings.TokenMaxBytes, &issued); err != nil || issued.AccessToken == "" || issued.ExpiresIn <= 0 {
+		return issuedToken{}, errors.New("the token endpoint answered with no token")
+	}
+	return issued, nil
 }

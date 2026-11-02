@@ -46,7 +46,12 @@ function claims(pending: { nonce: string }, changes: Record<string, unknown> = {
   };
 }
 
-type Pending = { verifier: string; state: string; nonce: string; tokenEndpoint: string };
+type Pending = {
+  verifier: string;
+  state: string;
+  nonce: string;
+  tokenEndpoint: string;
+};
 
 /** A fake of the issuer's three surfaces: discovery, the token endpoint, and what storage holds. */
 function fake() {
@@ -74,7 +79,10 @@ function fake() {
         }
         if (url === tokenEndpoint) {
           const body = new URLSearchParams(String(init?.body));
-          tokenRequests.push({ body, contentType: new Headers(init?.headers).get("Content-Type") });
+          tokenRequests.push({
+            body,
+            contentType: new Headers(init?.headers).get("Content-Type"),
+          });
           const response = issuer.issue(body);
           return response === null
             ? Promise.reject(new TypeError("fetch failed"))
@@ -174,7 +182,9 @@ test("an issuer on a loopback address may use http", async () => {
 
 test("returned reads the issuer's answer from the query", () => {
   assert.deepEqual(returned("?code=c1&state=s1"), { code: "c1", state: "s1" });
-  assert.deepEqual(returned("?error=access_denied&state=s1"), { error: "access_denied" });
+  assert.deepEqual(returned("?error=access_denied&state=s1"), {
+    error: "access_denied",
+  });
   assert.equal(returned(""), null);
   assert.equal(returned("?code=c1"), null);
   assert.equal(returned("?state=s1"), null);
@@ -200,6 +210,8 @@ test("complete exchanges the code with the proof and keeps the session for this 
     credential: "Bearer " + token,
     subject: "ana",
     expiresAt: 2_000_000_000_000,
+    issuer: config.issuer,
+    clientId: config.clientId,
   };
   assert.deepEqual(session, expected);
   assert.equal(issuer.tokenRequests.length, 1);
@@ -213,13 +225,20 @@ test("complete exchanges the code with the proof and keeps the session for this 
   });
   assert.deepEqual(JSON.parse(issuer.store.get(sessionKey) ?? "null"), expected);
   assert.equal(issuer.store.has(pendingKey), false);
-  assert.deepEqual(current(issuer.ports), expected);
+  assert.deepEqual(current(issuer.ports, config), expected);
 });
 
 test("an audience list that names the client is accepted", async () => {
   const { issuer, back, pending } = await started();
   issuer.issue = () =>
-    Response.json({ id_token: idToken(claims(pending, { aud: ["other", config.clientId] })) });
+    Response.json({
+      id_token: idToken(
+        claims(pending, {
+          aud: ["other", config.clientId],
+          azp: config.clientId,
+        }),
+      ),
+    });
   assert.equal((await complete(config, back, issuer.ports)).subject, "ana");
 });
 
@@ -262,7 +281,9 @@ test("every failed completion is a named refusal that keeps no session and carri
     "claims that are not JSON": [
       (issuer) =>
         void (issuer.issue = () =>
-          Response.json({ id_token: `h.${Buffer.from("nope").toString("base64url")}.s` })),
+          Response.json({
+            id_token: `h.${Buffer.from("nope").toString("base64url")}.s`,
+          })),
       "claims",
     ],
     "claims that are not an object": [
@@ -296,16 +317,22 @@ test("every failed completion is a named refusal that keeps no session and carri
 
 test("current is the session while it lasts, and an ended one is forgotten", () => {
   const issuer = fake();
-  assert.equal(current(issuer.ports), null);
-  const session: Session = { credential: "Bearer t", subject: "ana", expiresAt: 1_999_999_500_001 };
+  assert.equal(current(issuer.ports, config), null);
+  const session: Session = {
+    credential: "Bearer t",
+    subject: "ana",
+    expiresAt: 1_999_999_500_001,
+    issuer: config.issuer,
+    clientId: config.clientId,
+  };
   issuer.store.set(sessionKey, JSON.stringify(session));
-  assert.deepEqual(current(issuer.ports), session);
+  assert.deepEqual(current(issuer.ports, config), session);
   issuer.store.set(sessionKey, JSON.stringify({ ...session, expiresAt: 1_999_999_500_000 }));
-  assert.equal(current(issuer.ports), null);
+  assert.equal(current(issuer.ports, config), null);
   assert.equal(issuer.store.has(sessionKey), false);
   for (const stored of ["{not json", JSON.stringify({ subject: "ana" }), JSON.stringify(null)]) {
     issuer.store.set(sessionKey, stored);
-    assert.equal(current(issuer.ports), null, stored);
+    assert.equal(current(issuer.ports, config), null, stored);
   }
 });
 
@@ -315,5 +342,77 @@ test("signOut forgets the session and any sign-in in progress", async () => {
   await begin(config, redirect, issuer.ports);
   signOut(issuer.ports);
   assert.equal(issuer.store.size, 0);
-  assert.equal(current(issuer.ports), null);
+  assert.equal(current(issuer.ports, config), null);
+});
+
+test("stored credentials are disabled without configuration and isolated across issuers and clients", async () => {
+  const { issuer, back } = await started();
+  await complete(config, back, issuer.ports);
+  assert.equal(current(issuer.ports, undefined), null);
+  assert.equal(
+    current(issuer.ports, {
+      ...config,
+      issuer: "https://other.example.invalid",
+    }),
+    null,
+  );
+  assert.equal(current(issuer.ports, { ...config, clientId: "other" }), null);
+  assert.ok(current(issuer.ports, config));
+});
+
+test("a failed completion removes an earlier credential", async () => {
+  const { issuer, back } = await started();
+  await complete(config, back, issuer.ports);
+  await assert.rejects(complete(config, { error: "access_denied" }, issuer.ports));
+  assert.equal(current(issuer.ports, config), null);
+});
+
+test("expired identity tokens never establish a session", async () => {
+  const { issuer, back, pending } = await started();
+  issuer.issue = () => Response.json({ id_token: idToken(claims(pending, { exp: 1 })) });
+  await assert.rejects(complete(config, back, issuer.ports), new SignInError("claims"));
+  assert.equal(current(issuer.ports, config), null);
+});
+
+test("sign-out invalidates a token exchange already in flight", async () => {
+  const { issuer, back } = await started();
+  const fetch = issuer.ports.fetch;
+  let release: () => void = () => {
+    throw new Error("not started");
+  };
+  issuer.ports.fetch = async (url, init) => {
+    await new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    return fetch(url, init);
+  };
+  const completion = complete(config, back, issuer.ports);
+  signOut(issuer.ports);
+  release();
+  await assert.rejects(completion, new SignInError("state"));
+  assert.equal(current(issuer.ports, config), null);
+});
+
+test("discovery refuses non-loopback HTTP before touching the network", async () => {
+  const issuer = fake();
+  let touched = false;
+  issuer.ports.fetch = () => {
+    touched = true;
+    return Promise.reject(new Error("unexpected network"));
+  };
+  await assert.rejects(
+    begin({ ...config, issuer: "http://remote.example.invalid" }, redirect, issuer.ports),
+    new SignInError("discovery"),
+  );
+  assert.equal(touched, false);
+});
+
+test("malformed pending storage cannot supply a token request", async () => {
+  const issuer = fake();
+  issuer.store.set(pendingKey, JSON.stringify({ state: "s", tokenEndpoint }));
+  await assert.rejects(
+    complete(config, { code: "code", state: "s" }, issuer.ports),
+    (error: unknown) => error instanceof SignInError && error.reason === "state",
+  );
+  assert.equal(issuer.tokenRequests.length, 0);
 });

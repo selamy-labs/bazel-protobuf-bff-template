@@ -187,6 +187,7 @@ go_library(
         "//bff/app",
         "//bff/identity",
         "//bff/ports",
+        "@com_connectrpc_connect_v2//:connect",
     ],
 )
 
@@ -219,4 +220,9 @@ js_library(
     name = "lint_srcs",
     srcs = glob(["*.mjs"]),
     visibility = ["//web/lint:__pkg__"],
+)
+
+exports_files(
+    ["issuer.mjs"],
+    visibility = ["//tools/otel:__pkg__"],
 )

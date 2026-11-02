@@ -6,6 +6,7 @@ go_library(
     importpath = "example.com/bfftemplate/bff/app",
     visibility = [
         "//bff/server:__pkg__",
+        "//bff/telemetry:__pkg__",
         "//bff/transport:__pkg__",
         "//web/e2e:__pkg__",
     ],

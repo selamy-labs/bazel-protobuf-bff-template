@@ -29,6 +29,7 @@ type Settings struct {
 	Audience string
 	// JWKSURL is where the issuer publishes its signing keys.
 	JWKSURL string
+	Policy  Policy
 }
 
 // Check refuses an incomplete or implausible setting by name. The key set must be read over https, except from
@@ -41,10 +42,10 @@ func (s Settings) Check() error {
 		return errors.New("verifier.audience: required")
 	}
 	parsed, err := url.Parse(s.JWKSURL)
-	if err != nil || parsed.Host == "" || (parsed.Scheme != "https" && !(parsed.Scheme == "http" && loopback(parsed.Hostname()))) {
-		return fmt.Errorf("verifier.jwks_url: %q must be an https URL, or http on a loopback address", s.JWKSURL)
+	if err != nil || parsed.Host == "" || parsed.User != nil || parsed.Fragment != "" || (parsed.Scheme != "https" && !(parsed.Scheme == "http" && loopback(parsed.Hostname()))) {
+		return errors.New("verifier.jwks_url: HTTPS or literal loopback HTTP without userinfo or fragment required")
 	}
-	return nil
+	return s.Policy.Check()
 }
 
 func loopback(host string) bool {
@@ -54,9 +55,6 @@ func loopback(host string) bool {
 
 // The signing algorithms accepted: asymmetric only, so a key set can never be misused as a shared secret.
 var methods = []string{"RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384", "ES512", "EdDSA"}
-
-// Leeway is the clock skew tolerated on expiry and issue time.
-const leeway = 30 * time.Second
 
 // Verifier accepts tokens signed by the issuer's current keys.
 type Verifier struct {
@@ -71,17 +69,14 @@ func New(ctx context.Context, settings Settings) (*Verifier, error) {
 	if err := settings.Check(); err != nil {
 		return nil, err
 	}
-	keys, err := keyfunc.NewDefaultCtx(ctx, []string{settings.JWKSURL})
-	if err != nil {
-		return nil, fmt.Errorf("verifier: reading the key set at %s: %w", settings.JWKSURL, err)
+	owned, cancel := context.WithCancel(ctx)
+	keys, err := loadKeys(owned, settings)
+	if err == nil {
+		err = usableKeys(owned, keys)
 	}
-	// The client keeps serving after a failed refresh, so an unreadable or empty key set at start is checked here.
-	set, err := keys.VerificationKeySet(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("verifier: reading the key set at %s: %w", settings.JWKSURL, err)
-	}
-	if len(set.Keys) == 0 {
-		return nil, fmt.Errorf("verifier: reading the key set at %s: it holds no key", settings.JWKSURL)
+		cancel()
+		return nil, fmt.Errorf("verifier: reading the key set: %w", err)
 	}
 	return &Verifier{settings: settings, keys: keys, now: time.Now}, nil
 }
@@ -93,17 +88,47 @@ func (v *Verifier) Verify(ctx context.Context, token string) (string, error) {
 		return "", identity.ErrUnauthenticated
 	}
 	claims := &jwt.RegisteredClaims{}
-	parsed, err := jwt.ParseWithClaims(token, claims, v.keys.KeyfuncCtx(ctx),
+	parsed, err := jwt.ParseWithClaims(token, claims, v.signingKey(ctx),
 		jwt.WithValidMethods(methods),
 		jwt.WithIssuer(v.settings.Issuer),
 		jwt.WithAudience(v.settings.Audience),
 		jwt.WithExpirationRequired(),
 		jwt.WithIssuedAt(),
-		jwt.WithLeeway(leeway),
+		jwt.WithLeeway(v.settings.Policy.Leeway),
 		jwt.WithTimeFunc(v.now),
 	)
 	if err != nil || !parsed.Valid || claims.Subject == "" {
 		return "", identity.ErrUnauthenticated
 	}
 	return claims.Subject, nil
+}
+
+func usableKeys(ctx context.Context, keys keyfunc.Keyfunc) error {
+	all, err := keys.Storage().KeyReadAll(ctx)
+	if err != nil {
+		return err
+	}
+	for _, key := range all {
+		if eligible(key) {
+			return nil
+		}
+	}
+	return errors.New("JWKS has no eligible asymmetric signing key")
+}
+func (v *Verifier) signingKey(ctx context.Context) jwt.Keyfunc {
+	return func(token *jwt.Token) (any, error) {
+		kid, ok := token.Header["kid"].(string)
+		if !ok || kid == "" {
+			return nil, identity.ErrUnauthenticated
+		}
+		key, err := v.keys.Storage().KeyRead(ctx, kid)
+		if err != nil || !eligible(key) {
+			return nil, identity.ErrUnauthenticated
+		}
+		alg := string(key.Marshal().ALG)
+		if alg != "" && alg != token.Method.Alg() {
+			return nil, identity.ErrUnauthenticated
+		}
+		return key.Key(), nil
+	}
 }

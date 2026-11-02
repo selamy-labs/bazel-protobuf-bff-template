@@ -1,0 +1,22 @@
+load("@aspect_rules_js//js:defs.bzl", "js_binary")
+load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
+
+sh_binary(
+    name = "view",
+    srcs = ["view.sh"],
+    data = ["collector.yaml"],
+    visibility = ["//visibility:public"],
+)
+
+# Explicit operator-local witness; never a paid/backend-dependent verifier test.
+js_binary(
+    name = "smoke",
+    testonly = True,
+    data = [
+        "collector.yaml",
+        "smoke.mjs",
+        "//web/e2e:issuer.mjs",
+    ],
+    entry_point = "smoke.mjs",
+    visibility = ["//visibility:public"],
+)

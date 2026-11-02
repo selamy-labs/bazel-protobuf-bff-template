@@ -51,12 +51,12 @@ function ready(child, errors) {
 
 // Starts a server binary on an ephemeral loopback port for the site's origin, and tells the site where it is. The
 // server's stderr is kept, so a test can read what it logged.
-async function startServer(binary, site, flags) {
+async function startServer(binary, site, flags, env) {
   const errors = { text: "" };
   const server = spawn(
     path.resolve(binary),
     ["--addr=127.0.0.1:0", `--allowed-origin=${site.origin}`, "--store=memory", ...flags],
-    { stdio: ["ignore", "pipe", "pipe"] },
+    { stdio: ["ignore", "pipe", "pipe"], env },
   );
   server.stderr.on("data", (chunk) => {
     errors.text += chunk;
@@ -64,18 +64,20 @@ async function startServer(binary, site, flags) {
   const { addr } = await ready(server, errors);
   const bffUrl = `http://${addr}`;
   site.setBffUrl(bffUrl);
+  let stopping;
   return {
     bffUrl,
     log: () => errors.text,
     // Ends the server and waits for it; a server already gone is nothing to wait for.
     kill: () => {
+      if (stopping) return stopping;
       server.removeAllListeners("exit");
       if (server.exitCode !== null || server.signalCode !== null) {
         return Promise.resolve();
       }
-      const exited = new Promise((resolve) => server.once("exit", resolve));
+      stopping = new Promise((resolve) => server.once("exit", resolve));
       server.kill("SIGTERM");
-      return exited;
+      return stopping;
     },
   };
 }
@@ -84,7 +86,7 @@ async function startServer(binary, site, flags) {
 // own origin.
 export async function startStack(basePath) {
   const site = await serve(required("WEB_DIST"), 0, basePath);
-  const server = await startServer(required("BFF_BIN"), site, []);
+  const server = await startServer(required("BFF_BIN"), site, [], process.env);
   return {
     origin: site.origin,
     basePath,
@@ -105,17 +107,29 @@ export async function startProductionStack(basePath) {
   const clientId = "bff-hosted-example";
   const issuer = await startIssuer(clientId);
   const site = await serve(required("WEB_DIST_PRODUCTION"), 0, basePath);
-  const server = await startServer(required("BFF_PRODUCTION"), site, [
-    `--verifier-issuer=${issuer.origin}`,
-    `--verifier-audience=${clientId}`,
-    `--verifier-jwks-url=${issuer.jwksUrl}`,
-  ]);
+  const server = await startServer(
+    required("BFF_PRODUCTION"),
+    site,
+    [
+      `--verifier-issuer=${issuer.origin}`,
+      `--verifier-audience=${clientId}`,
+      `--verifier-jwks-url=${issuer.jwksUrl}`,
+    ],
+    {
+      ...process.env,
+      BFF_OTEL_ENDPOINT: "http://127.0.0.1:1",
+      BFF_RELEASE_REVISION: "0000000000000000000000000000000000000000",
+      BFF_OTEL_ENVIRONMENT: "dev",
+      BFF_OTEL_SAMPLE_RATIO: "0",
+    },
+  );
   site.setSignIn({ issuer: issuer.origin, clientId });
   return {
     origin: site.origin,
     basePath,
     bffUrl: server.bffUrl,
     issuer,
+    configureSignIn: (value) => site.setSignIn(value),
     log: server.log,
     stop: async () => {
       await server.kill();

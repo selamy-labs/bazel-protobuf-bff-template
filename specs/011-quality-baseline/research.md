@@ -35,7 +35,7 @@ Each entry is answered by a probe or by an independent measurement at a named re
 ## R6 Mutation (Q7)
 
 - Gremlins reports uncovered, killed, lived, timed-out and non-viable separately and warns that large modules take hours; Stryker for TypeScript. Probe runtime on `quality/runner` and `web/client` first, with the pristine pass before any kill; survivors inspected and recorded; exclusions with reasons.
-- Probed at T008, the Go half (record in `m9/probes/gremlins-probe-20261102.txt`, outside the repository; gremlins v0.6.0 by module ziphash, installed into a scratch directory with the pinned Go 1.27.3 SDK, run on a scratch copy of the quality module outside Bazel): the runner cannot be the subject there, since it imports the Bazel-generated registry package, and neither can any package whose subtree reaches it (the CI-parity command does), nor the packages whose tests need built binaries or runfiles (complexity, coverage, suppression, release); gremlins gathers coverage over the subtree first and stops at the first setup failure. On the one package that runs on its own, `checks/command`: the dry run names two runnable mutants and the run reports 3 killed, 0 lived, 0 not covered, 0 timed out, test efficacy 100 percent, in 0.3 seconds with the pristine pass first. Reading: the tool works, and the obstacle is the subject: mutation of the runner needs the generated packages present, which means a run inside Bazel (an instrumenting leg that builds each mutant with the generated code) or a mirror of the module with the generated packages materialized; both are design work, not a pin. Stryker for `web/client` is not probed: an npm pin of its own size, after T011's route. Mutation stays partial.
+- Probed at T008, the Go half (record in `m9/probes/gremlins-probe-20261102.txt`, outside the repository; gremlins v0.6.0 by module ziphash, installed into a scratch directory with the pinned Go 1.27.3 SDK, run on a scratch copy of the quality module outside Bazel): the unprepared copy cannot run the runner because it lacks the generated registry package; its CI-parity command fails at that missing import, and other test packages require their built binaries or runfiles (complexity, coverage, suppression, release); gremlins gathers coverage over the subtree first and stops at the first setup failure. On the self-contained package selected for this probe, `checks/command`: the dry run names three runnable mutants and the run reports 3 killed, 0 lived, 0 not covered, 0 timed out, test efficacy 100 percent, in 0.3 seconds with the pristine pass first. Reading: the tool works, and the obstacle is the subject: mutation of the runner needs the generated packages present, which means a run inside Bazel (an instrumenting leg that builds each mutant with the generated code) or a mirror of the module with the generated packages materialized; both are design work, not a pin. Stryker for `web/client` is not probed: an npm pin of its own size, after T011's route. Mutation stays partial.
 
 ## R7 Fakes and types (Q8, Q4)
 
@@ -72,3 +72,29 @@ Each entry is answered by a probe or by an independent measurement at a named re
 - Decision: the comparator lands in one anchor commit with the first budgets, is reviewed independently at that SHA with its own negative control recorded, and every weaker-proposal witness after it names a base at or after that anchor. Until the anchor is accepted, the direction controls run only as fixtures inside the check's own test, which is advisory for the base path and is recorded as partial, not enforced.
 - At T012a: `complexity-from-base` runs the base's own comparator (`checks/complexity:complexity_bin`, built in the base worktree as `floors-from-base` builds its evaluator) against the tested tree's budgets; a base that predates the comparator says it holds none and compares nothing, so the check is visible in every receipt and judges once the named base is at or after the anchor `6436306`. The direction control is enforced from that base onward; at `e3b3b34` it remains partial.
 - At T013, the TypeScript ceiling joins the same file: `quality/complexity_budgets.json` carries a `typescript` section (measured at `a287ed7`, cyclomatic 12) that `web/lint/eslint.config.mjs` reads for its `complexity` rule, so the ceiling is one policy input and the base's comparator judges its direction with the Go ceilings: it may only fall, and the section may not go; a section appearing is stricter. The Go check measures nothing in it. The section is optional, so a budgets file from before it loads, and a base from before it compares nothing about it; a base between the comparator's anchor and this change would refuse to load the proposal's file and the check would say it could not judge, which is the honest outcome until the named base moves past this change.
+
+## Independent probe boundary follow-up (T007/T008)
+
+The recorded gobco fixture reproduces at 8/14 conditions, 7/10 reported branches
+and 76.5% statements. Exercising all of its reported Boolean outcomes raises the
+first two to 14/14 and 10/10 while the `select` default is still never executed.
+Those ratios cannot close Go branch coverage. A separate tagged-switch control
+is reported as 1/2 in both modes when its default is not taken.
+
+Gremlins' command-package dry run enumerates three mutants, matching its three
+reported kills in the original probe. A reviewer run with the default timeout
+reported one kill and two timeouts yet printed 100% efficacy; an explicit timeout
+coefficient of 100 produced three kills and zero timeouts. These are separate runs,
+not a reclassification of timeouts as kills. A planted pristine failure is refused
+before mutation. Future adapters must retain each outcome count and setup status,
+not accept the efficacy percentage alone.
+
+The initial runner failure is a property of the incomplete source projection, not
+a prohibition on running outside Bazel. An offline, minimal Go module mirror of
+`quality/runner` plus the materialized `quality/proto/registrypb` and declared
+registry/catalog runfiles completes a gremlins dry run: 379 runnable, 135 uncovered
+mutants (73.74% mutator coverage). This is enumeration only: no runner mutants were
+executed or killed, no survivor review or Bazel binding is supplied, and T008 stays
+open. The full quality module also needs its dependency-download closure available:
+gremlins attempts `go mod download` before coverage, so an offline cache miss is a
+setup refusal, never mutation evidence.

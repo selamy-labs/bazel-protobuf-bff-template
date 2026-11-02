@@ -22,6 +22,10 @@ const test = base.extend({
     { scope: "worker" },
   ],
   notes: async ({ page, stack }, use) => {
+    stack.configureSignIn({
+      issuer: stack.issuer.origin,
+      clientId: "bff-hosted-example",
+    });
     await page.goto(stack.origin + basePath);
     await expect(page.getByTestId("sign-in")).toBeVisible();
     await use(page);
@@ -141,7 +145,10 @@ test("the server refuses the development identity and a token for another audien
 }) => {
   const call = (authorization) =>
     request.post(rpc(stack, "CreateNote"), {
-      headers: { Authorization: authorization, "Content-Type": "application/json" },
+      headers: {
+        Authorization: authorization,
+        "Content-Type": "application/json",
+      },
       data: { note: { title: "refused" } },
     });
   const development = await call("Bearer test-identity.ana");
@@ -165,4 +172,46 @@ test("the backend's log carries no token and no subject", async ({ notes, stack 
     expect(log).not.toContain(token.split(".")[2]);
   }
   expect(log).not.toMatch(/"subject"|"owner"/);
+});
+
+test("removing sign-in configuration prevents reuse of a stored credential", async ({
+  notes,
+  stack,
+}) => {
+  await signIn(notes, stack, "ana");
+  stack.configureSignIn(undefined);
+  await notes.reload();
+  await expect(notes.getByText("Sign-in is not configured in this build.")).toBeVisible();
+  const [request] = await Promise.all([
+    notes.waitForRequest((r) => r.url().endsWith("/CreateNote")),
+    createNote(notes, "no old credential"),
+  ]);
+  expect(request.headers()["authorization"]).toBeUndefined();
+  await expect(notes.getByRole("alert")).toHaveText(refused);
+});
+
+test("changing the client invalidates an earlier session", async ({ notes, stack }) => {
+  await signIn(notes, stack, "ana");
+  stack.configureSignIn({
+    issuer: stack.issuer.origin,
+    clientId: "another-client",
+  });
+  await notes.reload();
+  await expect(notes.getByRole("status")).toHaveText("Not signed in.");
+  const [request] = await Promise.all([
+    notes.waitForRequest((r) => r.url().endsWith("/CreateNote")),
+    createNote(notes, "no reused client credential"),
+  ]);
+  expect(request.headers()["authorization"]).toBeUndefined();
+});
+
+test("a failed callback clears a session acquired earlier", async ({ notes, stack }) => {
+  await signIn(notes, stack, "ana");
+  await notes.goto(`${stack.origin}${basePath}?error=access_denied`);
+  await expect(notes.getByRole("alert")).toHaveText("Sign-in was declined.");
+  const [request] = await Promise.all([
+    notes.waitForRequest((r) => r.url().endsWith("/CreateNote")),
+    createNote(notes, "failed callback"),
+  ]);
+  expect(request.headers()["authorization"]).toBeUndefined();
 });
