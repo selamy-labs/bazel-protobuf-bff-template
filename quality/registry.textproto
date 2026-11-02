@@ -38,6 +38,7 @@ tools { name: "GOVULNCHECK" }
 tools { name: "JSCPD" }
 tools { name: "PREK" version_args: "--version" }
 tools { name: "RELEASE" }
+tools { name: "RUFF" version_args: "--version" }
 tools { name: "UV" version_args: "--version" }
 tools { name: "VALIDATE_PROTO_FILE" }
 tools { name: "YQ" version_args: "--version" }
@@ -254,6 +255,22 @@ checks {
   needs_network: true
   command: ["tools/checks/vulnerabilities.sh", "{bazel}", "{isolation}", "{GOVULNCHECK}", "https://vuln.go.dev", "//bff/cmd/bff:bff"]
   witness: "//:vulnerabilities_test"
+}
+
+# Python lint and format (spec 011 FR-017): the pinned ruff over the first-party Python with the repository's own
+# configuration, at pre-commit and full. A finding is fixed in the file.
+checks {
+  id: "python-lint"
+  shard: "policy"
+  tool: "RUFF"
+  selector { include: "\\.py$" }
+  stages: [STAGE_PRE_COMMIT, STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  summary: true
+  command: ["tools/checks/python_lint.sh", "{RUFF}", "{root}", "ruff.toml", "{list}"]
+  witness: "//:python_lint_test"
 }
 
 # TypeScript duplication (spec 011 FR-006): jscpd over the first-party TypeScript and JavaScript at 50 tokens, the

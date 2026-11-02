@@ -203,6 +203,24 @@ sh_test(
     ],
 )
 
+# The Python lint witness (spec 011 FR-017): the pinned ruff over a planted tree, an unused import and an
+# unformatted file named, the corrected control, a nearer configuration ignored, the setup failures.
+sh_test(
+    name = "python_lint_test",
+    size = "small",
+    srcs = ["tools/checks/python_lint_test.sh"],
+    args = [
+        "$(rootpath tools/checks/python_lint.sh)",
+        "$(rootpath @bff_template_quality//tools:ruff)",
+        "$(rootpath ruff.toml)",
+    ],
+    data = [
+        "ruff.toml",
+        "tools/checks/python_lint.sh",
+        "@bff_template_quality//tools:ruff",
+    ],
+)
+
 # The TypeScript duplication witness (spec 011 FR-006): the real jscpd over a planted tree, a clone pair named in
 # the diagnostic form, the restored control, the exclusions, the setup failures.
 sh_test(

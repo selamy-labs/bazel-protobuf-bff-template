@@ -16,6 +16,7 @@
 //:image_release_test build-test
 //:vulnerabilities_test build-test
 //:duplication_ts_test build-test
+//:python_lint_test build-test
 //:inventory_test build-test
 //:neutrality_test build-test
 //:governance_test build-test

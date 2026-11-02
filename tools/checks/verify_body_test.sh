@@ -72,6 +72,13 @@ echo "measurement: duplication-ts 1 files compared at 50 tokens; 0 candidate clo
 exit 0
 STUB
 chmod +x "$tree/tools/checks/duplication_ts.sh"
+cat >"$tree/tools/checks/python_lint.sh" <<STUB
+#!/usr/bin/env bash
+[[ "\$(cat "$work/fail" 2>/dev/null)" == python-lint ]] && { echo "stub failure: python-lint"; exit 1; }
+echo "measurement: python-lint 1 files; 0 findings; stub"
+exit 0
+STUB
+chmod +x "$tree/tools/checks/python_lint.sh"
 stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
 stub "$tree/tools/hooks/e2e.sh" hook-e2e
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
@@ -155,7 +162,7 @@ chmod +x "$work/bin/adapter" "$tree/tools/checks/"*.sh "$tree/tools/bootstrap/"*
   mkdir -p quality/checks/suppression/testdata tools/speckit
   printf '%064d  vendored.sh\n' 0 >tools/speckit/scaffold.sha256
   printf '%064d  fixture.go\n' 0 >quality/checks/suppression/testdata/fixtures.sha256
-  touch vendored.sh fixture.go a.go a.ts BUILD.bazel .bazelrc api/a.proto .github/workflows/ci.yml
+  touch vendored.sh fixture.go a.go a.ts a.py BUILD.bazel .bazelrc api/a.proto .github/workflows/ci.yml
   printf '#!/bin/sh\n' >a.sh
 )
 GIT_CONFIG_GLOBAL=/dev/null git -C "$tree" init -q

@@ -12,6 +12,7 @@ QUALITY_TOOLS = MODULE_TOOLS | {
     "PREK": "@bff_template_quality//tools:prek",
     "PRETTIER": "//:prettier",
     "RELEASE": "@bff_template_quality//release:release_bin",
+    "RUFF": "@bff_template_quality//tools:ruff",
     "UV": "@bff_template_quality//tools:uv",
     "VALIDATE_PROTO_FILE": "@protovalidate_proto//file",
     "YQ": "@bff_template_quality//tools:yq",

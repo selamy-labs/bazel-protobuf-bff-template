@@ -1,0 +1,7 @@
+# The Python lint and format policy (spec 011 FR-017), read by the pinned ruff through the python-lint check.
+# Width 120, the width the probe measured the scripts at; the rule families the probe used.
+line-length = 120
+target-version = "py312"
+
+[lint]
+select = ["E", "F", "W", "I", "B", "UP"]

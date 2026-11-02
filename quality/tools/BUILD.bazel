@@ -18,6 +18,7 @@ alias(
         "buildifier",
         "gitleaks",
         "prek",
+        "ruff",
         "shellcheck",
         "typos",
         "uv",

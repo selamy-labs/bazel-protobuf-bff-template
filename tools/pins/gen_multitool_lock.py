@@ -245,6 +245,30 @@ T = [
             ),
         ],
     ),
+    (
+        "ruff",
+        "*/ruff",
+        [
+            (
+                "linux",
+                "x86_64",
+                f"{G}/astral-sh/ruff/releases/download/0.15.0/ruff-x86_64-unknown-linux-gnu.tar.gz",
+                "b38e69fb31501ebee3aba8e1778547bb2557adaf6b8f9dfae6f05980ee68b8ed",
+            ),
+            (
+                "linux",
+                "arm64",
+                f"{G}/astral-sh/ruff/releases/download/0.15.0/ruff-aarch64-unknown-linux-gnu.tar.gz",
+                "abfde61faa5381537feb0493065120b1c363bbac1d608ec92fd6cd84daa8d6b1",
+            ),
+            (
+                "macos",
+                "arm64",
+                f"{G}/astral-sh/ruff/releases/download/0.15.0/ruff-aarch64-apple-darwin.tar.gz",
+                "093d355ac33c6b8e91e80b8497d5581c61b028c0405e265cf38fd88f9a291c5c",
+            ),
+        ],
+    ),
 ]
 out: dict[str, Any] = {
     "$schema": "https://raw.githubusercontent.com/theoremlp/rules_multitool/main/lockfile.schema.json"
