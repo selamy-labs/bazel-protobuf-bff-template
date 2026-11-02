@@ -34,7 +34,8 @@ tools { name: "BASELINE" }
 tools { name: "BUF" version_args: "--version" }
 tools { name: "BUF_CONFIG_FILE" }
 tools { name: "GOVULNCHECK" }
-tools { name: "JSCPD" version_args: "--version" }
+# A js_binary launcher, like PRETTIER: run bare it refuses, so the receipt names it by the lock, not by asking.
+tools { name: "JSCPD" }
 tools { name: "PREK" version_args: "--version" }
 tools { name: "RELEASE" }
 tools { name: "UV" version_args: "--version" }
