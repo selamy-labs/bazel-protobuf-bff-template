@@ -44,7 +44,13 @@ function neverReachedServer(reason: unknown, error: ConnectError): boolean {
 
 /** Turns anything a client call throws into the failure the page shows. */
 export function toFailure(reason: unknown): Failure {
-  const error = ConnectError.from(reason);
+  let error: ConnectError;
+  try {
+    error = ConnectError.from(reason);
+  } catch {
+    // A value that cannot even be described (one whose toString is not callable) is still a failure.
+    return { kind: "unknown" };
+  }
   if (neverReachedServer(reason, error)) {
     return { kind: "unavailable" };
   }

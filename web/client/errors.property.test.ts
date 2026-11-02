@@ -41,7 +41,9 @@ const contract: Partial<Record<Code, Failure["kind"]>> = {
   [Code.Internal]: "internal",
 };
 
-const runs = { numRuns: 300 };
+// A fixed seed, so a gate's run is the same run everywhere; a counterexample names its own seed when the
+// seed is changed by hand. The first unseeded run of the second property found a real defect (errors.ts).
+const runs = { numRuns: 300, seed: 20261102 };
 
 test("the mapping is total: every code with any message is exactly one kind, and every kind has text", () => {
   fc.assert(
@@ -181,7 +183,7 @@ test("the transport sends exactly the credential it is given, and nothing withou
           .catch(() => undefined);
         assert.deepEqual(seen, [credential]);
       }),
-      { numRuns: 100 },
+      { numRuns: 100, seed: 20261102 },
     );
   } finally {
     globalThis.fetch = original;

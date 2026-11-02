@@ -85,3 +85,9 @@ test("a fetch that never reached a server is unavailable", () => {
 test("the violations fixture really encodes", () => {
   assert.ok(toBinary(ViolationsSchema, create(ViolationsSchema)).length === 0);
 });
+
+// Found by the property test: a thrown value whose toString is not callable made the mapping itself throw.
+test("a value that cannot be described is still a failure", () => {
+  assert.deepEqual(toFailure({ toString: "" }), { kind: "unknown" });
+  assert.deepEqual(toFailure(Object.create(null)), { kind: "unknown" });
+});
