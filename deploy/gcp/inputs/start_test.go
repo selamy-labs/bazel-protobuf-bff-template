@@ -124,8 +124,51 @@ func start(t *testing.T, environment map[string]string) started {
 	return result
 }
 
-// The module's environment starts the real binary (spec 011 G09, spec 012 FR-008), and the binary reads the
-// funnel's values from it. The configuration line is the binary's own report of what it resolved and from where.
+type telemetryReport struct {
+	Event  string
+	Config struct {
+		Endpoint, ServiceVersion, Environment string
+		SampleRatio                           float64
+	}
+	Sources map[string]string
+}
+
+// resolved reads the binary's own report of what it resolved and from where.
+func resolved(t *testing.T, result started) telemetryReport {
+	t.Helper()
+	if !result.ready {
+		t.Fatalf("the binary did not start: exit %d: %s", result.exitCode, result.stderr)
+	}
+	for _, line := range strings.Split(result.stderr, "\n") {
+		if strings.Contains(line, "telemetry_config") {
+			var report telemetryReport
+			if err := json.Unmarshal([]byte(line), &report); err != nil {
+				t.Fatalf("%v: %s", err, line)
+			}
+			return report
+		}
+	}
+	t.Fatalf("no configuration report: %s", result.stderr)
+	return telemetryReport{}
+}
+
+// A ratio of zero keeps no trace, and the binary's empty-value default is one, so a zero that arrived empty would
+// keep every trace. It reaches the binary as the value it is, read from the environment.
+func TestAZeroSampleRatioReachesTheBinaryAsZero(t *testing.T) {
+	in, err := Load(write(t, strings.Replace(example(t), `"sample_ratio": 1`, `"sample_ratio": 0`, 1)))
+	if err != nil {
+		t.Fatal(err)
+	}
+	environment := serviceEnvironment(in)
+	environment["BFF_VERIFIER_JWKS_URL"] = keySet(t)
+	report := resolved(t, start(t, environment))
+	if report.Config.SampleRatio != 0 || report.Sources["BFF_OTEL_SAMPLE_RATIO"] != "environment" {
+		t.Errorf("the binary resolved %v from %q", report.Config.SampleRatio, report.Sources["BFF_OTEL_SAMPLE_RATIO"])
+	}
+}
+
+// The module's variable names, with the funnel's values, start the real binary (spec 011 G09, spec 012 FR-008). The
+// table above is this test's own, kept equal to the module's names; the mock tests pin the module's expressions.
 func TestTheDeclaredEnvironmentStartsTheProductionBinary(t *testing.T) {
 	in, err := Load(write(t, example(t)))
 	if err != nil {
@@ -133,30 +176,7 @@ func TestTheDeclaredEnvironmentStartsTheProductionBinary(t *testing.T) {
 	}
 	environment := serviceEnvironment(in)
 	environment["BFF_VERIFIER_JWKS_URL"] = keySet(t)
-	result := start(t, environment)
-	if !result.ready {
-		t.Fatalf("the binary did not start: exit %d: %s", result.exitCode, result.stderr)
-	}
-	var report struct {
-		Event  string
-		Config struct {
-			Endpoint, ServiceVersion, Environment string
-			SampleRatio                           float64
-		}
-		Sources map[string]string
-	}
-	found := false
-	for _, line := range strings.Split(result.stderr, "\n") {
-		if strings.Contains(line, "telemetry_config") {
-			if err := json.Unmarshal([]byte(line), &report); err != nil {
-				t.Fatalf("%v: %s", err, line)
-			}
-			found = true
-		}
-	}
-	if !found {
-		t.Fatalf("no configuration report: %s", result.stderr)
-	}
+	report := resolved(t, start(t, environment))
 	want := in.Runtime.Telemetry
 	if report.Config.Endpoint != want.Endpoint || report.Config.Environment != want.Environment || report.Config.SampleRatio != want.SampleRatio || report.Config.ServiceVersion != in.Image.SourceRevision {
 		t.Errorf("the binary resolved %+v, the funnel gave %+v at %s", report.Config, want, in.Image.SourceRevision)

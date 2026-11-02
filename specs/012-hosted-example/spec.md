@@ -16,7 +16,7 @@
 - Q: Must the local demo wait for the cloud? → A: No. The local whole-stack demo is one documented command on a supported host with no GCP credential or project, and it is first-class: the same generated APIs, client and backend, the same adapter contracts as the hosted example, a usable local sign-in and synthetic data, and never a disconnected mock page or a weakened production or test identity.
 - Q: What goes into public source? → A: Configuration schemas, the plan modules and synthetic example values only. Real identifiers, billing, endpoints, credentials, state, plans and evidence stay outside the repository.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - An operator can stand up the example from a reviewed plan (Priority: P1)
 
@@ -36,7 +36,7 @@ An operator fills one typed input file, reads one plan, applies it through the r
 
 An operator rolls the service back to the previous digest, or cancels an in-flight deployment, through the same configuration, and the evidence shows which digest served before and after.
 
-**Independent Test**: the plan for a rollback changes only the digest; the cancellation leaves the previous revision serving.
+**Independent Test**: the plan for a rollback changes only the digest and the revision reported for it (`BFF_RELEASE_REVISION`); the cancellation leaves the previous revision serving.
 
 **Acceptance Scenarios**:
 
@@ -82,7 +82,7 @@ A developer on a supported host runs one documented command and gets the backend
 - The image digest in the inputs is not the one spec 009's verifier recorded: the deployment is refused by the digest check, not rebuilt.
 - Persistence is in-memory today: the example states that notes do not survive a revision change, and a persistent store is an adopter's port, not this feature's.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -94,7 +94,7 @@ A developer on a supported host runs one documented command and gets the backend
 - **FR-006**: The backend service MUST be chosen by a recorded evaluation against the real server's requirements (a verifier for bearer tokens, an exact allowed origin, startup refusal without a verifier, in-memory persistence, bounded shutdown); the evaluation names what the service provides and what the example still lacks.
 - **FR-007**: The frontend MAY be served from GitHub Pages as static files with its backend endpoint and base path as inputs; the Pages site MUST state that the backend runs elsewhere and MUST NOT be presented as a full-stack demo without the backend running.
 - **FR-008**: The runtime configuration (endpoint, token verifier, CORS origin, persistence semantics) MUST be typed inputs with synthetic public examples; the production server's refusal without a verifier stays in force.
-- **FR-009**: Rollback and cancellation MUST be inputs of the same configuration: a rollback changes only the digest; a cancellation leaves the previous revision serving; both are witnessed by evidence naming the digests before and after.
+- **FR-009**: Rollback and cancellation MUST be inputs of the same configuration: a rollback changes only the digest and the revision reported for it (`BFF_RELEASE_REVISION`), and no other service setting; a cancellation leaves the previous revision serving; both are witnessed by evidence naming the digests before and after.
 - **FR-010**: Cost bounds MUST be typed inputs (instance limits, concurrency, request timeout, budget alert) and MUST be enumerated in the plan; no bound is a monetary cap, and the evidence says so.
 - **FR-015**: A verified identity adapter MUST implement the existing `identity.Verifier` port for a supported token issuer through a pinned maintained verification library, composed in production through `newVerifier` only; its tests MUST refuse a wrong issuer, a wrong audience, an expired token and a bad signature, and the dev or test identity MUST never be composed into the deployed binary.
 - **FR-016**: The production bundle MUST provide a supported sign-in that acquires the bearer credential for the generated client, with the test identity absent from the bundle (witnessed by inspection), and the hosted browser journey MUST make real verified RPCs.
@@ -116,7 +116,7 @@ A developer on a supported host runs one documented command and gets the backend
 - **Input funnel**: one typed object holding every value, validated once; everything below it is required parameters.
 - **Deployment record**: endpoint, identity, digest before and after, time, cost; kept outside the repository.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -129,11 +129,11 @@ A developer on a supported host runs one documented command and gets the backend
 
 ## Ownership split (proposed, to settle with the infrastructure owner)
 
-| Concern | Owner | Paths | Tasks |
-| --- | --- | --- | --- |
-| Project, bootstrap, billing, APIs, IAM, state composition, apply, outputs | Infrastructure | its own repository; a versioned narrow output contract (project id, region, runtime identity, build identity, state bucket) consumed here as typed inputs | its own ids, referenced from T002 |
-| Local whole-stack demo: the profile, the entry point, the local sign-in and seed, the local store adapter, the whole-stack witness, the demo recording | BFF, this repository | `tools/dev/` (entry point `//tools/dev`), `tools/dev/profile.json` and its schema, `bff/adapters/store/local/`, `web/e2e/local-stack.spec.*`, `docs/local-demo.md`, `docs/media/local-demo.gif`, `tools/dev/record.sh` and its configuration, `docs/evidence/m10.md` | T018 to T022 |
-| Runtime identity adapter, store adapter, configuration funnel, service module, Cloud Build CD, frontend, browser and rollback acceptance | BFF, this repository | `bff/adapters/identity/`, `bff/adapters/store/`, `bff/cmd/bff/`, `deploy/gcp/service/`, `deploy/gcp/cloudbuild/`, `deploy/gcp/inputs/`, `web/app/`, `web/e2e/`, `docs/evidence/m10.md` | T003 to T017 |
+| Concern                                                                                                                                                | Owner                | Paths                                                                                                                                                                                                                                                                | Tasks                             |
+| ------------------------------------------------------------------------------------------------------------------------------------------------------ | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| Project, bootstrap, billing, APIs, IAM, state composition, apply, outputs                                                                              | Infrastructure       | its own repository; a versioned narrow output contract (project id, region, runtime identity, build identity, state bucket) consumed here as typed inputs                                                                                                            | its own ids, referenced from T002 |
+| Local whole-stack demo: the profile, the entry point, the local sign-in and seed, the local store adapter, the whole-stack witness, the demo recording | BFF, this repository | `tools/dev/` (entry point `//tools/dev`), `tools/dev/profile.json` and its schema, `bff/adapters/store/local/`, `web/e2e/local-stack.spec.*`, `docs/local-demo.md`, `docs/media/local-demo.gif`, `tools/dev/record.sh` and its configuration, `docs/evidence/m10.md` | T018 to T022                      |
+| Runtime identity adapter, store adapter, configuration funnel, service module, Cloud Build CD, frontend, browser and rollback acceptance               | BFF, this repository | `bff/adapters/identity/`, `bff/adapters/store/`, `bff/cmd/bff/`, `deploy/gcp/service/`, `deploy/gcp/cloudbuild/`, `deploy/gcp/inputs/`, `web/app/`, `web/e2e/`, `docs/evidence/m10.md`                                                                               | T003 to T017                      |
 
 No remote whole-state read crosses the boundary, and no root overlaps; the contract is a versioned file of outputs, not state access.
 

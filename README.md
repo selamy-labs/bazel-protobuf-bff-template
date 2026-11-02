@@ -6,10 +6,10 @@ This is a neutral starter for contract-first web applications. A browser client 
 backend-for-frontend talk only through generated Protocol Buffer/Connect clients, and Bazel owns the
 toolchains, code generation and tests. The aim is shared, versioned quality checks that run the same
 way in Git hooks, in the local verifier and in CI. The local hooks and the one check registry exist, and a
-separate repository consumes the checks at `quality-v1.0.0` by one pin; no hosted CI result is recorded as evidence yet.
+separate repository consumes the checks at `quality-v1.0.0` by one pin; hosted CI runs, and no green gate is recorded yet.
 
 **Status: M1 to M8 are implemented and independently accepted at their revisions, locally; M8a's image is built,
-tested and executed independently; the repository is public, no hosted CI result is recorded as evidence yet, and no
+tested and executed independently; the repository is public, hosted CI runs, no green gate is recorded yet, and no
 release or package is published. The quality baseline (M9) is
 open: the Go complexity, Go and TypeScript duplication, Go dead-code and Python lint gates are enforced from this
 tree's measurements, property tests run for Go and TypeScript, mutation is probed but not bound, Go branch outcomes

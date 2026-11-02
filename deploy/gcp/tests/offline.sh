@@ -43,6 +43,7 @@ cp "$work/effective.inputs.json" "$work/deploy/gcp/inputs/example.inputs.json"
 mkdir -p "$work/deploy/gcp/inputs/testdata"
 "$validator" --effective "$work/deploy/gcp/inputs/testdata/rollback.inputs.json" "$rollback" >/dev/null || { echo "offline: the rollback inputs are refused"; exit 1; }
 "$validator" --effective "$work/deploy/gcp/inputs/testdata/cancel.inputs.json" "$cancel" >"$work/cancel.out" || { echo "offline: the cancel inputs are refused"; exit 1; }
+"$validator" --effective "$work/deploy/gcp/inputs/testdata/zero-sample.inputs.json" "$(dirname "$rollback")/zero-sample.inputs.json" >/dev/null || { echo "offline: the zero sample inputs are refused"; exit 1; }
 grep -q '^release.cancel_in_flight=true # from ' "$work/cancel.out" || { echo "offline: the funnel did not carry the cancellation"; exit 1; }
 # The pipeline honors the cancellation: the cancel step reads the funnel's line, comes before anything is
 # promoted, and every step that promotes, plans or applies stops at the marker.
@@ -72,5 +73,5 @@ nodes="$(grep -oE '"(\[root\] )?google_[a-z0-9_]+\.[A-Za-z0-9_-]+( \(expand\))?"
 grep -qE '^\s*project\s*=\s*jsondecode\(file\(var\.inputs_file\)\)\.contract\.project_id\s*$' "$config/versions.tf" || { echo "offline: the provider is not bound to the funnel's project"; exit 1; }
 grep -qE '^\s*region\s*=\s*jsondecode\(file\(var\.inputs_file\)\)\.contract\.region\s*$' "$config/versions.tf" || { echo "offline: the provider is not bound to the funnel's region"; exit 1; }
 "$tofu" -chdir="$config" test -no-color -var "inputs_file=../inputs/example.inputs.json" >"$work/test.out" 2>&1 || { cat "$work/test.out"; echo "offline: a mock test failed"; exit 1; }
-grep -q "6 passed, 0 failed" "$work/test.out" || { cat "$work/test.out"; echo "offline: not every mock test ran"; exit 1; }
+grep -q "7 passed, 0 failed" "$work/test.out" || { cat "$work/test.out"; echo "offline: not every mock test ran"; exit 1; }
 echo "offline: the service module validates and its mock tests pass offline against the synthetic inputs; nothing applied"

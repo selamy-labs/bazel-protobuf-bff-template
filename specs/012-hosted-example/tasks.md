@@ -46,7 +46,7 @@
 
 ## Phase 7: Live, behind the gates
 
-- [ ] T017 (the service module passes the production binary's telemetry inputs from the funnel, witnessed offline by starting the real binary with the module's environment; a hosted run must first settle the collector's location, CPU between requests and the shutdown window, `docs/quality/telemetry.md`) After the recorded gates: apply, deploy by digest, the browser flow with a verified identity and the refused dev identity, rollback, cancellation, cost; `docs/evidence/m10.md` with endpoint, identity, digest, flow result and measured cost; the Well-Architected rows updated from live evidence, never from documents
+- [ ] T017 (open follow-up from the review of PR #1: the pipeline's deployment record writes the trigger's `COMMIT_SHA` beside the served digest, so on a rollback it can disagree with the reported revision; read the module's `serving.revision` output there when the pipeline first runs; the service module passes the production binary's telemetry inputs from the funnel, witnessed offline by starting the real binary with the module's environment; a hosted run must first settle the collector's location, CPU between requests and the shutdown window, `docs/quality/telemetry.md`) After the recorded gates: apply, deploy by digest, the browser flow with a verified identity and the refused dev identity, rollback, cancellation, cost; `docs/evidence/m10.md` with endpoint, identity, digest, flow result and measured cost; the Well-Architected rows updated from live evidence, never from documents
 
 ## Dependencies
 

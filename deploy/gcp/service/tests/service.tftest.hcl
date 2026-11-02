@@ -68,6 +68,20 @@ run "the_telemetry_inputs_come_from_the_funnel" {
   }
 }
 
+# A ratio of zero is a value: it keeps no trace. The binary defaults an empty one to 1, so it must arrive as "0".
+run "a_sample_ratio_of_zero_reaches_the_service_as_zero" {
+  command = plan
+
+  variables {
+    inputs_file = "../inputs/testdata/zero-sample.inputs.json"
+  }
+
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_OTEL_SAMPLE_RATIO"]) == "0"
+    error_message = "a sample ratio of zero is the string 0, never empty"
+  }
+}
+
 # Rollback as an input (spec 012 FR-009): the same configuration with the previous digest serving. The image
 # is the previous digest and the reported revision is that digest's; every other declared value is unchanged.
 run "a_rollback_changes_only_the_digest" {
@@ -87,7 +101,7 @@ run "a_rollback_changes_only_the_digest" {
   }
   assert {
     condition     = google_cloud_run_v2_service.bff.template[0].service_account == "bff-runtime@example.invalid" && google_cloud_run_v2_service.bff.template[0].scaling[0].max_instance_count == 2 && google_cloud_run_v2_service.bff.template[0].max_instance_request_concurrency == 20 && google_cloud_run_v2_service.bff.template[0].timeout == "30s" && google_cloud_run_v2_service.bff.template[0].containers[0].ports[0].container_port == 8080
-    error_message = "a rollback changes nothing but the digest"
+    error_message = "a rollback changes nothing but the digest and the revision reported for it"
   }
 }
 

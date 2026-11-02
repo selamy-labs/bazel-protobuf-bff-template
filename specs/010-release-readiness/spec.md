@@ -15,7 +15,7 @@
 - Q: Where are artifacts hosted, and where does deployment run? → A: GitHub hosts the public CI, the repository-linked container package and the tag-bound downloadable artifacts, published later by a scoped workflow token on trusted source once permitted; GitHub Pages may serve the static frontend. Deployment is not GitHub Actions: continuous deployment runs on GCP Cloud Build into a dedicated BFF-owned project (spec 012), and the backend actually runs there.
 - Q: Which templates and runners? → A: The organization's public `.github` defaults are inherited, not copied; standard GitHub-hosted Linux runners only, measured from real runs after publication.
 
-## User Scenarios & Testing *(mandatory)*
+## User Scenarios & Testing _(mandatory)_
 
 ### User Story 1 - A reviewer can see where everything came from (Priority: P1)
 
@@ -105,7 +105,7 @@ After the first hosted gate is green, a tag on the trusted source publishes the 
 - A third-party path with no license metadata at all: listed as unresolved. The inventory is complete when every path has an entry; it is not a legal clearance.
 - The export includes the image from spec 009 and anything landed after the last scan: the final scan runs at the frozen revision, and a later change reopens it.
 
-## Requirements *(mandatory)*
+## Requirements _(mandatory)_
 
 ### Functional Requirements
 
@@ -132,7 +132,7 @@ After the first hosted gate is green, a tag on the trusted source publishes the 
 - **Scan result**: a status (`passed`, `failed`, `not-run`), the exact scope scanned, and hits as run-local labels.
 - **Release packet**: the external record of the configured identity, the proposed release ref, the activation input and the open workflow choice.
 
-## Success Criteria *(mandatory)*
+## Success Criteria _(mandatory)_
 
 ### Measurable Outcomes
 
@@ -154,7 +154,7 @@ After the first hosted gate is green, a tag on the trusted source publishes the 
 
 ## Limits
 
-- Nothing is published. Readiness is a recorded review, and publication stays an operator action outside this repository.
+- This feature publishes nothing. Readiness is a recorded review, and publication stays an operator action outside this repository.
 - A scan finds what it knows. A marker list is only as complete as the operator's record, and the human review stays.
 - A required `gate` status does not close the proposal-controlled workflow gap (spec 007 R5). The required-workflow or ruleset choice stays explicitly open.
 - Provisioning and image packaging are separate: nothing here applies anything; publishing the image is the declared workflow of US6, run only on the trusted source after the first hosted gate, and deployment is spec 012's, on GCP.

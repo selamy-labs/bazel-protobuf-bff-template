@@ -127,7 +127,7 @@
             "endpoint": {
               "type": "string",
               "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?$",
-              "description": "The OTLP/HTTP collector's exact origin, no path. The exporter sends no credentials, so this is a collector that accepts the service's export without them; a collector beside the service is not declared here."
+              "description": "The OTLP/HTTP collector's exact origin, no path, on an external host: a loopback or unspecified host is refused, since no collector is declared beside the service. The exporter sends no credentials, so this collector accepts the export without them."
             },
             "environment": {
               "enum": ["dev", "staging", "prod"]
@@ -207,7 +207,7 @@
         "serving_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$",
-          "description": "The digest to serve; a rollback sets it to previous_digest and changes nothing else. The service reports the revision of this digest in its telemetry."
+          "description": "The digest to serve. A rollback sets it to previous_digest, which changes the digest and the revision reported for it (BFF_RELEASE_REVISION), and no other service setting."
         },
         "previous_digest": {
           "type": ["string", "null"],
@@ -216,7 +216,7 @@
         "previous_revision": {
           "type": ["string", "null"],
           "pattern": "^[0-9a-f]{40}$",
-          "description": "The source revision previous_digest was built from; given exactly when previous_digest is."
+          "description": "The source revision previous_digest was built from, reported as BFF_RELEASE_REVISION when a rollback serves that digest; given exactly when previous_digest is."
         },
         "cancel_in_flight": {
           "type": "boolean",

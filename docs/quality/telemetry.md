@@ -39,15 +39,15 @@ identity behavior, not a live telemetry assertion.
 
 `deploy/gcp/service` passes `BFF_OTEL_ENDPOINT`, `BFF_RELEASE_REVISION`, `BFF_OTEL_ENVIRONMENT` and
 `BFF_OTEL_SAMPLE_RATIO` from the input funnel. The revision is the served digest's, so a rollback reports the older
-revision. `//deploy/gcp/inputs:inputs_test` starts the real production binary with the module's environment and
+revision. `//deploy/gcp/inputs:inputs_test` starts the real production binary with the module's variable names and the funnel's values and
 reads back what it resolved, and shows it refusing without the endpoint or the revision. This is offline: no hosted
 export has been observed.
 
 A hosted run must still settle three things. None is decided here, and each is a gate input of spec 012 T017:
 
 - **Where the export goes.** The exporter sends no credentials, so a backend that requires them needs a collector
-  in front of it. A collector beside the service would be loopback http, which the binary accepts and the funnel
-  refuses until the module declares one, so that no endpoint exports to nothing.
+  in front of it. A collector beside the service would be on loopback, which the binary accepts and the funnel
+  refuses in any spelling until the module declares one. A reachable collector is still not proven by the funnel.
 - **CPU between requests.** The service scales to zero under request-based billing, where the platform allocates
   CPU only during requests. Batches and metric intervals can therefore wait for the next request, and metrics
   from an idle instance may arrive late or not at all. Instance-based billing changes this and changes the cost.

@@ -3,15 +3,15 @@
 Each kind of evidence below is a separate claim, and none implies another. A receipt records one run. It is
 not a readiness verdict, which belongs to upstream #27.
 
-| Claim | What backs it | State here |
-| --- | --- | --- |
-| Offline test | A named test target with a fixture | Real, per target |
-| Local verification | A receipt from `tools/verify.sh --base=<commit>`, labeled with its isolation and `claim_layer: local` | Real, per revision, in the [evidence records](../evidence/) |
-| Independent local review | A reviewer's own run of an exact revision | Named per revision in those records |
-| Hosted CI | A workflow run with one receipt per leg, `claim_layer: hosted-ci` | **Never run.** No remote exists |
-| Required status | A hosting platform refusing a merge without it | **No.** Not configured |
-| Human approval | A person's recorded decision | Not something a receipt can say |
-| Deployment and release | A deployed artifact | Not claimed |
+| Claim                    | What backs it                                                                                         | State here                                                                                                                                             |
+| ------------------------ | ----------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Offline test             | A named test target with a fixture                                                                    | Real, per target                                                                                                                                       |
+| Local verification       | A receipt from `tools/verify.sh --base=<commit>`, labeled with its isolation and `claim_layer: local` | Real, per revision, in the [evidence records](../evidence/)                                                                                            |
+| Independent local review | A reviewer's own run of an exact revision                                                             | Named per revision in those records                                                                                                                    |
+| Hosted CI                | A workflow run with one receipt per leg, `claim_layer: hosted-ci`                                     | **Running since 2026-11-02** on the public repository; no green gate is recorded yet. Per-revision results are in the [evidence records](../evidence/) |
+| Required status          | A hosting platform refusing a merge without it                                                        | **No.** Not configured                                                                                                                                 |
+| Human approval           | A person's recorded decision                                                                          | Not something a receipt can say                                                                                                                        |
+| Deployment and release   | A deployed artifact                                                                                   | Not claimed                                                                                                                                            |
 
 ## Reading a receipt
 
@@ -25,12 +25,12 @@ not a readiness verdict, which belongs to upstream #27.
 
 ## What each coverage number is
 
-| Metric | Meaning | Not |
-| --- | --- | --- |
-| `statements` | Go statements covered, from the raw profile, the number Go itself reports | A line count |
-| `block-span-lines` | Lines inside Go coverage blocks, including comments there, from rules_go's LCOV. Used only for code that runs as a subprocess of a test | Statements |
-| `compiled-js-lines` | Lines of compiled JavaScript, from Node's own runner, mapped to a `.ts` source by file name | TypeScript line numbers |
-| `unmeasured` | No data: browser code, and Go branches | Covered |
+| Metric              | Meaning                                                                                                                                 | Not                     |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------- | ----------------------- |
+| `statements`        | Go statements covered, from the raw profile, the number Go itself reports                                                               | A line count            |
+| `block-span-lines`  | Lines inside Go coverage blocks, including comments there, from rules_go's LCOV. Used only for code that runs as a subprocess of a test | Statements              |
+| `compiled-js-lines` | Lines of compiled JavaScript, from Node's own runner, mapped to a `.ts` source by file name                                             | TypeScript line numbers |
+| `unmeasured`        | No data: browser code, and Go branches                                                                                                  | Covered                 |
 
 Excludes in `quality/coverage_floors.json` carry a listed reason. The evaluator enforces that a listed reason is present. Whether the reason is true is a human review.
 
@@ -42,9 +42,9 @@ matches is also not detected, so excludes stay narrow.
 
 ## Open gaps
 
-| Gap | Owner |
-| --- | --- |
-| Shared policy-diff and trusted baseline (parent T067) | Blocked on an upstream #26 release |
-| Evidence validator, independent review receipts and readiness; spec 001 FR-023 and SC-007 (parent T068) | Blocked on an upstream #27 release |
-| A gate that reads receipt contents | The same. `gate` holds no permissions and reads leg results only |
-| A repository's first hosted push has no base | M8 |
+| Gap                                                                                                     | Owner                                                            |
+| ------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| Shared policy-diff and trusted baseline (parent T067)                                                   | Blocked on an upstream #26 release                               |
+| Evidence validator, independent review receipts and readiness; spec 001 FR-023 and SC-007 (parent T068) | Blocked on an upstream #27 release                               |
+| A gate that reads receipt contents                                                                      | The same. `gate` holds no permissions and reads leg results only |
+| A repository's first hosted push has no base                                                            | M8                                                               |

@@ -25,6 +25,9 @@ expect() { # expect <name> <want> <mutation> [tofu]
     unformatted) replace "$T/s/main.tf" '  name     = "bff"' '  name="bff"' ;;
     rollback_changes_more) replace "$T/s/main.tf" '      max_instance_count = local.inputs.bounds.max_instances' '      max_instance_count = local.inputs.release.previous_digest == null ? local.inputs.bounds.max_instances : 1' ;;
     plain_http_telemetry) replace "$T/inputs.json" '"endpoint": "https://otel.example.invalid"' '"endpoint": "http://otel.example.invalid"' ;;
+    null_sample_ratio) replace "$T/inputs.json" '"sample_ratio": 1' '"sample_ratio": null' ;;
+    telemetry_with_no_host) replace "$T/inputs.json" '"endpoint": "https://otel.example.invalid"' '"endpoint": "https://:443"' ;;
+    loopback_telemetry) replace "$T/inputs.json" '"endpoint": "https://otel.example.invalid"' '"endpoint": "https://127.0.0.1:4318"' ;;
     telemetry_endpoint_dropped) replace "$T/s/main.tf" 'name  = "BFF_OTEL_ENDPOINT"' 'name  = "BFF_OTEL_ENDPOINT_UNREAD"' ;;
     rollback_reports_the_newer_revision) replace "$T/s/main.tf" ': local.inputs.release.previous_revision' ': local.inputs.image.source_revision' ;;
     cancel_step_removed) replace "$T/cloudbuild.yaml" "grep -q '^release.cancel_in_flight=true ' /workspace/validate.out" "false" ;;
@@ -47,8 +50,11 @@ expect "a data source" 1 data_source
 expect "an invoker role wider than invoke" 1 admin_invoker
 expect "a module that adds a resource" 1 module_block
 expect "unformatted configuration" 1 unformatted
-expect "a rollback that changes more than the digest" 1 rollback_changes_more
+expect "a rollback that changes more than the digest and its revision" 1 rollback_changes_more
 expect "a plain http telemetry endpoint" 1 plain_http_telemetry
+expect "a null sample ratio" 1 null_sample_ratio
+expect "a telemetry endpoint with no host" 1 telemetry_with_no_host
+expect "a loopback telemetry endpoint" 1 loopback_telemetry
 expect "a required telemetry input not passed" 1 telemetry_endpoint_dropped
 expect "a rollback that reports the newer image's revision" 1 rollback_reports_the_newer_revision
 expect "a pipeline that does not read the cancellation" 1 cancel_step_removed
