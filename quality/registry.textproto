@@ -34,6 +34,7 @@ tools { name: "BASELINE" }
 tools { name: "BUF" version_args: "--version" }
 tools { name: "BUF_CONFIG_FILE" }
 tools { name: "GOVULNCHECK" }
+tools { name: "JSCPD" version_args: "--version" }
 tools { name: "PREK" version_args: "--version" }
 tools { name: "RELEASE" }
 tools { name: "UV" version_args: "--version" }
@@ -252,6 +253,23 @@ checks {
   needs_network: true
   command: ["tools/checks/vulnerabilities.sh", "{bazel}", "{isolation}", "{GOVULNCHECK}", "https://vuln.go.dev", "//bff/cmd/bff:bff"]
   witness: "//:vulnerabilities_test"
+}
+
+# TypeScript duplication (spec 011 FR-006): jscpd over the first-party TypeScript and JavaScript at 50 tokens, the
+# tool's own default and the threshold the probe measured the tree at. A candidate is deleted in a focused change
+# or recorded with its reason. Whole-tree context, so full only.
+checks {
+  id: "duplication-ts"
+  shard: "policy"
+  tool: "JSCPD"
+  selector { include: "\\.(ts|tsx|mjs)$" }
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 300
+  summary: true
+  command: ["tools/checks/duplication_ts.sh", "{JSCPD}", "{YQ}", "{root}", "{list}", "50"]
+  witness: "//:duplication_ts_test"
 }
 
 checks {

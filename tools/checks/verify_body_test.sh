@@ -65,6 +65,13 @@ echo "measurement: vulnerabilities //bff/cmd/bff:bff: 0 reachable against https:
 exit 0
 STUB
 chmod +x "$tree/tools/checks/vulnerabilities.sh"
+cat >"$tree/tools/checks/duplication_ts.sh" <<STUB
+#!/usr/bin/env bash
+[[ "\$(cat "$work/fail" 2>/dev/null)" == duplication-ts ]] && { echo "stub failure: duplication-ts"; exit 1; }
+echo "measurement: duplication-ts 1 files compared at 50 tokens; 0 candidate clones; stub"
+exit 0
+STUB
+chmod +x "$tree/tools/checks/duplication_ts.sh"
 stub "$tree/tools/policy/lock_fixture.sh" toolchain-fixtures
 stub "$tree/tools/hooks/e2e.sh" hook-e2e
 stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance

@@ -1,6 +1,7 @@
 load("@aspect_rules_ts//ts:defs.bzl", "ts_config")
 load("@bff_template_quality//:defs.bzl", "quality_binary")
 load("@npm//:defs.bzl", "npm_link_all_packages")
+load("@npm//:jscpd/package_json.bzl", jscpd_bin = "bin")
 load("@npm//:prettier/package_json.bzl", prettier_bin = "bin")
 load("@rules_shell//shell:sh_binary.bzl", "sh_binary")
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
@@ -31,6 +32,13 @@ npm_link_all_packages(name = "node_modules")
 
 prettier_bin.prettier_binary(
     name = "prettier",
+    visibility = ["//tools/hooks:__pkg__"],
+)
+
+# The TypeScript duplication tool (spec 011 FR-006): jscpd 5, a prebuilt binary its npm package resolves for this
+# platform, pinned by pnpm-lock.yaml.
+jscpd_bin.jscpd_binary(
+    name = "jscpd",
     visibility = ["//tools/hooks:__pkg__"],
 )
 
@@ -192,6 +200,24 @@ sh_test(
         "tools/checks/vulnerabilities.sh",
         "//bff/cmd/bff-dev",
         "@bff_template_quality//tools:govulncheck",
+    ],
+)
+
+# The TypeScript duplication witness (spec 011 FR-006): the real jscpd over a planted tree, a clone pair named in
+# the diagnostic form, the restored control, the exclusions, the setup failures.
+sh_test(
+    name = "duplication_ts_test",
+    size = "small",
+    srcs = ["tools/checks/duplication_ts_test.sh"],
+    args = [
+        "$(rootpath tools/checks/duplication_ts.sh)",
+        "$(rootpath :jscpd)",
+        "$(rootpath @bff_template_quality//tools:yq)",
+    ],
+    data = [
+        "tools/checks/duplication_ts.sh",
+        ":jscpd",
+        "@bff_template_quality//tools:yq",
     ],
 )
 

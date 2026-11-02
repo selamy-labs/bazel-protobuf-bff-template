@@ -8,6 +8,7 @@ QUALITY_TOOLS = MODULE_TOOLS | {
     "BUF_CONFIG_FILE": "@bff_template_quality//proto:buf.yaml",
     "GOFMT": "@go_sdk//:bin/gofmt",
     "GOVULNCHECK": "@bff_template_quality//tools:govulncheck",
+    "JSCPD": "//:jscpd",
     "PREK": "@bff_template_quality//tools:prek",
     "PRETTIER": "//:prettier",
     "RELEASE": "@bff_template_quality//release:release_bin",

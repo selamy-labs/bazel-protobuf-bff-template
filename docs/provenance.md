@@ -166,183 +166,193 @@ analyzers and never link here.
 These are fetched by version and checksum and are not vendored. The licenses shown come from each
 project's own package metadata. Transitive npm packages are enumerated in the generated table below.
 
-| Item                                                             | Identifier                                                             | Version                                                       | License                                                                                                                               | Scope                                               | Where pinned                                                           |
-| ---------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------- | ---------------------------------------------------------------------- |
-| golang.org/x/tools                                               | `golang.org/x/tools`                                                   | 0.52.0                                                        | BSD-3-Clause                                                                                                                          | tools                                               | `quality/go.mod`, `quality/go.sum`                                     |
-| honnef.co/go/tools (staticcheck)                                 | `honnef.co/go/tools`                                                   | 0.8.2                                                         | MIT                                                                                                                                   | tools                                               | same                                                                   |
-| Google provider for OpenTofu, the hosted example's service plan  | `terraform_provider_google`                                            | 8.9.0                                                         | MPL-2.0, read from the zip's LICENSE (IBM Corp. 2014, 2026)                                                                           | tools (the offline plan test; nothing of it ships)  | `MODULE.bazel` (sha256), `deploy/gcp/service/.terraform.lock.hcl` (h1) |
-| gocognit                                                         | `github.com/uudashr/gocognit`                                          | 1.3.0                                                         | MIT, read from the module's LICENSE (M9, spec 011)                                                                                    | tools                                               | same                                                                   |
-| dupl                                                             | `github.com/mibk/dupl`                                                 | 1.1.0                                                         | MIT, read from the module's LICENSE (M9, spec 011)                                                                                    | tools                                               | same                                                                   |
-| govulncheck                                                      | `golang.org/x/vuln`                                                    | 1.9.0                                                         | BSD-3-Clause, read from the module's LICENSE (M9, spec 011); it fetches the Go vulnerability database from `vuln.go.dev` when it runs | tools                                               | same                                                                   |
-| x/telemetry                                                      | `golang.org/x/telemetry`                                               | 0.0.0-20261010193011-f71dc92da45e                             | BSD-3-Clause, read from the module's LICENSE; a dependency of govulncheck, never enabled (M9, spec 011)                               | tools                                               | same                                                                   |
-| x/sys                                                            | `golang.org/x/sys`                                                     | 0.49.0                                                        | BSD-3-Clause, read from the module's LICENSE; a dependency of govulncheck (M9, spec 011)                                              | tools                                               | same                                                                   |
-| Pillow, the demo recording's encoder                             | `pillow`                                                               | 13.0.0                                                        | MIT-CMU, read from the wheel's License-Expression and its LICENSE (the PIL license)                                                   | tools (the recording only; nothing of it ships)     | `tools/dev/record/requirements.lock`, by hash                          |
-| gocyclo                                                          | `github.com/fzipp/gocyclo`                                             | 0.6.0                                                         | BSD-3-Clause, read from the module's LICENSE (M9, spec 011)                                                                           | tools                                               | same                                                                   |
-| golang.org/x/mod, golang.org/x/sync, golang.org/x/exp/typeparams | `golang.org/x/mod`, `golang.org/x/sync`, `golang.org/x/exp/typeparams` | 0.42.0, 0.24.0, v0.0.0-20231108232855-2478ac86f678 (indirect) | BSD-3-Clause                                                                                                                          | tools                                               | same                                                                   |
-| ESLint                                                           | `eslint`                                                               | 10.13.0                                                       | MIT                                                                                                                                   | tools                                               | `package.json`, `pnpm-lock.yaml`                                       |
-| typescript-eslint                                                | `typescript-eslint`                                                    | 8.71.2                                                        | MIT                                                                                                                                   | tools                                               | same                                                                   |
-| Prettier                                                         | `prettier`                                                             | 3.9.10                                                        | MIT                                                                                                                                   | tools                                               | same                                                                   |
-| fast-check                                                       | `fast-check`                                                           | 4.10.2                                                        | MIT, read from the fetched package (`pure-rand` 8.4.2, MIT, beneath it)                                                               | tools, test-time only (`web/client` property tests) | `package.json`, `pnpm-lock.yaml`                                       |
+| Item                                                             | Identifier                                                             | Version                                                       | License                                                                                                                                                                                                | Scope                                               | Where pinned                                                           |
+| ---------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | --------------------------------------------------- | ---------------------------------------------------------------------- |
+| golang.org/x/tools                                               | `golang.org/x/tools`                                                   | 0.52.0                                                        | BSD-3-Clause                                                                                                                                                                                           | tools                                               | `quality/go.mod`, `quality/go.sum`                                     |
+| honnef.co/go/tools (staticcheck)                                 | `honnef.co/go/tools`                                                   | 0.8.2                                                         | MIT                                                                                                                                                                                                    | tools                                               | same                                                                   |
+| Google provider for OpenTofu, the hosted example's service plan  | `terraform_provider_google`                                            | 8.9.0                                                         | MPL-2.0, read from the zip's LICENSE (IBM Corp. 2014, 2026)                                                                                                                                            | tools (the offline plan test; nothing of it ships)  | `MODULE.bazel` (sha256), `deploy/gcp/service/.terraform.lock.hcl` (h1) |
+| gocognit                                                         | `github.com/uudashr/gocognit`                                          | 1.3.0                                                         | MIT, read from the module's LICENSE (M9, spec 011)                                                                                                                                                     | tools                                               | same                                                                   |
+| dupl                                                             | `github.com/mibk/dupl`                                                 | 1.1.0                                                         | MIT, read from the module's LICENSE (M9, spec 011)                                                                                                                                                     | tools                                               | same                                                                   |
+| govulncheck                                                      | `golang.org/x/vuln`                                                    | 1.9.0                                                         | BSD-3-Clause, read from the module's LICENSE (M9, spec 011); it fetches the Go vulnerability database from `vuln.go.dev` when it runs                                                                  | tools                                               | same                                                                   |
+| x/telemetry                                                      | `golang.org/x/telemetry`                                               | 0.0.0-20261010193011-f71dc92da45e                             | BSD-3-Clause, read from the module's LICENSE; a dependency of govulncheck, never enabled (M9, spec 011)                                                                                                | tools                                               | same                                                                   |
+| x/sys                                                            | `golang.org/x/sys`                                                     | 0.49.0                                                        | BSD-3-Clause, read from the module's LICENSE; a dependency of govulncheck (M9, spec 011)                                                                                                               | tools                                               | same                                                                   |
+| Pillow, the demo recording's encoder                             | `pillow`                                                               | 13.0.0                                                        | MIT-CMU, read from the wheel's License-Expression and its LICENSE (the PIL license)                                                                                                                    | tools (the recording only; nothing of it ships)     | `tools/dev/record/requirements.lock`, by hash                          |
+| gocyclo                                                          | `github.com/fzipp/gocyclo`                                             | 0.6.0                                                         | BSD-3-Clause, read from the module's LICENSE (M9, spec 011)                                                                                                                                            | tools                                               | same                                                                   |
+| golang.org/x/mod, golang.org/x/sync, golang.org/x/exp/typeparams | `golang.org/x/mod`, `golang.org/x/sync`, `golang.org/x/exp/typeparams` | 0.42.0, 0.24.0, v0.0.0-20231108232855-2478ac86f678 (indirect) | BSD-3-Clause                                                                                                                                                                                           | tools                                               | same                                                                   |
+| ESLint                                                           | `eslint`                                                               | 10.13.0                                                       | MIT                                                                                                                                                                                                    | tools                                               | `package.json`, `pnpm-lock.yaml`                                       |
+| typescript-eslint                                                | `typescript-eslint`                                                    | 8.71.2                                                        | MIT                                                                                                                                                                                                    | tools                                               | same                                                                   |
+| Prettier                                                         | `prettier`                                                             | 3.9.10                                                        | MIT                                                                                                                                                                                                    | tools                                               | same                                                                   |
+| fast-check                                                       | `fast-check`                                                           | 4.10.2                                                        | MIT, read from the fetched package (`pure-rand` 8.4.2, MIT, beneath it)                                                                                                                                | tools, test-time only (`web/client` property tests) | `package.json`, `pnpm-lock.yaml`                                       |
+| jscpd                                                            | `jscpd`                                                                | 5.4.2                                                         | MIT, read from the fetched package; its eight platform packages MIT, `jscpd-linux-x64-gnu` read from the fetched package, the seven others from the registry metadata since only this platform fetches | tools (`duplication-ts` at full)                    | `package.json`, `pnpm-lock.yaml`                                       |
 
 ## Transitive npm packages (generated)
 
 Every package in `pnpm-lock.yaml`, with the license field of its fetched `package.json`. Scope: tools and the built page; which packages reach the page is stated in the browser and web table above.
 
-| Item                                  | Identifier                              | Version | License                       | Where pinned     |
-| ------------------------------------- | --------------------------------------- | ------- | ----------------------------- | ---------------- |
-| @bufbuild/protobuf                    | `@bufbuild/protobuf`                    | 2.16.0  | (Apache-2.0 AND BSD-3-Clause) | `pnpm-lock.yaml` |
-| @bufbuild/protoc-gen-es               | `@bufbuild/protoc-gen-es`               | 2.16.0  | Apache-2.0                    | `pnpm-lock.yaml` |
-| @bufbuild/protoplugin                 | `@bufbuild/protoplugin`                 | 2.16.0  | Apache-2.0                    | `pnpm-lock.yaml` |
-| @cacheable/memory                     | `@cacheable/memory`                     | 2.2.0   | MIT                           | `pnpm-lock.yaml` |
-| @cacheable/utils                      | `@cacheable/utils`                      | 2.5.0   | MIT                           | `pnpm-lock.yaml` |
-| @connectrpc/connect-web               | `@connectrpc/connect-web`               | 2.2.0   | Apache-2.0                    | `pnpm-lock.yaml` |
-| @connectrpc/connect                   | `@connectrpc/connect`                   | 2.2.0   | Apache-2.0                    | `pnpm-lock.yaml` |
-| @eslint-community/eslint-utils        | `@eslint-community/eslint-utils`        | 4.10.1  | MIT                           | `pnpm-lock.yaml` |
-| @eslint-community/regexpp             | `@eslint-community/regexpp`             | 4.12.2  | MIT                           | `pnpm-lock.yaml` |
-| @eslint/config-array                  | `@eslint/config-array`                  | 0.23.5  | Apache-2.0                    | `pnpm-lock.yaml` |
-| @eslint/config-helpers                | `@eslint/config-helpers`                | 0.7.0   | Apache-2.0                    | `pnpm-lock.yaml` |
-| @eslint/core                          | `@eslint/core`                          | 1.2.1   | Apache-2.0                    | `pnpm-lock.yaml` |
-| @eslint/object-schema                 | `@eslint/object-schema`                 | 3.0.5   | Apache-2.0                    | `pnpm-lock.yaml` |
-| @eslint/plugin-kit                    | `@eslint/plugin-kit`                    | 0.7.3   | Apache-2.0                    | `pnpm-lock.yaml` |
-| @humanfs/core                         | `@humanfs/core`                         | 0.19.2  | Apache-2.0                    | `pnpm-lock.yaml` |
-| @humanfs/node                         | `@humanfs/node`                         | 0.16.8  | Apache-2.0                    | `pnpm-lock.yaml` |
-| @humanfs/types                        | `@humanfs/types`                        | 0.15.0  | Apache-2.0                    | `pnpm-lock.yaml` |
-| @humanwhocodes/module-importer        | `@humanwhocodes/module-importer`        | 1.0.1   | Apache-2.0                    | `pnpm-lock.yaml` |
-| @humanwhocodes/retry                  | `@humanwhocodes/retry`                  | 0.4.3   | Apache-2.0                    | `pnpm-lock.yaml` |
-| @keyv/bigmap                          | `@keyv/bigmap`                          | 1.3.1   | MIT                           | `pnpm-lock.yaml` |
-| @keyv/serialize                       | `@keyv/serialize`                       | 1.1.1   | MIT                           | `pnpm-lock.yaml` |
-| @oxc-project/types                    | `@oxc-project/types`                    | 0.154.0 | MIT                           | `pnpm-lock.yaml` |
-| @playwright/test                      | `@playwright/test`                      | 1.64.1  | Apache-2.0                    | `pnpm-lock.yaml` |
-| @rolldown/binding-android-arm-eabi    | `@rolldown/binding-android-arm-eabi`    | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-android-arm64       | `@rolldown/binding-android-arm64`       | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-darwin-arm64        | `@rolldown/binding-darwin-arm64`        | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-darwin-x64          | `@rolldown/binding-darwin-x64`          | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-freebsd-x64         | `@rolldown/binding-freebsd-x64`         | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-linux-arm-gnueabihf | `@rolldown/binding-linux-arm-gnueabihf` | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-linux-arm64-gnu     | `@rolldown/binding-linux-arm64-gnu`     | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-linux-arm64-musl    | `@rolldown/binding-linux-arm64-musl`    | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-linux-ppc64-gnu     | `@rolldown/binding-linux-ppc64-gnu`     | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-linux-s390x-gnu     | `@rolldown/binding-linux-s390x-gnu`     | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-linux-x64-gnu       | `@rolldown/binding-linux-x64-gnu`       | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-linux-x64-musl      | `@rolldown/binding-linux-x64-musl`      | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-openharmony-arm64   | `@rolldown/binding-openharmony-arm64`   | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-win32-arm64-msvc    | `@rolldown/binding-win32-arm64-msvc`    | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/binding-win32-x64-msvc      | `@rolldown/binding-win32-x64-msvc`      | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| @rolldown/pluginutils                 | `@rolldown/pluginutils`                 | 1.0.1   | MIT                           | `pnpm-lock.yaml` |
-| @types/esrecurse                      | `@types/esrecurse`                      | 4.3.1   | MIT                           | `pnpm-lock.yaml` |
-| @types/estree                         | `@types/estree`                         | 1.0.9   | MIT                           | `pnpm-lock.yaml` |
-| @types/json-schema                    | `@types/json-schema`                    | 7.0.15  | MIT                           | `pnpm-lock.yaml` |
-| @types/node                           | `@types/node`                           | 24.19.2 | MIT                           | `pnpm-lock.yaml` |
-| @types/react-dom                      | `@types/react-dom`                      | 19.3.0  | MIT                           | `pnpm-lock.yaml` |
-| @types/react                          | `@types/react`                          | 19.3.0  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/eslint-plugin      | `@typescript-eslint/eslint-plugin`      | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/parser             | `@typescript-eslint/parser`             | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/project-service    | `@typescript-eslint/project-service`    | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/scope-manager      | `@typescript-eslint/scope-manager`      | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/tsconfig-utils     | `@typescript-eslint/tsconfig-utils`     | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/type-utils         | `@typescript-eslint/type-utils`         | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/types              | `@typescript-eslint/types`              | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/typescript-estree  | `@typescript-eslint/typescript-estree`  | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/utils              | `@typescript-eslint/utils`              | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript-eslint/visitor-keys       | `@typescript-eslint/visitor-keys`       | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| @typescript/vfs                       | `@typescript/vfs`                       | 1.6.5   | MIT                           | `pnpm-lock.yaml` |
-| acorn-jsx                             | `acorn-jsx`                             | 5.3.2   | MIT                           | `pnpm-lock.yaml` |
-| acorn                                 | `acorn`                                 | 8.19.0  | MIT                           | `pnpm-lock.yaml` |
-| ajv                                   | `ajv`                                   | 6.15.0  | MIT                           | `pnpm-lock.yaml` |
-| balanced-match                        | `balanced-match`                        | 4.0.4   | MIT                           | `pnpm-lock.yaml` |
-| brace-expansion                       | `brace-expansion`                       | 5.0.12  | MIT                           | `pnpm-lock.yaml` |
-| cacheable                             | `cacheable`                             | 2.5.0   | MIT                           | `pnpm-lock.yaml` |
-| cross-spawn                           | `cross-spawn`                           | 7.0.6   | MIT                           | `pnpm-lock.yaml` |
-| csstype                               | `csstype`                               | 3.2.3   | MIT                           | `pnpm-lock.yaml` |
-| debug                                 | `debug`                                 | 4.4.3   | MIT                           | `pnpm-lock.yaml` |
-| deep-is                               | `deep-is`                               | 0.1.4   | MIT                           | `pnpm-lock.yaml` |
-| detect-libc                           | `detect-libc`                           | 2.1.2   | Apache-2.0                    | `pnpm-lock.yaml` |
-| escape-string-regexp                  | `escape-string-regexp`                  | 4.0.0   | MIT                           | `pnpm-lock.yaml` |
-| eslint-scope                          | `eslint-scope`                          | 9.1.2   | BSD-2-Clause                  | `pnpm-lock.yaml` |
-| eslint-visitor-keys                   | `eslint-visitor-keys`                   | 3.4.3   | Apache-2.0                    | `pnpm-lock.yaml` |
-| eslint-visitor-keys                   | `eslint-visitor-keys`                   | 5.0.1   | Apache-2.0                    | `pnpm-lock.yaml` |
-| eslint                                | `eslint`                                | 10.13.0 | MIT                           | `pnpm-lock.yaml` |
-| espree                                | `espree`                                | 11.2.0  | BSD-2-Clause                  | `pnpm-lock.yaml` |
-| esquery                               | `esquery`                               | 1.7.0   | BSD-3-Clause                  | `pnpm-lock.yaml` |
-| esrecurse                             | `esrecurse`                             | 4.3.0   | BSD-2-Clause                  | `pnpm-lock.yaml` |
-| estraverse                            | `estraverse`                            | 5.3.0   | BSD-2-Clause                  | `pnpm-lock.yaml` |
-| esutils                               | `esutils`                               | 2.0.3   | BSD-2-Clause                  | `pnpm-lock.yaml` |
-| fast-check                            | `fast-check`                            | 4.10.2  | MIT                           | `pnpm-lock.yaml` |
-| fast-deep-equal                       | `fast-deep-equal`                       | 3.1.3   | MIT                           | `pnpm-lock.yaml` |
-| fast-json-stable-stringify            | `fast-json-stable-stringify`            | 2.1.0   | MIT                           | `pnpm-lock.yaml` |
-| fast-levenshtein                      | `fast-levenshtein`                      | 2.0.6   | MIT                           | `pnpm-lock.yaml` |
-| fdir                                  | `fdir`                                  | 6.5.0   | MIT                           | `pnpm-lock.yaml` |
-| file-entry-cache                      | `file-entry-cache`                      | 11.1.5  | MIT                           | `pnpm-lock.yaml` |
-| find-up                               | `find-up`                               | 5.0.0   | MIT                           | `pnpm-lock.yaml` |
-| flat-cache                            | `flat-cache`                            | 6.1.23  | MIT                           | `pnpm-lock.yaml` |
-| flatted                               | `flatted`                               | 3.4.4   | ISC                           | `pnpm-lock.yaml` |
-| fsevents                              | `fsevents`                              | 2.3.3   | MIT                           | `pnpm-lock.yaml` |
-| glob-parent                           | `glob-parent`                           | 6.0.2   | ISC                           | `pnpm-lock.yaml` |
-| hashery                               | `hashery`                               | 1.5.1   | MIT                           | `pnpm-lock.yaml` |
-| hookified                             | `hookified`                             | 1.15.1  | MIT                           | `pnpm-lock.yaml` |
-| hookified                             | `hookified`                             | 2.2.0   | MIT                           | `pnpm-lock.yaml` |
-| ignore                                | `ignore`                                | 5.3.2   | MIT                           | `pnpm-lock.yaml` |
-| ignore                                | `ignore`                                | 7.0.12  | MIT                           | `pnpm-lock.yaml` |
-| imurmurhash                           | `imurmurhash`                           | 0.1.4   | MIT                           | `pnpm-lock.yaml` |
-| is-extglob                            | `is-extglob`                            | 2.1.1   | MIT                           | `pnpm-lock.yaml` |
-| is-glob                               | `is-glob`                               | 4.0.3   | MIT                           | `pnpm-lock.yaml` |
-| isexe                                 | `isexe`                                 | 2.0.0   | ISC                           | `pnpm-lock.yaml` |
-| json-schema-traverse                  | `json-schema-traverse`                  | 0.4.1   | MIT                           | `pnpm-lock.yaml` |
-| json-stable-stringify-without-jsonify | `json-stable-stringify-without-jsonify` | 1.0.1   | MIT                           | `pnpm-lock.yaml` |
-| keyv                                  | `keyv`                                  | 5.6.0   | MIT                           | `pnpm-lock.yaml` |
-| levn                                  | `levn`                                  | 0.4.1   | MIT                           | `pnpm-lock.yaml` |
-| lightningcss-android-arm64            | `lightningcss-android-arm64`            | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-darwin-arm64             | `lightningcss-darwin-arm64`             | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-darwin-x64               | `lightningcss-darwin-x64`               | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-freebsd-x64              | `lightningcss-freebsd-x64`              | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-linux-arm-gnueabihf      | `lightningcss-linux-arm-gnueabihf`      | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-linux-arm64-gnu          | `lightningcss-linux-arm64-gnu`          | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-linux-arm64-musl         | `lightningcss-linux-arm64-musl`         | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-linux-x64-gnu            | `lightningcss-linux-x64-gnu`            | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-linux-x64-musl           | `lightningcss-linux-x64-musl`           | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-win32-arm64-msvc         | `lightningcss-win32-arm64-msvc`         | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss-win32-x64-msvc           | `lightningcss-win32-x64-msvc`           | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| lightningcss                          | `lightningcss`                          | 1.33.0  | MPL-2.0                       | `pnpm-lock.yaml` |
-| locate-path                           | `locate-path`                           | 6.0.0   | MIT                           | `pnpm-lock.yaml` |
-| minimatch                             | `minimatch`                             | 10.2.6  | BlueOak-1.0.0                 | `pnpm-lock.yaml` |
-| ms                                    | `ms`                                    | 2.1.3   | MIT                           | `pnpm-lock.yaml` |
-| nanoid                                | `nanoid`                                | 3.3.20  | MIT                           | `pnpm-lock.yaml` |
-| natural-compare                       | `natural-compare`                       | 1.4.0   | MIT                           | `pnpm-lock.yaml` |
-| optionator                            | `optionator`                            | 0.9.4   | MIT                           | `pnpm-lock.yaml` |
-| p-limit                               | `p-limit`                               | 3.1.0   | MIT                           | `pnpm-lock.yaml` |
-| p-locate                              | `p-locate`                              | 5.0.0   | MIT                           | `pnpm-lock.yaml` |
-| path-exists                           | `path-exists`                           | 4.0.0   | MIT                           | `pnpm-lock.yaml` |
-| path-key                              | `path-key`                              | 3.1.1   | MIT                           | `pnpm-lock.yaml` |
-| picocolors                            | `picocolors`                            | 1.1.1   | ISC                           | `pnpm-lock.yaml` |
-| picomatch                             | `picomatch`                             | 4.0.7   | MIT                           | `pnpm-lock.yaml` |
-| playwright-core                       | `playwright-core`                       | 1.64.1  | Apache-2.0                    | `pnpm-lock.yaml` |
-| playwright                            | `playwright`                            | 1.64.1  | Apache-2.0                    | `pnpm-lock.yaml` |
-| postcss                               | `postcss`                               | 8.5.30  | MIT                           | `pnpm-lock.yaml` |
-| prelude-ls                            | `prelude-ls`                            | 1.2.1   | MIT                           | `pnpm-lock.yaml` |
-| prettier                              | `prettier`                              | 3.9.10  | MIT                           | `pnpm-lock.yaml` |
-| punycode                              | `punycode`                              | 2.3.1   | MIT                           | `pnpm-lock.yaml` |
-| pure-rand                             | `pure-rand`                             | 8.4.2   | MIT                           | `pnpm-lock.yaml` |
-| qified                                | `qified`                                | 0.10.1  | MIT                           | `pnpm-lock.yaml` |
-| react-dom                             | `react-dom`                             | 19.3.1  | MIT                           | `pnpm-lock.yaml` |
-| react                                 | `react`                                 | 19.3.1  | MIT                           | `pnpm-lock.yaml` |
-| rolldown                              | `rolldown`                              | 1.2.14  | MIT                           | `pnpm-lock.yaml` |
-| scheduler                             | `scheduler`                             | 0.28.0  | MIT                           | `pnpm-lock.yaml` |
-| semver                                | `semver`                                | 7.8.5   | ISC                           | `pnpm-lock.yaml` |
-| shebang-command                       | `shebang-command`                       | 2.0.0   | MIT                           | `pnpm-lock.yaml` |
-| shebang-regex                         | `shebang-regex`                         | 3.0.0   | MIT                           | `pnpm-lock.yaml` |
-| source-map-js                         | `source-map-js`                         | 1.2.2   | BSD-3-Clause                  | `pnpm-lock.yaml` |
-| tinyglobby                            | `tinyglobby`                            | 0.2.17  | MIT                           | `pnpm-lock.yaml` |
-| ts-api-utils                          | `ts-api-utils`                          | 2.5.0   | MIT                           | `pnpm-lock.yaml` |
-| type-check                            | `type-check`                            | 0.4.0   | MIT                           | `pnpm-lock.yaml` |
-| typescript-eslint                     | `typescript-eslint`                     | 8.71.2  | MIT                           | `pnpm-lock.yaml` |
-| typescript                            | `typescript`                            | 5.4.5   | Apache-2.0                    | `pnpm-lock.yaml` |
-| typescript                            | `typescript`                            | 6.0.3   | Apache-2.0                    | `pnpm-lock.yaml` |
-| undici-types                          | `undici-types`                          | 7.24.6  | MIT                           | `pnpm-lock.yaml` |
-| uri-js                                | `uri-js`                                | 4.4.1   | BSD-2-Clause                  | `pnpm-lock.yaml` |
-| vite                                  | `vite`                                  | 8.3.4   | MIT                           | `pnpm-lock.yaml` |
-| which                                 | `which`                                 | 2.0.2   | ISC                           | `pnpm-lock.yaml` |
-| word-wrap                             | `word-wrap`                             | 1.2.5   | MIT                           | `pnpm-lock.yaml` |
-| yocto-queue                           | `yocto-queue`                           | 0.1.0   | MIT                           | `pnpm-lock.yaml` |
+| Item                                  | Identifier                              | Version | License                                               | Where pinned     |
+| ------------------------------------- | --------------------------------------- | ------- | ----------------------------------------------------- | ---------------- |
+| @bufbuild/protobuf                    | `@bufbuild/protobuf`                    | 2.16.0  | (Apache-2.0 AND BSD-3-Clause)                         | `pnpm-lock.yaml` |
+| @bufbuild/protoc-gen-es               | `@bufbuild/protoc-gen-es`               | 2.16.0  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @bufbuild/protoplugin                 | `@bufbuild/protoplugin`                 | 2.16.0  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @cacheable/memory                     | `@cacheable/memory`                     | 2.2.0   | MIT                                                   | `pnpm-lock.yaml` |
+| @cacheable/utils                      | `@cacheable/utils`                      | 2.5.0   | MIT                                                   | `pnpm-lock.yaml` |
+| @connectrpc/connect-web               | `@connectrpc/connect-web`               | 2.2.0   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @connectrpc/connect                   | `@connectrpc/connect`                   | 2.2.0   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @eslint-community/eslint-utils        | `@eslint-community/eslint-utils`        | 4.10.1  | MIT                                                   | `pnpm-lock.yaml` |
+| @eslint-community/regexpp             | `@eslint-community/regexpp`             | 4.12.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @eslint/config-array                  | `@eslint/config-array`                  | 0.23.5  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @eslint/config-helpers                | `@eslint/config-helpers`                | 0.7.0   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @eslint/core                          | `@eslint/core`                          | 1.2.1   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @eslint/object-schema                 | `@eslint/object-schema`                 | 3.0.5   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @eslint/plugin-kit                    | `@eslint/plugin-kit`                    | 0.7.3   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @humanfs/core                         | `@humanfs/core`                         | 0.19.2  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @humanfs/node                         | `@humanfs/node`                         | 0.16.8  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @humanfs/types                        | `@humanfs/types`                        | 0.15.0  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @humanwhocodes/module-importer        | `@humanwhocodes/module-importer`        | 1.0.1   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @humanwhocodes/retry                  | `@humanwhocodes/retry`                  | 0.4.3   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @keyv/bigmap                          | `@keyv/bigmap`                          | 1.3.1   | MIT                                                   | `pnpm-lock.yaml` |
+| @keyv/serialize                       | `@keyv/serialize`                       | 1.1.1   | MIT                                                   | `pnpm-lock.yaml` |
+| @oxc-project/types                    | `@oxc-project/types`                    | 0.154.0 | MIT                                                   | `pnpm-lock.yaml` |
+| @playwright/test                      | `@playwright/test`                      | 1.64.1  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| @rolldown/binding-android-arm-eabi    | `@rolldown/binding-android-arm-eabi`    | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-android-arm64       | `@rolldown/binding-android-arm64`       | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-darwin-arm64        | `@rolldown/binding-darwin-arm64`        | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-darwin-x64          | `@rolldown/binding-darwin-x64`          | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-freebsd-x64         | `@rolldown/binding-freebsd-x64`         | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-linux-arm-gnueabihf | `@rolldown/binding-linux-arm-gnueabihf` | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-linux-arm64-gnu     | `@rolldown/binding-linux-arm64-gnu`     | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-linux-arm64-musl    | `@rolldown/binding-linux-arm64-musl`    | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-linux-ppc64-gnu     | `@rolldown/binding-linux-ppc64-gnu`     | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-linux-s390x-gnu     | `@rolldown/binding-linux-s390x-gnu`     | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-linux-x64-gnu       | `@rolldown/binding-linux-x64-gnu`       | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-linux-x64-musl      | `@rolldown/binding-linux-x64-musl`      | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-openharmony-arm64   | `@rolldown/binding-openharmony-arm64`   | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-win32-arm64-msvc    | `@rolldown/binding-win32-arm64-msvc`    | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/binding-win32-x64-msvc      | `@rolldown/binding-win32-x64-msvc`      | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| @rolldown/pluginutils                 | `@rolldown/pluginutils`                 | 1.0.1   | MIT                                                   | `pnpm-lock.yaml` |
+| @types/esrecurse                      | `@types/esrecurse`                      | 4.3.1   | MIT                                                   | `pnpm-lock.yaml` |
+| @types/estree                         | `@types/estree`                         | 1.0.9   | MIT                                                   | `pnpm-lock.yaml` |
+| @types/json-schema                    | `@types/json-schema`                    | 7.0.15  | MIT                                                   | `pnpm-lock.yaml` |
+| @types/node                           | `@types/node`                           | 24.19.2 | MIT                                                   | `pnpm-lock.yaml` |
+| @types/react-dom                      | `@types/react-dom`                      | 19.3.0  | MIT                                                   | `pnpm-lock.yaml` |
+| @types/react                          | `@types/react`                          | 19.3.0  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/eslint-plugin      | `@typescript-eslint/eslint-plugin`      | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/parser             | `@typescript-eslint/parser`             | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/project-service    | `@typescript-eslint/project-service`    | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/scope-manager      | `@typescript-eslint/scope-manager`      | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/tsconfig-utils     | `@typescript-eslint/tsconfig-utils`     | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/type-utils         | `@typescript-eslint/type-utils`         | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/types              | `@typescript-eslint/types`              | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/typescript-estree  | `@typescript-eslint/typescript-estree`  | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/utils              | `@typescript-eslint/utils`              | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript-eslint/visitor-keys       | `@typescript-eslint/visitor-keys`       | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| @typescript/vfs                       | `@typescript/vfs`                       | 1.6.5   | MIT                                                   | `pnpm-lock.yaml` |
+| acorn-jsx                             | `acorn-jsx`                             | 5.3.2   | MIT                                                   | `pnpm-lock.yaml` |
+| acorn                                 | `acorn`                                 | 8.19.0  | MIT                                                   | `pnpm-lock.yaml` |
+| ajv                                   | `ajv`                                   | 6.15.0  | MIT                                                   | `pnpm-lock.yaml` |
+| balanced-match                        | `balanced-match`                        | 4.0.4   | MIT                                                   | `pnpm-lock.yaml` |
+| brace-expansion                       | `brace-expansion`                       | 5.0.12  | MIT                                                   | `pnpm-lock.yaml` |
+| cacheable                             | `cacheable`                             | 2.5.0   | MIT                                                   | `pnpm-lock.yaml` |
+| cross-spawn                           | `cross-spawn`                           | 7.0.6   | MIT                                                   | `pnpm-lock.yaml` |
+| csstype                               | `csstype`                               | 3.2.3   | MIT                                                   | `pnpm-lock.yaml` |
+| debug                                 | `debug`                                 | 4.4.3   | MIT                                                   | `pnpm-lock.yaml` |
+| deep-is                               | `deep-is`                               | 0.1.4   | MIT                                                   | `pnpm-lock.yaml` |
+| detect-libc                           | `detect-libc`                           | 2.1.2   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| escape-string-regexp                  | `escape-string-regexp`                  | 4.0.0   | MIT                                                   | `pnpm-lock.yaml` |
+| eslint-scope                          | `eslint-scope`                          | 9.1.2   | BSD-2-Clause                                          | `pnpm-lock.yaml` |
+| eslint-visitor-keys                   | `eslint-visitor-keys`                   | 3.4.3   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| eslint-visitor-keys                   | `eslint-visitor-keys`                   | 5.0.1   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| eslint                                | `eslint`                                | 10.13.0 | MIT                                                   | `pnpm-lock.yaml` |
+| espree                                | `espree`                                | 11.2.0  | BSD-2-Clause                                          | `pnpm-lock.yaml` |
+| esquery                               | `esquery`                               | 1.7.0   | BSD-3-Clause                                          | `pnpm-lock.yaml` |
+| esrecurse                             | `esrecurse`                             | 4.3.0   | BSD-2-Clause                                          | `pnpm-lock.yaml` |
+| estraverse                            | `estraverse`                            | 5.3.0   | BSD-2-Clause                                          | `pnpm-lock.yaml` |
+| esutils                               | `esutils`                               | 2.0.3   | BSD-2-Clause                                          | `pnpm-lock.yaml` |
+| fast-check                            | `fast-check`                            | 4.10.2  | MIT                                                   | `pnpm-lock.yaml` |
+| fast-deep-equal                       | `fast-deep-equal`                       | 3.1.3   | MIT                                                   | `pnpm-lock.yaml` |
+| fast-json-stable-stringify            | `fast-json-stable-stringify`            | 2.1.0   | MIT                                                   | `pnpm-lock.yaml` |
+| fast-levenshtein                      | `fast-levenshtein`                      | 2.0.6   | MIT                                                   | `pnpm-lock.yaml` |
+| fdir                                  | `fdir`                                  | 6.5.0   | MIT                                                   | `pnpm-lock.yaml` |
+| file-entry-cache                      | `file-entry-cache`                      | 11.1.5  | MIT                                                   | `pnpm-lock.yaml` |
+| find-up                               | `find-up`                               | 5.0.0   | MIT                                                   | `pnpm-lock.yaml` |
+| flat-cache                            | `flat-cache`                            | 6.1.23  | MIT                                                   | `pnpm-lock.yaml` |
+| flatted                               | `flatted`                               | 3.4.4   | ISC                                                   | `pnpm-lock.yaml` |
+| fsevents                              | `fsevents`                              | 2.3.3   | MIT                                                   | `pnpm-lock.yaml` |
+| glob-parent                           | `glob-parent`                           | 6.0.2   | ISC                                                   | `pnpm-lock.yaml` |
+| hashery                               | `hashery`                               | 1.5.1   | MIT                                                   | `pnpm-lock.yaml` |
+| hookified                             | `hookified`                             | 1.15.1  | MIT                                                   | `pnpm-lock.yaml` |
+| hookified                             | `hookified`                             | 2.2.0   | MIT                                                   | `pnpm-lock.yaml` |
+| ignore                                | `ignore`                                | 5.3.2   | MIT                                                   | `pnpm-lock.yaml` |
+| ignore                                | `ignore`                                | 7.0.12  | MIT                                                   | `pnpm-lock.yaml` |
+| imurmurhash                           | `imurmurhash`                           | 0.1.4   | MIT                                                   | `pnpm-lock.yaml` |
+| is-extglob                            | `is-extglob`                            | 2.1.1   | MIT                                                   | `pnpm-lock.yaml` |
+| is-glob                               | `is-glob`                               | 4.0.3   | MIT                                                   | `pnpm-lock.yaml` |
+| isexe                                 | `isexe`                                 | 2.0.0   | ISC                                                   | `pnpm-lock.yaml` |
+| jscpd                                 | `jscpd`                                 | 5.4.2   | MIT                                                   | `pnpm-lock.yaml` |
+| jscpd-darwin-arm64                    | `jscpd-darwin-arm64`                    | 5.4.2   | MIT (registry metadata; not fetched on this platform) | `pnpm-lock.yaml` |
+| jscpd-darwin-x64                      | `jscpd-darwin-x64`                      | 5.4.2   | MIT (registry metadata; not fetched on this platform) | `pnpm-lock.yaml` |
+| jscpd-linux-arm64-gnu                 | `jscpd-linux-arm64-gnu`                 | 5.4.2   | MIT (registry metadata; not fetched on this platform) | `pnpm-lock.yaml` |
+| jscpd-linux-arm64-musl                | `jscpd-linux-arm64-musl`                | 5.4.2   | MIT (registry metadata; not fetched on this platform) | `pnpm-lock.yaml` |
+| jscpd-linux-x64-gnu                   | `jscpd-linux-x64-gnu`                   | 5.4.2   | MIT                                                   | `pnpm-lock.yaml` |
+| jscpd-linux-x64-musl                  | `jscpd-linux-x64-musl`                  | 5.4.2   | MIT (registry metadata; not fetched on this platform) | `pnpm-lock.yaml` |
+| jscpd-windows-arm64-msvc              | `jscpd-windows-arm64-msvc`              | 5.4.2   | MIT (registry metadata; not fetched on this platform) | `pnpm-lock.yaml` |
+| jscpd-windows-x64-msvc                | `jscpd-windows-x64-msvc`                | 5.4.2   | MIT (registry metadata; not fetched on this platform) | `pnpm-lock.yaml` |
+| json-schema-traverse                  | `json-schema-traverse`                  | 0.4.1   | MIT                                                   | `pnpm-lock.yaml` |
+| json-stable-stringify-without-jsonify | `json-stable-stringify-without-jsonify` | 1.0.1   | MIT                                                   | `pnpm-lock.yaml` |
+| keyv                                  | `keyv`                                  | 5.6.0   | MIT                                                   | `pnpm-lock.yaml` |
+| levn                                  | `levn`                                  | 0.4.1   | MIT                                                   | `pnpm-lock.yaml` |
+| lightningcss-android-arm64            | `lightningcss-android-arm64`            | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-darwin-arm64             | `lightningcss-darwin-arm64`             | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-darwin-x64               | `lightningcss-darwin-x64`               | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-freebsd-x64              | `lightningcss-freebsd-x64`              | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-linux-arm-gnueabihf      | `lightningcss-linux-arm-gnueabihf`      | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-linux-arm64-gnu          | `lightningcss-linux-arm64-gnu`          | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-linux-arm64-musl         | `lightningcss-linux-arm64-musl`         | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-linux-x64-gnu            | `lightningcss-linux-x64-gnu`            | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-linux-x64-musl           | `lightningcss-linux-x64-musl`           | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-win32-arm64-msvc         | `lightningcss-win32-arm64-msvc`         | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss-win32-x64-msvc           | `lightningcss-win32-x64-msvc`           | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| lightningcss                          | `lightningcss`                          | 1.33.0  | MPL-2.0                                               | `pnpm-lock.yaml` |
+| locate-path                           | `locate-path`                           | 6.0.0   | MIT                                                   | `pnpm-lock.yaml` |
+| minimatch                             | `minimatch`                             | 10.2.6  | BlueOak-1.0.0                                         | `pnpm-lock.yaml` |
+| ms                                    | `ms`                                    | 2.1.3   | MIT                                                   | `pnpm-lock.yaml` |
+| nanoid                                | `nanoid`                                | 3.3.20  | MIT                                                   | `pnpm-lock.yaml` |
+| natural-compare                       | `natural-compare`                       | 1.4.0   | MIT                                                   | `pnpm-lock.yaml` |
+| optionator                            | `optionator`                            | 0.9.4   | MIT                                                   | `pnpm-lock.yaml` |
+| p-limit                               | `p-limit`                               | 3.1.0   | MIT                                                   | `pnpm-lock.yaml` |
+| p-locate                              | `p-locate`                              | 5.0.0   | MIT                                                   | `pnpm-lock.yaml` |
+| path-exists                           | `path-exists`                           | 4.0.0   | MIT                                                   | `pnpm-lock.yaml` |
+| path-key                              | `path-key`                              | 3.1.1   | MIT                                                   | `pnpm-lock.yaml` |
+| picocolors                            | `picocolors`                            | 1.1.1   | ISC                                                   | `pnpm-lock.yaml` |
+| picomatch                             | `picomatch`                             | 4.0.7   | MIT                                                   | `pnpm-lock.yaml` |
+| playwright-core                       | `playwright-core`                       | 1.64.1  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| playwright                            | `playwright`                            | 1.64.1  | Apache-2.0                                            | `pnpm-lock.yaml` |
+| postcss                               | `postcss`                               | 8.5.30  | MIT                                                   | `pnpm-lock.yaml` |
+| prelude-ls                            | `prelude-ls`                            | 1.2.1   | MIT                                                   | `pnpm-lock.yaml` |
+| prettier                              | `prettier`                              | 3.9.10  | MIT                                                   | `pnpm-lock.yaml` |
+| punycode                              | `punycode`                              | 2.3.1   | MIT                                                   | `pnpm-lock.yaml` |
+| pure-rand                             | `pure-rand`                             | 8.4.2   | MIT                                                   | `pnpm-lock.yaml` |
+| qified                                | `qified`                                | 0.10.1  | MIT                                                   | `pnpm-lock.yaml` |
+| react-dom                             | `react-dom`                             | 19.3.1  | MIT                                                   | `pnpm-lock.yaml` |
+| react                                 | `react`                                 | 19.3.1  | MIT                                                   | `pnpm-lock.yaml` |
+| rolldown                              | `rolldown`                              | 1.2.14  | MIT                                                   | `pnpm-lock.yaml` |
+| scheduler                             | `scheduler`                             | 0.28.0  | MIT                                                   | `pnpm-lock.yaml` |
+| semver                                | `semver`                                | 7.8.5   | ISC                                                   | `pnpm-lock.yaml` |
+| shebang-command                       | `shebang-command`                       | 2.0.0   | MIT                                                   | `pnpm-lock.yaml` |
+| shebang-regex                         | `shebang-regex`                         | 3.0.0   | MIT                                                   | `pnpm-lock.yaml` |
+| source-map-js                         | `source-map-js`                         | 1.2.2   | BSD-3-Clause                                          | `pnpm-lock.yaml` |
+| tinyglobby                            | `tinyglobby`                            | 0.2.17  | MIT                                                   | `pnpm-lock.yaml` |
+| ts-api-utils                          | `ts-api-utils`                          | 2.5.0   | MIT                                                   | `pnpm-lock.yaml` |
+| type-check                            | `type-check`                            | 0.4.0   | MIT                                                   | `pnpm-lock.yaml` |
+| typescript-eslint                     | `typescript-eslint`                     | 8.71.2  | MIT                                                   | `pnpm-lock.yaml` |
+| typescript                            | `typescript`                            | 5.4.5   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| typescript                            | `typescript`                            | 6.0.3   | Apache-2.0                                            | `pnpm-lock.yaml` |
+| undici-types                          | `undici-types`                          | 7.24.6  | MIT                                                   | `pnpm-lock.yaml` |
+| uri-js                                | `uri-js`                                | 4.4.1   | BSD-2-Clause                                          | `pnpm-lock.yaml` |
+| vite                                  | `vite`                                  | 8.3.4   | MIT                                                   | `pnpm-lock.yaml` |
+| which                                 | `which`                                 | 2.0.2   | ISC                                                   | `pnpm-lock.yaml` |
+| word-wrap                             | `word-wrap`                             | 1.2.5   | MIT                                                   | `pnpm-lock.yaml` |
+| yocto-queue                           | `yocto-queue`                           | 0.1.0   | MIT                                                   | `pnpm-lock.yaml` |
 
 ## Debian packages for the browser (generated)
 
