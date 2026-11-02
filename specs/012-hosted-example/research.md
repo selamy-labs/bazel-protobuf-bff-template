@@ -36,6 +36,8 @@ From the pinned source and the service's published container contract; nothing w
 | Scale and cost            | n/a                                                                            | instance bounds, concurrency and request timeout per revision; billing per use                                           | `bounds` inputs enumerated by a test; a budget alert, never a cap (FR-010)                                           | the alert is not a monetary cap, and the evidence says so                    |
 | Rollback and cancel       | n/a                                                                            | traffic can target a previous revision; a deployment can be cancelled                                                    | `release.serving_digest` and `cancel_in_flight` (FR-009)                                                             | witnessed only live                                                          |
 
+Added with the telemetry inputs (spec 011 G09), from the same published contract, nothing run: the service allows 10 seconds between SIGTERM and SIGKILL, and allocates CPU outside requests only under instance-based billing. The binary's drain and telemetry shutdown bounds are 5 seconds each, in turn, so the worst case uses the whole window, and exports from an idle instance can wait for the next request. Both are recorded as gate inputs in `docs/quality/telemetry.md`.
+
 Conclusion for the plan: Cloud Run fits the server's contract once the three application gaps (verifier, store,
 `PORT`) are closed by the adapters the spec already requires; nothing about the service weakens the server's
 refusals or its exact origin. The decision stays provisional until the adapters exist and an authorized live run

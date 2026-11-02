@@ -72,5 +72,5 @@ nodes="$(grep -oE '"(\[root\] )?google_[a-z0-9_]+\.[A-Za-z0-9_-]+( \(expand\))?"
 grep -qE '^\s*project\s*=\s*jsondecode\(file\(var\.inputs_file\)\)\.contract\.project_id\s*$' "$config/versions.tf" || { echo "offline: the provider is not bound to the funnel's project"; exit 1; }
 grep -qE '^\s*region\s*=\s*jsondecode\(file\(var\.inputs_file\)\)\.contract\.region\s*$' "$config/versions.tf" || { echo "offline: the provider is not bound to the funnel's region"; exit 1; }
 "$tofu" -chdir="$config" test -no-color -var "inputs_file=../inputs/example.inputs.json" >"$work/test.out" 2>&1 || { cat "$work/test.out"; echo "offline: a mock test failed"; exit 1; }
-grep -q "5 passed, 0 failed" "$work/test.out" || { cat "$work/test.out"; echo "offline: not every mock test ran"; exit 1; }
+grep -q "6 passed, 0 failed" "$work/test.out" || { cat "$work/test.out"; echo "offline: not every mock test ran"; exit 1; }
 echo "offline: the service module validates and its mock tests pass offline against the synthetic inputs; nothing applied"

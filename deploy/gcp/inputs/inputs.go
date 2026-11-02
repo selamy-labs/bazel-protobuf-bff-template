@@ -66,11 +66,21 @@ type Persistence struct {
 	Statement string `json:"statement"`
 }
 
+// Telemetry is what the production binary's composition requires or defaults for a hosted run (spec 011 G09). The
+// release revision is not here: it is the revision of the digest served, which the module derives from the image
+// and the release.
+type Telemetry struct {
+	Endpoint    string  `json:"endpoint"`
+	Environment string  `json:"environment"`
+	SampleRatio float64 `json:"sample_ratio"`
+}
+
 type Runtime struct {
 	Port          int         `json:"port"`
 	AllowedOrigin string      `json:"allowed_origin"`
 	Verifier      Verifier    `json:"verifier"`
 	Persistence   Persistence `json:"persistence"`
+	Telemetry     Telemetry   `json:"telemetry"`
 }
 
 type Frontend struct {
@@ -88,9 +98,10 @@ type Bounds struct {
 }
 
 type Release struct {
-	ServingDigest  string  `json:"serving_digest"`
-	PreviousDigest *string `json:"previous_digest"`
-	CancelInFlight bool    `json:"cancel_in_flight"`
+	ServingDigest    string  `json:"serving_digest"`
+	PreviousDigest   *string `json:"previous_digest"`
+	PreviousRevision *string `json:"previous_revision"`
+	CancelInFlight   bool    `json:"cancel_in_flight"`
 }
 
 var (
@@ -106,9 +117,10 @@ var (
 )
 
 // Validate applies every rule the schema states and the ones a schema cannot: the identities are distinct, the
-// region is the contract's, the serving digest is the image's or the previous one, the origin has no path.
+// region is the contract's, the serving digest is the image's or the previous one, the origin has no path, and
+// the previous digest and its revision come together.
 func (in *Inputs) Validate() error {
-	checks := []func() error{in.validateVersions, in.validateContract, in.validateProject, in.validateImage, in.validateRuntime, in.validateFrontend, in.validateBounds, in.validateRelease}
+	checks := []func() error{in.validateVersions, in.validateContract, in.validateProject, in.validateImage, in.validateRuntime, in.validateTelemetry, in.validateFrontend, in.validateBounds, in.validateRelease, in.validatePreviousRevision}
 	for _, check := range checks {
 		if err := check(); err != nil {
 			return err
@@ -200,6 +212,22 @@ func (in *Inputs) validateRuntime() error {
 	return nil
 }
 
+// validateTelemetry is stricter than the binary, which also accepts loopback http: this module declares no
+// collector beside the service, so a loopback endpoint would export to nothing.
+func (in *Inputs) validateTelemetry() error {
+	t := in.Runtime.Telemetry
+	if err := exactOrigin("runtime.telemetry.endpoint", t.Endpoint); err != nil {
+		return err
+	}
+	if t.Environment != "dev" && t.Environment != "staging" && t.Environment != "prod" {
+		return fmt.Errorf("runtime.telemetry.environment: %q is not dev, staging or prod", t.Environment)
+	}
+	if t.SampleRatio < 0 || t.SampleRatio > 1 {
+		return fmt.Errorf("runtime.telemetry.sample_ratio: %v is not between 0 and 1", t.SampleRatio)
+	}
+	return nil
+}
+
 func (in *Inputs) validateFrontend() error {
 	f := in.Frontend
 	if f.Host != "github-pages" {
@@ -244,6 +272,23 @@ func (in *Inputs) validateRelease() error {
 	}
 	if r.ServingDigest != in.Image.Digest && (r.PreviousDigest == nil || r.ServingDigest != *r.PreviousDigest) {
 		return fmt.Errorf("release.serving_digest: %s is neither the image digest nor the previous digest; nothing else is ever deployed", r.ServingDigest)
+	}
+	return nil
+}
+
+// validatePreviousRevision keeps a rollback's telemetry truthful: the served image reports the revision it was
+// built from, so the previous digest must name its revision, and one digest cannot have two revisions.
+func (in *Inputs) validatePreviousRevision() error {
+	previous, named := in.Release.PreviousDigest, in.Release.PreviousRevision
+	switch {
+	case (previous == nil) != (named == nil):
+		return errors.New("release.previous_revision: given exactly when release.previous_digest is")
+	case named == nil:
+		return nil
+	case !revision.MatchString(*named):
+		return fmt.Errorf("release.previous_revision: %q is not a full revision", *named)
+	case *previous == in.Image.Digest && *named != in.Image.SourceRevision:
+		return errors.New("release.previous_revision: differs from image.source_revision for the same digest")
 	}
 	return nil
 }

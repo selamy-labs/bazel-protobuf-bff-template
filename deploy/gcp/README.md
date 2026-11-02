@@ -13,6 +13,12 @@ template.
 | `cloudbuild/cloudbuild.yaml` | the deployment pipeline: validate the inputs, promote the exact image by digest into the contract's registry (nothing is built), plan, apply behind the trigger's approval, record the digests before and after. The trigger, its connection to the public repository through the organization's existing Cloud Build application, the tools image it runs and its approval setting are inputs the infrastructure owner and the operator provide; none is declared here                                                                                                                                                                                                |
 | `tests/offline.sh`           | the witness `//deploy/gcp:offline_test` runs: the inputs validated first, then format, validate, the pinned graph of exactly two resources, the provider bound to the funnel, and the mock tests, from a mirror of the pinned provider with no network and no credentials; twelve planted defects fail                                                                                                                                                                                                                                                                                                                                                                 |
 
+The service passes the production binary its telemetry inputs from the funnel: `runtime.telemetry.endpoint`,
+`.environment` and `.sample_ratio`, and the revision of the digest it serves, which is `image.source_revision` or,
+in a rollback, `release.previous_revision`. The binary refuses to start without an endpoint and a revision, so these
+are required here too. The endpoint is an https origin the service exports to without credentials: no collector is
+declared in this module, and `docs/quality/telemetry.md` lists what a hosted run must decide first.
+
 The infrastructure owner composes the project, bootstrap, billing, APIs, IAM and state in its own repository and
 publishes a versioned output contract; `inputs.schema.json` names the fields this repository consumes from it.
 No state is read across that boundary.

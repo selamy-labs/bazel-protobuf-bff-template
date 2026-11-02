@@ -10,18 +10,19 @@ separate repository consumes the checks at `quality-v1.0.0` by one pin; hosted C
 
 **Status: M1 to M8 are implemented and independently accepted at their revisions, locally; M8a's image is built,
 tested and executed independently; hosted CI has never run, and nothing is published. The quality baseline (M9) is
-open: the Go complexity gate, its comparator from the base, the configuration surfaces and the request lifecycle
-are enforced from this tree's measurements, the duplication, dead-code, branch-coverage, mutation and property
-probes have not run, and every control is at its measured state. The local whole-stack demo (M10) works on Linux;
-the hosted example exists only as offline tests and a reviewable plan, nothing is deployed, and no hosted claim
-is made.** The app works:
+open: the Go complexity, Go and TypeScript duplication, Go dead-code and Python lint gates are enforced from this
+tree's measurements, property tests run for Go and TypeScript, mutation is probed but not bound, Go branch outcomes
+are an open blocking gap, and every control is at its measured state in the [baseline](docs/quality/baseline.md).
+The local whole-stack demo (M10) works on Linux, and the production server's telemetry is witnessed locally; the
+hosted example exists only as offline tests and a reviewable plan, nothing is deployed, and no hosted claim is
+made.** The app works:
 `CreateNote` and `GetNote` run from a React page through a Go server, tested in a pinned browser. The
 [specification index](specs/README.md) is the one authority on each milestone's status, the evidence
 pages under [docs/evidence](docs/evidence/) list what has and has not been observed at which revision,
 and [capability states](docs/quality/capability-states.md) has the summary. macOS and hosted CI are
 unverified. The repository is
 local-only and unpublished, and it ships no identity provider, only a verifier adapter for one, so the production
-server refuses to start until an issuer is named ([bff/README.md](bff/README.md)). The same server is packaged as
+server refuses to start until an issuer and its telemetry inputs are named ([bff/README.md](bff/README.md)). The same server is packaged as
 one container image by the build graph, and that image shows the same refusal: a healthy production deployment is
 unsupported until a real issuer exists ([spec 009](specs/009-bff-image/contracts/image.md)).
 

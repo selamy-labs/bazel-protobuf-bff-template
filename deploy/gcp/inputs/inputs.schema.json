@@ -72,7 +72,7 @@
     "runtime": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["port", "allowed_origin", "verifier", "persistence"],
+      "required": ["port", "allowed_origin", "verifier", "persistence", "telemetry"],
       "properties": {
         "port": {
           "type": "integer",
@@ -116,6 +116,27 @@
               "type": "string",
               "minLength": 20,
               "description": "What survives a revision change, in words the evidence repeats; a one-instance limit is never a durability claim."
+            }
+          }
+        },
+        "telemetry": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["endpoint", "environment", "sample_ratio"],
+          "properties": {
+            "endpoint": {
+              "type": "string",
+              "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?$",
+              "description": "The OTLP/HTTP collector's exact origin, no path. The exporter sends no credentials, so this is a collector that accepts the service's export without them; a collector beside the service is not declared here."
+            },
+            "environment": {
+              "enum": ["dev", "staging", "prod"]
+            },
+            "sample_ratio": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "The share of traces kept; zero is valid and keeps none. A cost and volume choice, never a cap."
             }
           }
         }
@@ -181,16 +202,21 @@
     "release": {
       "type": "object",
       "additionalProperties": false,
-      "required": ["serving_digest", "previous_digest", "cancel_in_flight"],
+      "required": ["serving_digest", "previous_digest", "previous_revision", "cancel_in_flight"],
       "properties": {
         "serving_digest": {
           "type": "string",
           "pattern": "^sha256:[0-9a-f]{64}$",
-          "description": "The digest to serve; a rollback sets it to previous_digest and changes nothing else."
+          "description": "The digest to serve; a rollback sets it to previous_digest and changes nothing else. The service reports the revision of this digest in its telemetry."
         },
         "previous_digest": {
           "type": ["string", "null"],
           "pattern": "^sha256:[0-9a-f]{64}$"
+        },
+        "previous_revision": {
+          "type": ["string", "null"],
+          "pattern": "^[0-9a-f]{40}$",
+          "description": "The source revision previous_digest was built from; given exactly when previous_digest is."
         },
         "cancel_in_flight": {
           "type": "boolean",

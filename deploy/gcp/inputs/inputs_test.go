@@ -35,7 +35,7 @@ func TestTheSyntheticExampleValidates(t *testing.T) {
 	if in.Contract.ProjectID != "example-bff-hosted-000000" || in.Frontend.BasePath != "/bazel-protobuf-bff-template/" {
 		t.Errorf("%+v", in)
 	}
-	for _, value := range []string{in.Contract.ProjectID, in.Contract.RuntimeIdentity, in.Project.OwnerGroup, in.Runtime.Verifier.Issuer, in.Frontend.RPCBaseURL} {
+	for _, value := range []string{in.Contract.ProjectID, in.Contract.RuntimeIdentity, in.Project.OwnerGroup, in.Runtime.Verifier.Issuer, in.Runtime.Telemetry.Endpoint, in.Frontend.RPCBaseURL} {
 		if !strings.Contains(value, "example") {
 			t.Errorf("the public example holds a value that does not look synthetic: %q", value)
 		}
@@ -111,6 +111,12 @@ func TestEveryRefusalNamesTheField(t *testing.T) {
 		"bad currency":              {`"budget_alert_currency": "USD"`, `"budget_alert_currency": "dollars"`, "bounds.budget_alert_currency"},
 		"bad previous digest":       {`"previous_digest": null`, `"previous_digest": "sha256:short"`, "release.previous_digest"},
 		"bad serving digest":        {`"serving_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"`, `"serving_digest": "v1"`, "release.serving_digest"},
+		"plain http telemetry":      {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "http://otel.example.invalid"`, "runtime.telemetry.endpoint"},
+		"telemetry with a path":     {`"endpoint": "https://otel.example.invalid"`, `"endpoint": "https://otel.example.invalid/v1/traces"`, "runtime.telemetry.endpoint"},
+		"unknown environment":       {`"environment": "prod"`, `"environment": "production"`, "runtime.telemetry.environment"},
+		"sample ratio above one":    {`"sample_ratio": 1`, `"sample_ratio": 1.5`, "runtime.telemetry.sample_ratio"},
+		"sample ratio below zero":   {`"sample_ratio": 1`, `"sample_ratio": -0.1`, "runtime.telemetry.sample_ratio"},
+		"revision without a digest": {`"previous_revision": null`, `"previous_revision": "2222222222222222222222222222222222222222"`, "release.previous_revision"},
 	}
 	for name, c := range cases {
 		text := strings.Replace(base, c.old, c.new, 1)
@@ -124,8 +130,41 @@ func TestEveryRefusalNamesTheField(t *testing.T) {
 	}
 }
 
+const (
+	previousDigest   = `"previous_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"`
+	previousRevision = `"previous_revision": "2222222222222222222222222222222222222222"`
+)
+
+// The previous digest and its revision come together: the service reports the revision of the digest it serves.
+func TestThePreviousDigestNamesItsRevision(t *testing.T) {
+	withDigest := strings.Replace(example(t), `"previous_digest": null`, previousDigest, 1)
+	sameDigest := strings.ReplaceAll(withDigest, previousDigest, `"previous_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"`)
+	for name, text := range map[string]string{
+		"a digest without a revision":  withDigest,
+		"a revision that is not one":   strings.Replace(withDigest, `"previous_revision": null`, `"previous_revision": "main"`, 1),
+		"two revisions for one digest": strings.Replace(sameDigest, `"previous_revision": null`, previousRevision, 1),
+	} {
+		if _, err := Load(write(t, text)); err == nil || !strings.Contains(err.Error(), "release.previous_revision") {
+			t.Errorf("%s: got %v, want a refusal naming release.previous_revision", name, err)
+		}
+	}
+	same := strings.Replace(sameDigest, `"previous_revision": null`, `"previous_revision": "0000000000000000000000000000000000000000"`, 1)
+	if _, err := Load(write(t, same)); err != nil {
+		t.Errorf("the image's own digest and revision as the previous pair: %v", err)
+	}
+}
+
+// A sample ratio of zero is present, not absent: it is valid and keeps no trace, as the binary reads it.
+func TestASampleRatioOfZeroIsAValue(t *testing.T) {
+	in, err := Load(write(t, strings.Replace(example(t), `"sample_ratio": 1`, `"sample_ratio": 0`, 1)))
+	if err != nil || in.Runtime.Telemetry.SampleRatio != 0 {
+		t.Fatalf("%v %+v", err, in)
+	}
+}
+
 func TestARollbackServesThePreviousDigest(t *testing.T) {
-	text := strings.Replace(example(t), `"previous_digest": null`, `"previous_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"`, 1)
+	text := strings.Replace(example(t), `"previous_digest": null`, previousDigest, 1)
+	text = strings.Replace(text, `"previous_revision": null`, previousRevision, 1)
 	text = strings.Replace(text, `"serving_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"`, `"serving_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"`, 1)
 	if _, err := Load(write(t, text)); err != nil {
 		t.Fatalf("a rollback to the previous digest was refused: %v", err)

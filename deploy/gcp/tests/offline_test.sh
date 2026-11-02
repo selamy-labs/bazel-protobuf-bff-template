@@ -24,6 +24,9 @@ expect() { # expect <name> <want> <mutation> [tofu]
     module_block) printf '\nmodule "extra" {\n  source = "./extra"\n}\n' >>"$T/s/main.tf"; mkdir -p "$T/s/extra"; printf 'resource "google_storage_bucket" "b" {\n  name     = "b"\n  location = "US"\n}\n' >"$T/s/extra/main.tf" ;;
     unformatted) replace "$T/s/main.tf" '  name     = "bff"' '  name="bff"' ;;
     rollback_changes_more) replace "$T/s/main.tf" '      max_instance_count = local.inputs.bounds.max_instances' '      max_instance_count = local.inputs.release.previous_digest == null ? local.inputs.bounds.max_instances : 1' ;;
+    plain_http_telemetry) replace "$T/inputs.json" '"endpoint": "https://otel.example.invalid"' '"endpoint": "http://otel.example.invalid"' ;;
+    telemetry_endpoint_dropped) replace "$T/s/main.tf" 'name  = "BFF_OTEL_ENDPOINT"' 'name  = "BFF_OTEL_ENDPOINT_UNREAD"' ;;
+    rollback_reports_the_newer_revision) replace "$T/s/main.tf" ': local.inputs.release.previous_revision' ': local.inputs.image.source_revision' ;;
     cancel_step_removed) replace "$T/cloudbuild.yaml" "grep -q '^release.cancel_in_flight=true ' /workspace/validate.out" "false" ;;
     apply_ignores_cancel) replace "$T/cloudbuild.yaml" '        [[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }
         # The gate' '        # The gate' ;;
@@ -45,6 +48,9 @@ expect "an invoker role wider than invoke" 1 admin_invoker
 expect "a module that adds a resource" 1 module_block
 expect "unformatted configuration" 1 unformatted
 expect "a rollback that changes more than the digest" 1 rollback_changes_more
+expect "a plain http telemetry endpoint" 1 plain_http_telemetry
+expect "a required telemetry input not passed" 1 telemetry_endpoint_dropped
+expect "a rollback that reports the newer image's revision" 1 rollback_reports_the_newer_revision
 expect "a pipeline that does not read the cancellation" 1 cancel_step_removed
 expect "an apply step that ignores a cancellation" 1 apply_ignores_cancel
 expect "no tofu" 11 none "$T/absent"

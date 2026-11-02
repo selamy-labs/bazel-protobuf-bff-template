@@ -23,15 +23,20 @@ go_library(
 go_test(
     name = "inputs_test",
     size = "small",
-    srcs = ["inputs_test.go"],
+    srcs = [
+        "inputs_test.go",
+        "start_test.go",
+    ],
     data = [
         "contract.schema.json",
         "example.inputs.json",
         "inputs.schema.json",
+        "//bff/cmd/bff",
         "//deploy/gcp:service/main.tf",
     ],
     embed = [":inputs"],
     env = {
+        "BFF_BIN": "$(rlocationpath //bff/cmd/bff)",
         "CONTRACT_SCHEMA": "$(rlocationpath contract.schema.json)",
         "EXAMPLE": "$(rlocationpath example.inputs.json)",
         "MAIN_TF": "$(rlocationpath //deploy/gcp:service/main.tf)",
