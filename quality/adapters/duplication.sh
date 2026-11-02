@@ -52,7 +52,10 @@ fi
 rc=0
 (cd "$root" && "$dupl" -files -plumbing -t "$threshold" <"$work/files") >"$work/out" 2>"$work/err" || rc=$?
 [[ $rc -eq 0 ]] || refuse "dupl exited $rc"
-[[ ! -s "$work/err" ]] || { cat "$work/err" >&2; refuse "dupl did not parse every input cleanly"; }
+# Under `bazel coverage` the Go runtime of a tool built for coverage writes two lines about its own coverage data
+# at exit; they are the runtime's, not dupl's, and only they are set aside before stderr is judged.
+grep -vE '^(warning: GOCOVERDIR not set, no coverage data emitted|write meta: error: no meta-data available \(binary not built with -cover\?\))$' "$work/err" >"$work/err.dupl" || true
+[[ ! -s "$work/err.dupl" ]] || { cat "$work/err.dupl" >&2; refuse "dupl did not parse every input cleanly"; }
 candidates=0
 while IFS= read -r line; do
   [[ "$line" =~ ^[^:]+:[0-9]+-[0-9]+:\ duplicate\ of\ [^:]+:[0-9]+-[0-9]+$ ]] || refuse "malformed dupl output"

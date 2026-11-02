@@ -15,7 +15,7 @@ js_binary(
     data = [
         "collector.yaml",
         "smoke.mjs",
-        "//web/e2e:issuer.mjs",
+        "//web/e2e:issuer",
     ],
     entry_point = "smoke.mjs",
     visibility = ["//visibility:public"],

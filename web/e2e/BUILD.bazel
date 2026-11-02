@@ -222,7 +222,11 @@ js_library(
     visibility = ["//web/lint:__pkg__"],
 )
 
-exports_files(
-    ["issuer.mjs"],
+# The local issuer as a library, for the collector smoke in another package: a js_binary cannot carry a source
+# file of another package in its data.
+js_library(
+    name = "issuer",
+    testonly = True,
+    srcs = ["issuer.mjs"],
     visibility = ["//tools/otel:__pkg__"],
 )
