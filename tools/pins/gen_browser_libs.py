@@ -6,6 +6,7 @@ Resolves the dependency closure of the libraries chrome-headless-shell links, pl
 needs to paint text, from the bookworm package indexes. libc6 is left out: the C library comes from
 the host.
 """
+
 import hashlib
 import lzma
 import re
@@ -21,17 +22,49 @@ INDEXES = [
     "https://security.debian.org/debian-security/dists/bookworm-security/main/binary-amd64/Packages.xz",
 ]
 ROOTS = [
-    "libasound2", "libatk-bridge2.0-0", "libatk1.0-0", "libatspi2.0-0", "libdbus-1-3", "libexpat1",
-    "libgbm1", "libglib2.0-0", "libnspr4", "libnss3", "libudev1", "libx11-6", "libxcb1",
-    "libxcomposite1", "libxdamage1", "libxext6", "libxfixes3", "libxkbcommon0", "libxrandr2",
-    "zlib1g", "libgcc-s1", "libstdc++6", "fonts-dejavu-core",
+    "libasound2",
+    "libatk-bridge2.0-0",
+    "libatk1.0-0",
+    "libatspi2.0-0",
+    "libdbus-1-3",
+    "libexpat1",
+    "libgbm1",
+    "libglib2.0-0",
+    "libnspr4",
+    "libnss3",
+    "libudev1",
+    "libx11-6",
+    "libxcb1",
+    "libxcomposite1",
+    "libxdamage1",
+    "libxext6",
+    "libxfixes3",
+    "libxkbcommon0",
+    "libxrandr2",
+    "zlib1g",
+    "libgcc-s1",
+    "libstdc++6",
+    "fonts-dejavu-core",
 ]
-SKIP = {"libc6", "debconf", "debconf-2.0", "dpkg", "install-info", "shared-mime-info", "gcc-12-base",
-        "libasound2-data", "xkb-data", "libatk1.0-data", "libglib2.0-data", "x11-common", "cdebconf"}
+SKIP = {
+    "libc6",
+    "debconf",
+    "debconf-2.0",
+    "dpkg",
+    "install-info",
+    "shared-mime-info",
+    "gcc-12-base",
+    "libasound2-data",
+    "xkb-data",
+    "libatk1.0-data",
+    "libglib2.0-data",
+    "x11-common",
+    "cdebconf",
+}
 
 
-def packages():
-    best = {}
+def packages() -> dict[str, dict[str, str]]:
+    best: dict[str, dict[str, str]] = {}
     for url in INDEXES:
         text = lzma.decompress(urllib.request.urlopen(url, timeout=120).read()).decode()
         base = url.split("/dists/")[0]
@@ -43,9 +76,9 @@ def packages():
     return best
 
 
-def main():
+def main() -> None:
     index = packages()
-    seen = {}
+    seen: dict[str, dict[str, str]] = {}
     queue = list(ROOTS)
     while queue:
         name = queue.pop()
