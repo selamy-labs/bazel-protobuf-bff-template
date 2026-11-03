@@ -39,6 +39,19 @@ func serviceEnvironment(in *Inputs) map[string]string {
 	}
 }
 
+func mainTF(t *testing.T) string {
+	t.Helper()
+	p := findTestFile("MAIN_TF", filepath.Join("..", "service", "main.tf"), filepath.Join("deploy", "gcp", "service", "main.tf"))
+	if p == "" {
+		t.Fatal("could not locate main.tf")
+	}
+	data, err := os.ReadFile(p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return string(data)
+}
+
 func declaredNames(t *testing.T) []string {
 	t.Helper()
 	var names []string
@@ -96,7 +109,16 @@ func start(t *testing.T, environment map[string]string) started {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
-	command := exec.CommandContext(ctx, filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("BFF_BIN")))
+	binPath := findTestFile("BFF_BIN",
+		filepath.Join("..", "..", "bazel-bin", "bff", "cmd", "binaries_test.runfiles", "_main", "bff", "cmd", "bff", "bff_", "bff"),
+		filepath.Join("bazel-bin", "bff", "cmd", "binaries_test.runfiles", "_main", "bff", "cmd", "bff", "bff_", "bff"),
+		filepath.Join("..", "..", "bazel-bin", "bff", "cmd", "bff", "bff_", "bff"),
+		filepath.Join("bazel-bin", "bff", "cmd", "bff", "bff_", "bff"),
+	)
+	if binPath == "" {
+		t.Skip("BFF_BIN not found; run under bazel test or build //bff/cmd/bff first")
+	}
+	command := exec.CommandContext(ctx, binPath)
 	command.Env = []string{"BFF_ADDR=127.0.0.1:0"}
 	for name, value := range environment {
 		command.Env = append(command.Env, name+"="+value)

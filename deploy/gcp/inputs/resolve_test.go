@@ -17,6 +17,30 @@ func overlay(t *testing.T, name, text string) string {
 	return path
 }
 
+func checkProvenanceAndSource(t *testing.T, provenance Provenance, leaves map[string]bool) {
+	t.Helper()
+	for path, want := range map[string]string{
+		"bounds.max_instances": "contract.json", "release.cancel_in_flight": "operator.json",
+		"bounds.concurrency": "inputs.json", "release.previous_digest": "inputs.json", "contract.project_id": "inputs.json",
+	} {
+		if provenance[path] != want {
+			t.Errorf("%s: from %q, want %q", path, provenance[path], want)
+		}
+	}
+	if len(provenance) != len(leaves) {
+		t.Errorf("%d leaves with a source, the schema has %d", len(provenance), len(leaves))
+	}
+}
+
+func checkRenderedLines(t *testing.T, lines []string, leaves map[string]bool) {
+	t.Helper()
+	if len(lines) != len(leaves) || !contains(lines, `bounds.max_instances=4 # from contract.json`) ||
+		!contains(lines, `release.previous_digest=null # from inputs.json`) ||
+		!contains(lines, `contract.project_id="example-bff-hosted-000000" # from inputs.json`) {
+		t.Errorf("rendered:\n%s", strings.Join(lines, "\n"))
+	}
+}
+
 // The later file wins per leaf, every other leaf keeps the base's value, and each leaf names the file that gave it.
 func TestAnOverlayWinsPerLeafAndEveryLeafNamesItsSource(t *testing.T) {
 	base := write(t, example(t))
@@ -29,18 +53,8 @@ func TestAnOverlayWinsPerLeafAndEveryLeafNamesItsSource(t *testing.T) {
 	if in.Bounds.MaxInstances != 4 || in.Bounds.Concurrency != 20 || !in.Release.CancelInFlight {
 		t.Errorf("%+v %+v", in.Bounds, in.Release)
 	}
-	for path, want := range map[string]string{
-		"bounds.max_instances": "contract.json", "release.cancel_in_flight": "operator.json",
-		"bounds.concurrency": "inputs.json", "release.previous_digest": "inputs.json", "contract.project_id": "inputs.json",
-	} {
-		if provenance[path] != want {
-			t.Errorf("%s: from %q, want %q", path, provenance[path], want)
-		}
-	}
 	leaves, _, _ := shape()
-	if len(provenance) != len(leaves) {
-		t.Errorf("%d leaves with a source, the schema has %d", len(provenance), len(leaves))
-	}
+	checkProvenanceAndSource(t, provenance, leaves)
 	// The effective document is the merged one, canonical, and reads back as the same inputs.
 	again, err := Load(write(t, string(effective)))
 	if err != nil {
@@ -53,11 +67,7 @@ func TestAnOverlayWinsPerLeafAndEveryLeafNamesItsSource(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(lines) != len(leaves) || !contains(lines, `bounds.max_instances=4 # from contract.json`) ||
-		!contains(lines, `release.previous_digest=null # from inputs.json`) ||
-		!contains(lines, `contract.project_id="example-bff-hosted-000000" # from inputs.json`) {
-		t.Errorf("rendered:\n%s", strings.Join(lines, "\n"))
-	}
+	checkRenderedLines(t, lines, leaves)
 }
 
 func contains(lines []string, want string) bool {

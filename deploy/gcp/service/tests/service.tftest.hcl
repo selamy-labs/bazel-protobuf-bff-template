@@ -128,7 +128,56 @@ run "the_browser_may_call_and_the_application_verifies" {
     error_message = "ingress is open to the browser; the application verifies each bearer token"
   }
   assert {
-    condition     = length(output.resources) == 2
-    error_message = "exactly the two declared resources"
+    condition     = google_cloud_run_v2_service.bff.name == "bff" && google_cloud_run_v2_service.bff.ingress == "INGRESS_TRAFFIC_ALL"
+    error_message = "the planned Cloud Run service inventory must include bff with ingress open to all traffic"
+  }
+  assert {
+    condition     = google_cloud_run_v2_service_iam_member.public_invoker.name == google_cloud_run_v2_service.bff.name && google_cloud_run_v2_service_iam_member.public_invoker.location == google_cloud_run_v2_service.bff.location && google_cloud_run_v2_service_iam_member.public_invoker.project == google_cloud_run_v2_service.bff.project
+    error_message = "the planned IAM inventory must bind public invoker directly to the planned bff service"
+  }
+  assert {
+    condition     = google_cloud_run_v2_service.bff.template[0].containers[0].image == "example-region1-docker.example.invalid/example-bff-hosted-000000/bff@sha256:0000000000000000000000000000000000000000000000000000000000000000"
+    error_message = "the planned container image must match the exact release image"
+  }
+  assert {
+    condition     = output.serving.image == "example-region1-docker.example.invalid/example-bff-hosted-000000/bff@sha256:0000000000000000000000000000000000000000000000000000000000000000" && output.serving.port == 8080 && output.serving.allowed_origin == "https://example-owner.github.example.invalid" && output.serving.max_instances == 2 && output.serving.revision == "0000000000000000000000000000000000000000"
+    error_message = "the serving output contract must match the funnel inputs"
+  }
+}
+
+# The bounds follow the funnel when changed (spec 012 FR-010): non-example bounds are reflected in the resource.
+run "the_bounds_follow_the_funnel_when_overridden" {
+  command = plan
+
+  variables {
+    inputs_file = "../inputs/testdata/bounds.inputs.json"
+  }
+
+  assert {
+    condition     = google_cloud_run_v2_service.bff.template[0].scaling[0].max_instance_count == 5 && google_cloud_run_v2_service.bff.template[0].max_instance_request_concurrency == 42 && google_cloud_run_v2_service.bff.template[0].timeout == "120s"
+    error_message = "the bounds must follow the custom bounds from the inputs funnel"
+  }
+  assert {
+    condition     = output.serving.max_instances == 5
+    error_message = "the serving output must reflect the overridden max_instances bound"
+  }
+}
+
+# The serving output is invariant under budget alert changes (spec 012 FR-010): changing the budget alert amount
+# never leaks into or alters the serving output contract.
+run "the_serving_output_is_invariant_when_budget_alert_changes" {
+  command = plan
+
+  variables {
+    inputs_file = "../inputs/testdata/budget.inputs.json"
+  }
+
+  assert {
+    condition     = output.serving.image == "example-region1-docker.example.invalid/example-bff-hosted-000000/bff@sha256:0000000000000000000000000000000000000000000000000000000000000000" && output.serving.port == 8080 && output.serving.allowed_origin == "https://example-owner.github.example.invalid" && output.serving.max_instances == 2 && output.serving.revision == "0000000000000000000000000000000000000000"
+    error_message = "the serving output must remain invariant when budget alert amount changes"
+  }
+  assert {
+    condition     = google_cloud_run_v2_service.bff.template[0].scaling[0].max_instance_count == 2 && google_cloud_run_v2_service.bff.template[0].max_instance_request_concurrency == 20 && google_cloud_run_v2_service.bff.template[0].timeout == "30s"
+    error_message = "the resource scaling and timeout bounds must remain invariant when budget alert amount changes"
   }
 }

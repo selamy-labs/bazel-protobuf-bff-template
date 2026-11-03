@@ -27,39 +27,62 @@ func Load(path string) (*Inputs, error) {
 // and returned with the provenance of every leaf and its canonical JSON, which is what a plan reads.
 func Resolve(base string, overlays ...string) (*Inputs, Provenance, []byte, error) {
 	leaves, sections, nullable := shape()
+	values, provenance, err := collectDocuments(append([]string{base}, overlays...), leaves, sections)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	if err := validateLeaves(leaves, nullable, values, provenance); err != nil {
+		return nil, nil, nil, err
+	}
+	in, effective, err := decodeInputs(values, base)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+	return in, provenance, effective, nil
+}
+
+func collectDocuments(paths []string, leaves, sections map[string]bool) (map[string]any, Provenance, error) {
 	values := map[string]any{}
 	provenance := Provenance{}
-	for _, path := range append([]string{base}, overlays...) {
+	for _, path := range paths {
 		document, err := readDocument(path)
 		if err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 		if err := collect(filepath.Base(path), "", document, leaves, sections, values, provenance); err != nil {
-			return nil, nil, nil, err
+			return nil, nil, err
 		}
 	}
+	return values, provenance, nil
+}
+
+func validateLeaves(leaves, nullable map[string]bool, values map[string]any, provenance Provenance) error {
 	for _, leaf := range sortedKeys(leaves) {
 		value, ok := values[leaf]
 		if !ok {
-			return nil, nil, nil, fmt.Errorf("%s: given by no file, and nothing is defaulted here", leaf)
+			return fmt.Errorf("%s: given by no file, and nothing is defaulted here", leaf)
 		}
 		// A struct decode reads null as a zero value, and the effective document would keep the null.
 		if value == nil && !nullable[leaf] {
-			return nil, nil, nil, fmt.Errorf("%s: null, given by %s, is not a value here", leaf, provenance[leaf])
+			return fmt.Errorf("%s: null, given by %s, is not a value here", leaf, provenance[leaf])
 		}
 	}
+	return nil
+}
+
+func decodeInputs(values map[string]any, base string) (*Inputs, []byte, error) {
 	// Values that came out of a JSON decode always marshal.
 	effective, _ := json.MarshalIndent(nest(values), "", "  ")
 	decoder := json.NewDecoder(bytes.NewReader(effective))
 	decoder.DisallowUnknownFields()
 	var in Inputs
 	if err := decoder.Decode(&in); err != nil {
-		return nil, nil, nil, fmt.Errorf("%s: %w", filepath.Base(base), err)
+		return nil, nil, fmt.Errorf("%s: %w", filepath.Base(base), err)
 	}
 	if err := in.Validate(); err != nil {
-		return nil, nil, nil, err
+		return nil, nil, err
 	}
-	return &in, provenance, append(effective, '\n'), nil
+	return &in, append(effective, '\n'), nil
 }
 
 // readDocument reads one file as the generic JSON shape, so that the presence of each key can be seen: a struct

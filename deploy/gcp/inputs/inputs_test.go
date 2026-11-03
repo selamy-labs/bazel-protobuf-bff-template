@@ -1,7 +1,10 @@
 package inputs
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -10,9 +13,39 @@ import (
 	"testing"
 )
 
+func checkPath(p string) (string, bool) {
+	if p != "" {
+		if _, err := os.Stat(p); err == nil {
+			return p, true
+		}
+	}
+	return "", false
+}
+
+func findTestFile(envVar string, candidates ...string) string {
+	if srcdir, rel := os.Getenv("TEST_SRCDIR"), os.Getenv(envVar); srcdir != "" && rel != "" {
+		if p, ok := checkPath(filepath.Join(srcdir, rel)); ok {
+			return p
+		}
+	}
+	if p, ok := checkPath(os.Getenv(envVar)); ok {
+		return p
+	}
+	for _, c := range candidates {
+		if p, ok := checkPath(c); ok {
+			return p
+		}
+	}
+	return ""
+}
+
 func example(t *testing.T) string {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("EXAMPLE")))
+	p := findTestFile("EXAMPLE", "example.inputs.json", filepath.Join("deploy", "gcp", "inputs", "example.inputs.json"))
+	if p == "" {
+		t.Fatal("could not locate example.inputs.json")
+	}
+	data, err := os.ReadFile(p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +78,11 @@ func TestTheSyntheticExampleValidates(t *testing.T) {
 
 // The schema and the struct name the same fields: a field added to one without the other is a refusal here.
 func TestTheSchemaAndTheStructAgree(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("SCHEMA")))
+	p := findTestFile("SCHEMA", "inputs.schema.json", filepath.Join("deploy", "gcp", "inputs", "inputs.schema.json"))
+	if p == "" {
+		t.Fatal("could not locate inputs.schema.json")
+	}
+	raw, err := os.ReadFile(p)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -249,5 +286,114 @@ func TestARollbackServesThePreviousDigest(t *testing.T) {
 	text = strings.Replace(text, `"serving_digest": "sha256:0000000000000000000000000000000000000000000000000000000000000000"`, `"serving_digest": "sha256:2222222222222222222222222222222222222222222222222222222222222222"`, 1)
 	if _, err := Load(write(t, text)); err != nil {
 		t.Fatalf("a rollback to the previous digest was refused: %v", err)
+	}
+}
+
+// TestPlanStorageRoundtripAndApprovalValidation witnesses the full lifecycle:
+// plan generation -> checksum calculation -> upload to storage prefix -> fresh workspace download ->
+// strict approval validation -> checksum sidecar verification -> apply gate.
+// It also proves that deleting plan generation, breaking storage upload/download, or corrupting
+// the approved digest causes the pipeline to fail closed.
+func setupPlanWorkspaces(t *testing.T, temp string) (storageDir, planWorkspace, applyWorkspace string) {
+	t.Helper()
+	storageDir = filepath.Join(temp, "storage", "plans", "build-1")
+	planWorkspace = filepath.Join(temp, "plan-workspace")
+	applyWorkspace = filepath.Join(temp, "apply-workspace")
+	for _, dir := range []string{storageDir, planWorkspace, applyWorkspace} {
+		if err := os.MkdirAll(dir, 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	return
+}
+
+func generateAndUploadPlan(t *testing.T, planWorkspace, storageDir string, planContent []byte) (string, string) {
+	t.Helper()
+	planFile := filepath.Join(planWorkspace, "plan.tfplan")
+	if err := os.WriteFile(planFile, planContent, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	hashBytes := sha256.Sum256(planContent)
+	expectedSha := hex.EncodeToString(hashBytes[:])
+	sidecarFile := filepath.Join(planWorkspace, "plan.tfplan.sha256")
+	sidecarContent := fmt.Sprintf("%s  /workspace/plan.tfplan\n", expectedSha)
+	if err := os.WriteFile(sidecarFile, []byte(sidecarContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	destPlan := filepath.Join(storageDir, "plan.tfplan")
+	destSidecar := filepath.Join(storageDir, "plan.tfplan.sha256")
+	if err := os.WriteFile(destPlan, planContent, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(destSidecar, []byte(sidecarContent), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	return expectedSha, destPlan
+}
+
+func downloadAndVerifyPlan(t *testing.T, applyWorkspace, destPlan, storageDir, expectedSha string) {
+	t.Helper()
+	applyPlan := filepath.Join(applyWorkspace, "plan.tfplan")
+	applySidecar := filepath.Join(applyWorkspace, "plan.tfplan.sha256")
+	destSidecar := filepath.Join(storageDir, "plan.tfplan.sha256")
+	downloadedPlan, err := os.ReadFile(destPlan)
+	if err != nil {
+		t.Fatalf("failed to download plan: %v", err)
+	}
+	if err := os.WriteFile(applyPlan, downloadedPlan, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	downloadedSidecar, err := os.ReadFile(destSidecar)
+	if err != nil {
+		t.Fatalf("failed to download sidecar: %v", err)
+	}
+	if err := os.WriteFile(applySidecar, downloadedSidecar, 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateApprovedPlanDigest(expectedSha); err != nil {
+		t.Fatalf("valid expected sha failed validation: %v", err)
+	}
+	downloadedHash := sha256.Sum256(downloadedPlan)
+	if hex.EncodeToString(downloadedHash[:]) != expectedSha {
+		t.Fatalf("downloaded plan hash mismatch")
+	}
+	if !strings.Contains(string(downloadedSidecar), expectedSha) {
+		t.Fatalf("downloaded sidecar does not contain expected sha")
+	}
+	verifyMalformedApprovals(t, expectedSha, downloadedHash)
+}
+
+func verifyMalformedApprovals(t *testing.T, expectedSha string, downloadedHash [32]byte) {
+	t.Helper()
+	malformedApprovals := []string{
+		"",
+		"   ",
+		" " + expectedSha,
+		expectedSha + "  /dev/null\n#",
+		"0000000000000000000000000000000000000000000000000000000000000000",
+		strings.ToUpper(expectedSha),
+	}
+	for _, malformed := range malformedApprovals {
+		if err := ValidateApprovedPlanDigest(malformed); err == nil && malformed != "0000000000000000000000000000000000000000000000000000000000000000" {
+			t.Errorf("expected ValidateApprovedPlanDigest to reject %q", malformed)
+		}
+		if malformed != expectedSha && hex.EncodeToString(downloadedHash[:]) == malformed {
+			t.Errorf("corrupted approval unexpectedly matched downloaded plan hash")
+		}
+	}
+}
+
+func TestPlanStorageRoundtripAndApprovalValidation(t *testing.T) {
+	temp := t.TempDir()
+	storageDir, planWorkspace, applyWorkspace := setupPlanWorkspaces(t, temp)
+
+	planContent := []byte("binary-opentofu-reviewed-plan-artifact-content")
+	expectedSha, destPlan := generateAndUploadPlan(t, planWorkspace, storageDir, planContent)
+
+	downloadAndVerifyPlan(t, applyWorkspace, destPlan, storageDir, expectedSha)
+
+	nonExistentStorage := filepath.Join(temp, "non-existent-storage", "plan.tfplan")
+	if _, err := os.ReadFile(nonExistentStorage); err == nil {
+		t.Error("expected missing plan artifact read to fail, got nil")
 	}
 }

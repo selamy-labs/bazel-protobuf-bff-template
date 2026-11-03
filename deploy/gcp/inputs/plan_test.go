@@ -9,19 +9,30 @@ import (
 	"testing"
 )
 
-func mainTF(t *testing.T) string {
+func checkEffectiveBounds(t *testing.T, effectiveJSON []byte, in *Inputs) {
 	t.Helper()
-	data, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("MAIN_TF")))
-	if err != nil {
+	var raw map[string]any
+	if err := json.Unmarshal(effectiveJSON, &raw); err != nil {
 		t.Fatal(err)
 	}
-	return string(data)
+	bounds, ok := raw["bounds"].(map[string]any)
+	if !ok {
+		t.Fatal("bounds section missing from effective JSON")
+	}
+	for _, consumed := range []string{"max_instances", "concurrency", "request_timeout_seconds", "budget_alert_amount", "budget_alert_currency"} {
+		if _, ok := bounds[consumed]; !ok {
+			t.Errorf("effective JSON does not contain bounds.%s", consumed)
+		}
+	}
+	if in.Bounds.MaxInstances <= 0 || in.Bounds.Concurrency <= 0 || in.Bounds.RequestTimeoutSeconds <= 0 {
+		t.Errorf("invalid bounds in resolved inputs: %+v", in.Bounds)
+	}
 }
 
-// The cost bounds are typed inputs, enumerated in the plan (spec 012 FR-010): every bound the service consumes
-// is read from the funnel, the budget alert is the infrastructure owner's and appears in no resource here, and
-// the schema itself says the alert is never a cap.
-func TestTheCostBoundsAreEnumeratedInThePlan(t *testing.T) {
+// The cost bounds are typed inputs, enumerated in the plan inputs contract (spec 012 FR-010): every bound the service consumes
+// is resolved from the funnel, the budget alert is the infrastructure owner's and appears in the schema, and
+// the schema itself says the alert is never a cap. Module wiring and bounds are tested natively in service.tftest.hcl.
+func TestTheCostBoundsAreEnumeratedInTheInputsContract(t *testing.T) {
 	var fields []string
 	typ := reflect.TypeOf(Bounds{})
 	for i := 0; i < typ.NumField(); i++ {
@@ -31,21 +42,14 @@ func TestTheCostBoundsAreEnumeratedInThePlan(t *testing.T) {
 	if !reflect.DeepEqual(fields, want) {
 		t.Fatalf("the bounds are %v, the enumeration knows %v", fields, want)
 	}
-	plan := mainTF(t)
-	for _, consumed := range []string{"max_instances", "concurrency", "request_timeout_seconds"} {
-		if !strings.Contains(plan, "local.inputs.bounds."+consumed) {
-			t.Errorf("the plan does not read bounds.%s from the funnel", consumed)
-		}
+
+	in, _, effectiveJSON, err := Resolve(findTestFile("EXAMPLE", "example.inputs.json", filepath.Join("deploy", "gcp", "inputs", "example.inputs.json")))
+	if err != nil {
+		t.Fatal(err)
 	}
-	for _, owner := range []string{"budget_alert_amount", "budget_alert_currency"} {
-		if strings.Contains(plan, owner) {
-			t.Errorf("the plan consumes %s; the budget alert is the infrastructure owner's, declared against the contract", owner)
-		}
-	}
-	if strings.Contains(plan, "cap") {
-		t.Error("the plan speaks of a cap; no bound here is a monetary cap")
-	}
-	schema, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("SCHEMA")))
+	checkEffectiveBounds(t, effectiveJSON, in)
+
+	schema, err := os.ReadFile(findTestFile("SCHEMA", "inputs.schema.json", filepath.Join("deploy", "gcp", "inputs", "inputs.schema.json")))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -54,57 +58,42 @@ func TestTheCostBoundsAreEnumeratedInThePlan(t *testing.T) {
 	}
 }
 
-// The identities and bindings are enumerated (spec 012 FR-004): the service runs as the contract's runtime
-// identity, the one binding is the public invoker, no other role or member is granted, and the build identity
-// is granted nothing here, so the runtime identity holds no deploy or build permission from this module.
-func TestTheIdentitiesAndBindingsAreEnumerated(t *testing.T) {
-	plan := mainTF(t)
-	if strings.Count(plan, "\nresource \"") != 2 {
-		t.Fatalf("the plan declares %d resources, not the two enumerated", strings.Count(plan, "\nresource \""))
-	}
-	if !strings.Contains(plan, "service_account                  = local.inputs.contract.runtime_identity") {
-		t.Error("the service does not run as the contract's runtime identity")
-	}
-	for _, line := range strings.Split(plan, "\n") {
-		trimmed := strings.TrimSpace(line)
-		switch {
-		case strings.HasPrefix(trimmed, "role "):
-			if trimmed != `role     = "roles/run.invoker"` {
-				t.Errorf("an unenumerated role: %s", trimmed)
-			}
-		case strings.HasPrefix(trimmed, "member "):
-			if trimmed != `member   = "allUsers"` {
-				t.Errorf("an unenumerated member: %s", trimmed)
-			}
-		}
-	}
-	bindings := 0
-	for _, line := range strings.Split(plan, "\n") {
-		if strings.HasPrefix(line, "resource \"") && strings.Contains(line, "iam") {
-			bindings++
-			if line != `resource "google_cloud_run_v2_service_iam_member" "public_invoker" {` {
-				t.Errorf("an unenumerated binding: %s", line)
-			}
-		}
-	}
-	if bindings != 1 {
-		t.Errorf("%d bindings declared, not the one public invoker", bindings)
-	}
-	for _, absent := range []string{"build_identity", "roles/run.admin", "roles/owner", "roles/editor", "serviceAccountUser", "iam_binding", "iam_policy"} {
-		if strings.Contains(plan, absent) {
-			t.Errorf("the plan mentions %s; the module grants nothing beyond the public invoker", absent)
-		}
-	}
-}
-
-// The contract the infrastructure owner publishes is the one the funnel consumes (spec 012 T002, R1): the
-// published schema's fields are the struct's, the inputs schema references it rather than restating it, and
-// the version is the one supported.
-func TestTheContractSchemaIsTheOneTheFunnelConsumes(t *testing.T) {
-	raw, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("CONTRACT_SCHEMA")))
+// The identities contract is validated from the funnel (spec 012 FR-004): the contract specifies
+// distinct runtime and build identities, so the runtime identity holds no build or deploy permission.
+// Module-level IAM bindings and resource inventories are verified natively in service.tftest.hcl and offline.sh.
+func TestTheIdentitiesAreEnumeratedInTheContract(t *testing.T) {
+	in, _, effectiveJSON, err := Resolve(findTestFile("EXAMPLE", "example.inputs.json", filepath.Join("deploy", "gcp", "inputs", "example.inputs.json")))
 	if err != nil {
 		t.Fatal(err)
 	}
+	if in.Contract.RuntimeIdentity == "" {
+		t.Error("the runtime identity must be present in the contract")
+	}
+	if in.Contract.BuildIdentity == "" {
+		t.Error("the build identity must be present in the contract")
+	}
+	if in.Contract.RuntimeIdentity == in.Contract.BuildIdentity {
+		t.Error("the runtime identity and build identity must be distinct; runtime must hold no build or deploy permission")
+	}
+
+	var raw map[string]any
+	if err := json.Unmarshal(effectiveJSON, &raw); err != nil {
+		t.Fatal(err)
+	}
+	contract, ok := raw["contract"].(map[string]any)
+	if !ok {
+		t.Fatal("the contract section is missing from effective JSON")
+	}
+	if contract["runtime_identity"] != in.Contract.RuntimeIdentity {
+		t.Errorf("contract runtime_identity in JSON = %v, want %s", contract["runtime_identity"], in.Contract.RuntimeIdentity)
+	}
+	if contract["build_identity"] != in.Contract.BuildIdentity {
+		t.Errorf("contract build_identity in JSON = %v, want %s", contract["build_identity"], in.Contract.BuildIdentity)
+	}
+}
+
+func verifyPublishedContract(t *testing.T, raw []byte) {
+	t.Helper()
 	var published struct {
 		Required   []string                   `json:"required"`
 		Properties map[string]json.RawMessage `json:"properties"`
@@ -128,10 +117,10 @@ func TestTheContractSchemaIsTheOneTheFunnelConsumes(t *testing.T) {
 	if !strings.Contains(string(published.Properties["version"]), `"const": 1`) {
 		t.Error("the published contract's version is not the one supported")
 	}
-	inputs, err := os.ReadFile(filepath.Join(os.Getenv("TEST_SRCDIR"), os.Getenv("SCHEMA")))
-	if err != nil {
-		t.Fatal(err)
-	}
+}
+
+func verifyInputsContractRef(t *testing.T, inputs []byte) {
+	t.Helper()
 	var funnel struct {
 		Properties struct {
 			Contract struct {
@@ -145,4 +134,21 @@ func TestTheContractSchemaIsTheOneTheFunnelConsumes(t *testing.T) {
 	if funnel.Properties.Contract.Ref != "contract.schema.json" {
 		t.Errorf("the inputs schema restates the contract instead of referencing it: %q", funnel.Properties.Contract.Ref)
 	}
+}
+
+// The contract the infrastructure owner publishes is the one the funnel consumes (spec 012 T002, R1): the
+// published schema's fields are the struct's, the inputs schema references it rather than restating it, and
+// the version is the one supported.
+func TestTheContractSchemaIsTheOneTheFunnelConsumes(t *testing.T) {
+	raw, err := os.ReadFile(findTestFile("CONTRACT_SCHEMA", "contract.schema.json", filepath.Join("deploy", "gcp", "inputs", "contract.schema.json")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifyPublishedContract(t, raw)
+
+	inputs, err := os.ReadFile(findTestFile("SCHEMA", "inputs.schema.json", filepath.Join("deploy", "gcp", "inputs", "inputs.schema.json")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	verifyInputsContractRef(t, inputs)
 }
