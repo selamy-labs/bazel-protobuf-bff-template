@@ -1,6 +1,9 @@
-# The generic scan's decisions (spec 010 FR-005, SC-003). A plain line is an email domain the scan accepts:
-# reserved test domains, and the proposed commit identity's domain, which the release packet lists as pending
-# the operator's approval. A `blob <object id> <reason>` line is one decided finding: the scan still prints it.
+# The generic scan's decisions (spec 010 FR-005, SC-003). No text from the allowlist is ever printed: a decision
+# is named only by allowlist line number and content hash, so reasons cannot reach output.
+# A plain line is an email domain the scan accepts: reserved test domains, and the proposed commit identity domain.
+# A `blob <object id> <reason>` or `commit <object id> <reason>` line is one decided finding: the scan still prints it.
+# A `committer <local> <domain> <reason>` line accepts that exact committer email address (<local> at <domain>)
+# when the commit's author and message are otherwise clean.
 example.com
 example.invalid
 selamy.dev
@@ -9,4 +12,6 @@ blob 8479e0b5f1b76dae02c164ede301cc7bac3cac64 the first neutrality_test.sh, at f
 blob e0b99f7a6541793b09d152aec2369442caa69de4 the second neutrality_test.sh, at 94d226c, still carried one planted service-account host as a literal argument; the same synthetic test value as above, split since, and this historical blob stays in the export by decision rather than by a rewrite
 blob 84881732679d111037ed027b22c0767bc1cd0a57 the first version of the hosted example's input test at e1ffee8 placed two synthetic identities under a subdomain of the reserved example domain; synthetic, no real address; corrected at 55c59b6 without a rewrite
 blob d0eb1ed9b28769b596c0aeaf975b4c0c17064b5d the first version of the hosted example's synthetic inputs at e1ffee8 placed two synthetic identities under a subdomain of the reserved example domain; synthetic, no real address; corrected at 55c59b6 without a rewrite
-blob a7b1157bd0cea6a47e99ca4c2cf9a3e0391bdf7c the regression witness of tools/checks/vulnerabilities.sh at aee58a7 named the module-cache directory of a Go toolchain, whose @ reads as an address; it is no address, the literal is split in the next revision, and the commit stays rather than being rewritten
+blob a7b1157bd0cea6a47e99ca4c2cf9a3e0391bdf7c the regression witness of tools/checks/vulnerabilities.sh at aee58a7 named the module-cache directory of a Go toolchain, whose at-sign reads as an address; it is no address, the literal is split in the next revision, and the commit stays rather than being rewritten
+commit d9f97dd93f7fc9965c6a96e1d068b3a080d8a71b historical squash-merge author identity before single-commit PR ratchet
+committer noreply github.com GitHub web-flow squash committer identity

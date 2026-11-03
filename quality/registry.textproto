@@ -206,7 +206,8 @@ checks {
   kind: KIND_NATIVE
   timeout_seconds: 600
   allow_empty: true
-  command: ["tools/release/neutrality.sh", "{root}", "--allow", "tools/release/neutrality.allow"]
+  needs_base: true
+  command: ["tools/release/neutrality.sh", "{root}", "--allow", "tools/release/neutrality.allow", "--base", "{base}"]
   witness: "//:neutrality_test"
 }
 

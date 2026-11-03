@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
-# The release scans (spec 010 FR-005 to FR-007). Both read the whole export of one repository: every blob and
-# path reachable from any ref, every commit message, author and committer, every ref name and tag message.
+# The release scans (spec 010 FR-005 to FR-007, T076; specs/010-release-readiness/tasks.md). Both read
+# the whole export of one repository: every blob and path reachable from any ref, every commit message,
+# author and committer, every ref name and tag message.
 #
-#   neutrality.sh <repository> [--allow <file>] [--markers <file> --mapping <file>]
+#   neutrality.sh <repository> [--allow <file>] [--markers <file> --mapping <file>] [--base <rev>] [--event <name>]
 #
 # Nothing matched is ever printed. A generic hit prints its category and a locator that is a Git object id
 # or a count, never a path or the matched text. A private hit prints a run-local label and counts by scope;
@@ -12,18 +13,38 @@
 #
 # Exit 0 when the generic scan passed and the private scan passed or did not run; 1 on any hit; 2 cannot read.
 set -euo pipefail
-repo="${1:?usage: neutrality.sh <repository> [--allow <file>] [--markers <file> --mapping <file>]}"
+die() { echo "neutrality: $1" >&2; exit 2; }
+repo="${1:?usage: neutrality.sh <repository> [--allow <file>] [--markers <file> --mapping <file>] [--base <rev>] [--event <name>]}"
 shift
-allow="" markers="" mapping=""
+allow="" markers="" mapping="" base="" event="${GITHUB_EVENT_NAME:-}"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --allow) allow="$2"; shift 2 ;;
-    --markers) markers="$2"; shift 2 ;;
-    --mapping) mapping="$2"; shift 2 ;;
+    --allow)
+      [[ $# -ge 2 && -n "$2" ]] || die "--allow requires a file"
+      allow="$2"; shift 2 ;;
+    --markers)
+      [[ $# -ge 2 && -n "$2" ]] || die "--markers requires a file"
+      markers="$2"; shift 2 ;;
+    --mapping)
+      [[ $# -ge 2 && -n "$2" ]] || die "--mapping requires a file"
+      mapping="$2"; shift 2 ;;
+    --base)
+      [[ $# -ge 2 && -n "$2" ]] || die "--base requires a value"
+      base="$2"; shift 2 ;;
+    --base=*)
+      base="${1#--base=}"
+      [[ -n "$base" ]] || die "--base requires a value"
+      shift ;;
+    --event)
+      [[ $# -ge 2 && -n "$2" ]] || die "--event requires a value"
+      event="$2"; shift 2 ;;
+    --event=*)
+      event="${1#--event=}"
+      [[ -n "$event" ]] || die "--event requires a value"
+      shift ;;
     *) echo "neutrality: unknown argument" >&2; exit 2 ;;
   esac
 done
-die() { echo "neutrality: $1" >&2; exit 2; }
 git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || die "the first argument is not a repository"
 repo_top="$(git -C "$repo" rev-parse --path-format=absolute --show-toplevel 2>/dev/null || git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
 work="$(mktemp -d)"
@@ -55,7 +76,6 @@ LC_ALL=C sort -z -u "$work/paths.z" >"$work/paths.zu"
 { cut -z -f1 "$work/paths.zu" | tr '\0' '\n'; cat "$work/objects.all"; } | sort -u >"$work/blobs.candidates"
 git -C "$repo" cat-file --batch-check='%(objectname) %(objecttype)' <"$work/blobs.candidates" | awk '$2 == "blob" {print $1}' | sort -u >"$work/blobs" || die "cannot type objects"
 cut -z -f2- "$work/paths.zu" | LC_ALL=C sort -z -u >"$work/pathnames.z"
-git -C "$repo" log --all --reflog --format='%H%x1f%an%x1f%ae%x1f%cn%x1f%ce%x1f%B%x1e' >"$work/commits" || die "cannot read commits"
 git -C "$repo" for-each-ref --format='%(refname)%x1f%(contents)' >"$work/refs" || die "cannot read refs"
 commits="$(wc -l <"$work/commits.list")"
 blobs="$(wc -l <"$work/blobs")"
@@ -65,25 +85,33 @@ mkdir "$work/blob"
 while read -r sha; do git -C "$repo" cat-file -p "$sha" >"$work/blob/$sha" || die "cannot read blob $sha"; done <"$work/blobs"
 tr '\0' '\n' <"$work/pathnames.z" >"$work/pathnames"
 tr '\037' '\n' <"$work/refs" >"$work/refnames"
-mkdir "$work/commit"
-while IFS= read -r -d $'\x1e' record; do
-  sha="${record%%$'\x1f'*}"
-  printf '%s' "${record#*$'\x1f'}" | tr '\037' '\n' >"$work/commit/$sha"
-done <"$work/commits"
 
-# Generic. grep reads a file to its end, so a match and a read error are distinct. A hit on an object the
-# allowlist names with a `blob <id> <reason>` line is a decided finding: counted apart and not a failure. The
-# decision names one object, so a new blob with the same text is a new finding. No text from the allowlist is
-# ever printed: a decision is named by the allowlist's line number and the allowlist's own content hash, so that
-# a reason, which may be written freely, cannot reach any output.
+# Read each commit without in-band record separators.
+mkdir -p "$work/commit" "$work/commit_full"
 : >"$work/hits"; : >"$work/decided"
 allow_id=""; [[ -n "$allow" ]] && allow_id="$(sha256sum "$allow" | cut -c1-12)"
 hit() {
   local line=""
   if [[ -n "$allow" && "$2" == blob\ * ]]; then line="$(awk -v id="${2#blob }" '$1 == "blob" && $2 == id {print NR; exit}' "$allow")"; fi
+  if [[ -n "$allow" && "$2" == commit\ * && "$1" == *"email domains outside the allowlist" ]]; then
+    line="$(awk -v id="${2#commit }" '$1 == "commit" && $2 == id {print NR; exit}' "$allow")"
+  fi
   if [[ -n "$line" ]]; then echo "neutrality: generic $1 at $2, decided at allowlist line $line of $allow_id" | tee -a "$work/decided"
   else echo "neutrality: generic $1 at $2" | tee -a "$work/hits"; fi
 }
+
+while IFS= read -r sha; do
+  [[ -n "$sha" ]] || continue
+  git -C "$repo" log -1 --format='%an%n%ae%n%cn%n%ce%n%B' "$sha" >"$work/commit_full/$sha" || die "cannot read commit $sha"
+
+  ce="$(git -C "$repo" log -1 --format='%ce' "$sha" | tr '[:upper:]' '[:lower:]')"
+  if [[ -n "$allow" && -n "$ce" ]] && awk -v ce="$ce" '$1 == "committer" && tolower($2 "@" $3) == ce {found=1; exit} END {exit !found}' "$allow"; then
+    git -C "$repo" log -1 --format='%an%n%ae%n%cn%n%B' "$sha" >"$work/commit/$sha" || die "cannot read commit $sha"
+  else
+    cp "$work/commit_full/$sha" "$work/commit/$sha"
+  fi
+done <"$work/commits.list"
+
 scan_file() { # scan_file <file> <locator>
   local file="$1" locator="$2"
   grep -aqE -- '-----BEGIN [A-Z ]*PRIVATE KEY-----|AKIA[0-9A-Z]{16}|ghp_[A-Za-z0-9]{36}|xox[baprs]-[0-9A-Za-z-]{10,}' "$file" && hit "secret pattern" "$locator"
@@ -104,6 +132,29 @@ while read -r sha; do scan_file "$work/blob/$sha" "blob $sha"; done <"$work/blob
 scan_file "$work/pathnames" "a path"
 for file in "$work"/commit/*; do [[ -e "$file" ]] || continue; scan_file "$file" "commit ${file##*/}"; done
 scan_file "$work/refnames" "a ref name or tag message"
+
+# Validate base if specified
+base_sha=""
+if [[ -n "$base" ]]; then
+  base_sha="$(git -C "$repo" rev-parse --verify --quiet "${base}^{commit}")" || die "cannot resolve base revision: $base"
+fi
+
+# PR-time merge ratchet: require single commit on top of ratchet base for PR comparisons
+ratchet_base=""
+if [[ -n "$base_sha" && "$event" == "pull_request" ]]; then
+  ratchet_base="$base_sha"
+fi
+
+if [[ -n "$ratchet_base" ]]; then
+  head_sha="$(git -C "$repo" rev-parse --verify --quiet "HEAD^{commit}")" || die "cannot resolve HEAD revision"
+  if [[ "$ratchet_base" != "$head_sha" ]]; then
+    ahead_count="$(git -C "$repo" rev-list --count "$ratchet_base..$head_sha")" || die "cannot count commits from $ratchet_base"
+    if [[ "$ahead_count" -gt 1 ]]; then
+      hit "$ahead_count commits ahead of base; squash to a single neutral-author commit before merge" "commit $head_sha"
+    fi
+  fi
+fi
+
 hits="$(wc -l <"$work/hits")"; decided="$(wc -l <"$work/decided")"
 if [[ $hits -eq 0 ]]; then echo "neutrality: generic passed, $decided decided findings, scope: $scope"; else echo "neutrality: generic failed, $hits hits, $decided decided findings, scope: $scope"; fi
 
@@ -140,7 +191,7 @@ else
         sha="${entry%%$'\t'*}"; path="${entry#*$'\t'}"
         if printf '%s' "$path" | grep -aqiF -f "$work/term" --; then cp=$((cp + 1)); echo "$label path $sha" >>"$mapping"; fi
       done <"$work/paths.zu"
-      for file in "$work"/commit/*; do
+      for file in "$work"/commit_full/*; do
         [[ -e "$file" ]] || continue
         if grep -aqiF -f "$work/term" -- "$file"; then cm=$((cm + 1)); echo "$label commit ${file##*/}" >>"$mapping"; fi
       done

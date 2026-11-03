@@ -42,7 +42,18 @@ stub "$tree/tools/policy/workspace_policy.sh" workspace-policy
 stub "$tree/tools/policy/config_policy.sh" implicit-config
 stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
 mkdir -p "$tree/tools/release"
-stub "$tree/tools/release/neutrality.sh" neutrality
+cat >"$tree/tools/release/neutrality.sh" <<STUB
+#!/usr/bin/env bash
+printf 'args:%s\nevent:%s\n' "\$*" "\${GITHUB_EVENT_NAME:-}" >"$work/neutrality-call"
+if [[ "\$(cat "$work/hang" 2>/dev/null)" == neutrality ]]; then
+  sleep 300 &
+  echo "\$!" >"$work/hung-pid"
+  wait
+fi
+[[ "\$(cat "$work/fail" 2>/dev/null)" == neutrality ]] && { echo "stub failure: neutrality"; exit 1; }
+exit 0
+STUB
+chmod +x "$tree/tools/release/neutrality.sh"
 cat >"$tree/tools/release/inventory.sh" <<STUB
 #!/usr/bin/env bash
 [[ "\$(cat "$work/fail" 2>/dev/null)" == inventory ]] && { echo "stub failure: inventory"; exit 1; }
@@ -407,6 +418,11 @@ run --shard=e2e || rc=$?
 rc=0
 run --shard=no-such-leg || rc=$?
 [[ $rc -eq 2 ]] || fail "an unknown leg: exit $rc, want 2"
+
+# Neutrality receives the runner-resolved base and GITHUB_EVENT_NAME across the verifier.
+GITHUB_EVENT_NAME=pull_request run --shard=policy || fail "policy shard run under pull_request failed"
+grep -qF -- "--base $policy_base" "$work/neutrality-call" || fail "neutrality did not receive --base $policy_base"
+grep -qF "event:pull_request" "$work/neutrality-call" || fail "neutrality did not receive GITHUB_EVENT_NAME=pull_request"
 
 [[ $failures -eq 0 ]] && echo "ok   verify-body"
 exit "$failures"

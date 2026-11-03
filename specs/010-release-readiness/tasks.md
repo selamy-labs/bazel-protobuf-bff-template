@@ -80,6 +80,7 @@ The final scan comes after everything it must cover: the inventory (T004 to T006
 
 - T009: the generic scan is bound at `full`. The private scan is run at a freeze with the operator's marker file, never by CI, so `not-run` is its CI status by construction.
 - T011: the governance test is a required Bazel test rather than an opt-in registry stage, because the sandbox gives it no network and the pinned zips give it no fetch, which is stronger than an opt-in stage.
+- T076: Pull-request branches must be a single squashed commit (`ahead_count <= 1` when `GITHUB_EVENT_NAME=pull_request`) with neutral author/committer identity; this enforcement is intended so GitHub squash-merges preserve the commit's neutral author rather than falling back to the merger's personal email (pending live witness BFF-RM2-03).
 
 ## Dependencies
 
