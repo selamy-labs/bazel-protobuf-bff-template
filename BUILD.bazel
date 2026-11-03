@@ -258,7 +258,11 @@ sh_test(
     size = "medium",
     srcs = ["tools/release/neutrality_test.sh"],
     args = ["$(rootpath tools/release/neutrality.sh)"],
-    data = ["tools/release/neutrality.sh"],
+    data = [
+        "quality/registry.textproto",
+        "tools/release/neutrality.sh",
+        "@bff_template_quality//:registry.textproto",
+    ],
 )
 
 sh_test(

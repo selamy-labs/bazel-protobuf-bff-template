@@ -4,7 +4,7 @@
 #
 #   neutrality_test.sh <neutrality.sh>
 set -euo pipefail
-S="$PWD/$1"; T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+case "$1" in /*) S="$1" ;; *) S="$PWD/$1" ;; esac; T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 export GIT_AUTHOR_NAME=a GIT_AUTHOR_EMAIL=a@example.com GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@example.com
 printf 'example.com\n' >"$T/allow"
 mk() { git init -q -b main "$1"; (cd "$1" && printf 'hello\n' >a.txt && git add . && git commit -q -m one); }
@@ -82,4 +82,162 @@ grep -q 'private passed, 1 markers literally absent' "$T/out" || { echo "FAIL th
 expect "the clean counterpart with the same allowlist" 0 "$S" "$T/decided" --allow "$T/allow-reason"
 (cd "$T/decided" && printf 'see /ho%s/y\n' 'me/someone' >c.txt && git add . && git commit -q -m three)
 expect "the same pattern in a new blob is a new finding" 1 "$S" "$T/decided" --allow "$T/allow-decided"
+
+# Dynamic address helper to ensure test source contains no unallowed email literals
+at="@"
+gh_noreply="noreply${at}github.com"
+foreign_bad="unallowed${at}foreign.example"
+other_gh="other${at}github.com"
+
+# 1) A decided commit object: printed with allowlist line and hash, not a failure; a new commit with unallowed domain still fails
+mk "$T/commit-decided"; (cd "$T/commit-decided" && GIT_AUTHOR_EMAIL="$foreign_bad" git commit -q --allow-empty -m "historical commit")
+c_id="$(git -C "$T/commit-decided" rev-parse HEAD)"
+{ cat "$T/allow"; printf 'commit %s a decided historical commit fixture\n' "$c_id"; } >"$T/allow-commit-decided"
+expect "a decided commit does not fail" 0 "$S" "$T/commit-decided" --allow "$T/allow-commit-decided"
+grep -q 'decided at allowlist line [0-9]* of [0-9a-f]*' "$T/out" || { echo "FAIL the commit decision is not referenced"; failures=$((failures + 1)); }
+grep -q 'a decided historical commit fixture' "$T/out" && { echo "FAIL the allowlist's reason text was printed"; failures=$((failures + 1)); }
+(cd "$T/commit-decided" && GIT_AUTHOR_EMAIL="$foreign_bad" git commit -q --allow-empty -m "another commit")
+expect "the same unallowed domain in a new commit is a new finding" 1 "$S" "$T/commit-decided" --allow "$T/allow-commit-decided"
+
+# A decided commit allows email domain, but a personal-path finding on that commit still fails
+mk "$T/commit-decided-with-path"
+(cd "$T/commit-decided-with-path" && GIT_AUTHOR_EMAIL="$foreign_bad" git commit -q --allow-empty -m "$(printf 'path /Use%s/work in decided commit' 'rs/alice')")
+c_path_id="$(git -C "$T/commit-decided-with-path" rev-parse HEAD)"
+(cd "$T/commit-decided-with-path" && git commit -q --allow-empty -m "clean tip")
+{ cat "$T/allow"; printf 'commit %s decided email on commit with path\n' "$c_path_id"; } >"$T/allow-commit-path"
+expect "a decided commit with personal path still fails" 1 "$S" "$T/commit-decided-with-path" --allow "$T/allow-commit-path"
+
+# Committer allowlist without at-sign: accepts exact committer on merge commits
+{ cat "$T/allow"; printf 'committer noreply github.com GitHub merge committer\n'; } >"$T/allow-committer"
+
+# 2) Committer allowlist: passes when committer email is noreply at github.com and author is allowed
+mk "$T/committer-ok"
+(cd "$T/committer-ok" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "merge commit")
+expect "allowed author with noreply committer passes" 0 "$S" "$T/committer-ok" --allow "$T/allow-committer"
+
+# Committer negative controls: unlisted local-part on allowed domain and unallowed foreign domain fail
+mk "$T/committer-other-github"
+(cd "$T/committer-other-github" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$other_gh" git commit -q --allow-empty -m "other committer")
+expect "committer with unlisted local-part on allowed domain fails" 1 "$S" "$T/committer-other-github" --allow "$T/allow-committer"
+
+mk "$T/committer-foreign"
+(cd "$T/committer-foreign" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$foreign_bad" git commit -q --allow-empty -m "foreign committer")
+expect "committer with unlisted domain fails" 1 "$S" "$T/committer-foreign" --allow "$T/allow-committer"
+
+# 3) Disallowed author (noreply at github.com) fails even with committer allowlisted
+mk "$T/committer-author-bad"
+(cd "$T/committer-author-bad" && GIT_AUTHOR_EMAIL="$gh_noreply" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "bad author")
+expect "noreply as author fails" 1 "$S" "$T/committer-author-bad" --allow "$T/allow-committer"
+
+# Disallowed address in message fails
+mk "$T/committer-msg-bad"
+(cd "$T/committer-msg-bad" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "signed off by $gh_noreply")
+expect "noreply in commit message fails" 1 "$S" "$T/committer-msg-bad" --allow "$T/allow-committer"
+
+# Disallowed address in blob fails
+mk "$T/committer-blob-bad"
+(cd "$T/committer-blob-bad" && printf 'contact: %s\n' "$gh_noreply" >blob.txt && git add . && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q -m "blob with email")
+expect "noreply in blob fails" 1 "$S" "$T/committer-blob-bad" --allow "$T/allow-committer"
+
+# Private scan reads commit_full: a marker appearing only in an allowlisted committer field fails private scan
+priv_committer_marker="$gh_noreply"
+priv_gh_committer="NoReply${at}GitHub.com"
+printf '%s\n' "$priv_committer_marker" >"$T/priv-committer-markers"; chmod 600 "$T/priv-committer-markers"
+mk "$T/priv-committer-hit"
+(cd "$T/priv-committer-hit" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$priv_gh_committer" git commit -q --allow-empty -m "clean commit")
+expect "marker only in allowlisted committer fails private scan via commit_full" 1 "$S" "$T/priv-committer-hit" --allow "$T/allow-committer" --markers "$T/priv-committer-markers" --mapping "$T/map-priv-committer"
+grep -q 'private failed' "$T/out" || { echo "FAIL private scan did not fail on allowlisted committer marker"; failures=$((failures + 1)); }
+if grep -qF "$priv_committer_marker" "$T/out"; then echo "FAIL the marker's text appeared in output"; failures=$((failures + 1)); fi
+if grep -qF "$priv_gh_committer" "$T/out"; then echo "FAIL committer literal appeared in output"; failures=$((failures + 1)); fi
+[[ "$(stat -c %a "$T/map-priv-committer")" == 600 ]] || { echo "FAIL private committer mapping mode"; failures=$((failures + 1)); }
+
+# 4) PR-time multi-commit ratchet: fails when ahead_count > 1 on PR events
+mk "$T/ratchet-multi"
+base_multi="$(git -C "$T/ratchet-multi" rev-parse HEAD)"
+(cd "$T/ratchet-multi" && git commit -q --allow-empty -m "pr commit 1" && git commit -q --allow-empty -m "pr commit 2")
+
+expect "multi-commit PR branch fails merge ratchet via GITHUB_EVENT_NAME=pull_request" 1 env GITHUB_EVENT_NAME=pull_request "$S" "$T/ratchet-multi" --allow "$T/allow-committer" --base "$base_multi"
+grep -q 'ahead of base; squash to a single' "$T/out" || { echo "FAIL merge ratchet failure message missing (GITHUB_EVENT_NAME=pull_request)"; failures=$((failures + 1)); }
+
+expect "multi-commit PR branch fails merge ratchet via --event pull_request" 1 "$S" "$T/ratchet-multi" --allow "$T/allow-committer" --base "$base_multi" --event pull_request
+
+expect "multi-commit PR branch fails merge ratchet via --event=pull_request" 1 "$S" "$T/ratchet-multi" --allow "$T/allow-committer" "--base=$base_multi" --event=pull_request
+
+# 5) Single-commit range (ahead_count == 1) passes ratchet
+mk "$T/ratchet-single"
+base_single="$(git -C "$T/ratchet-single" rev-parse HEAD)"
+(cd "$T/ratchet-single" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "squashed pr commit")
+expect "single squashed commit PR branch passes merge ratchet via --base and --event pull_request" 0 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base "$base_single" --event pull_request
+expect "single squashed commit PR branch passes merge ratchet via --base and GITHUB_EVENT_NAME=pull_request" 0 env GITHUB_EVENT_NAME=pull_request "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base "$base_single"
+
+# 6) Cumulative release range: multi-commit passes when event is push, merge_group, or unset
+expect "multi-commit branch passes cumulative verification under --event push" 0 "$S" "$T/ratchet-multi" --allow "$T/allow-committer" --base "$base_multi" --event push
+expect "multi-commit branch passes cumulative verification under --event merge_group" 0 "$S" "$T/ratchet-multi" --allow "$T/allow-committer" --base "$base_multi" --event merge_group
+expect "multi-commit branch passes cumulative verification when event is unset" 0 "$S" "$T/ratchet-multi" --allow "$T/allow-committer" --base "$base_multi"
+
+# 7) Ref and flag validation fails with exit 2
+expect "empty --base value fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base ""
+expect "empty --base= fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base=
+expect "empty --event value fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --event ""
+expect "empty --event= fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --event=
+expect "unresolvable --base fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base "no-such-ref-exists"
+expect "unresolvable --base= fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" "--base=no-such-ref-exists"
+
+# 8) Commit message containing literal \x1e one commit behind tip fails
+mk "$T/inband-rec-sep"
+(cd "$T/inband-rec-sep" && git commit -q --allow-empty -m "$(printf 'subject\x1e \x1fcontact: bad%sforeign.example' "$at")" && git commit -q --allow-empty -m "clean tip")
+expect "commit message with literal record separator behind tip fails" 1 "$S" "$T/inband-rec-sep" --allow "$T/allow-committer"
+
+# 9) Author name containing literal \x1f fails when author email is disallowed
+mk "$T/inband-field-sep"
+(cd "$T/inband-field-sep" && GIT_AUTHOR_NAME="$(printf 'bad\x1fname\x1fuser')" GIT_AUTHOR_EMAIL="$gh_noreply" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "field separator in author name")
+expect "author name containing field separator with bad author email fails" 1 "$S" "$T/inband-field-sep" --allow "$T/allow-committer"
+
+# 10) Quality registry config passes base and sets needs_base on neutrality check
+reg="quality/registry.textproto"
+if [[ ! -f "$reg" && -n "${RUNFILES_DIR:-}" && -f "${RUNFILES_DIR}/_main/quality/registry.textproto" ]]; then
+  reg="${RUNFILES_DIR}/_main/quality/registry.textproto"
+elif [[ ! -f "$reg" && -n "${TEST_SRCDIR:-}" && -f "${TEST_SRCDIR}/_main/quality/registry.textproto" ]]; then
+  reg="${TEST_SRCDIR}/_main/quality/registry.textproto"
+elif [[ ! -f "$reg" && -n "${RUNFILES_DIR:-}" && -f "${RUNFILES_DIR}/bff_template_quality+/registry.textproto" ]]; then
+  reg="${RUNFILES_DIR}/bff_template_quality+/registry.textproto"
+elif [[ ! -f "$reg" && -n "${TEST_SRCDIR:-}" && -f "${TEST_SRCDIR}/bff_template_quality+/registry.textproto" ]]; then
+  reg="${TEST_SRCDIR}/bff_template_quality+/registry.textproto"
+elif [[ ! -f "$reg" && -n "${RUNFILES_DIR:-}" && -f "${RUNFILES_DIR}/bff_template_quality/registry.textproto" ]]; then
+  reg="${RUNFILES_DIR}/bff_template_quality/registry.textproto"
+elif [[ ! -f "$reg" && -n "${TEST_SRCDIR:-}" && -f "${TEST_SRCDIR}/bff_template_quality/registry.textproto" ]]; then
+  reg="${TEST_SRCDIR}/bff_template_quality/registry.textproto"
+elif [[ ! -f "$reg" && -f "${0%/*}/../../quality/registry.textproto" ]]; then
+  reg="${0%/*}/../../quality/registry.textproto"
+fi
+
+if [[ ! -f "$reg" ]]; then
+  echo "FAIL quality/registry.textproto missing"
+  failures=$((failures + 1))
+else
+  awk '
+    /^checks \{/ { in_check=1; block=""; has_neutrality=0 }
+    in_check {
+      block = block "\n" $0
+      if ($0 ~ /id:[[:space:]]*"neutrality"/) has_neutrality=1
+    }
+    in_check && /^\}/ {
+      if (has_neutrality) {
+        found_neutrality=1
+        if (block !~ /"--base",[[:space:]]*"\{base\}"/) missing_base=1
+        if (block !~ /needs_base:[[:space:]]*true/) missing_needs_base=1
+      }
+      in_check=0
+    }
+    END {
+      if (!found_neutrality) { print "FAIL neutrality check block not found in " FILENAME; exit 1 }
+      if (missing_base) { print "FAIL neutrality check block missing --base {base} in " FILENAME; exit 1 }
+      if (missing_needs_base) { print "FAIL neutrality check block missing needs_base: true in " FILENAME; exit 1 }
+    }
+  ' "$reg" || {
+    echo "FAIL registry.textproto does not satisfy neutrality check requirements"
+    failures=$((failures + 1))
+  }
+fi
+
 echo "fixture failures: $failures"; exit "$failures"
