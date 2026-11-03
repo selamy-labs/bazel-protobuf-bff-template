@@ -36,12 +36,14 @@ resource "github_repository_ruleset" "main" {
   }
 
   rules {
-    deletion         = true
-    non_fast_forward = true
+    deletion                = true
+    non_fast_forward        = true
+    required_linear_history = true
 
     pull_request {
       required_approving_review_count = 1
       dismiss_stale_reviews_on_push   = true
+      allowed_merge_methods           = ["rebase"]
     }
 
     required_status_checks {
@@ -52,6 +54,18 @@ resource "github_repository_ruleset" "main" {
       required_check {
         context = "gate"
       }
+    }
+
+    committer_email_pattern {
+      operator = "regex"
+      negate   = false
+      pattern  = "^(noreply@github\\.com|346154065\\+selamy-labs-bot@users\\.noreply\\.github\\.com|claude-cir@selamy\\.dev)$"
+    }
+
+    commit_author_email_pattern {
+      operator = "regex"
+      negate   = false
+      pattern  = "^claude-cir@selamy\\.dev$"
     }
   }
 }

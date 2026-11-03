@@ -14,9 +14,15 @@
 # Exit 0 when the generic scan passed and the private scan passed or did not run; 1 on any hit; 2 cannot read.
 set -euo pipefail
 die() { echo "neutrality: $1" >&2; exit 2; }
-repo="${1:?usage: neutrality.sh <repository> [--allow <file>] [--markers <file> --mapping <file>] [--base <rev>] [--event <name>]}"
+is_approved_bot_login() {
+  case "${1:-}" in
+    selamy-labs-bot | claude-cir | "dependabot[bot]" | "github-actions[bot]") return 0 ;;
+    *) return 1 ;;
+  esac
+}
+repo="${1:?usage: neutrality.sh <repository> [--allow <file>] [--markers <file> --mapping <file>] [--base <rev>] [--event <name>] [--event-path <file>]}"
 shift
-allow="" markers="" mapping="" base="" event="${GITHUB_EVENT_NAME:-}"
+allow="" markers="" mapping="" base="" event="${GITHUB_EVENT_NAME:-}" event_path="${GITHUB_EVENT_PATH:-}" explicit_event_path=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --allow)
@@ -42,9 +48,24 @@ while [[ $# -gt 0 ]]; do
       event="${1#--event=}"
       [[ -n "$event" ]] || die "--event requires a value"
       shift ;;
+    --event-path)
+      [[ $# -ge 2 && -n "$2" ]] || die "--event-path requires a file"
+      event_path="$2"; explicit_event_path=1; shift 2 ;;
+    --event-path=*)
+      event_path="${1#--event-path=}"
+      [[ -n "$event_path" ]] || die "--event-path requires a file"
+      explicit_event_path=1; shift ;;
     *) echo "neutrality: unknown argument" >&2; exit 2 ;;
   esac
 done
+
+if [[ $explicit_event_path -eq 1 && -z "$event" ]]; then
+  event="pull_request"
+fi
+
+if [[ $explicit_event_path -eq 1 && ! -r "$event_path" ]]; then
+  die "the event file cannot be read: $event_path"
+fi
 git -C "$repo" rev-parse --git-dir >/dev/null 2>&1 || die "the first argument is not a repository"
 repo_top="$(git -C "$repo" rev-parse --path-format=absolute --show-toplevel 2>/dev/null || git -C "$repo" rev-parse --path-format=absolute --git-common-dir)"
 work="$(mktemp -d)"
@@ -105,6 +126,59 @@ while IFS= read -r sha; do
   git -C "$repo" log -1 --format='%an%n%ae%n%cn%n%ce%n%B' "$sha" >"$work/commit_full/$sha" || die "cannot read commit $sha"
 
   ce="$(git -C "$repo" log -1 --format='%ce' "$sha" | tr '[:upper:]' '[:lower:]')"
+  ae="$(git -C "$repo" log -1 --format='%ae' "$sha" | tr '[:upper:]' '[:lower:]')"
+
+  is_decided_commit=0
+  if [[ -n "$allow" ]] && awk -v id="$sha" '$1 == "commit" && $2 == id {found=1; exit} END {exit !found}' "$allow"; then
+    is_decided_commit=1
+  fi
+
+  if [[ $is_decided_commit -eq 0 ]]; then
+    if [[ -n "$allow" ]] && grep -qxF -- "selamy.dev" "$allow"; then
+      if [[ "$ae" != "claude-cir@selamy.dev" ]]; then
+        if [[ "$ae" == *"@selamy.dev" ]]; then
+          hit "unapproved selamy.dev author identity in commit" "commit $sha"
+        elif [[ "$ae" == *"@anthropic.com" ]]; then
+          hit "unapproved anthropic.com author identity in commit" "commit $sha"
+        elif [[ "$ae" == *"@example.com" || "$ae" == *"@example.invalid" ]]; then
+          hit "unapproved reserved domain author identity in commit" "commit $sha"
+        else
+          hit "unapproved author identity in commit" "commit $sha"
+        fi
+      fi
+      committer_ok=0
+      if [[ "$ce" == "claude-cir@selamy.dev" ]]; then
+        committer_ok=1
+      elif awk -v ce="$ce" '$1 == "committer" && tolower($2 "@" $3) == ce {found=1; exit} END {exit !found}' "$allow"; then
+        committer_ok=1
+      fi
+      if [[ $committer_ok -eq 0 ]]; then
+        if [[ "$ce" == *"@selamy.dev" ]]; then
+          hit "unapproved selamy.dev committer identity in commit" "commit $sha"
+        elif [[ "$ce" == *"@anthropic.com" ]]; then
+          hit "unapproved anthropic.com committer identity in commit" "commit $sha"
+        elif [[ "$ce" == *"@example.com" || "$ce" == *"@example.invalid" ]]; then
+          hit "unapproved reserved domain committer identity in commit" "commit $sha"
+        else
+          hit "unapproved committer identity in commit" "commit $sha"
+        fi
+      fi
+    else
+      if [[ "$ae" == *"@selamy.dev" && "$ae" != "claude-cir@selamy.dev" ]]; then
+        hit "unapproved selamy.dev author identity in commit" "commit $sha"
+      fi
+      if [[ "$ce" == *"@selamy.dev" && "$ce" != "claude-cir@selamy.dev" ]]; then
+        hit "unapproved selamy.dev committer identity in commit" "commit $sha"
+      fi
+      if [[ "$ae" == *"@anthropic.com" ]]; then
+        hit "unapproved anthropic.com author identity in commit" "commit $sha"
+      fi
+      if [[ "$ce" == *"@anthropic.com" ]]; then
+        hit "unapproved anthropic.com committer identity in commit" "commit $sha"
+      fi
+    fi
+  fi
+
   if [[ -n "$allow" && -n "$ce" ]] && awk -v ce="$ce" '$1 == "committer" && tolower($2 "@" $3) == ce {found=1; exit} END {exit !found}' "$allow"; then
     git -C "$repo" log -1 --format='%an%n%ae%n%cn%n%B' "$sha" >"$work/commit/$sha" || die "cannot read commit $sha"
   else
@@ -158,6 +232,77 @@ if [[ -n "$ratchet_base" ]]; then
     ahead_count="$(git -C "$repo" rev-list --count "$ratchet_base..$head_sha")" || die "cannot count commits from $ratchet_base"
     if [[ "$ahead_count" -gt 1 ]]; then
       hit "$ahead_count commits ahead of base; squash to a single neutral-author commit before rebase merge" "commit $head_sha"
+    fi
+  fi
+fi
+
+# PR/merge_group actor ratchet: inspect author/actor from event payload and environment
+if [[ "$event" == "pull_request" || "$event" == "pull_request_target" || "$event" == "merge_group" ]]; then
+  if [[ -n "${GITHUB_ACTOR:-}" ]] && ! is_approved_bot_login "$GITHUB_ACTOR"; then
+    hit "GITHUB_ACTOR '${GITHUB_ACTOR}' is not permitted: events must be opened and merged by approved bot identities (selamy-labs-bot, claude-cir, dependabot[bot], or github-actions[bot])" "actor ${GITHUB_ACTOR}"
+  fi
+  if [[ -n "${GITHUB_RUN_ID:-}" && -z "${GITHUB_ACTOR:-}" ]]; then
+    hit "GITHUB_ACTOR is required when running under GitHub Actions CI (GITHUB_RUN_ID is set)" "actor missing"
+  fi
+  if [[ -n "${GITHUB_RUN_ID:-}" && -z "$event_path" ]]; then
+    hit "GITHUB_EVENT_PATH is required when running under GitHub Actions CI (GITHUB_RUN_ID is set)" "event_path missing"
+  fi
+
+  if [[ -n "$event_path" ]]; then
+    if [[ ! -r "$event_path" ]]; then
+      hit "event path cannot be read: $event_path" "event $event_path"
+    else
+      event_user=""
+      parse_ok=0
+      if command -v jq >/dev/null 2>&1; then
+        if [[ "$event" == "merge_group" ]]; then
+          if event_user_raw="$(jq -e -r '.merge_group.actor.login // .merge_group.head_commit.author.username // .sender.login // .actor.login // empty' "$event_path" 2>/dev/null)"; then
+            if [[ -n "$event_user_raw" && "$event_user_raw" != "null" ]]; then
+              event_user="$event_user_raw"
+              parse_ok=1
+            fi
+          fi
+        else
+          if event_user_raw="$(jq -e -r '.pull_request.user.login // empty' "$event_path" 2>/dev/null)"; then
+            if [[ -n "$event_user_raw" && "$event_user_raw" != "null" ]]; then
+              event_user="$event_user_raw"
+              parse_ok=1
+            fi
+          fi
+        fi
+      elif command -v python3 >/dev/null 2>&1; then
+        if event_user_raw="$(python3 -c 'import json, sys
+try:
+    with open(sys.argv[1], "r", encoding="utf-8") as f:
+        d = json.load(f)
+    ev = sys.argv[2]
+    if ev == "merge_group":
+        mg = d.get("merge_group", {})
+        login = (
+            (mg.get("actor", {}) or {}).get("login")
+            or (mg.get("head_commit", {}).get("author", {}) or {}).get("username")
+            or (d.get("sender", {}) or {}).get("login")
+            or (d.get("actor", {}) or {}).get("login")
+        )
+    else:
+        login = (d.get("pull_request", {}).get("user", {}) or {}).get("login")
+    if login and isinstance(login, str):
+        print(login)
+        sys.exit(0)
+    sys.exit(1)
+except Exception:
+    sys.exit(1)
+' "$event_path" "$event" 2>/dev/null)"; then
+          event_user="$event_user_raw"
+          parse_ok=1
+        fi
+      fi
+
+      if [[ $parse_ok -ne 1 || -z "$event_user" ]]; then
+        hit "cannot extract valid non-empty user login from event payload $event_path" "event $event_path"
+      elif ! is_approved_bot_login "$event_user"; then
+        hit "$event user '$event_user' is not permitted: events must be opened and merged by approved bot identities (selamy-labs-bot, claude-cir, dependabot[bot], or github-actions[bot])" "event $event_path"
+      fi
     fi
   fi
 fi

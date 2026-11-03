@@ -44,7 +44,11 @@ stub "$tree/tools/policy/bazelrc_policy.sh" bazelrc-policy
 mkdir -p "$tree/tools/release"
 cat >"$tree/tools/release/neutrality.sh" <<STUB
 #!/usr/bin/env bash
-printf 'args:%s\nevent:%s\n' "\$*" "\${GITHUB_EVENT_NAME:-}" >"$work/neutrality-call"
+printf 'args:%s\nevent:%s\nevent_path:%s\nactor:%s\n' "\$*" "\${GITHUB_EVENT_NAME:-}" "\${GITHUB_EVENT_PATH:-}" "\${GITHUB_ACTOR:-}" >"$work/neutrality-call"
+if [[ "\${GITHUB_EVENT_NAME:-}" == "pull_request" && "\${GITHUB_ACTOR:-}" == "pselamy" ]]; then
+  echo "stub failure: human actor pselamy is not permitted on pull_request" >&2
+  exit 1
+fi
 if [[ "\$(cat "$work/hang" 2>/dev/null)" == neutrality ]]; then
   sleep 300 &
   echo "\$!" >"$work/hung-pid"
@@ -419,10 +423,17 @@ rc=0
 run --shard=no-such-leg || rc=$?
 [[ $rc -eq 2 ]] || fail "an unknown leg: exit $rc, want 2"
 
-# Neutrality receives the runner-resolved base and GITHUB_EVENT_NAME across the verifier.
-GITHUB_EVENT_NAME=pull_request run --shard=policy || fail "policy shard run under pull_request failed"
+# Neutrality receives the runner-resolved base, GITHUB_EVENT_NAME, GITHUB_EVENT_PATH, and GITHUB_ACTOR across the verifier.
+printf '{"pull_request":{"user":{"login":"selamy-labs-bot"}}}\n' >"$work/pr.json"
+GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$work/pr.json" GITHUB_ACTOR=selamy-labs-bot run --shard=policy || fail "policy shard run under pull_request with bot actor failed"
 grep -qF -- "--base $policy_base" "$work/neutrality-call" || fail "neutrality did not receive --base $policy_base"
 grep -qF "event:pull_request" "$work/neutrality-call" || fail "neutrality did not receive GITHUB_EVENT_NAME=pull_request"
+grep -qF "event_path:$work/pr.json" "$work/neutrality-call" || fail "neutrality did not receive GITHUB_EVENT_PATH"
+grep -qF "actor:selamy-labs-bot" "$work/neutrality-call" || fail "neutrality did not receive GITHUB_ACTOR=selamy-labs-bot"
+
+rc=0
+GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$work/pr.json" GITHUB_ACTOR=pselamy run --shard=policy || rc=$?
+[[ $rc -eq 1 && "$(state neutrality)" == FAILED ]] || fail "policy shard run under pull_request with human actor pselamy did not fail: exit $rc, state $(state neutrality)"
 
 [[ $failures -eq 0 ]] && echo "ok   verify-body"
 exit "$failures"

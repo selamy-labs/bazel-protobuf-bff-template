@@ -259,7 +259,9 @@ sh_test(
     srcs = ["tools/release/neutrality_test.sh"],
     args = ["$(rootpath tools/release/neutrality.sh)"],
     data = [
+        "governance/github/main.tf",
         "quality/registry.textproto",
+        "tools/release/neutrality.allow",
         "tools/release/neutrality.sh",
         "@bff_template_quality//:registry.textproto",
     ],
@@ -281,6 +283,8 @@ sh_test(
         ".github/workflows/ci.yml",
         "tools/ci/policy.json",
         "tools/release/governance.sh",
+        "tools/release/merge_pr.sh",
+        "tools/release/neutrality.allow",
         "@opentofu//:tofu",
         "@terraform_provider_github//file",
     ] + glob(["governance/github/**"]),
