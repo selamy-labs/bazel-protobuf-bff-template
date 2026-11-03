@@ -175,6 +175,50 @@ expect "multi-commit branch passes cumulative verification under --event push" 0
 expect "multi-commit branch passes cumulative verification under --event merge_group" 0 "$S" "$T/ratchet-multi" --allow "$T/allow-committer" --base "$base_multi" --event merge_group
 expect "multi-commit branch passes cumulative verification when event is unset" 0 "$S" "$T/ratchet-multi" --allow "$T/allow-committer" --base "$base_multi"
 
+# 6a) Simulated GitHub rebase-merge commit on main passes neutrality on push
+mk "$T/rebase-merge-push"
+(cd "$T/rebase-merge-push" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "simulated rebase-merge commit")
+expect "simulated GitHub rebase-merge commit on main passes on push" 0 "$S" "$T/rebase-merge-push" --allow "$T/allow-committer" --event push
+
+# 6b) Simulated GitHub squash-by-user commit on main fails neutrality on push
+owner_bad="owner${at}personal-domain.invalid"
+mk "$T/squash-by-user-push"
+(cd "$T/squash-by-user-push" && GIT_AUTHOR_EMAIL="$owner_bad" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "simulated squash-by-user commit")
+expect "simulated GitHub squash-by-user commit on main fails on push" 1 "$S" "$T/squash-by-user-push" --allow "$T/allow-committer" --event push
+
+# 6c) PR branch fails merge ratchet if governance/github/main.tf allows squash merge
+mk "$T/governance-squash"
+mkdir -p "$T/governance-squash/governance/github"
+cat >"$T/governance-squash/governance/github/main.tf" <<'EOF'
+resource "github_repository" "template" {
+  allow_merge_commit     = false
+  allow_squash_merge     = true
+  allow_rebase_merge     = false
+  delete_branch_on_merge = true
+}
+EOF
+(cd "$T/governance-squash" && git add governance/github/main.tf && git commit -q -m "initial governance")
+base_gov="$(git -C "$T/governance-squash" rev-parse HEAD)"
+(cd "$T/governance-squash" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "feature commit")
+expect "PR branch fails merge ratchet when governance allows squash merge" 1 "$S" "$T/governance-squash" --allow "$T/allow-committer" --base "$base_gov" --event pull_request
+grep -q 'governance/github/main.tf must enforce rebase-only merge' "$T/out" || { echo "FAIL expected governance rebase-only merge error message"; failures=$((failures + 1)); }
+
+# 6d) PR branch passes merge ratchet when governance enforces rebase-only merge
+mk "$T/governance-rebase"
+mkdir -p "$T/governance-rebase/governance/github"
+cat >"$T/governance-rebase/governance/github/main.tf" <<'EOF'
+resource "github_repository" "template" {
+  allow_merge_commit     = false
+  allow_squash_merge     = false
+  allow_rebase_merge     = true
+  delete_branch_on_merge = true
+}
+EOF
+(cd "$T/governance-rebase" && git add governance/github/main.tf && git commit -q -m "initial governance")
+base_rebase="$(git -C "$T/governance-rebase" rev-parse HEAD)"
+(cd "$T/governance-rebase" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "feature commit")
+expect "PR branch passes merge ratchet when governance enforces rebase-only merge" 0 "$S" "$T/governance-rebase" --allow "$T/allow-committer" --base "$base_rebase" --event pull_request
+
 # 7) Ref and flag validation fails with exit 2
 expect "empty --base value fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base ""
 expect "empty --base= fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base=

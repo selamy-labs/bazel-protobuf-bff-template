@@ -267,12 +267,13 @@ func TestInternalErrorsLeakOnlyACorrelationID(t *testing.T) {
 			}
 			var entry struct {
 				CorrelationID string `json:"correlation_id"`
+				RPCStatusCode string `json:"rpc.status_code"`
 				Error         string `json:"error"`
 			}
 			if err := json.Unmarshal([]byte(h.log.String()), &entry); err != nil {
 				t.Fatalf("log %q: %v", h.log.String(), err)
 			}
-			if entry.CorrelationID != id || !strings.Contains(entry.Error, faults.PlantedSecret) {
+			if entry.CorrelationID != id || entry.RPCStatusCode != "INTERNAL" || !strings.Contains(entry.Error, faults.PlantedSecret) {
 				t.Fatalf("the log does not hold the detail under %s: %q", id, h.log.String())
 			}
 			// The server keeps serving after a panic.

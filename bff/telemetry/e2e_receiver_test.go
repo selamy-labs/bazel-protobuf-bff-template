@@ -360,6 +360,11 @@ func TestOTLPSuccessFailureRedactionAndMetrics(t *testing.T) {
 	if !strings.Contains(logs.String(), sc.TraceID().String()) || !strings.Contains(logs.String(), sc.SpanID().String()) {
 		t.Fatalf("log correlation absent: %s", logs.String())
 	}
+	if !strings.Contains(logs.String(), "logging.googleapis.com/trace") ||
+		!strings.Contains(logs.String(), "logging.googleapis.com/spanId") ||
+		!strings.Contains(logs.String(), "logging.googleapis.com/trace_sampled") {
+		t.Fatalf("cloud logging correlation absent: %s", logs.String())
+	}
 	for _, secret := range []string{"PRIVATE_OWNER", "PRIVATE_BODY", faults.PlantedSecret} {
 		if strings.Contains(logs.String(), secret) {
 			t.Fatalf("log leak: %s", logs.String())
@@ -596,5 +601,175 @@ func TestRedactionCoversValuesNamesEventsAndBoundLogger(t *testing.T) {
 	recv.assertNoSecrets(t, "PRIVATE_VALUE", "PRIVATE_NAME", "PRIVATE_EVENT", "PRIVATE_EVENT_BODY", "PRIVATE_STATUS")
 	if strings.Contains(buffer.String(), "PRIVATE_") {
 		t.Fatalf("log leak: %s", buffer.String())
+	}
+}
+
+func TestXCloudTraceContextPropagationAndPrecedenceE2E(t *testing.T) {
+	recv := newReceiver(t)
+	r := newRuntime(t, testConfig(recv.server.URL))
+	client, _, _ := harness(t, r)
+
+	xctcTrace := "4bf92f3577b34da6a3ce929d0e0e4736"
+	xctcSpan := "00f067cc0dd902c7"
+
+	// 1. Fallback when traceparent is absent
+	ctxFallback, info := connect.NewClientContext(context.Background())
+	info.RequestHeader().Set("Authorization", "Bearer PRIVATE_TOKEN")
+	info.RequestHeader().Set("x-cloud-trace-context", xctcTrace+"/"+xctcSpan+";o=1")
+	_, err := client.CreateNote(ctxFallback, &notesv1.CreateNoteRequest{Note: &notesv1.Note{Title: "PRIVATE_TITLE", Body: "PRIVATE_BODY"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	flush(t, r)
+	spans := recv.spans()
+	var serverSpan *tracepb.Span
+	for _, s := range spans {
+		if s.Kind == tracepb.Span_SPAN_KIND_SERVER {
+			serverSpan = s
+			break
+		}
+	}
+	if serverSpan == nil {
+		t.Fatal("no server span found")
+	}
+	if len(serverSpan.Links) != 1 {
+		t.Fatalf("links=%d want 1", len(serverSpan.Links))
+	}
+	if hex.EncodeToString(serverSpan.Links[0].TraceId) != xctcTrace || hex.EncodeToString(serverSpan.Links[0].SpanId) != xctcSpan {
+		t.Fatalf("bad link from x-cloud-trace-context: trace=%s span=%s",
+			hex.EncodeToString(serverSpan.Links[0].TraceId), hex.EncodeToString(serverSpan.Links[0].SpanId))
+	}
+
+	// 1a. Fallback with 16-digit decimal span ID parses as decimal (1234567890123456 -> 000462d53c8abac0)
+	recv.mu.Lock()
+	recv.traces = nil
+	recv.mu.Unlock()
+
+	decTrace := "105445aa7843bc8bf206b12000100000"
+	ctxDec, infoDec := connect.NewClientContext(context.Background())
+	infoDec.RequestHeader().Set("Authorization", "Bearer PRIVATE_TOKEN")
+	infoDec.RequestHeader().Set("x-cloud-trace-context", decTrace+"/1234567890123456;o=1")
+	_, err = client.CreateNote(ctxDec, &notesv1.CreateNoteRequest{Note: &notesv1.Note{Title: "PRIVATE_TITLE", Body: "PRIVATE_BODY"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	flush(t, r)
+	spans = recv.spans()
+	serverSpan = nil
+	for _, s := range spans {
+		if s.Kind == tracepb.Span_SPAN_KIND_SERVER {
+			serverSpan = s
+			break
+		}
+	}
+	if serverSpan == nil {
+		t.Fatal("no server span found")
+	}
+	if len(serverSpan.Links) != 1 {
+		t.Fatalf("links=%d want 1", len(serverSpan.Links))
+	}
+	gotTrace := hex.EncodeToString(serverSpan.Links[0].TraceId)
+	gotSpan := hex.EncodeToString(serverSpan.Links[0].SpanId)
+	if gotTrace != decTrace || gotSpan != "000462d53c8abac0" {
+		t.Fatalf("bad link from 16-digit decimal x-cloud-trace-context: got trace=%s span=%s, want trace=%s span=000462d53c8abac0",
+			gotTrace, gotSpan, decTrace)
+	}
+	if gotSpan == "1234567890123456" {
+		t.Fatalf("16-digit decimal span ID was erroneously parsed as hex 1234567890123456")
+	}
+
+	// 1b. Fallback with 16-char hex with letters (00f067cc0dd902c7)
+	recv.mu.Lock()
+	recv.traces = nil
+	recv.mu.Unlock()
+
+	ctxHex, infoHex := connect.NewClientContext(context.Background())
+	infoHex.RequestHeader().Set("Authorization", "Bearer PRIVATE_TOKEN")
+	infoHex.RequestHeader().Set("x-cloud-trace-context", decTrace+"/00f067cc0dd902c7;o=1")
+	_, err = client.CreateNote(ctxHex, &notesv1.CreateNoteRequest{Note: &notesv1.Note{Title: "PRIVATE_TITLE", Body: "PRIVATE_BODY"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	flush(t, r)
+	spans = recv.spans()
+	serverSpan = nil
+	for _, s := range spans {
+		if s.Kind == tracepb.Span_SPAN_KIND_SERVER {
+			serverSpan = s
+			break
+		}
+	}
+	if serverSpan == nil {
+		t.Fatal("no server span found")
+	}
+	if len(serverSpan.Links) != 1 {
+		t.Fatalf("links=%d want 1", len(serverSpan.Links))
+	}
+	gotTrace = hex.EncodeToString(serverSpan.Links[0].TraceId)
+	gotSpan = hex.EncodeToString(serverSpan.Links[0].SpanId)
+	if gotTrace != decTrace || gotSpan != "00f067cc0dd902c7" {
+		t.Fatalf("bad link from hex x-cloud-trace-context: got trace=%s span=%s, want trace=%s span=00f067cc0dd902c7",
+			gotTrace, gotSpan, decTrace)
+	}
+
+	// 2. Precedence when both are present
+	recv.mu.Lock()
+	recv.traces = nil
+	recv.mu.Unlock()
+
+	ctxBoth, infoBoth := connect.NewClientContext(context.Background())
+	infoBoth.RequestHeader().Set("Authorization", "Bearer PRIVATE_TOKEN")
+	infoBoth.RequestHeader().Set("traceparent", "00-"+parentTrace+"-"+parentSpan+"-01")
+	infoBoth.RequestHeader().Set("x-cloud-trace-context", xctcTrace+"/"+xctcSpan+";o=1")
+	_, err = client.CreateNote(ctxBoth, &notesv1.CreateNoteRequest{Note: &notesv1.Note{Title: "PRIVATE_TITLE", Body: "PRIVATE_BODY"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	flush(t, r)
+	spans = recv.spans()
+	serverSpan = nil
+	for _, s := range spans {
+		if s.Kind == tracepb.Span_SPAN_KIND_SERVER {
+			serverSpan = s
+			break
+		}
+	}
+	if serverSpan == nil {
+		t.Fatal("no server span found")
+	}
+	if len(serverSpan.Links) != 1 {
+		t.Fatalf("links=%d want 1", len(serverSpan.Links))
+	}
+	if hex.EncodeToString(serverSpan.Links[0].TraceId) != parentTrace || hex.EncodeToString(serverSpan.Links[0].SpanId) != parentSpan {
+		t.Fatalf("traceparent precedence violated: got trace=%s span=%s",
+			hex.EncodeToString(serverSpan.Links[0].TraceId), hex.EncodeToString(serverSpan.Links[0].SpanId))
+	}
+
+	// 3. Malformed x-cloud-trace-context has no link
+	recv.mu.Lock()
+	recv.traces = nil
+	recv.mu.Unlock()
+
+	ctxBad, infoBad := connect.NewClientContext(context.Background())
+	infoBad.RequestHeader().Set("Authorization", "Bearer PRIVATE_TOKEN")
+	infoBad.RequestHeader().Set("x-cloud-trace-context", "malformed-header-value")
+	_, err = client.CreateNote(ctxBad, &notesv1.CreateNoteRequest{Note: &notesv1.Note{Title: "PRIVATE_TITLE", Body: "PRIVATE_BODY"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	flush(t, r)
+	spans = recv.spans()
+	serverSpan = nil
+	for _, s := range spans {
+		if s.Kind == tracepb.Span_SPAN_KIND_SERVER {
+			serverSpan = s
+			break
+		}
+	}
+	if serverSpan == nil {
+		t.Fatal("no server span found")
+	}
+	if len(serverSpan.Links) != 0 {
+		t.Fatalf("malformed header produced link: %v", serverSpan.Links)
 	}
 }

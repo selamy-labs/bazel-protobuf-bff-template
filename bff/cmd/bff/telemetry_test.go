@@ -36,3 +36,81 @@ func TestTelemetryCompositionRefusesMissingAndInvalid(t *testing.T) {
 		}
 	}
 }
+
+func TestTelemetryProjectIDResolution(t *testing.T) {
+	baseEnv := func() map[string]string {
+		return map[string]string{
+			"BFF_OTEL_ENDPOINT":    "http://127.0.0.1:4318",
+			"BFF_RELEASE_REVISION": strings.Repeat("a", 40),
+		}
+	}
+
+	t.Run("valid GCP project ID is wired", func(t *testing.T) {
+		env := baseEnv()
+		env["GOOGLE_CLOUD_PROJECT"] = "example-gcp-project"
+		c, sources, err := resolveTelemetry(func(k string) string { return env[k] })
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.ProjectID != "example-gcp-project" {
+			t.Errorf("ProjectID = %q, want %q", c.ProjectID, "example-gcp-project")
+		}
+		if sources["GOOGLE_CLOUD_PROJECT"] != "environment" {
+			t.Errorf("sources[GOOGLE_CLOUD_PROJECT] = %q, want environment", sources["GOOGLE_CLOUD_PROJECT"])
+		}
+	})
+
+	t.Run("valid GCP project ID with surrounding whitespace is trimmed", func(t *testing.T) {
+		env := baseEnv()
+		env["GOOGLE_CLOUD_PROJECT"] = "  my-prod-project-123  "
+		c, sources, err := resolveTelemetry(func(k string) string { return env[k] })
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.ProjectID != "my-prod-project-123" {
+			t.Errorf("ProjectID = %q, want %q", c.ProjectID, "my-prod-project-123")
+		}
+		if sources["GOOGLE_CLOUD_PROJECT"] != "environment" {
+			t.Errorf("sources[GOOGLE_CLOUD_PROJECT] = %q, want environment", sources["GOOGLE_CLOUD_PROJECT"])
+		}
+	})
+
+	t.Run("invalid GCP project ID leaves ProjectID empty for bare trace ID emission", func(t *testing.T) {
+		for _, invalid := range []string{
+			"INVALID_UPPERCASE",
+			"123-leading-digit",
+			"-leading-dash",
+			"trailing-dash-",
+			"shrt",
+			strings.Repeat("a", 31),
+			"invalid_char$",
+		} {
+			env := baseEnv()
+			env["GOOGLE_CLOUD_PROJECT"] = invalid
+			c, sources, err := resolveTelemetry(func(k string) string { return env[k] })
+			if err != nil {
+				t.Fatalf("unexpected error for %q: %v", invalid, err)
+			}
+			if c.ProjectID != "" {
+				t.Errorf("expected empty ProjectID for invalid %q, got %q", invalid, c.ProjectID)
+			}
+			if sources["GOOGLE_CLOUD_PROJECT"] != "environment (ignored: invalid)" {
+				t.Errorf("expected 'environment (ignored: invalid)' source for invalid %q, got %q", invalid, sources["GOOGLE_CLOUD_PROJECT"])
+			}
+		}
+	})
+
+	t.Run("absent GOOGLE_CLOUD_PROJECT leaves ProjectID empty", func(t *testing.T) {
+		env := baseEnv()
+		c, sources, err := resolveTelemetry(func(k string) string { return env[k] })
+		if err != nil {
+			t.Fatal(err)
+		}
+		if c.ProjectID != "" {
+			t.Errorf("expected empty ProjectID, got %q", c.ProjectID)
+		}
+		if sources["GOOGLE_CLOUD_PROJECT"] != "composition" {
+			t.Errorf("expected composition source, got %q", sources["GOOGLE_CLOUD_PROJECT"])
+		}
+	})
+}

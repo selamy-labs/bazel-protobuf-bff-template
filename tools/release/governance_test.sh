@@ -6,7 +6,8 @@
 #
 #   governance_test.sh <governance.sh> <tofu> <provider zip> <config dir> <ci policy json> <workflow yml>
 set -euo pipefail
-script="$PWD/$1"; tofu="$PWD/$2"; zip="$PWD/$3"; config="$PWD/$4"; policy="$PWD/$5"; workflow="$PWD/$6"
+abs() { case "$1" in /*) printf '%s' "$1" ;; *) printf '%s' "$PWD/$1" ;; esac; }
+script="$(abs "$1")"; tofu="$(abs "$2")"; zip="$(abs "$3")"; config="$(abs "$4")"; policy="$(abs "$5")"; workflow="$(abs "$6")"
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 failures=0
 replace() { local content; content="$(cat "$1")"; printf '%s\n' "${content/"$2"/"$3"}" >"$1"; }
@@ -29,6 +30,8 @@ expect() { # expect <name> <want> <mutation> [tofu]
     context_blank) replace "$T/g/main.tf" '        context = "gate"' '        context = ""' ;;
     policy_gate_other) replace "$T/policy.json" '"gate": "gate",' '"gate": "aggregate",' ;;
     workflow_gate_renamed) replace "$T/ci.yml" '    name: gate' '    name: aggregate' ;;
+    squash_merge_allowed) replace "$T/g/main.tf" '  allow_squash_merge     = false' '  allow_squash_merge     = true' ;;
+    rebase_merge_disallowed) replace "$T/g/main.tf" '  allow_rebase_merge     = true' '  allow_rebase_merge     = false' ;;
     module_block) printf '\nmodule "extra" {\n  source = "./extra"\n}\n' >>"$T/g/main.tf"; mkdir -p "$T/g/extra"; printf 'resource "github_repository" "third" {\n  name = "third"\n}\n' >"$T/g/extra/main.tf" ;;
     *) echo "unknown mutation $3"; exit 2 ;;
   esac
@@ -53,6 +56,8 @@ expect "a required check that names no job" 1 context_other
 expect "a blank required check" 1 context_blank
 expect "the policy's gate renamed under the ruleset" 1 policy_gate_other
 expect "the workflow's gate job renamed under the ruleset" 1 workflow_gate_renamed
+expect "squash merge allowed" 1 squash_merge_allowed
+expect "rebase merge disallowed" 1 rebase_merge_disallowed
 expect "no tofu" 11 none "$T/absent"
 expect "restored control" 0 none
 exit "$failures"

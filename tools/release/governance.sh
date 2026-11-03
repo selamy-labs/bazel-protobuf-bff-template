@@ -44,6 +44,12 @@ graph="$("$tofu" -chdir="$work/config" graph 2>/dev/null)" || refuse "the graph 
 nodes="$(grep -oE '"[a-z_]+\.[A-Za-z0-9_-]+( \(expand\))?"' <<<"$graph" | grep -E '^"github_' | sed 's/ (expand)//' | LC_ALL=C sort -u | tr -d '"' | tr '\n' ' ')"
 [[ "$nodes" == "github_repository.template github_repository_ruleset.main " ]] || { echo "governance: the loaded graph holds [$nodes], not the two declared resources"; exit 1; }
 grep -qE '^\s*owner\s*=\s*var\.owner\s*$' "$work/config/main.tf" || { echo "governance: the provider is not bound to the pinned owner"; exit 1; }
+if ! grep -Eq '^\s*allow_rebase_merge\s*=\s*true\s*$' "$work/config/main.tf" || \
+   ! grep -Eq '^\s*allow_squash_merge\s*=\s*false\s*$' "$work/config/main.tf" || \
+   ! grep -Eq '^\s*allow_merge_commit\s*=\s*false\s*$' "$work/config/main.tf"; then
+  echo "governance: repository must enforce rebase-only merge"
+  exit 1
+fi
 # The required status check must be the job that the workflow and the CI-parity policy call the gate (spec 010
 # FR-009b). A context naming no job would make the protection require a check that no run ever reports, so the
 # three names are related here, by the policy's top-level key and the workflow's job name under that id.

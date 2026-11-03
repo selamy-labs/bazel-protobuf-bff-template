@@ -14,4 +14,5 @@ blob 84881732679d111037ed027b22c0767bc1cd0a57 the first version of the hosted ex
 blob d0eb1ed9b28769b596c0aeaf975b4c0c17064b5d the first version of the hosted example's synthetic inputs at e1ffee8 placed two synthetic identities under a subdomain of the reserved example domain; synthetic, no real address; corrected at 55c59b6 without a rewrite
 blob a7b1157bd0cea6a47e99ca4c2cf9a3e0391bdf7c the regression witness of tools/checks/vulnerabilities.sh at aee58a7 named the module-cache directory of a Go toolchain, whose at-sign reads as an address; it is no address, the literal is split in the next revision, and the commit stays rather than being rewritten
 commit d9f97dd93f7fc9965c6a96e1d068b3a080d8a71b historical squash-merge author identity before single-commit PR ratchet
-committer noreply github.com GitHub web-flow squash committer identity
+commit b7bbeced04bb378cb40ee0f02486ff62fe377838 historical squash-merge author identity before rebase-only merge enforcement
+committer noreply github.com GitHub web-flow rebase/squash committer identity

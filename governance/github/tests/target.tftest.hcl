@@ -24,6 +24,10 @@ run "one_public_template_repository" {
     condition     = length(output.resources) == 2
     error_message = "the graph holds exactly the repository and its ruleset"
   }
+  assert {
+    condition     = github_repository.template.allow_rebase_merge && !github_repository.template.allow_squash_merge && !github_repository.template.allow_merge_commit
+    error_message = "rebase is the only allowed merge method so neutral commit author identity is preserved"
+  }
 }
 
 run "activation_is_the_only_change" {

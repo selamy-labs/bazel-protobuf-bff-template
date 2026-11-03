@@ -32,7 +32,11 @@ go_library(
 go_test(
     name = "e2e_receiver_test",
     size = "medium",
-    srcs = ["e2e_receiver_test.go"],
+    srcs = [
+        "e2e_receiver_test.go",
+        "interceptor_test.go",
+        "slog_bridge_test.go",
+    ],
     embed = [":telemetry"],
     deps = [
         "//api:notes_connect_go",

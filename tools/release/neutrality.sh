@@ -147,10 +147,17 @@ fi
 
 if [[ -n "$ratchet_base" ]]; then
   head_sha="$(git -C "$repo" rev-parse --verify --quiet "HEAD^{commit}")" || die "cannot resolve HEAD revision"
+  if [[ -f "$repo_top/governance/github/main.tf" ]]; then
+    if ! (grep -qE '^\s*allow_rebase_merge\s*=\s*true\s*$' "$repo_top/governance/github/main.tf" && \
+          grep -qE '^\s*allow_squash_merge\s*=\s*false\s*$' "$repo_top/governance/github/main.tf" && \
+          grep -qE '^\s*allow_merge_commit\s*=\s*false\s*$' "$repo_top/governance/github/main.tf"); then
+      hit "governance/github/main.tf must enforce rebase-only merge so PR neutral author is preserved" "commit $head_sha"
+    fi
+  fi
   if [[ "$ratchet_base" != "$head_sha" ]]; then
     ahead_count="$(git -C "$repo" rev-list --count "$ratchet_base..$head_sha")" || die "cannot count commits from $ratchet_base"
     if [[ "$ahead_count" -gt 1 ]]; then
-      hit "$ahead_count commits ahead of base; squash to a single neutral-author commit before merge" "commit $head_sha"
+      hit "$ahead_count commits ahead of base; squash to a single neutral-author commit before rebase merge" "commit $head_sha"
     fi
   fi
 fi
