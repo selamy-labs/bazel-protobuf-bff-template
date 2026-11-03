@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -12,6 +13,8 @@ import (
 	"example.com/bfftemplate/bff/server"
 	"example.com/bfftemplate/bff/telemetry"
 )
+
+var gcpProjectID = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
 
 // resolveTelemetry is the single default site. Environment overrides composition;
 // endpoint and revision have no default. The returned map records every source.
@@ -27,6 +30,19 @@ func resolveTelemetry(getenv func(string) string) (telemetry.Config, map[string]
 		return value
 	}
 	c := telemetry.Config{Version: 1, ServiceName: "bff-server", Endpoint: read("BFF_OTEL_ENDPOINT", ""), ServiceVersion: read("BFF_RELEASE_REVISION", ""), Environment: read("BFF_OTEL_ENVIRONMENT", "prod")}
+
+	rawProjectID := getenv("GOOGLE_CLOUD_PROJECT")
+	if rawProjectID != "" {
+		projectID := strings.TrimSpace(rawProjectID)
+		if gcpProjectID.MatchString(projectID) {
+			c.ProjectID = projectID
+			sources["GOOGLE_CLOUD_PROJECT"] = "environment"
+		} else {
+			sources["GOOGLE_CLOUD_PROJECT"] = "environment (ignored: invalid)"
+		}
+	} else {
+		sources["GOOGLE_CLOUD_PROJECT"] = "composition"
+	}
 
 	ratio, err := strconv.ParseFloat(read("BFF_OTEL_SAMPLE_RATIO", "1"), 64)
 	if err != nil {

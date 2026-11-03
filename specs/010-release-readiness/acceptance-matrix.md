@@ -11,7 +11,7 @@ External draft, revision 3, unchanged in direction. Spec 010. At landing `/speck
 | FR-005 | `neutrality.sh` fixtures | clean scratch repository passes | a planted identifier in a file, a deleted file and a message → fails | G | off |
 | FR-006 | Marker fixtures | clean export reports scope and literal absence | a marker in a file name, directory, blob, message, ref or identity → found, and its text appears in no output or locator | G | off |
 | FR-006a | Review | scope stated; run-local labels | a hash presented as confidential → review rejects | S | hum |
-| FR-006b | `neutrality.sh` fixtures | single squashed commit under PR event | multi-commit PR branch (ahead_count > 1) → fails merge ratchet | G | off |
+| FR-006b | `neutrality.sh` & governance fixtures | single commit under PR event; rebase-only merge enforcement | multi-commit PR branch (ahead_count > 1) or non-rebase merge method in governance/github/main.tf → fails merge ratchet | G | off |
 | FR-007 | Marker fixtures, CI config | generic passes alone in public CI | no file or an empty one → private `not-run`, never `passed`, and public CI is not failed by it; release review with `not-run` → not ready | G | off |
 | FR-008 | Packet | identity and proposed ref listed; work not blocked | a rewrite with no finding or refusal → review rejects | S | hum |
 | FR-009 | Offline `tofu` after the fetch phase | format, validate, mock tests pass, with network and credentials off | a second target, an `import` block, an owner or name other than the configured one, or a changed resource graph → test fails; any apply path → review rejects | G/S | off, hum |

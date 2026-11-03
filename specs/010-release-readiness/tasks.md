@@ -80,7 +80,7 @@ The final scan comes after everything it must cover: the inventory (T004 to T006
 
 - T009: the generic scan is bound at `full`. The private scan is run at a freeze with the operator's marker file, never by CI, so `not-run` is its CI status by construction.
 - T011: the governance test is a required Bazel test rather than an opt-in registry stage, because the sandbox gives it no network and the pinned zips give it no fetch, which is stronger than an opt-in stage.
-- T076: Pull-request branches must be a single squashed commit (`ahead_count <= 1` when `GITHUB_EVENT_NAME=pull_request`) with neutral author/committer identity; this enforcement is intended so GitHub squash-merges preserve the commit's neutral author rather than falling back to the merger's personal email (pending live witness BFF-RM2-03).
+- T076: Pull-request branches must be a single squashed commit (`ahead_count <= 1` when `GITHUB_EVENT_NAME=pull_request`) with neutral author/committer identity. Live witness `b7bbeced04bb378cb40ee0f02486ff62fe377838` falsified `BFF-RM2-03` (GitHub squash-merge by a user sets the merging user's email as `Author` even on a single-commit PR), so `FR-006b` pairs the single-commit PR ratchet (`ahead_count <= 1`) with rebase-only merge enforcement (`allow_rebase_merge = true`, `allow_squash_merge = false`, `allow_merge_commit = false`) in `governance/github/main.tf`.
 
 ## Dependencies
 

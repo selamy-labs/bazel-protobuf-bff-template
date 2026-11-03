@@ -31,13 +31,17 @@ import (
 type Config struct {
 	Version                                                    int
 	Endpoint, ServiceName, ServiceVersion, Environment         string
+	ProjectID                                                  string
 	SampleRatio                                                *float64
 	QueueSize, BatchSize                                       int
 	BatchDelay, ExportTimeout, MetricInterval, ShutdownTimeout time.Duration
 	Buckets                                                    []float64
 }
 
-var revision = regexp.MustCompile(`^[0-9a-f]{40}$`)
+var (
+	revision     = regexp.MustCompile(`^[0-9a-f]{40}$`)
+	gcpProjectID = regexp.MustCompile(`^[a-z][a-z0-9-]{4,28}[a-z0-9]$`)
+)
 
 func (c Config) Check() error {
 	for _, check := range []func() error{c.checkIdentity, func() error { return checkEndpoint(c.Endpoint) }, c.checkSampling, c.checkQueue, func() error { return checkDurations(c) }, func() error { return checkBuckets(c.Buckets) }} {
@@ -59,6 +63,9 @@ func (c Config) checkIdentity() error {
 	}
 	if c.Environment != "dev" && c.Environment != "staging" && c.Environment != "prod" {
 		return errors.New("telemetry.environment: dev, staging or prod required")
+	}
+	if c.ProjectID != "" && !gcpProjectID.MatchString(c.ProjectID) {
+		return errors.New("telemetry.project_id: valid GCP project ID required")
 	}
 	return nil
 }

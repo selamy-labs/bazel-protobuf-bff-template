@@ -32,4 +32,9 @@ FR-018 G09 candidate witnesses: T019a configuration refusal/precedence in
 shutdown in `bff/telemetry/e2e_receiver_test.go`; T019e actual local Collector in
 `tools/otel/smoke.mjs`. A missing receiver, sensitive exported field, trusted remote
 parent, blocked RPC under queue pressure, or absent shutdown export is a failure.
-T019f remains open until the landed commit's full/Bazel receipt exists.
+T019f remains open until the landed commit's full/Bazel receipt exists. T019g
+witnesses Cloud Logging trace correlation with and without ProjectID, spanId,
+trace_sampled, X-Cloud-Trace-Context fallback with traceparent precedence and
+malformed rejection (attaching a remote span link while starting a fresh local root
+trace), and rpc.status_code safe attribute in `bff/telemetry/slog_bridge_test.go`
+and `bff/telemetry/e2e_receiver_test.go`.

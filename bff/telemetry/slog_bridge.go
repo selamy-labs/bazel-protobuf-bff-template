@@ -2,9 +2,11 @@ package telemetry
 
 import (
 	"context"
-	"go.opentelemetry.io/otel/trace"
 	"log/slog"
 	"regexp"
+	"strings"
+
+	"go.opentelemetry.io/otel/trace"
 )
 
 // LogHandler is a deliberately restrictive wrapper over the composition's sink.
@@ -48,9 +50,26 @@ func (h *logHandler) Handle(ctx context.Context, r slog.Record) error {
 	r.Attrs(add)
 	sc := trace.SpanContextFromContext(ctx)
 	if sc.IsValid() {
-		out.AddAttrs(slog.String("trace_id", sc.TraceID().String()), slog.String("span_id", sc.SpanID().String()))
+		projectID := ""
+		if h.runtime != nil {
+			projectID = h.runtime.cfg.ProjectID
+		}
+		out.AddAttrs(
+			slog.String("trace_id", sc.TraceID().String()),
+			slog.String("span_id", sc.SpanID().String()),
+			slog.String("logging.googleapis.com/trace", cloudTraceResource(projectID, sc)),
+			slog.String("logging.googleapis.com/spanId", sc.SpanID().String()),
+			slog.Bool("logging.googleapis.com/trace_sampled", sc.IsSampled()),
+		)
 	}
 	return h.next.Handle(ctx, out)
+}
+
+func cloudTraceResource(projectID string, sc trace.SpanContext) string {
+	if projectID != "" {
+		return "projects/" + projectID + "/traces/" + sc.TraceID().String()
+	}
+	return sc.TraceID().String()
 }
 
 var correlationID = regexp.MustCompile(`^[0-9a-f]{16}$`)
@@ -66,7 +85,20 @@ func safeLogAttr(a slog.Attr) bool {
 		return correlationID.MatchString(a.Value.String())
 	case "error.type":
 		return validOutcome(a.Value.String())
+	case "rpc.status_code":
+		return validStatusCode(a.Value.String())
 	default:
 		return false
 	}
+}
+
+func validStatusCode(s string) bool {
+	if s == "OK" {
+		return true
+	}
+	upper := strings.ToUpper(s)
+	if upper == "OK" {
+		return false
+	}
+	return validOutcome(upper)
 }

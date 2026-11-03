@@ -77,7 +77,7 @@ func internal(ctx context.Context, logger *slog.Logger, spec connect.Spec, cause
 	var raw [8]byte
 	_, _ = rand.Read(raw[:]) // crypto/rand.Read never returns an error.
 	id := hex.EncodeToString(raw[:])
-	logger.ErrorContext(ctx, "internal error", "correlation_id", id, "procedure", spec.Procedure, "error", cause.Error())
+	logger.ErrorContext(ctx, "internal error", "correlation_id", id, "procedure", spec.Procedure, "rpc.status_code", "INTERNAL", "error", cause.Error())
 	return connect.NewError(connect.CodeInternal, "internal error, correlation id "+id)
 }
 
