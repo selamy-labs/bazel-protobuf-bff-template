@@ -4,6 +4,7 @@
 #
 #   neutrality_test.sh <neutrality.sh>
 set -euo pipefail
+unset GITHUB_EVENT_NAME GITHUB_EVENT_PATH GITHUB_ACTOR GITHUB_RUN_ID
 case "$1" in /*) S="$1" ;; *) S="$PWD/$1" ;; esac; T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 export GIT_AUTHOR_NAME=a GIT_AUTHOR_EMAIL=a@example.com GIT_COMMITTER_NAME=a GIT_COMMITTER_EMAIL=a@example.com
 printf 'example.com\n' >"$T/allow"
@@ -86,8 +87,13 @@ expect "the same pattern in a new blob is a new finding" 1 "$S" "$T/decided" --a
 # Dynamic address helper to ensure test source contains no unallowed email literals
 at="@"
 gh_noreply="noreply${at}github.com"
+bot_noreply="346154065+selamy-labs-bot${at}users.noreply.github.com"
+human_noreply="12345+pselamy${at}users.noreply.github.com"
+human_selamy="pselamy${at}selamy.dev"
 foreign_bad="unallowed${at}foreign.example"
 other_gh="other${at}github.com"
+personal_gmail="pselamy${at}gmail.com"
+claude_author="claude-cir${at}selamy.dev"
 
 # 1) A decided commit object: printed with allowlist line and hash, not a failure; a new commit with unallowed domain still fails
 mk "$T/commit-decided"; (cd "$T/commit-decided" && GIT_AUTHOR_EMAIL="$foreign_bad" git commit -q --allow-empty -m "historical commit")
@@ -219,11 +225,295 @@ base_rebase="$(git -C "$T/governance-rebase" rev-parse HEAD)"
 (cd "$T/governance-rebase" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "feature commit")
 expect "PR branch passes merge ratchet when governance enforces rebase-only merge" 0 "$S" "$T/governance-rebase" --allow "$T/allow-committer" --base "$base_rebase" --event pull_request
 
+# 6e) Simulating a rebase-by-personal-user commit fails neutrality
+{ cat "$T/allow-committer"; printf 'selamy.dev\ncommitter 346154065+selamy-labs-bot users.noreply.github.com GitHub bot rebase-merge committer identity\n'; } >"$T/allow-bot"
+GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" mk "$T/rebase-by-personal"
+base_rebase_personal="$(git -C "$T/rebase-by-personal" rev-parse HEAD)"
+(cd "$T/rebase-by-personal" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="Patrick Selamy" GIT_COMMITTER_EMAIL="$personal_gmail" git commit -q --allow-empty -m "rebase by personal user")
+expect "simulating a rebase-by-personal-user commit fails neutrality" 1 "$S" "$T/rebase-by-personal" --allow "$T/allow-bot" --base "$base_rebase_personal" --event pull_request
+grep -q 'email domains outside the allowlist at commit' "$T/out" || { echo "FAIL expected personal committer domain failure"; failures=$((failures + 1)); }
+
+# 6f) PR event payload validation: reject non-bot PR user login and allow approved bot identities
+printf '{"pull_request": {"user": {"login": "pselamy"}}}\n' >"$T/pr-event-bad.json"
+printf '{"pull_request": {"user": {"login": "selamy-labs-bot"}}}\n' >"$T/pr-event-bot.json"
+printf '{"pull_request": {"user": {"login": "claude-cir"}}}\n' >"$T/pr-event-claude.json"
+printf '{"pull_request": {"user": {"login": "dependabot[bot]"}}}\n' >"$T/pr-event-dependabot.json"
+printf '{"pull_request": {"user": {"login": "evil-app[bot]"}}}\n' >"$T/pr-event-evil-bot.json"
+printf '{"merge_group": {"actor": {"login": "pselamy"}}}\n' >"$T/mg-event-human.json"
+printf '{"merge_group": {"actor": {"login": "selamy-labs-bot"}}}\n' >"$T/mg-event-bot.json"
+printf '{bad\n' >"$T/pr-event-malformed.json"
+printf '{"pull_request": {"user": {}}}\n' >"$T/pr-event-missing-user.json"
+
+mk "$T/pr-user-bad"
+base_pr_bad="$(git -C "$T/pr-user-bad" rev-parse HEAD)"
+(cd "$T/pr-user-bad" && GIT_AUTHOR_EMAIL="a@example.com" GIT_COMMITTER_EMAIL="$gh_noreply" git commit -q --allow-empty -m "feature commit")
+expect "PR event payload with personal user login fails neutrality via --event-path" 1 "$S" "$T/pr-user-bad" --allow "$T/allow-committer" --base "$base_pr_bad" --event pull_request --event-path "$T/pr-event-bad.json"
+grep -q 'pull_request user '\''pselamy'\'' is not permitted' "$T/out" || { echo "FAIL expected PR user login rejection message"; failures=$((failures + 1)); }
+
+expect "PR event payload with personal user login fails neutrality via GITHUB_EVENT_PATH" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-bad.json" "$S" "$T/pr-user-bad" --allow "$T/allow-committer" --base "$base_pr_bad"
+grep -q 'pull_request user '\''pselamy'\'' is not permitted' "$T/out" || { echo "FAIL expected PR user login rejection message via env"; failures=$((failures + 1)); }
+
+# 6g) Simulating rebase-by-bot commit with approved bot PR event payloads passes neutrality
+GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" mk "$T/rebase-by-bot"
+base_rebase_bot="$(git -C "$T/rebase-by-bot" rev-parse HEAD)"
+(cd "$T/rebase-by-bot" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="$bot_noreply" git commit -q --allow-empty -m "rebase by bot")
+expect "rebase-by-bot commit with selamy-labs-bot payload passes neutrality via --event-path" 0 "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot" --event pull_request --event-path "$T/pr-event-bot.json"
+expect "rebase-by-bot commit with selamy-labs-bot payload passes neutrality via env" 0 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-bot.json" GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "rebase-by-bot commit with claude-cir payload passes neutrality via env" 0 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-claude.json" GITHUB_ACTOR=claude-cir "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "rebase-by-bot commit with dependabot[bot] payload passes neutrality via env" 0 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-dependabot.json" GITHUB_ACTOR="dependabot[bot]" "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+
+# 6h) Negative controls for actor ratchet and payload fail-closed semantics
+expect "GITHUB_ACTOR with personal user fails neutrality via env" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-bot.json" GITHUB_ACTOR=pselamy "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "GITHUB_ACTOR=pselamy without GITHUB_EVENT_PATH fails neutrality" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_ACTOR=pselamy "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "unreadable GITHUB_EVENT_PATH fails neutrality" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH=/nonexistent/path GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "malformed JSON in GITHUB_EVENT_PATH fails neutrality" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-malformed.json" GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "missing pull_request user login in payload fails neutrality" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-missing-user.json" GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "missing GITHUB_ACTOR in CI (GITHUB_RUN_ID set) fails neutrality" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_RUN_ID=12345 GITHUB_EVENT_PATH="$T/pr-event-bot.json" "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "missing GITHUB_EVENT_PATH in CI (GITHUB_RUN_ID set) fails neutrality" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_RUN_ID=12345 GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "GITHUB_ACTOR with unapproved bot evil-app[bot] fails neutrality" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_ACTOR="evil-app[bot]" "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "PR event payload with evil-app[bot] fails neutrality" 1 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-evil-bot.json" GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "merge_group with human actor pselamy fails neutrality" 1 env GITHUB_EVENT_NAME=merge_group GITHUB_ACTOR=pselamy "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "merge_group event payload with human actor pselamy fails neutrality" 1 env GITHUB_EVENT_NAME=merge_group GITHUB_EVENT_PATH="$T/mg-event-human.json" GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+expect "merge_group with approved bot actor passes neutrality" 0 env GITHUB_EVENT_NAME=merge_group GITHUB_EVENT_PATH="$T/mg-event-bot.json" GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
+
+# 6i) Scratch-clone committer and author verification suite with isolated scratch repositories
+repo_allow="tools/release/neutrality.allow"
+[[ -f "$repo_allow" ]] || repo_allow="${0%/*}/neutrality.allow"
+[[ -f "$repo_allow" ]] || repo_allow="${S%/*}/neutrality.allow"
+if [[ ! -f "$repo_allow" && -n "${RUNFILES_DIR:-}" ]]; then
+  repo_allow="${RUNFILES_DIR}/_main/tools/release/neutrality.allow"
+fi
+if [[ ! -f "$repo_allow" && -n "${TEST_SRCDIR:-}" ]]; then
+  repo_allow="${TEST_SRCDIR}/_main/tools/release/neutrality.allow"
+fi
+
+[[ -f "$repo_allow" ]] || { echo "neutrality_test: cannot locate canonical neutrality.allow" >&2; exit 1; }
+allow_canonical="$repo_allow"
+
+scratch_template="$T/scratch-template"
+if [[ -d .git || -f .git ]]; then
+  git clone --shared -q . "$scratch_template"
+else
+  GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" mk "$scratch_template"
+fi
+
+run_isolated_scratch_case() {
+  local case_id="$1"
+  local author_email="$2"
+  local committer_name="$3"
+  local committer_email="$4"
+  local want_rc="$5"
+  local test_name="$6"
+  local expected_diag="${7:-}"
+
+  local case_dir="$T/scratch-$case_id"
+  rm -rf "$case_dir"
+  git clone --shared -q "$scratch_template" "$case_dir"
+  local base_c
+  base_c="$(git -C "$case_dir" rev-parse HEAD)"
+  git -C "$case_dir" checkout -q -b "$case_id" "$base_c"
+  GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$author_email" \
+  GIT_COMMITTER_NAME="$committer_name" GIT_COMMITTER_EMAIL="$committer_email" \
+    git -C "$case_dir" commit -q --allow-empty -m "case $case_id"
+  local case_sha
+  case_sha="$(git -C "$case_dir" rev-parse HEAD)"
+
+  local out="$T/out-$case_id"
+  local rc=0
+  "$S" "$case_dir" --allow "$allow_canonical" --base "$base_c" >"$out" 2>&1 || rc=$?
+  if [[ "$rc" -ne "$want_rc" ]]; then
+    echo "FAIL $test_name: exit $rc (expected $want_rc)"
+    cat "$out"
+    failures=$((failures + 1))
+  elif [[ "$want_rc" -eq 0 ]] && grep -qE "undecided hits|failed with [0-9]+ hit" "$out"; then
+    echo "FAIL $test_name: unexpected failure hits in clean pass output"
+    cat "$out"
+    failures=$((failures + 1))
+  elif [[ -n "$expected_diag" ]]; then
+    if ! grep -F "$expected_diag" "$out" | grep -v "decided at" | grep -Fq "at commit $case_sha"; then
+      echo "FAIL $test_name: diagnostic missing '$expected_diag at commit $case_sha' (or matched decided finding)"
+      cat "$out"
+      failures=$((failures + 1))
+    else
+      echo "ok   $test_name"
+    fi
+  else
+    echo "ok   $test_name"
+  fi
+  rm -rf "$case_dir"
+}
+
+# 1) Author claude-cir, Committer selamy-labs-bot noreply -> PASS (exit 0)
+run_isolated_scratch_case "case1" "$claude_author" "selamy-labs-bot" "$bot_noreply" 0 \
+  "scratch-clone case 1: claude-cir author and selamy-labs-bot committer passes"
+
+# 2) Author claude-cir, Committer GitHub noreply -> PASS (exit 0)
+run_isolated_scratch_case "case2" "$claude_author" "GitHub" "$gh_noreply" 0 \
+  "scratch-clone case 2: claude-cir author and GitHub noreply committer passes"
+
+# 3) Committer Patrick Selamy with human noreply email -> FAIL (exit != 0)
+run_isolated_scratch_case "case3" "$claude_author" "Patrick Selamy" "$human_noreply" 1 \
+  "scratch-clone case 3: human user noreply committer fails" \
+  "email domains outside the allowlist"
+
+# 4) Committer Patrick Selamy with human selamy.dev email -> FAIL (exit != 0)
+run_isolated_scratch_case "case4" "$claude_author" "Patrick Selamy" "$human_selamy" 1 \
+  "scratch-clone case 4: human user selamy.dev committer fails" \
+  "unapproved selamy.dev committer identity in commit"
+
+# 5) Committer Patrick Selamy with human gmail email -> FAIL (exit != 0)
+run_isolated_scratch_case "case5" "$claude_author" "Patrick Selamy" "$personal_gmail" 1 \
+  "scratch-clone case 5: human user gmail committer fails" \
+  "email domains outside the allowlist"
+
+# 6) Bot author selamy-labs-bot noreply -> FAIL (exit != 0)
+run_isolated_scratch_case "case6" "$bot_noreply" "selamy-labs-bot" "$bot_noreply" 1 \
+  "scratch-clone case 6: bot author fails" \
+  "email domains outside the allowlist"
+
+# 7) Human user selamy.dev author -> FAIL (exit != 0)
+run_isolated_scratch_case "case7" "$human_selamy" "claude-cir" "$claude_author" 1 \
+  "scratch-clone case 7: human user selamy.dev author fails" \
+  "unapproved selamy.dev author identity in commit"
+
+# 8) Author claude-cir, Committer claude-cir -> PASS (exit 0)
+run_isolated_scratch_case "case8" "$claude_author" "claude-cir" "$claude_author" 0 \
+  "scratch-clone case 8: claude-cir author and claude-cir committer passes"
+
+# 9) Author on anthropic.com -> FAIL (exit != 0)
+run_isolated_scratch_case "case9" "someone${at}anthropic.com" "claude-cir" "$claude_author" 1 \
+  "scratch-clone case 9: anthropic.com author fails" \
+  "unapproved anthropic.com author identity in commit"
+
+# 10) Committer on anthropic.com -> FAIL (exit != 0)
+run_isolated_scratch_case "case10" "$claude_author" "someone" "someone${at}anthropic.com" 1 \
+  "scratch-clone case 10: anthropic.com committer fails" \
+  "unapproved anthropic.com committer identity in commit"
+
+# 11) Author on reserved example.com -> FAIL (exit != 0)
+run_isolated_scratch_case "case11" "evil${at}example.com" "claude-cir" "$claude_author" 1 \
+  "scratch-clone case 11: reserved domain example.com author fails" \
+  "unapproved reserved domain author identity in commit"
+
+# 12) Committer on reserved example.invalid -> FAIL (exit != 0)
+run_isolated_scratch_case "case12" "$claude_author" "evil" "evil${at}example.invalid" 1 \
+  "scratch-clone case 12: reserved domain example.invalid committer fails" \
+  "unapproved reserved domain committer identity in commit"
+
+# 6j) Author/committer identity policy drift test
+main_tf="governance/github/main.tf"
+[[ -f "$main_tf" ]] || main_tf="${0%/*}/../../governance/github/main.tf"
+[[ -f "$main_tf" ]] || main_tf="${S%/*}/../../governance/github/main.tf"
+if [[ ! -f "$main_tf" && -n "${RUNFILES_DIR:-}" ]]; then
+  main_tf="${RUNFILES_DIR}/_main/governance/github/main.tf"
+fi
+if [[ ! -f "$main_tf" && -n "${TEST_SRCDIR:-}" ]]; then
+  main_tf="${TEST_SRCDIR}/_main/governance/github/main.tf"
+fi
+
+[[ -f "$main_tf" ]] || { echo "FAIL drift: cannot locate governance/github/main.tf" >&2; exit 1; }
+[[ -f "$allow_canonical" ]] || { echo "FAIL drift: cannot locate canonical allowlist" >&2; exit 1; }
+
+c_pattern_hcl="$(sed -nE '/committer_email_pattern[[:space:]]*\{/,/\}/s/.*pattern[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$main_tf" | head -1)"
+a_pattern_hcl="$(sed -nE '/commit_author_email_pattern[[:space:]]*\{/,/\}/s/.*pattern[[:space:]]*=[[:space:]]*"([^"]+)".*/\1/p' "$main_tf" | head -1)"
+c_regex="${c_pattern_hcl//\\\\/\\}"
+a_regex="${a_pattern_hcl//\\\\/\\}"
+
+candidates=(
+  "${claude_author} 1 1"
+  "${bot_noreply} 0 1"
+  "${gh_noreply} 0 1"
+  "${human_selamy} 0 0"
+  "${human_noreply} 0 0"
+  "${personal_gmail} 0 0"
+  "noreply${at}anthropic.com 0 0"
+  "evil${at}example.com 0 0"
+  "evil${at}example.invalid 0 0"
+)
+
+drift_failed=0
+cand_idx=0
+
+for row in "${candidates[@]}"; do
+  cand_idx=$((cand_idx + 1))
+  read -r cand exp_a exp_c <<<"$row"
+
+  ruleset_c=0
+  if grep -qE "$c_regex" <<<"$cand"; then ruleset_c=1; fi
+  if [[ "$ruleset_c" -ne "$exp_c" ]]; then
+    echo "FAIL drift: ruleset committer pattern for $cand is $ruleset_c (expected $exp_c)"
+    drift_failed=1
+  fi
+
+  ruleset_a=0
+  if grep -qE "$a_regex" <<<"$cand"; then ruleset_a=1; fi
+  if [[ "$ruleset_a" -ne "$exp_a" ]]; then
+    echo "FAIL drift: ruleset author pattern for $cand is $ruleset_a (expected $exp_a)"
+    drift_failed=1
+  fi
+
+  allow_c=0
+  if [[ "$cand" == "$claude_author" ]] || awk -v ce="$cand" '$1 == "committer" && tolower($2 "@" $3) == ce {found=1; exit} END {exit !found}' "$allow_canonical"; then
+    allow_c=1
+  fi
+  if [[ "$allow_c" -ne "$exp_c" ]]; then
+    echo "FAIL drift: allowlist committer acceptance for $cand is $allow_c (expected $exp_c)"
+    drift_failed=1
+  fi
+
+  # Committer acceptance evaluated in isolated clone
+  drift_case_c="$T/drift-c-$cand_idx"
+  git clone --shared -q "$scratch_template" "$drift_case_c"
+  drift_base_c="$(git -C "$drift_case_c" rev-parse HEAD)"
+  git -C "$drift_case_c" checkout -q -b "drift-c" "$drift_base_c"
+  GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" \
+  GIT_COMMITTER_NAME="Committer" GIT_COMMITTER_EMAIL="$cand" \
+    git -C "$drift_case_c" commit -q --allow-empty -m "drift test committer"
+  neut_c=0
+  if "$S" "$drift_case_c" --allow "$allow_canonical" --base "$drift_base_c" >/dev/null 2>&1; then
+    neut_c=1
+  fi
+  rm -rf "$drift_case_c"
+  if [[ "$neut_c" -ne "$exp_c" ]]; then
+    echo "FAIL drift: neutrality.sh committer execution acceptance for $cand is $neut_c (expected $exp_c)"
+    drift_failed=1
+  fi
+
+  # Author acceptance evaluated in isolated clone
+  drift_case_a="$T/drift-a-$cand_idx"
+  git clone --shared -q "$scratch_template" "$drift_case_a"
+  drift_base_a="$(git -C "$drift_case_a" rev-parse HEAD)"
+  git -C "$drift_case_a" checkout -q -b "drift-a" "$drift_base_a"
+  GIT_AUTHOR_NAME="Author" GIT_AUTHOR_EMAIL="$cand" \
+  GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" \
+    git -C "$drift_case_a" commit -q --allow-empty -m "drift test author"
+  neut_a=0
+  if "$S" "$drift_case_a" --allow "$allow_canonical" --base "$drift_base_a" >/dev/null 2>&1; then
+    neut_a=1
+  fi
+  rm -rf "$drift_case_a"
+  if [[ "$neut_a" -ne "$exp_a" ]]; then
+    echo "FAIL drift: neutrality.sh author execution acceptance for $cand is $neut_a (expected $exp_a)"
+    drift_failed=1
+  fi
+done
+
+if [[ "$drift_failed" -eq 0 ]]; then
+  echo "ok   author and committer identity policy drift test passes across ruleset, neutrality.allow, and neutrality.sh"
+else
+  failures=$((failures + 1))
+fi
+
+rm -rf "$scratch_template"
+
 # 7) Ref and flag validation fails with exit 2
 expect "empty --base value fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base ""
 expect "empty --base= fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base=
 expect "empty --event value fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --event ""
 expect "empty --event= fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --event=
+expect "empty --event-path value fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --event-path ""
+expect "empty --event-path= fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --event-path=
+expect "unreadable --event-path fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --event-path "$T/nonexistent-event-file"
 expect "unresolvable --base fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" --base "no-such-ref-exists"
 expect "unresolvable --base= fails with exit 2" 2 "$S" "$T/ratchet-single" --allow "$T/allow-committer" "--base=no-such-ref-exists"
 
