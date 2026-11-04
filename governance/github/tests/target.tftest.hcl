@@ -37,7 +37,7 @@ run "one_public_template_repository" {
     error_message = "ruleset requires linear history"
   }
   assert {
-    condition     = github_repository_ruleset.main.rules[0].committer_email_pattern[0].operator == "regex" && github_repository_ruleset.main.rules[0].committer_email_pattern[0].negate == false && github_repository_ruleset.main.rules[0].committer_email_pattern[0].pattern == "^(noreply@github\\.com|346154065\\+selamy-labs-bot@users\\.noreply\\.github\\.com|claude-cir@selamy\\.dev)$"
+    condition     = github_repository_ruleset.main.rules[0].committer_email_pattern[0].operator == "regex" && github_repository_ruleset.main.rules[0].committer_email_pattern[0].negate == false && github_repository_ruleset.main.rules[0].committer_email_pattern[0].pattern == "^(noreply@github\\.com|github-bot@selamy\\.dev|claude-cir@selamy\\.dev)$"
     error_message = "ruleset committer_email_pattern must match exact approved bot committer identities"
   }
   assert {

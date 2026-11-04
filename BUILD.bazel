@@ -263,6 +263,7 @@ sh_test(
         "quality/registry.textproto",
         "tools/release/neutrality.allow",
         "tools/release/neutrality.sh",
+        "tools/release/verify_rebase_merge.sh",
         "@bff_template_quality//:registry.textproto",
     ],
 )
@@ -285,6 +286,8 @@ sh_test(
         "tools/release/governance.sh",
         "tools/release/merge_pr.sh",
         "tools/release/neutrality.allow",
+        "tools/release/neutrality.sh",
+        "tools/release/verify_rebase_merge.sh",
         "@opentofu//:tofu",
         "@terraform_provider_github//file",
     ] + glob(["governance/github/**"]),

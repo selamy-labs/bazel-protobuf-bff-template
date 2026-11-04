@@ -17,4 +17,4 @@ commit d9f97dd93f7fc9965c6a96e1d068b3a080d8a71b historical squash-merge author i
 commit b7bbeced04bb378cb40ee0f02486ff62fe377838 historical squash-merge author identity before rebase-only merge enforcement
 commit 0dfc9b634c9bb5a1ca343f6f26ad8bbbae01cd8b historical rebase-merge committer identity before bot-actor PR gate
 committer noreply github.com GitHub web-flow rebase/squash committer identity
-committer 346154065+selamy-labs-bot users.noreply.github.com GitHub bot rebase-merge committer identity
+committer github-bot selamy.dev GitHub bot rebase-merge committer identity observed at b2cd2b1f under selamy-labs-bot merger

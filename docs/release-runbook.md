@@ -23,4 +23,10 @@ that each gate was recorded is the packet's to say, not this page's, and no step
 - It does not decide the identity: the packet lists it as pending until an operator approves it.
 - It does not close the proposal-controlled workflow gap (spec 007 R5): a required check configured by the owner
   is what prevents a proposal from removing the job that judges it. The ruleset declares that; applying it is step 7.
+- It does not claim live GitHub ruleset enforcement for commit author/committer email patterns: those patterns
+  are declared desired state in `governance/github/main.tf` pending operator apply; live ruleset 26410174 does
+  not currently enforce commit metadata rules. Active enforcement is performed by `tools/release/neutrality.sh` in CI.
+- It does not replace main push CI: the PR-time simulated rebase-merge check verifies the candidate against
+  the observed bot merger identity from git history, while the authoritative backstop remains the post-merge
+  push-mode CI on `main`.
 - It does not make hosted execution evidence: steps 4 and 6 are claims only once their receipts exist.

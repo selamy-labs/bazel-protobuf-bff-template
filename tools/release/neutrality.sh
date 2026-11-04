@@ -22,12 +22,30 @@ is_approved_bot_login() {
 }
 repo="${1:?usage: neutrality.sh <repository> [--allow <file>] [--markers <file> --mapping <file>] [--base <rev>] [--event <name>] [--event-path <file>]}"
 shift
-allow="" markers="" mapping="" base="" event="${GITHUB_EVENT_NAME:-}" event_path="${GITHUB_EVENT_PATH:-}" explicit_event_path=0
+allow="" markers="" mapping="" base="" event="${GITHUB_EVENT_NAME:-}" event_path="${GITHUB_EVENT_PATH:-}" explicit_event_path=0 target_commit="" internal_simulation=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --allow)
       [[ $# -ge 2 && -n "$2" ]] || die "--allow requires a file"
-      allow="$2"; shift 2 ;;
+      allow="$2"
+      [[ -r "$allow" ]] || die "cannot read allowlist: $allow"
+      allow="$(cd "$(dirname "$allow")" 2>/dev/null && pwd)/$(basename "$allow")"
+      shift 2 ;;
+    --allow=*)
+      allow="${1#--allow=}"
+      [[ -n "$allow" ]] || die "--allow requires a file"
+      [[ -r "$allow" ]] || die "cannot read allowlist: $allow"
+      allow="$(cd "$(dirname "$allow")" 2>/dev/null && pwd)/$(basename "$allow")"
+      shift ;;
+    --commit)
+      [[ $# -ge 2 && -n "$2" ]] || die "--commit requires a value"
+      target_commit="$2"; shift 2 ;;
+    --commit=*)
+      target_commit="${1#--commit=}"
+      [[ -n "$target_commit" ]] || die "--commit requires a value"
+      shift ;;
+    --internal-simulation)
+      internal_simulation=1; shift ;;
     --markers)
       [[ $# -ge 2 && -n "$2" ]] || die "--markers requires a file"
       markers="$2"; shift 2 ;;
@@ -63,6 +81,21 @@ if [[ $explicit_event_path -eq 1 && -z "$event" ]]; then
   event="pull_request"
 fi
 
+if [[ -n "$target_commit" ]]; then
+  if [[ -n "$event" ]]; then
+    die "--commit cannot be combined with --event ${event}"
+  fi
+  if [[ -n "${GITHUB_ACTIONS:-}" || -n "${GITHUB_EVENT_NAME:-}" || -n "${GITHUB_RUN_ID:-}" ]]; then
+    die "--commit cannot be used in a GitHub Actions CI environment"
+  fi
+  if [[ $internal_simulation -ne 1 ]]; then
+    die "--commit is permitted only for internal simulation (--internal-simulation required)"
+  fi
+fi
+if [[ $internal_simulation -eq 1 && -z "$target_commit" ]]; then
+  die "--internal-simulation requires --commit"
+fi
+
 if [[ $explicit_event_path -eq 1 && ! -r "$event_path" ]]; then
   die "the event file cannot be read: $event_path"
 fi
@@ -71,41 +104,82 @@ repo_top="$(git -C "$repo" rev-parse --path-format=absolute --show-toplevel 2>/d
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
-# Every term and marker is read into files, never into pipelines whose exit a match could cut short.
-git -C "$repo" rev-list --all --reflog >"$work/commits.list" || die "cannot list commits"
-# Every path association in every reachable tree, raw: ls-tree -z keeps names literal, and nothing is deduplicated
-# before a name is seen. rev-list --objects would show one name for identical content under two names. A ref may
-# also name a tree or a blob directly, or an annotated tag chain that ends in one, so every ref is peeled and a
-# tree or blob it reaches is listed too, under the ref's own name.
-: >"$work/paths.z"
-while read -r commit; do
-  git -C "$repo" ls-tree -r -z --format='%(objectname)%x09%(path)%x00' "$commit" >>"$work/paths.z" || die "cannot list the tree of $commit"
-done <"$work/commits.list"
-while read -r ref; do
-  peeled="$(git -C "$repo" rev-parse --verify --quiet "$ref^{}")" || die "cannot peel $ref"
-  kind="$(git -C "$repo" cat-file -t "$peeled")" || die "cannot type what $ref names"
-  case "$kind" in
-    commit) ;;
-    tree) git -C "$repo" ls-tree -r -z --format="%(objectname)%x09$ref:%(path)%x00" "$peeled" >>"$work/paths.z" || die "cannot list the tree $ref names" ;;
-    blob) printf '%s\t%s\0' "$peeled" "$ref" >>"$work/paths.z" ;;
-    *) die "$ref names a $kind" ;;
-  esac
-done < <(git -C "$repo" for-each-ref --format='%(refname)')
-# And every object reachable at all, so that nothing the listing above could miss is left unread.
-git -C "$repo" rev-list --objects --all --reflog | cut -d' ' -f1 >"$work/objects.all" || die "cannot list objects"
-LC_ALL=C sort -z -u "$work/paths.z" >"$work/paths.zu"
-{ cut -z -f1 "$work/paths.zu" | tr '\0' '\n'; cat "$work/objects.all"; } | sort -u >"$work/blobs.candidates"
-git -C "$repo" cat-file --batch-check='%(objectname) %(objecttype)' <"$work/blobs.candidates" | awk '$2 == "blob" {print $1}' | sort -u >"$work/blobs" || die "cannot type objects"
-cut -z -f2- "$work/paths.zu" | LC_ALL=C sort -z -u >"$work/pathnames.z"
-git -C "$repo" for-each-ref --format='%(refname)%x1f%(contents)' >"$work/refs" || die "cannot read refs"
-commits="$(wc -l <"$work/commits.list")"
-blobs="$(wc -l <"$work/blobs")"
-paths="$(tr -cd '\0' <"$work/pathnames.z" | wc -c)"
-scope="$commits commits, $blobs blobs, $paths distinct paths from every reachable tree, $(wc -l <"$work/refs") refs, all identities"
-mkdir "$work/blob"
-while read -r sha; do git -C "$repo" cat-file -p "$sha" >"$work/blob/$sha" || die "cannot read blob $sha"; done <"$work/blobs"
-tr '\0' '\n' <"$work/pathnames.z" >"$work/pathnames"
-tr '\037' '\n' <"$work/refs" >"$work/refnames"
+if [[ -n "$target_commit" ]]; then
+  target_sha="$(git -C "$repo" rev-parse --verify --quiet "${target_commit}^{commit}")" || die "cannot resolve target commit: $target_commit"
+  printf '%s\n' "$target_sha" >"$work/commits.list"
+
+  diff_base=""
+  if [[ -n "$base" ]]; then
+    diff_base="$(git -C "$repo" rev-parse --verify --quiet "${base}^{commit}" 2>/dev/null || true)"
+  fi
+  if [[ -z "$diff_base" ]]; then
+    diff_base="$(git -C "$repo" rev-parse --verify --quiet "${target_sha}^" 2>/dev/null || true)"
+  fi
+
+  : >"$work/blobs.candidates"
+  : >"$work/pathnames"
+  : >"$work/paths.z"
+  if [[ -n "$diff_base" ]]; then
+    git -C "$repo" diff-tree -r --no-commit-id "$diff_base" "$target_sha" 2>/dev/null | awk '$4 != "0000000000000000000000000000000000000000" {print $4}' >"$work/blobs.candidates"
+    while IFS= read -r -d $'\0' p; do
+      [[ -n "$p" ]] && printf '%s\n' "$p" >>"$work/pathnames"
+      [[ -n "$p" ]] && printf '%s\t%s\0' "$target_sha" "$p" >>"$work/paths.z"
+    done < <(git -C "$repo" diff-tree -r --no-commit-id --name-only -z "$diff_base" "$target_sha" 2>/dev/null || true)
+  else
+    git -C "$repo" ls-tree -r "$target_sha" 2>/dev/null | awk '$2 == "blob" {print $3}' >"$work/blobs.candidates"
+    while IFS= read -r -d $'\0' p; do
+      [[ -n "$p" ]] && printf '%s\n' "$p" >>"$work/pathnames"
+      [[ -n "$p" ]] && printf '%s\t%s\0' "$target_sha" "$p" >>"$work/paths.z"
+    done < <(git -C "$repo" ls-tree -r --name-only -z "$target_sha" 2>/dev/null || true)
+  fi
+  LC_ALL=C sort -z -u "$work/paths.z" >"$work/paths.zu"
+  git -C "$repo" cat-file --batch-check='%(objectname) %(objecttype)' <"$work/blobs.candidates" 2>/dev/null | awk '$2 == "blob" {print $1}' | LC_ALL=C sort -u >"$work/blobs" || die "cannot type objects"
+  LC_ALL=C sort -u -o "$work/pathnames" "$work/pathnames"
+  : >"$work/refnames"
+  : >"$work/refs"
+  commits=1
+  blobs="$(wc -l <"$work/blobs")"
+  paths="$(wc -l <"$work/pathnames")"
+  scope="1 commit, $blobs changed blobs, $paths distinct paths, 0 refs, all identities"
+  mkdir "$work/blob"
+  while read -r sha; do git -C "$repo" cat-file -p "$sha" >"$work/blob/$sha" || die "cannot read blob $sha"; done <"$work/blobs"
+else
+  # Every term and marker is read into files, never into pipelines whose exit a match could cut short.
+  git -C "$repo" rev-list --all --reflog >"$work/commits.list" || die "cannot list commits"
+  # Every path association in every reachable tree, raw: ls-tree -z keeps names literal, and nothing is deduplicated
+  # before a name is seen. rev-list --objects would show one name for identical content under two names. A ref may
+  # also name a tree or a blob directly, or an annotated tag chain that ends in one, so every ref is peeled and a
+  # tree or blob it reaches is listed too, under the ref's own name.
+  : >"$work/paths.z"
+  while read -r commit; do
+    git -C "$repo" ls-tree -r -z --format='%(objectname)%x09%(path)%x00' "$commit" >>"$work/paths.z" || die "cannot list the tree of $commit"
+  done <"$work/commits.list"
+  while read -r ref; do
+    peeled="$(git -C "$repo" rev-parse --verify --quiet "$ref^{}")" || die "cannot peel $ref"
+    kind="$(git -C "$repo" cat-file -t "$peeled")" || die "cannot type what $ref names"
+    case "$kind" in
+      commit) ;;
+      tree) git -C "$repo" ls-tree -r -z --format="%(objectname)%x09$ref:%(path)%x00" "$peeled" >>"$work/paths.z" || die "cannot list the tree $ref names" ;;
+      blob) printf '%s\t%s\0' "$peeled" "$ref" >>"$work/paths.z" ;;
+      *) die "$ref names a $kind" ;;
+    esac
+  done < <(git -C "$repo" for-each-ref --format='%(refname)')
+  # And every object reachable at all, so that nothing the listing above could miss is left unread.
+  git -C "$repo" rev-list --objects --all --reflog | cut -d' ' -f1 >"$work/objects.all" || die "cannot list objects"
+  LC_ALL=C sort -z -u "$work/paths.z" >"$work/paths.zu"
+  { cut -z -f1 "$work/paths.zu" | tr '\0' '\n'; cat "$work/objects.all"; } | sort -u >"$work/blobs.candidates"
+  git -C "$repo" cat-file --batch-check='%(objectname) %(objecttype)' <"$work/blobs.candidates" | awk '$2 == "blob" {print $1}' | sort -u >"$work/blobs" || die "cannot type objects"
+  cut -z -f2- "$work/paths.zu" | LC_ALL=C sort -z -u >"$work/pathnames.z"
+  git -C "$repo" for-each-ref --format='%(refname)%x1f%(contents)' >"$work/refs" || die "cannot read refs"
+  commits="$(wc -l <"$work/commits.list")"
+  blobs="$(wc -l <"$work/blobs")"
+  paths="$(tr -cd '\0' <"$work/pathnames.z" | wc -c)"
+  scope="$commits commits, $blobs blobs, $paths distinct paths from every reachable tree, $(wc -l <"$work/refs") refs, all identities"
+  mkdir "$work/blob"
+  while read -r sha; do git -C "$repo" cat-file -p "$sha" >"$work/blob/$sha" || die "cannot read blob $sha"; done <"$work/blobs"
+  tr '\0' '\n' <"$work/pathnames.z" >"$work/pathnames"
+  tr '\037' '\n' <"$work/refs" >"$work/refnames"
+fi
 
 # Read each commit without in-band record separators.
 mkdir -p "$work/commit" "$work/commit_full"
@@ -233,7 +307,85 @@ if [[ -n "$ratchet_base" ]]; then
     if [[ "$ahead_count" -gt 1 ]]; then
       hit "$ahead_count commits ahead of base; squash to a single neutral-author commit before rebase merge" "commit $head_sha"
     fi
+    if [[ "$ahead_count" -eq 1 ]]; then
+      if [[ -z "$allow" ]]; then
+        hit "allowlist is required for PR rebase-merge simulation" "commit $head_sha"
+      elif [[ ! -r "$allow" ]]; then
+        hit "cannot read allowlist for PR rebase-merge simulation: $allow" "commit $head_sha"
+      elif grep -qx "selamy.dev" "$allow"; then
+      # Derive bot merger identity from OBSERVED git history (most recent bot rebase-merge commit)
+      # rather than checking the allowlist against itself (BFF-RM12-03, ARGON-BFF-R12-002, ARGON-BFF-R13-002).
+      observed_bot="$(git -C "$repo" log -n 100 --format='%cn%x1f%ce' "$ratchet_base" 2>/dev/null | awk -F'\x1f' '($1 == "selamy-labs-bot" || $1 == "selamy-labs-bot[bot]") && !found {found = $1 "\x1f" $2} END {if (found) print found}')"
+      if [[ -z "$observed_bot" ]]; then
+        observed_bot="$(git -C "$repo" log -n 100 --format='%cn%x1f%ce' --all 2>/dev/null | awk -F'\x1f' '($1 == "selamy-labs-bot" || $1 == "selamy-labs-bot[bot]") && !found {found = $1 "\x1f" $2} END {if (found) print found}')"
+      fi
+
+      if [[ -z "$observed_bot" ]]; then
+        hit "no bot rebase-merge commit observed in history (expected selamy-labs-bot as on b2cd2b1f); cannot simulate merge" "commit $head_sha"
+      else
+        bot_merger_name="${observed_bot%%$'\x1f'*}"
+        bot_merger_committer="${observed_bot#*$'\x1f'}"
+        if ! awk -v ce="$bot_merger_committer" '$1 == "committer" && tolower($2 "@" $3) == tolower(ce) {found=1; exit} END {exit !found}' "$allow"; then
+          hit "neutrality.allow must accept observed bot merger committer identity ($bot_merger_committer) before PR rebase-merge" "commit $head_sha"
+        else
+          sim_work="$(mktemp -d)"
+          sim_status=0
+          sim_msg_err=""
+
+          if ! git clone --shared -q "$repo" "$sim_work/scratch" 2>/dev/null; then
+            sim_status=1
+            sim_msg_err="failed to clone scratch repository for rebase-merge simulation"
+          elif ! sim_tree="$(git -C "$repo" rev-parse --verify "${head_sha}^{tree}" 2>/dev/null)"; then
+            sim_status=1
+            sim_msg_err="failed to resolve candidate tree for rebase-merge simulation"
+          elif ! sim_an="$(git -C "$repo" log -1 --format='%an' "$head_sha" 2>/dev/null)"; then
+            sim_status=1
+            sim_msg_err="failed to resolve candidate author name"
+          elif ! sim_ae="$(git -C "$repo" log -1 --format='%ae' "$head_sha" 2>/dev/null)"; then
+            sim_status=1
+            sim_msg_err="failed to resolve candidate author email"
+          elif ! sim_ad="$(git -C "$repo" log -1 --format='%ad' "$head_sha" 2>/dev/null)"; then
+            sim_status=1
+            sim_msg_err="failed to resolve candidate author date"
+          elif ! sim_msg="$(git -C "$repo" log -1 --format='%B' "$head_sha" 2>/dev/null)"; then
+            sim_status=1
+            sim_msg_err="failed to resolve candidate commit message"
+          else
+            if ! sim_commit="$(printf '%s\n' "$sim_msg" | GIT_AUTHOR_NAME="$sim_an" GIT_AUTHOR_EMAIL="$sim_ae" GIT_AUTHOR_DATE="$sim_ad" GIT_COMMITTER_NAME="$bot_merger_name" GIT_COMMITTER_EMAIL="$bot_merger_committer" git -C "$sim_work/scratch" commit-tree "$sim_tree" -p "$ratchet_base" 2>/dev/null)" || [[ -z "$sim_commit" ]]; then
+              sim_status=1
+              sim_msg_err="failed to create synthetic commit for rebase-merge simulation"
+            else
+              if ! git -C "$sim_work/scratch" update-ref refs/heads/simulated-merge "$sim_commit" 2>/dev/null || \
+                 ! git -C "$sim_work/scratch" checkout -q refs/heads/simulated-merge 2>/dev/null; then
+                sim_status=1
+                sim_msg_err="failed to checkout synthetic commit for rebase-merge simulation"
+              else
+                sim_rc=0
+                sim_out="$(env -i PATH="$PATH" LC_ALL=C.UTF-8 HOME="${HOME:-/tmp}" "$0" "$sim_work/scratch" --allow "$allow" --base "$ratchet_base" --commit "$sim_commit" --internal-simulation 2>&1)" || sim_rc=$?
+                if [[ $sim_rc -ne 0 ]]; then
+                  sim_status=1
+                  sim_msg_err="simulated rebase-merge commit with committer $bot_merger_name <$bot_merger_committer> fails neutrality scan"
+                else
+                  sim_scope="$(grep -oE 'scope: 1 commit, [0-9]+ changed blobs[^,]*' <<<"$sim_out" | head -n1 || true)"
+                  if [[ -n "$sim_scope" ]]; then
+                    echo "neutrality: simulated rebase-merge ($sim_scope)"
+                  else
+                    echo "neutrality: simulated rebase-merge"
+                  fi
+                fi
+              fi
+            fi
+          fi
+        rm -rf "$sim_work"
+
+        if [[ $sim_status -ne 0 ]]; then
+          hit "${sim_msg_err:-simulated rebase-merge check failed}" "commit $head_sha"
+        fi
+      fi
+    fi
   fi
+fi
+fi
 fi
 
 # PR/merge_group actor ratchet: inspect author/actor from event payload and environment
