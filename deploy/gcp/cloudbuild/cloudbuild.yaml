@@ -3,7 +3,10 @@
 # runs as the contract's build identity, which holds no runtime permission. Rollback is the same pipeline with
 # the previous digest in the inputs; cancellation is an input too: when the effective inputs say so, every other
 # in-flight deployment of this trigger is cancelled, nothing below is applied, and the revision serving now keeps
-# serving. Nothing here has ever run.
+# serving. Saved plan approval gates apply: an empty _APPROVED_PLAN_SHA256 runs in plan mode and publishes the
+# plan digest; a non-empty _APPROVED_PLAN_SHA256 runs in apply mode, verifying the approved plan before apply.
+# Nothing here has ever run. The step logic and approval gates are witnessed offline in deploy/gcp/tests/offline.sh;
+# the offline harness checks only their text, and live Cloud Build template substitution is unverified until a live run.
 #
 # Substitutions come from the validated inputs file through the trigger; none has a default here.
 steps:
@@ -13,6 +16,7 @@ steps:
     args:
       - -ceu
       - |
+        set -o pipefail
         # The one funnel first: a refusal here ends the deployment before anything is touched. The trigger names
         # the operator's file; the effective document, with every value's source printed, is what the plan reads.
         bazel run //deploy/gcp/inputs:validate -- --effective /workspace/effective.inputs.json "${_INPUTS_FILE}" | tee /workspace/validate.out
@@ -23,6 +27,7 @@ steps:
     args:
       - -ceu
       - |
+        set -o pipefail
         # Cancellation as an input (spec 012 FR-009): the other in-flight deployments of this trigger are
         # cancelled, a marker stops every step below from promoting, planning or applying, and the previous
         # revision keeps serving. The record step still says what happened.
@@ -39,6 +44,7 @@ steps:
     args:
       - -ceu
       - |
+        set -o pipefail
         [[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }
         # Copy the published image into the contract's registry by digest; crane preserves the digest, and a
         # digest that does not exist at the source ends the deployment. Nothing is built or rebuilt.
@@ -48,40 +54,98 @@ steps:
   - id: plan
     name: "${_TOOLS_IMAGE}"
     entrypoint: bash
+    env:
+      - "_APPROVED_PLAN_SHA256=${_APPROVED_PLAN_SHA256}"
+      - "_PLAN_STORAGE_URL=${_PLAN_STORAGE_URL}"
     args:
       - -ceu
       - |
+        set -o pipefail
+        _APPROVED_PLAN_SHA256="${_APPROVED_PLAN_SHA256}"
+        _PLAN_STORAGE_URL="${_PLAN_STORAGE_URL}"
         [[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }
+        if [[ -n "${_APPROVED_PLAN_SHA256:-}" ]]; then
+          echo "apply mode: skipping plan generation, using approved plan artifact"
+          if [[ ! "${_APPROVED_PLAN_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
+            echo "refused: _APPROVED_PLAN_SHA256 must be exactly 64 lowercase hex characters" >&2
+            exit 1
+          fi
+          storage_url="${_PLAN_STORAGE_URL:-}"
+          if [[ -n "${storage_url}" ]]; then
+            storage_prefix="${storage_url%/}"
+            gcloud storage cp "${storage_prefix}/plan.tfplan" /workspace/plan.tfplan
+            gcloud storage cp "${storage_prefix}/plan.tfplan.sha256" /workspace/plan.tfplan.sha256
+          fi
+          exit 0
+        fi
         cd deploy/gcp/service
         tofu init -input=false -lockfile=readonly
-        tofu plan -input=false -var "inputs_file=/workspace/effective.inputs.json" -out=/workspace/service.tfplan
-        tofu show -no-color /workspace/service.tfplan > /workspace/service.plan.txt
+        tofu plan -input=false -var "inputs_file=/workspace/effective.inputs.json" -out=/workspace/plan.tfplan
+        sha256sum /workspace/plan.tfplan | tee /workspace/plan.tfplan.sha256
+        tofu show -no-color /workspace/plan.tfplan > /workspace/service.plan.txt
+        storage_url="${_PLAN_STORAGE_URL:-}"
+        if [[ -n "${storage_url}" ]]; then
+          storage_prefix="${storage_url%/}"
+          gcloud storage cp /workspace/plan.tfplan "${storage_prefix}/plan.tfplan"
+          gcloud storage cp /workspace/plan.tfplan.sha256 "${storage_prefix}/plan.tfplan.sha256"
+        fi
 
   - id: apply-behind-the-gate
     name: "${_TOOLS_IMAGE}"
     entrypoint: bash
+    env:
+      - "_APPROVED_PLAN_SHA256=${_APPROVED_PLAN_SHA256}"
+      - "_PLAN_STORAGE_URL=${_PLAN_STORAGE_URL}"
     args:
       - -ceu
       - |
+        set -o pipefail
+        _APPROVED_PLAN_SHA256="${_APPROVED_PLAN_SHA256}"
+        _PLAN_STORAGE_URL="${_PLAN_STORAGE_URL}"
         [[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }
-        # The gate: the trigger's approval setting is the operator's recorded approval; without it this step never
-        # runs. Nothing here applies on its own authority.
+        # The gate: owner approval of the exact plan digest is required. Without _APPROVED_PLAN_SHA256,
+        # apply is skipped (plan mode). In apply mode, the saved plan is verified against the approved digest.
+        if [[ -z "${_APPROVED_PLAN_SHA256:-}" ]]; then
+          echo "plan mode: _APPROVED_PLAN_SHA256 is empty; skipping apply behind approval gate"
+          exit 0
+        fi
+        if [[ ! "${_APPROVED_PLAN_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then
+          echo "refused: _APPROVED_PLAN_SHA256 must be exactly 64 lowercase hex characters" >&2
+          exit 1
+        fi
+        [[ -f /workspace/plan.tfplan ]] || { echo "refused: missing plan artifact at /workspace/plan.tfplan" >&2; exit 1; }
+        printf '%s  /workspace/plan.tfplan\n' "${_APPROVED_PLAN_SHA256}" | sha256sum --strict -c -
+        if [[ -f /workspace/plan.tfplan.sha256 ]]; then
+          sha256sum --strict -c /workspace/plan.tfplan.sha256
+          grep -Fq "${_APPROVED_PLAN_SHA256}" /workspace/plan.tfplan.sha256 || {
+            echo "refused: plan sidecar checksum does not match approved digest" >&2
+            exit 1
+          }
+        fi
         cd deploy/gcp/service
-        tofu apply -input=false /workspace/service.tfplan
+        tofu init -input=false -lockfile=readonly
+        tofu apply -input=false -auto-approve /workspace/plan.tfplan
 
   - id: record
     name: "${_TOOLS_IMAGE}"
     entrypoint: bash
+    env:
+      - "_APPROVED_PLAN_SHA256=${_APPROVED_PLAN_SHA256}"
     args:
       - -ceu
       - |
+        set -o pipefail
+        _APPROVED_PLAN_SHA256="${_APPROVED_PLAN_SHA256}"
         # The deployment record: the digest served before and after, the endpoint, the identity, the build id,
         # and whether this run cancelled instead of deploying.
         cancelled=false; [[ ! -e /workspace/cancelled ]] || cancelled=true
-        gcloud run services describe bff --region "${_REGION}" --format=json > /workspace/service.after.json
+        if [[ "$cancelled" = false && -n "${_APPROVED_PLAN_SHA256:-}" ]]; then
+          gcloud run services describe bff --region "${_REGION}" --format=json > /workspace/service.after.json
+        fi
         printf '{"build":"%s","serving_digest":"%s","previous_digest":"%s","source_revision":"%s","cancelled":%s}\n' \
           "${BUILD_ID}" "${_SERVING_DIGEST}" "${_PREVIOUS_DIGEST}" "${COMMIT_SHA}" "$cancelled" > /workspace/deployment.json
 
 options:
   logging: CLOUD_LOGGING_ONLY
+  automapSubstitutions: true
 timeout: 1200s

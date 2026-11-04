@@ -98,19 +98,3 @@ resource "google_cloud_run_v2_service_iam_member" "public_invoker" {
   role     = "roles/run.invoker"
   member   = "allUsers"
 }
-
-output "resources" {
-  description = "The resource graph the tests pin."
-  value       = ["google_cloud_run_v2_service.bff", "google_cloud_run_v2_service_iam_member.public_invoker"]
-}
-
-output "serving" {
-  description = "What the plan would serve: the image reference by digest, the port and the origin."
-  value = {
-    image          = local.image
-    revision       = local.serving_revision
-    port           = local.inputs.runtime.port
-    allowed_origin = local.inputs.runtime.allowed_origin
-    max_instances  = local.inputs.bounds.max_instances
-  }
-}

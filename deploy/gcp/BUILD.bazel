@@ -1,7 +1,7 @@
 load("@rules_shell//shell:sh_test.bzl", "sh_test")
 
 # The service module as a reviewed plan, offline (spec 012 FR-012): the inputs validated first, then format,
-# validate, the pinned graph and the mock tests from a mirror of the pinned provider; the planted defects fail.
+# validate, the declared resource graph and the mock tests from a mirror of the pinned provider; the planted defects fail.
 # The sandbox gives it no network, and the pinned zip gives it no fetch.
 sh_test(
     name = "offline_test",
@@ -17,15 +17,19 @@ sh_test(
         "$(rootpath //deploy/gcp/inputs:testdata/rollback.inputs.json)",
         "$(rootpath //deploy/gcp/inputs:testdata/cancel.inputs.json)",
         "$(rootpath cloudbuild/cloudbuild.yaml)",
+        "$(rootpath @bff_template_quality//tools:yq)",
     ],
     data = [
         "cloudbuild/cloudbuild.yaml",
         "tests/offline.sh",
         "//deploy/gcp/inputs:example.inputs.json",
+        "//deploy/gcp/inputs:testdata/bounds.inputs.json",
+        "//deploy/gcp/inputs:testdata/budget.inputs.json",
         "//deploy/gcp/inputs:testdata/cancel.inputs.json",
         "//deploy/gcp/inputs:testdata/rollback.inputs.json",
         "//deploy/gcp/inputs:testdata/zero-sample.inputs.json",
         "//deploy/gcp/inputs:validate",
+        "@bff_template_quality//tools:yq",
         "@opentofu//:tofu",
         "@terraform_provider_google//file",
     ] + glob(
@@ -35,6 +39,9 @@ sh_test(
 )
 
 exports_files(
-    ["service/main.tf"],
+    [
+        "cloudbuild/cloudbuild.yaml",
+        "service/main.tf",
+    ],
     visibility = ["//deploy:__subpackages__"],
 )
