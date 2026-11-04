@@ -189,18 +189,29 @@ func (in *Inputs) validateRuntime() error {
 	if err := exactOrigin("runtime.allowed_origin", r.AllowedOrigin); err != nil {
 		return err
 	}
-	for name, raw := range map[string]string{"runtime.verifier.issuer": r.Verifier.Issuer, "runtime.verifier.jwks_url": r.Verifier.JWKSURL} {
+	if err := validateVerifier(r.Verifier); err != nil {
+		return err
+	}
+	return validatePersistence(r.Persistence)
+}
+
+func validateVerifier(v Verifier) error {
+	for name, raw := range map[string]string{"runtime.verifier.issuer": v.Issuer, "runtime.verifier.jwks_url": v.JWKSURL} {
 		if u, err := url.Parse(raw); err != nil || u.Scheme != "https" || u.Host == "" {
 			return fmt.Errorf("%s: %q is not an https URL", name, raw)
 		}
 	}
-	if r.Verifier.Audience == "" {
+	if v.Audience == "" {
 		return errors.New("runtime.verifier.audience: required")
 	}
-	if r.Persistence.Kind != "managed-store" && r.Persistence.Kind != "memory" {
-		return fmt.Errorf("runtime.persistence.kind: %q is neither managed-store nor memory", r.Persistence.Kind)
+	return nil
+}
+
+func validatePersistence(p Persistence) error {
+	if p.Kind != "managed-store" && p.Kind != "memory" {
+		return fmt.Errorf("runtime.persistence.kind: %q is neither managed-store nor memory", p.Kind)
 	}
-	if len(strings.TrimSpace(r.Persistence.Statement)) < 20 {
+	if len(strings.TrimSpace(p.Statement)) < 20 {
 		return errors.New("runtime.persistence.statement: say what survives a revision change")
 	}
 	return nil

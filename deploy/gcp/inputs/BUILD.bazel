@@ -4,6 +4,8 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 exports_files(
     [
         "example.inputs.json",
+        "testdata/bounds.inputs.json",
+        "testdata/budget.inputs.json",
         "testdata/cancel.inputs.json",
         "testdata/rollback.inputs.json",
         "testdata/zero-sample.inputs.json",
@@ -19,10 +21,16 @@ go_library(
     srcs = [
         "inputs.go",
         "resolve.go",
+        "service_check.go",
         "telemetry.go",
     ],
     importpath = "example.com/bfftemplate/deploy/gcp/inputs",
     visibility = ["//deploy:__subpackages__"],
+    deps = [
+        "@com_github_hashicorp_hcl_v2//:hcl",
+        "@com_github_hashicorp_hcl_v2//hclsyntax",
+        "@in_yaml_go_yaml_v3//:yaml",
+    ],
 )
 
 go_test(
@@ -32,6 +40,7 @@ go_test(
         "inputs_test.go",
         "plan_test.go",
         "resolve_test.go",
+        "service_check_test.go",
         "start_test.go",
     ],
     data = [
@@ -39,11 +48,13 @@ go_test(
         "example.inputs.json",
         "inputs.schema.json",
         "//bff/cmd/bff",
+        "//deploy/gcp:cloudbuild/cloudbuild.yaml",
         "//deploy/gcp:service/main.tf",
     ],
     embed = [":inputs"],
     env = {
         "BFF_BIN": "$(rlocationpath //bff/cmd/bff)",
+        "CLOUDBUILD_YAML": "$(rlocationpath //deploy/gcp:cloudbuild/cloudbuild.yaml)",
         "CONTRACT_SCHEMA": "$(rlocationpath contract.schema.json)",
         "EXAMPLE": "$(rlocationpath example.inputs.json)",
         "MAIN_TF": "$(rlocationpath //deploy/gcp:service/main.tf)",
