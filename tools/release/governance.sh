@@ -193,7 +193,7 @@ grep -qE '^\s*owner\s*=\s*var\.owner\s*$' "$work/config/main.tf" || { echo "gove
 if ! grep -Eq '^\s*allow_rebase_merge\s*=\s*true\s*$' "$work/config/main.tf" || \
    ! grep -Eq '^\s*allow_squash_merge\s*=\s*false\s*$' "$work/config/main.tf" || \
    ! grep -Eq '^\s*allow_merge_commit\s*=\s*false\s*$' "$work/config/main.tf"; then
-  echo "governance: repository must enforce rebase-only merge"
+  echo "governance: repository must declare rebase-only merge"
   exit 1
 fi
 if ! grep -Eq '^\s*allowed_merge_methods\s*=\s*\["rebase"\]\s*$' "$work/config/main.tf"; then
@@ -297,4 +297,4 @@ if [[ "$tofu_test_rc" -ne 0 ]]; then
   echo "governance: a mock test failed"
   exit 1
 fi
-echo "governance: one target, formatted, valid, two resources, mock tests passed, offline"
+echo "governance: one target, formatted, valid, two resources (ruleset patterns declared, not enforced live), mock tests passed, offline"

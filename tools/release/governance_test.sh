@@ -102,14 +102,14 @@ expect() { # expect <name> <want> <mutation> [tofu]
     rebase_merge_disallowed) replace "$T/g/main.tf" '  allow_rebase_merge     = true' '  allow_rebase_merge     = false' ;;
     ruleset_squash_allowed) replace "$T/g/main.tf" 'allowed_merge_methods           = ["rebase"]' 'allowed_merge_methods           = ["rebase", "squash"]' ;;
     ruleset_no_committer_email_pattern) sed -i '/committer_email_pattern {/,/}/d' "$T/g/main.tf" ;;
-    ruleset_committer_pattern_all) replace "$T/g/main.tf" 'pattern  = "^(noreply@github\\.com|346154065\\+selamy-labs-bot@users\\.noreply\\.github\\.com|claude-cir@selamy\\.dev)$"' 'pattern  = ".*"' ;;
-    ruleset_committer_pattern_broad) replace "$T/g/main.tf" 'pattern  = "^(noreply@github\\.com|346154065\\+selamy-labs-bot@users\\.noreply\\.github\\.com|claude-cir@selamy\\.dev)$"' 'pattern  = ".*@users\\.noreply\\.github\\.com"' ;;
+    ruleset_committer_pattern_all) replace "$T/g/main.tf" 'pattern  = "^(noreply@github\\.com|github-bot@selamy\\.dev|claude-cir@selamy\\.dev)$"' 'pattern  = ".*"' ;;
+    ruleset_committer_pattern_broad) replace "$T/g/main.tf" 'pattern  = "^(noreply@github\\.com|github-bot@selamy\\.dev|claude-cir@selamy\\.dev)$"' 'pattern  = ".*@selamy\\.dev"' ;;
     ruleset_committer_negate_true) replace "$T/g/main.tf" 'negate   = false' 'negate   = true' ;;
     ruleset_committer_comment_shadow) sed -i '/committer_email_pattern/,/}/s,pattern  = .*,pattern  = ".*"\n      # &,g' "$T/g/main.tf"; "$tofu" -chdir="$T/g" fmt >/dev/null 2>&1 ;;
     ruleset_committer_slash_comment_shadow) sed -i '/committer_email_pattern/,/}/s,pattern  = .*,pattern  = ".*"\n      // &,g' "$T/g/main.tf"; "$tofu" -chdir="$T/g" fmt >/dev/null 2>&1 ;;
     ruleset_committer_block_comment_shadow) sed -i '/committer_email_pattern/,/}/s,pattern  = .*,pattern  = ".*" /* & */,g' "$T/g/main.tf"; "$tofu" -chdir="$T/g" fmt >/dev/null 2>&1 ;;
     ruleset_no_commit_author_email_pattern) sed -i '/commit_author_email_pattern {/,/}/d' "$T/g/main.tf" ;;
-    ruleset_author_pattern_bot) replace "$T/g/main.tf" 'pattern  = "^claude-cir@selamy\\.dev$"' 'pattern  = "^(346154065\\+selamy-labs-bot@users\\.noreply\\.github\\.com|claude-cir@selamy\\.dev)$"' ;;
+    ruleset_author_pattern_bot) replace "$T/g/main.tf" 'pattern  = "^claude-cir@selamy\\.dev$"' 'pattern  = "^(github-bot@selamy\\.dev|claude-cir@selamy\\.dev)$"' ;;
     ruleset_author_pattern_all) replace "$T/g/main.tf" 'pattern  = "^claude-cir@selamy\\.dev$"' 'pattern  = ".*"' ;;
     ruleset_author_negate_true) sed -i '/commit_author_email_pattern/,/}/s/negate   = false/negate   = true/' "$T/g/main.tf" ;;
     ruleset_author_comment_shadow) sed -i '/commit_author_email_pattern/,/}/s,pattern  = .*,pattern  = ".*"\n      # &,g' "$T/g/main.tf"; "$tofu" -chdir="$T/g" fmt >/dev/null 2>&1 ;;
@@ -242,7 +242,26 @@ if [[ "\$*" == "api user --jq .login" ]]; then
   exit 0
 fi
 if [[ "\$1" == "pr" && "\$2" == "merge" ]]; then
-  echo "\$*" >>"$gh_merge_log"
+  orig_args=("\$@")
+  shift 2
+  while [[ \$# -gt 0 ]]; do
+    if [[ "\$1" == "--repo" ]]; then
+      shift
+      repo_val="\${1:-}"
+      if [[ "\$repo_val" == /* || "\$repo_val" == ./* || "\$repo_val" == ../* || "\$repo_val" == "." ]]; then
+        echo "gh: invalid repository selector '\$repo_val': expected [HOST/]OWNER/REPO" >&2
+        exit 1
+      fi
+    elif [[ "\$1" == --repo=* ]]; then
+      repo_val="\${1#--repo=}"
+      if [[ "\$repo_val" == /* || "\$repo_val" == ./* || "\$repo_val" == ../* || "\$repo_val" == "." ]]; then
+        echo "gh: invalid repository selector '\$repo_val': expected [HOST/]OWNER/REPO" >&2
+        exit 1
+      fi
+    fi
+    shift
+  done
+  echo "\${orig_args[*]}" >>"$gh_merge_log"
   exit 0
 fi
 echo "unexpected gh call: \$*" >&2
@@ -263,14 +282,260 @@ expect_merge() { # expect_merge <name> <want> <login> [args...]
   if [[ "$rc" == "$want" ]]; then echo "ok   $name"; else echo "FAIL $name: exit $rc"; tail -5 "$T/out" | sed 's/^/     /'; failures=$((failures + 1)); fi
 }
 
-expect_merge "merge_pr.sh rejects personal user pselamy" 1 "pselamy" 42 --match-head-commit abc1234
+expect_merge_in_repo() { # expect_merge_in_repo <dir> <name> <want> <login> [args...]
+  local dir="$1" name="$2" want="$3" login="$4" rc=0; shift 4
+  rm -f "$gh_fail_file" "$gh_merge_log"
+  if [[ "$login" == "__FAIL__" ]]; then
+    touch "$gh_fail_file"
+    : >"$gh_login_file"
+  else
+    printf '%s\n' "$login" >"$gh_login_file"
+  fi
+  (cd "$dir" && env PATH="$T/bin:$PATH" "$merge_pr_script" "$@" >"$T/out" 2>&1) || rc=$?
+  if [[ "$rc" == "$want" ]]; then echo "ok   $name"; else echo "FAIL $name: exit $rc"; tail -5 "$T/out" | sed 's/^/     /'; failures=$((failures + 1)); fi
+}
+
+# Set up clean fixture repo for merge_pr.sh tests
+merge_repo="$T/merge-repo"
+git init -q -b main "$merge_repo"
+(cd "$merge_repo" && git remote add origin https://github.com/selamy-labs/bazel-protobuf-bff-template.git)
+(cd "$merge_repo" && printf 'initial\n' >a.txt && git add . && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="github-bot@selamy.dev" git commit -q -m "initial bot merge commit")
+
+mkdir -p "$merge_repo/tools/release"
+allow_src="tools/release/neutrality.allow"
+[[ -f "$allow_src" ]] || allow_src="${script%/*}/neutrality.allow"
+if [[ ! -f "$allow_src" && -n "${RUNFILES_DIR:-}" ]]; then
+  allow_src="${RUNFILES_DIR}/_main/tools/release/neutrality.allow"
+fi
+cp "$allow_src" "$merge_repo/tools/release/neutrality.allow"
+
+neut_src="tools/release/neutrality.sh"
+[[ -f "$neut_src" ]] || neut_src="${script%/*}/neutrality.sh"
+if [[ ! -f "$neut_src" && -n "${RUNFILES_DIR:-}" ]]; then
+  neut_src="${RUNFILES_DIR}/_main/tools/release/neutrality.sh"
+fi
+cp "$neut_src" "$merge_repo/tools/release/neutrality.sh"
+
+vrm_src="tools/release/verify_rebase_merge.sh"
+[[ -f "$vrm_src" ]] || vrm_src="${script%/*}/verify_rebase_merge.sh"
+if [[ ! -f "$vrm_src" && -n "${RUNFILES_DIR:-}" ]]; then
+  vrm_src="${RUNFILES_DIR}/_main/tools/release/verify_rebase_merge.sh"
+fi
+cp "$vrm_src" "$merge_repo/tools/release/verify_rebase_merge.sh"
+chmod +x "$merge_repo/tools/release/"*.sh
+
+(cd "$merge_repo" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q --allow-empty -m "clean candidate commit")
+clean_candidate_sha="$(git -C "$merge_repo" rev-parse HEAD)"
+
+# Create a separate isolated repo for testing a candidate that fails neutrality preflight
+bad_merge_repo="$T/bad-merge-repo"
+git clone -q "$merge_repo" "$bad_merge_repo"
+(cd "$bad_merge_repo" && GIT_AUTHOR_NAME="Patrick Selamy" GIT_AUTHOR_EMAIL="pselamy@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q --allow-empty -m "bad candidate commit")
+bad_candidate_sha="$(git -C "$bad_merge_repo" rev-parse HEAD)"
+
+# Negative caller authentication tests
+expect_merge_in_repo "$merge_repo" "merge_pr.sh rejects personal user pselamy" 1 "pselamy" 42 --match-head-commit "$clean_candidate_sha"
 grep -qF "caller 'pselamy' is not permitted" "$T/out" || { echo "FAIL expected caller 'pselamy' in rejection message"; failures=$((failures + 1)); }
-expect_merge "merge_pr.sh rejects empty caller login" 1 "" 42 --match-head-commit abc1234
-expect_merge "merge_pr.sh rejects failed gh api user command" 1 "__FAIL__" 42 --match-head-commit abc1234
-expect_merge "merge_pr.sh succeeds for selamy-labs-bot" 0 "selamy-labs-bot" 42 --match-head-commit abc1234
-grep -qF "pr merge 42 --rebase --match-head-commit abc1234" "$gh_merge_log" || { echo "FAIL expected merge command in log"; failures=$((failures + 1)); }
-expect_merge "merge_pr.sh succeeds for claude-cir with --repo" 0 "claude-cir" 42 --match-head-commit abc1234 --repo selamy-labs/bazel-protobuf-bff-template
-grep -qF "pr merge 42 --rebase --match-head-commit abc1234 --repo selamy-labs/bazel-protobuf-bff-template" "$gh_merge_log" || { echo "FAIL expected merge command with repo in log"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for personal caller"; failures=$((failures + 1)); }
+
+expect_merge_in_repo "$merge_repo" "merge_pr.sh rejects empty caller login" 1 "" 42 --match-head-commit "$clean_candidate_sha"
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for empty caller"; failures=$((failures + 1)); }
+
+expect_merge_in_repo "$merge_repo" "merge_pr.sh rejects failed gh api user command" 1 "__FAIL__" 42 --match-head-commit "$clean_candidate_sha"
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for failed caller"; failures=$((failures + 1)); }
+
+# Negative preflight validation tests for all invocation forms (SOL-R13-02, SOL-R13-04)
+expect_merge_in_repo "$merge_repo" "merge_pr.sh fails when candidate head cannot be resolved locally" 1 "selamy-labs-bot" 42 --match-head-commit nonexistent1234
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for unresolvable commit"; failures=$((failures + 1)); }
+
+# Form 1: owner/repo
+expect_merge_in_repo "$bad_merge_repo" "merge_pr.sh fails when candidate head fails neutrality preflight (owner/repo form)" 1 "selamy-labs-bot" 42 --match-head-commit "$bad_candidate_sha" --repo selamy-labs/bazel-protobuf-bff-template
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for failing preflight (owner/repo)"; failures=$((failures + 1)); }
+
+# Form 2: URL
+expect_merge_in_repo "$bad_merge_repo" "merge_pr.sh fails when candidate head fails neutrality preflight (URL form)" 1 "selamy-labs-bot" 42 --match-head-commit "$bad_candidate_sha" --repo https://github.com/selamy-labs/bazel-protobuf-bff-template.git
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for failing preflight (URL)"; failures=$((failures + 1)); }
+
+# Form 3: local path
+expect_merge "merge_pr.sh fails when candidate head fails neutrality preflight (local path form)" 1 "selamy-labs-bot" 42 --match-head-commit "$bad_candidate_sha" --repo "$bad_merge_repo"
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for failing preflight (local path)"; failures=$((failures + 1)); }
+
+# Form 4: default local checkout without --repo
+expect_merge_in_repo "$bad_merge_repo" "merge_pr.sh fails when candidate head fails neutrality preflight (default form)" 1 "selamy-labs-bot" 42 --match-head-commit "$bad_candidate_sha"
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for failing preflight (default)"; failures=$((failures + 1)); }
+rm -rf "$bad_merge_repo"
+
+# Negative test: local repository without a remote cannot resolve GitHub repository selector
+merge_repo_no_remote="$T/merge-repo-no-remote"
+git init -q -b main "$merge_repo_no_remote"
+(cd "$merge_repo_no_remote" && printf 'initial\n' >a.txt && git add . && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="github-bot@selamy.dev" git commit -q -m "initial bot merge commit")
+mkdir -p "$merge_repo_no_remote/tools/release"
+cp "$allow_src" "$merge_repo_no_remote/tools/release/neutrality.allow"
+cp "$neut_src" "$merge_repo_no_remote/tools/release/neutrality.sh"
+cp "$vrm_src" "$merge_repo_no_remote/tools/release/verify_rebase_merge.sh"
+chmod +x "$merge_repo_no_remote/tools/release/"*.sh
+(cd "$merge_repo_no_remote" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q --allow-empty -m "clean candidate commit")
+clean_no_remote_sha="$(git -C "$merge_repo_no_remote" rev-parse HEAD)"
+
+expect_merge "merge_pr.sh fails for local repository without remote" 1 "dependabot[bot]" 42 --match-head-commit "$clean_no_remote_sha" --repo "$merge_repo_no_remote"
+grep -qF "cannot resolve GitHub repository selector" "$T/out" || { echo "FAIL expected cannot resolve remote in output"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for repo without remote"; failures=$((failures + 1)); }
+rm -rf "$merge_repo_no_remote"
+
+# Negative test: local repository with filesystem remote is refused (BFF-RM14-02)
+merge_repo_fs_remote="$T/merge-repo-fs-remote"
+git init -q -b main "$merge_repo_fs_remote"
+(cd "$merge_repo_fs_remote" && git remote add origin "/tmp/fake-filesystem-remote")
+(cd "$merge_repo_fs_remote" && printf 'initial\n' >a.txt && git add . && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="github-bot@selamy.dev" git commit -q -m "initial bot merge commit")
+mkdir -p "$merge_repo_fs_remote/tools/release"
+cp "$allow_src" "$merge_repo_fs_remote/tools/release/neutrality.allow"
+cp "$neut_src" "$merge_repo_fs_remote/tools/release/neutrality.sh"
+cp "$vrm_src" "$merge_repo_fs_remote/tools/release/verify_rebase_merge.sh"
+chmod +x "$merge_repo_fs_remote/tools/release/"*.sh
+(cd "$merge_repo_fs_remote" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q --allow-empty -m "clean candidate commit")
+clean_fs_sha="$(git -C "$merge_repo_fs_remote" rev-parse HEAD)"
+
+expect_merge "merge_pr.sh fails for local repository with filesystem remote" 1 "dependabot[bot]" 42 --match-head-commit "$clean_fs_sha" --repo "$merge_repo_fs_remote"
+grep -qF "cannot resolve GitHub repository selector" "$T/out" || { echo "FAIL expected cannot resolve remote in output for filesystem remote"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for filesystem remote"; failures=$((failures + 1)); }
+rm -rf "$merge_repo_fs_remote"
+
+# Negative test: local repository with non-GitHub GitLab remote is refused (BFF-RM14-02)
+merge_repo_gitlab="$T/merge-repo-gitlab"
+git init -q -b main "$merge_repo_gitlab"
+(cd "$merge_repo_gitlab" && git remote add origin "https://gitlab.example.com/selamy-labs/bazel-protobuf-bff-template.git")
+(cd "$merge_repo_gitlab" && printf 'initial\n' >a.txt && git add . && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="github-bot@selamy.dev" git commit -q -m "initial bot merge commit")
+mkdir -p "$merge_repo_gitlab/tools/release"
+cp "$allow_src" "$merge_repo_gitlab/tools/release/neutrality.allow"
+cp "$neut_src" "$merge_repo_gitlab/tools/release/neutrality.sh"
+cp "$vrm_src" "$merge_repo_gitlab/tools/release/verify_rebase_merge.sh"
+chmod +x "$merge_repo_gitlab/tools/release/"*.sh
+(cd "$merge_repo_gitlab" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q --allow-empty -m "clean candidate commit")
+clean_gitlab_sha="$(git -C "$merge_repo_gitlab" rev-parse HEAD)"
+
+expect_merge "merge_pr.sh fails for local repository with GitLab remote" 1 "dependabot[bot]" 42 --match-head-commit "$clean_gitlab_sha" --repo "$merge_repo_gitlab"
+grep -qF "cannot resolve GitHub repository selector" "$T/out" || { echo "FAIL expected cannot resolve remote in output for gitlab remote"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for gitlab remote"; failures=$((failures + 1)); }
+rm -rf "$merge_repo_gitlab"
+
+# Positive invocation form tests proving preflight ran (SOL-R13-02)
+# Form 1: owner/repo
+expect_merge_in_repo "$merge_repo" "merge_pr.sh succeeds for selamy-labs-bot with owner/repo form" 0 "selamy-labs-bot" 42 --match-head-commit "$clean_candidate_sha" --repo selamy-labs/bazel-protobuf-bff-template
+grep -qF "pr merge 42 --rebase --match-head-commit $clean_candidate_sha --repo selamy-labs/bazel-protobuf-bff-template" "$gh_merge_log" || { echo "FAIL expected merge command with owner/repo in log"; failures=$((failures + 1)); }
+
+# Form 2: URL
+expect_merge_in_repo "$merge_repo" "merge_pr.sh succeeds for claude-cir with URL form" 0 "claude-cir" 42 --match-head-commit "$clean_candidate_sha" --repo https://github.com/selamy-labs/bazel-protobuf-bff-template.git
+grep -qF "pr merge 42 --rebase --match-head-commit $clean_candidate_sha --repo selamy-labs/bazel-protobuf-bff-template" "$gh_merge_log" || { echo "FAIL expected merge command with URL in log"; failures=$((failures + 1)); }
+
+# Form 3: local path resolves GitHub remote and normalizes --repo selector
+expect_merge "merge_pr.sh succeeds for dependabot[bot] with local path form" 0 "dependabot[bot]" 42 --match-head-commit "$clean_candidate_sha" --repo "$merge_repo"
+grep -qF "pr merge 42 --rebase --match-head-commit $clean_candidate_sha --repo selamy-labs/bazel-protobuf-bff-template" "$gh_merge_log" || { echo "FAIL expected merge command with normalized repo in log"; failures=$((failures + 1)); }
+
+# Form 4: default local checkout without --repo
+expect_merge_in_repo "$merge_repo" "merge_pr.sh succeeds for selamy-labs-bot without --repo" 0 "selamy-labs-bot" 42 --match-head-commit "$clean_candidate_sha"
+grep -qF "pr merge 42 --rebase --match-head-commit $clean_candidate_sha --repo selamy-labs/bazel-protobuf-bff-template" "$gh_merge_log" || { echo "FAIL expected merge command in log"; failures=$((failures + 1)); }
+
+# Form 5: remote named upstream fetches missing candidate head and merges successfully (SOL-R14-01)
+upstream_source="$T/upstream-source-repo"
+git clone -q "$merge_repo" "$upstream_source"
+(cd "$upstream_source" && printf 'upstream-change\n' >u.txt && git add u.txt && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q -m "upstream candidate commit")
+upstream_candidate_sha="$(git -C "$upstream_source" rev-parse HEAD)"
+
+upstream_only_repo="$T/upstream-only-repo"
+git init -q -b main "$upstream_only_repo"
+git -C "$upstream_only_repo" fetch -q "$merge_repo" main
+git -C "$upstream_only_repo" reset -q --hard FETCH_HEAD
+mkdir -p "$upstream_only_repo/tools/release"
+cp "$allow_src" "$upstream_only_repo/tools/release/neutrality.allow"
+cp "$neut_src" "$upstream_only_repo/tools/release/neutrality.sh"
+cp "$vrm_src" "$upstream_only_repo/tools/release/verify_rebase_merge.sh"
+chmod +x "$upstream_only_repo/tools/release/"*.sh
+git -C "$upstream_only_repo" remote add upstream "https://github.com/selamy-labs/bazel-protobuf-bff-template.git"
+git -C "$upstream_only_repo" config url."$upstream_source/.git".insteadOf "https://github.com/selamy-labs/bazel-protobuf-bff-template.git"
+
+if ! git -C "$upstream_only_repo" rev-parse --verify --quiet "${upstream_candidate_sha}^{commit}" >/dev/null 2>&1; then
+  expect_merge_in_repo "$upstream_only_repo" "merge_pr.sh fetches missing candidate head from upstream remote" 0 "selamy-labs-bot" 42 --match-head-commit "$upstream_candidate_sha"
+  grep -qF "pr merge 42 --rebase --match-head-commit $upstream_candidate_sha --repo selamy-labs/bazel-protobuf-bff-template" "$gh_merge_log" || { echo "FAIL expected merge command for upstream remote in log"; failures=$((failures + 1)); }
+else
+  echo "FAIL upstream candidate commit unexpectedly present before fetch"; failures=$((failures + 1))
+fi
+rm -rf "$upstream_source" "$upstream_only_repo"
+
+# Negative tests for SOL-R15-02 / BFF-RM15-02: strict --repo normalization and validation
+# 1. Explicit non-GitHub URL (e.g. GitLab) is rejected with exit 1 before preflight
+expect_merge_in_repo "$merge_repo" "merge_pr.sh fails closed on explicit GitLab URL" 1 "selamy-labs-bot" 42 --match-head-commit "$clean_candidate_sha" --repo https://gitlab.example.com/selamy-labs/bazel-protobuf-bff-template.git
+grep -qF "not a valid GitHub repository selector" "$T/out" || { echo "FAIL expected not a valid selector error for GitLab URL"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for explicit GitLab URL"; failures=$((failures + 1)); }
+
+# 2. Explicit non-GitHub host selector is rejected with exit 1
+expect_merge_in_repo "$merge_repo" "merge_pr.sh fails closed on explicit GitLab selector" 1 "selamy-labs-bot" 42 --match-head-commit "$clean_candidate_sha" --repo gitlab.example.com/selamy-labs/bazel-protobuf-bff-template
+grep -qF "not a valid GitHub repository selector" "$T/out" || { echo "FAIL expected not a valid selector error for GitLab selector"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for explicit GitLab selector"; failures=$((failures + 1)); }
+
+# 3. Arbitrary invalid selector is rejected with exit 1
+expect_merge_in_repo "$merge_repo" "merge_pr.sh fails closed on arbitrary invalid selector" 1 "selamy-labs-bot" 42 --match-head-commit "$clean_candidate_sha" --repo not-a-selector
+grep -qF "not a valid GitHub repository selector" "$T/out" || { echo "FAIL expected not a valid selector error for arbitrary invalid selector"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for arbitrary invalid selector"; failures=$((failures + 1)); }
+
+# 4. Default invocation without --repo fails closed when local repo has only non-GitHub remotes
+merge_repo_non_gh="$T/merge-repo-non-gh"
+git init -q -b main "$merge_repo_non_gh"
+git -C "$merge_repo_non_gh" remote add origin "https://gitlab.example.com/other-org/other-repo.git"
+git -C "$merge_repo_non_gh" remote add fs "/tmp/fake-fs-path"
+(cd "$merge_repo_non_gh" && printf 'initial\n' >a.txt && git add . && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="github-bot@selamy.dev" git commit -q -m "initial bot merge commit")
+mkdir -p "$merge_repo_non_gh/tools/release"
+cp "$allow_src" "$merge_repo_non_gh/tools/release/neutrality.allow"
+cp "$neut_src" "$merge_repo_non_gh/tools/release/neutrality.sh"
+cp "$vrm_src" "$merge_repo_non_gh/tools/release/verify_rebase_merge.sh"
+chmod +x "$merge_repo_non_gh/tools/release/"*.sh
+(cd "$merge_repo_non_gh" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q --allow-empty -m "clean candidate commit")
+clean_non_gh_sha="$(git -C "$merge_repo_non_gh" rev-parse HEAD)"
+
+expect_merge_in_repo "$merge_repo_non_gh" "merge_pr.sh fails closed on default invocation with only non-GitHub remotes" 1 "selamy-labs-bot" 42 --match-head-commit "$clean_non_gh_sha"
+grep -qF "cannot resolve GitHub repository selector" "$T/out" || { echo "FAIL expected cannot resolve GitHub selector for non-gh default invocation"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for non-gh default invocation"; failures=$((failures + 1)); }
+rm -rf "$merge_repo_non_gh"
+
+# 5. Verification repository mismatch: checkout's remotes do not match target --repo
+mismatched_repo="$T/mismatched-repo"
+git init -q -b main "$mismatched_repo"
+git -C "$mismatched_repo" remote add origin "https://github.com/someone-else/different-repo.git"
+(cd "$mismatched_repo" && printf 'initial\n' >a.txt && git add . && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="github-bot@selamy.dev" git commit -q -m "initial bot merge commit")
+mkdir -p "$mismatched_repo/tools/release"
+cp "$allow_src" "$mismatched_repo/tools/release/neutrality.allow"
+cp "$neut_src" "$mismatched_repo/tools/release/neutrality.sh"
+cp "$vrm_src" "$mismatched_repo/tools/release/verify_rebase_merge.sh"
+chmod +x "$mismatched_repo/tools/release/"*.sh
+(cd "$mismatched_repo" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q --allow-empty -m "clean candidate commit")
+clean_mismatched_sha="$(git -C "$mismatched_repo" rev-parse HEAD)"
+
+expect_merge_in_repo "$mismatched_repo" "merge_pr.sh fails closed when verification repo does not match target --repo" 1 "selamy-labs-bot" 42 --match-head-commit "$clean_mismatched_sha" --repo selamy-labs/bazel-protobuf-bff-template
+grep -qF "has no remote matching target repository" "$T/out" || { echo "FAIL expected mismatched repo error in output"; failures=$((failures + 1)); }
+[[ ! -s "$gh_merge_log" ]] || { echo "FAIL gh pr merge called for mismatched verification repo"; failures=$((failures + 1)); }
+rm -rf "$mismatched_repo"
+
+# 6. Fork origin setup: checkout has fork origin and upstream target
+fork_repo="$T/fork-repo"
+git init -q -b main "$fork_repo"
+git -C "$fork_repo" remote add origin "https://github.com/fork-user/bazel-protobuf-bff-template.git"
+git -C "$fork_repo" remote add upstream "https://github.com/selamy-labs/bazel-protobuf-bff-template.git"
+(cd "$fork_repo" && printf 'initial\n' >a.txt && git add . && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="github-bot@selamy.dev" git commit -q -m "initial bot merge commit")
+mkdir -p "$fork_repo/tools/release"
+cp "$allow_src" "$fork_repo/tools/release/neutrality.allow"
+cp "$neut_src" "$fork_repo/tools/release/neutrality.sh"
+cp "$vrm_src" "$fork_repo/tools/release/verify_rebase_merge.sh"
+chmod +x "$fork_repo/tools/release/"*.sh
+(cd "$fork_repo" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q --allow-empty -m "clean candidate commit")
+clean_fork_sha="$(git -C "$fork_repo" rev-parse HEAD)"
+
+# Form 6a: explicit target chooses upstream over fork origin
+expect_merge_in_repo "$fork_repo" "merge_pr.sh prefers upstream over fork origin with explicit target" 0 "selamy-labs-bot" 42 --match-head-commit "$clean_fork_sha" --repo selamy-labs/bazel-protobuf-bff-template
+grep -qF "pr merge 42 --rebase --match-head-commit $clean_fork_sha --repo selamy-labs/bazel-protobuf-bff-template" "$gh_merge_log" || { echo "FAIL expected merge command with upstream target in log"; failures=$((failures + 1)); }
+
+# Form 6b: default invocation chooses upstream over fork origin
+expect_merge_in_repo "$fork_repo" "merge_pr.sh prefers upstream over fork origin on default invocation" 0 "selamy-labs-bot" 42 --match-head-commit "$clean_fork_sha"
+grep -qF "pr merge 42 --rebase --match-head-commit $clean_fork_sha --repo selamy-labs/bazel-protobuf-bff-template" "$gh_merge_log" || { echo "FAIL expected merge command with upstream target in log for default invocation"; failures=$((failures + 1)); }
+rm -rf "$fork_repo"
 
 # Negative test: governance.sh --merge-pr fails closed without merge_pr.sh, with zero gh calls
 missing_helper_dir="$T/missing-helper"

@@ -56,10 +56,14 @@ resource "github_repository_ruleset" "main" {
       }
     }
 
+    # Commit metadata rules: declared desired state, pending reviewed apply by an operator.
+    # Live ruleset 26410174 does not currently enforce commit metadata rules.
+    # Enforced locally and in CI by tools/release/neutrality.sh.
+    # Never applied directly by this repository.
     committer_email_pattern {
       operator = "regex"
       negate   = false
-      pattern  = "^(noreply@github\\.com|346154065\\+selamy-labs-bot@users\\.noreply\\.github\\.com|claude-cir@selamy\\.dev)$"
+      pattern  = "^(noreply@github\\.com|github-bot@selamy\\.dev|claude-cir@selamy\\.dev)$"
     }
 
     commit_author_email_pattern {

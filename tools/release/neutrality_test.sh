@@ -87,6 +87,7 @@ expect "the same pattern in a new blob is a new finding" 1 "$S" "$T/decided" --a
 # Dynamic address helper to ensure test source contains no unallowed email literals
 at="@"
 gh_noreply="noreply${at}github.com"
+bot_committer="github-bot${at}selamy.dev"
 bot_noreply="346154065+selamy-labs-bot${at}users.noreply.github.com"
 human_noreply="12345+pselamy${at}users.noreply.github.com"
 human_selamy="pselamy${at}selamy.dev"
@@ -226,7 +227,7 @@ base_rebase="$(git -C "$T/governance-rebase" rev-parse HEAD)"
 expect "PR branch passes merge ratchet when governance enforces rebase-only merge" 0 "$S" "$T/governance-rebase" --allow "$T/allow-committer" --base "$base_rebase" --event pull_request
 
 # 6e) Simulating a rebase-by-personal-user commit fails neutrality
-{ cat "$T/allow-committer"; printf 'selamy.dev\ncommitter 346154065+selamy-labs-bot users.noreply.github.com GitHub bot rebase-merge committer identity\n'; } >"$T/allow-bot"
+{ cat "$T/allow-committer"; printf 'selamy.dev\ncommitter github-bot selamy.dev GitHub bot rebase-merge committer identity observed at b2cd2b1f under selamy-labs-bot merger\n'; } >"$T/allow-bot"
 GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" mk "$T/rebase-by-personal"
 base_rebase_personal="$(git -C "$T/rebase-by-personal" rev-parse HEAD)"
 (cd "$T/rebase-by-personal" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="Patrick Selamy" GIT_COMMITTER_EMAIL="$personal_gmail" git commit -q --allow-empty -m "rebase by personal user")
@@ -256,7 +257,7 @@ grep -q 'pull_request user '\''pselamy'\'' is not permitted' "$T/out" || { echo 
 # 6g) Simulating rebase-by-bot commit with approved bot PR event payloads passes neutrality
 GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" mk "$T/rebase-by-bot"
 base_rebase_bot="$(git -C "$T/rebase-by-bot" rev-parse HEAD)"
-(cd "$T/rebase-by-bot" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="$bot_noreply" git commit -q --allow-empty -m "rebase by bot")
+(cd "$T/rebase-by-bot" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="$bot_committer" git commit -q --allow-empty -m "rebase by bot")
 expect "rebase-by-bot commit with selamy-labs-bot payload passes neutrality via --event-path" 0 "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot" --event pull_request --event-path "$T/pr-event-bot.json"
 expect "rebase-by-bot commit with selamy-labs-bot payload passes neutrality via env" 0 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-bot.json" GITHUB_ACTOR=selamy-labs-bot "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
 expect "rebase-by-bot commit with claude-cir payload passes neutrality via env" 0 env GITHUB_EVENT_NAME=pull_request GITHUB_EVENT_PATH="$T/pr-event-claude.json" GITHUB_ACTOR=claude-cir "$S" "$T/rebase-by-bot" --allow "$T/allow-bot" --base "$base_rebase_bot"
@@ -343,9 +344,14 @@ run_isolated_scratch_case() {
   rm -rf "$case_dir"
 }
 
-# 1) Author claude-cir, Committer selamy-labs-bot noreply -> PASS (exit 0)
-run_isolated_scratch_case "case1" "$claude_author" "selamy-labs-bot" "$bot_noreply" 0 \
-  "scratch-clone case 1: claude-cir author and selamy-labs-bot committer passes"
+# 1) Author claude-cir, Committer observed selamy-labs-bot -> PASS (exit 0)
+run_isolated_scratch_case "case1" "$claude_author" "selamy-labs-bot" "$bot_committer" 0 \
+  "scratch-clone case 1: claude-cir author and observed selamy-labs-bot committer passes"
+
+# 1b) Author claude-cir, Committer unapproved selamy-labs-bot noreply -> FAIL (exit != 0)
+run_isolated_scratch_case "case1b" "$claude_author" "selamy-labs-bot" "$bot_noreply" 1 \
+  "scratch-clone case 1b: unapproved noreply bot committer fails" \
+  "email domains outside the allowlist"
 
 # 2) Author claude-cir, Committer GitHub noreply -> PASS (exit 0)
 run_isolated_scratch_case "case2" "$claude_author" "GitHub" "$gh_noreply" 0 \
@@ -361,6 +367,11 @@ run_isolated_scratch_case "case4" "$claude_author" "Patrick Selamy" "$human_sela
   "scratch-clone case 4: human user selamy.dev committer fails" \
   "unapproved selamy.dev committer identity in commit"
 
+# 4b) Committer with other unapproved local part on selamy.dev -> FAIL (exit != 0)
+run_isolated_scratch_case "case4b" "$claude_author" "Other Bot" "other-bot${at}selamy.dev" 1 \
+  "scratch-clone case 4b: unapproved selamy.dev committer local-part fails" \
+  "unapproved selamy.dev committer identity in commit"
+
 # 5) Committer Patrick Selamy with human gmail email -> FAIL (exit != 0)
 run_isolated_scratch_case "case5" "$claude_author" "Patrick Selamy" "$personal_gmail" 1 \
   "scratch-clone case 5: human user gmail committer fails" \
@@ -374,6 +385,11 @@ run_isolated_scratch_case "case6" "$bot_noreply" "selamy-labs-bot" "$bot_noreply
 # 7) Human user selamy.dev author -> FAIL (exit != 0)
 run_isolated_scratch_case "case7" "$human_selamy" "claude-cir" "$claude_author" 1 \
   "scratch-clone case 7: human user selamy.dev author fails" \
+  "unapproved selamy.dev author identity in commit"
+
+# 7b) github-bot as author -> FAIL (exit != 0)
+run_isolated_scratch_case "case7b" "$bot_committer" "claude-cir" "$claude_author" 1 \
+  "scratch-clone case 7b: github-bot as author fails" \
   "unapproved selamy.dev author identity in commit"
 
 # 8) Author claude-cir, Committer claude-cir -> PASS (exit 0)
@@ -421,8 +437,9 @@ a_regex="${a_pattern_hcl//\\\\/\\}"
 
 candidates=(
   "${claude_author} 1 1"
-  "${bot_noreply} 0 1"
+  "${bot_committer} 0 1"
   "${gh_noreply} 0 1"
+  "${bot_noreply} 0 0"
   "${human_selamy} 0 0"
   "${human_noreply} 0 0"
   "${personal_gmail} 0 0"
@@ -572,6 +589,354 @@ else
     echo "FAIL registry.textproto does not satisfy neutrality check requirements"
     failures=$((failures + 1))
   }
+fi
+
+# 11) Merge-path ratchet: verify_rebase_merge.sh and PR-time simulated rebase merge checks
+vrm_sh="tools/release/verify_rebase_merge.sh"
+[[ -f "$vrm_sh" ]] || vrm_sh="${0%/*}/verify_rebase_merge.sh"
+[[ -f "$vrm_sh" ]] || vrm_sh="${S%/*}/verify_rebase_merge.sh"
+if [[ ! -f "$vrm_sh" && -n "${RUNFILES_DIR:-}" ]]; then
+  vrm_sh="${RUNFILES_DIR}/_main/tools/release/verify_rebase_merge.sh"
+fi
+if [[ ! -f "$vrm_sh" && -n "${TEST_SRCDIR:-}" ]]; then
+  vrm_sh="${TEST_SRCDIR}/_main/tools/release/verify_rebase_merge.sh"
+fi
+
+if [[ ! -f "$vrm_sh" ]]; then
+  echo "FAIL tools/release/verify_rebase_merge.sh missing"
+  failures=$((failures + 1))
+else
+  # Create a clean fixture repo for verify_rebase_merge testing
+  git init -q -b main "$T/vrm-repo"
+  (cd "$T/vrm-repo" && printf 'hello\n' >a.txt && git add . && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" git commit -q -m one)
+  mkdir -p "$T/vrm-repo/governance/github"
+  cat >"$T/vrm-repo/governance/github/main.tf" <<'EOFG'
+resource "github_repository" "template" {
+  allow_merge_commit     = false
+  allow_squash_merge     = false
+  allow_rebase_merge     = true
+  delete_branch_on_merge = true
+}
+EOFG
+  (cd "$T/vrm-repo" && git add governance/github/main.tf && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" git commit -q -m "initial governance")
+  vrm_base="$(git -C "$T/vrm-repo" rev-parse HEAD)"
+
+  # A clean candidate commit by claude-cir
+  (cd "$T/vrm-repo" && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" git commit -q --allow-empty -m "candidate pr commit")
+  vrm_head="$(git -C "$T/vrm-repo" rev-parse HEAD)"
+
+  # Negative control (BFF-RM12-03, SOL-R13-03): fails closed if no bot rebase-merge commit exists in observed history
+  expect "verify_rebase_merge fails closed when no bot merge observed in history" 1 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_head" --base "$vrm_base"
+  expect "verify_rebase_merge fails closed when no bot merge observed even with explicit matching --bot-committer" 1 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_head" --base "$vrm_base" --bot-committer "github-bot@selamy.dev"
+  expect "verify_rebase_merge fails closed when no bot merge observed with explicit noreply --bot-committer" 1 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_head" --base "$vrm_base" --bot-committer "$gh_noreply"
+  expect "PR neutrality scan fails closed when no bot merge observed in history" 1 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_base" --event pull_request
+
+  # Now add observed bot merge commit to history, matching b2cd2b1f (selamy-labs-bot <github-bot@selamy.dev>)
+  (cd "$T/vrm-repo" && git checkout -q -b bot-base "$vrm_base" && \
+    GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" \
+    GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="$bot_committer" \
+    git commit -q --allow-empty -m "observed bot merge on base")
+  vrm_bot_base="$(git -C "$T/vrm-repo" rev-parse bot-base)"
+
+  (cd "$T/vrm-repo" && git checkout -q -b pr-branch "$vrm_bot_base" && \
+    GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" \
+    GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" \
+    git commit -q --allow-empty -m "candidate pr commit on bot base")
+  vrm_bot_head="$(git -C "$T/vrm-repo" rev-parse pr-branch)"
+
+  # Canonical allowlist: verify_rebase_merge passes with observed bot merger (exit 0)
+  expect "verify_rebase_merge passes on clean candidate with observed bot merger" 0 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_bot_head" --base "$vrm_bot_base"
+  expect "verify_rebase_merge passes when explicit --bot-committer matches observed bot committer" 0 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_bot_head" --base "$vrm_bot_base" --bot-committer "$bot_committer"
+  expect "verify_rebase_merge fails when explicit --bot-committer mismatches observed bot committer" 1 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_bot_head" --base "$vrm_bot_base" --bot-committer "mismatch@selamy.dev"
+  expect "verify_rebase_merge fails when explicit --bot-name mismatches observed bot name" 1 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_bot_head" --base "$vrm_bot_base" --bot-name "mismatch-bot"
+
+  # PR-time neutrality scan passes on clean candidate with observed bot merger
+  expect "PR-time neutrality scan passes simulated rebase merge with observed bot merger" 0 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event pull_request
+
+  # Negative control: allowlist lacking committer github-bot selamy.dev
+  grep -v "committer github-bot selamy.dev" "$allow_canonical" >"$T/allow-no-bot"
+  expect "verify_rebase_merge fails when allowlist lacks github-bot committer" 1 "$vrm_sh" --repo "$T/vrm-repo" --allow "$T/allow-no-bot" --head "$vrm_bot_head" --base "$vrm_bot_base"
+
+  # Negative control: PR-time neutrality scan fails when allowlist lacks github-bot committer
+  expect "PR-time neutrality scan fails when allowlist lacks github-bot committer" 1 "$S" "$T/vrm-repo" --allow "$T/allow-no-bot" --base "$vrm_bot_base" --event pull_request
+
+  # Negative control (ARGON-BFF-R12-002): decoy allowlist with selamy-labs-bot in wrong local-part or comment must not be picked up
+  cat >"$T/allow-decoy-bot" <<'EOFDEC'
+selamy.dev
+author claude-cir selamy.dev
+committer selamy-labs-bot selamy.dev decoy wrong local part mentioning selamy-labs-bot
+committer decoy-bot selamy.dev comment referencing selamy-labs-bot
+EOFDEC
+  expect "verify_rebase_merge fails when allowlist only has decoy selamy-labs-bot entry" 1 "$vrm_sh" --repo "$T/vrm-repo" --allow "$T/allow-decoy-bot" --head "$vrm_bot_head" --base "$vrm_bot_base"
+  expect "PR-time neutrality scan fails when allowlist only has decoy selamy-labs-bot entry" 1 "$S" "$T/vrm-repo" --allow "$T/allow-decoy-bot" --base "$vrm_bot_base" --event pull_request
+
+  # Negative control: candidate commit with personal author identity fails verify_rebase_merge and neutrality PR simulation
+  vrm_bad_repo="$T/vrm-bad-repo"
+  git clone -q "$T/vrm-repo" "$vrm_bad_repo"
+  (cd "$vrm_bad_repo" && git checkout -q -b bad-pr "$vrm_bot_base" && \
+    GIT_AUTHOR_NAME="Patrick Selamy" GIT_AUTHOR_EMAIL="$human_selamy" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" git commit -q --allow-empty -m "bad author candidate")
+  vrm_bad_head="$(git -C "$vrm_bad_repo" rev-parse bad-pr)"
+  expect "verify_rebase_merge fails candidate commit with unapproved selamy.dev author" 1 "$vrm_sh" --repo "$vrm_bad_repo" --allow "$allow_canonical" --head "$vrm_bad_head" --base "$vrm_bot_base"
+  expect "PR-time neutrality scan fails candidate commit with unapproved selamy.dev author" 1 "$S" "$vrm_bad_repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event pull_request
+  rm -rf "$vrm_bad_repo"
+
+  # Regression test for ARGON-BFF-R13-002: newer selamy-labs-bot commit with unapproved email must not fall back to older approved commit
+  vrm_newer_bad_bot_repo="$T/vrm-newer-bad-bot"
+  git clone -q "$T/vrm-repo" "$vrm_newer_bad_bot_repo"
+  (cd "$vrm_newer_bad_bot_repo" && \
+    git checkout -q -b newer-bot-base "$vrm_bot_base" && \
+    GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="unapproved-bot@selamy.dev" git commit -q --allow-empty -m "newer bot merge commit with unapproved email" && \
+    git checkout -q -b newer-pr && \
+    GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="$claude_author" git commit -q --allow-empty -m "clean candidate on newer bot base")
+  vrm_newer_base="$(git -C "$vrm_newer_bad_bot_repo" rev-parse newer-bot-base)"
+  vrm_newer_head="$(git -C "$vrm_newer_bad_bot_repo" rev-parse newer-pr)"
+  expect "verify_rebase_merge fails closed when newer bot merge has unapproved email" 1 "$vrm_sh" --repo "$vrm_newer_bad_bot_repo" --allow "$allow_canonical" --head "$vrm_newer_head" --base "$vrm_newer_base"
+  expect "PR neutrality scan fails closed when newer bot merge has unapproved email" 1 "$S" "$vrm_newer_bad_bot_repo" --allow "$allow_canonical" --base "$vrm_newer_base" --event pull_request
+  rm -rf "$vrm_newer_bad_bot_repo"
+
+  # Negative controls (BFF-RM12-SOL-03): verify_rebase_merge fails closed on simulation setup errors
+  expect "verify_rebase_merge fails closed on unresolvable base" 2 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_bot_head" --base "nonexistent-base-1234"
+  expect "verify_rebase_merge fails closed on unresolvable head" 2 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "nonexistent-head-1234" --base "$vrm_bot_base"
+  expect "verify_rebase_merge fails closed on unreadable allowlist" 2 "$vrm_sh" --repo "$T/vrm-repo" --allow "$T/nonexistent-allow" --head "$vrm_bot_head" --base "$vrm_bot_base"
+  mkdir -p "$T/not-a-repo"
+  expect "verify_rebase_merge fails closed on non-git directory" 2 "$vrm_sh" --repo "$T/not-a-repo" --allow "$allow_canonical" --head "$vrm_bot_head" --base "$vrm_bot_base"
+
+  # Fault-injection regression tests for PR simulation (SOL-R13-04):
+  # 1. Unresolvable base in PR mode fails with exit 2
+  expect "PR neutrality scan fails on unresolvable base" 2 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "nonexistent-base-1234" --event pull_request
+
+  # 2. Unreadable allowlist in PR mode fails with exit 2
+  expect "PR neutrality scan fails on unreadable allowlist" 2 "$S" "$T/vrm-repo" --allow "$T/nonexistent-allow" --base "$vrm_bot_base" --event pull_request
+
+  # 3. Failed scratch clone during PR simulation fails with exit 1 and diagnostic
+  mkdir -p "$T/mock-bin-clone-fail"
+  cat >"$T/mock-bin-clone-fail/git" <<'EOFCLONE'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  if [[ "$arg" == "clone" ]]; then
+    echo "fatal: injected clone failure" >&2
+    exit 128
+  fi
+done
+exec /usr/bin/git "$@"
+EOFCLONE
+  chmod +x "$T/mock-bin-clone-fail/git"
+  expect "PR neutrality scan fails when scratch clone fails" 1 env PATH="$T/mock-bin-clone-fail:$PATH" "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event pull_request
+  grep -qF "failed to clone scratch repository for rebase-merge simulation" "$T/out" || {
+    echo "FAIL missing scratch clone failure diagnostic in output"; failures=$((failures + 1))
+  }
+
+  # 4. Failed candidate tree resolution during PR simulation fails with exit 1 and diagnostic
+  mkdir -p "$T/mock-bin-tree-fail"
+  cat >"$T/mock-bin-tree-fail/git" <<'EOFTREE'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  if [[ "$arg" == *"^{tree}"* ]]; then
+    echo "fatal: injected tree resolution failure" >&2
+    exit 128
+  fi
+done
+exec /usr/bin/git "$@"
+EOFTREE
+  chmod +x "$T/mock-bin-tree-fail/git"
+  expect "PR neutrality scan fails when tree resolution fails" 1 env PATH="$T/mock-bin-tree-fail:$PATH" "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event pull_request
+  grep -qF "failed to resolve candidate tree for rebase-merge simulation" "$T/out" || {
+    echo "FAIL missing candidate tree failure diagnostic in output"; failures=$((failures + 1))
+  }
+
+  # 5. Failed synthetic commit creation during PR simulation fails with exit 1 and diagnostic
+  mkdir -p "$T/mock-bin-commit-fail"
+  cat >"$T/mock-bin-commit-fail/git" <<'EOFCOMMIT'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  if [[ "$arg" == "commit-tree" ]]; then
+    echo "fatal: injected commit-tree failure" >&2
+    exit 128
+  fi
+done
+exec /usr/bin/git "$@"
+EOFCOMMIT
+  chmod +x "$T/mock-bin-commit-fail/git"
+  expect "PR neutrality scan fails when commit creation fails" 1 env PATH="$T/mock-bin-commit-fail:$PATH" "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event pull_request
+  grep -qF "failed to create synthetic commit for rebase-merge simulation" "$T/out" || {
+    echo "FAIL missing commit creation failure diagnostic in output"; failures=$((failures + 1))
+  }
+
+  # 6. Crashing inner neutrality scan during PR simulation fails with exit 1 and diagnostic
+  cp "$S" "$T/injected-crash-neutrality.sh"
+  sed -i '2i if [[ "$*" == *"--internal-simulation"* ]]; then echo "crash: injected inner push scan failure" >&2; exit 42; fi' "$T/injected-crash-neutrality.sh"
+  chmod +x "$T/injected-crash-neutrality.sh"
+  expect "PR neutrality scan fails when inner neutrality scan crashes" 1 "$T/injected-crash-neutrality.sh" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event pull_request
+  grep -qF "fails neutrality scan" "$T/out" || {
+    echo "FAIL missing inner scan crash diagnostic in output"; failures=$((failures + 1))
+  }
+
+  # Regression test for BFF-RM12-SOL-01 / BFF-RM12-01: exported CI environment does not cause recursion
+  pr_payload_file="$T/pr-event.json"
+  printf '{"pull_request":{"user":{"login":"claude-cir"}}}\n' >"$pr_payload_file"
+  pr_rec_out="$T/out-pr-recursion"
+  pr_rec_rc=0
+  (
+    export GITHUB_ACTIONS="true"
+    export GITHUB_EVENT_NAME="pull_request"
+    export GITHUB_ACTOR="claude-cir"
+    export GITHUB_EVENT_PATH="$pr_payload_file"
+    timeout 15 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" >"$pr_rec_out" 2>&1
+  ) || pr_rec_rc=$?
+  if [[ "$pr_rec_rc" -eq 0 ]]; then
+    echo "ok   PR neutrality scan in CI environment terminates without recursion"
+  else
+    echo "FAIL PR neutrality scan in CI environment failed: exit $pr_rec_rc"
+    cat "$pr_rec_out"
+    failures=$((failures + 1))
+  fi
+
+  # Single-commit simulation scope test (BFF-RM14-01, SOL-R14-02, ARGON-BFF-R14-001)
+  # 1. verify_rebase_merge outputs scoped simulation output ('scope: 1 commit, N changed blobs')
+  expect "verify_rebase_merge passes and outputs scoped simulation" 0 "$vrm_sh" --repo "$T/vrm-repo" --allow "$allow_canonical" --head "$vrm_bot_head" --base "$vrm_bot_base"
+  grep -qE "scope: 1 commit, [0-9]+ changed blobs, [0-9]+ distinct paths, 0 refs, all identities" "$T/out" || {
+    echo "FAIL verify_rebase_merge did not report single-commit scope in output"; failures=$((failures + 1))
+  }
+
+  # 2. neutrality.sh PR mode outputs scoped simulation info
+  expect "PR neutrality scan reports scoped simulated rebase-merge" 0 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event pull_request
+  grep -qE "simulated rebase-merge \(scope: 1 commit, [0-9]+ changed blobs" "$T/out" || {
+    echo "FAIL PR neutrality scan did not report scoped rebase-merge in output"; failures=$((failures + 1))
+  }
+
+  # 3. Behavioral proof: neutrality.sh --commit only scans target commit and changed blobs, not unrelated dirty history
+  dirty_repo="$T/dirty-history-repo"
+  git clone -q "$T/vrm-repo" "$dirty_repo"
+  fake_key="AKIA$(printf '%s%s' 'IOSFODNN' '7EXAMPLE')"
+  (cd "$dirty_repo" && git checkout -q -b dirty-branch && printf 'secret=%s\n' "$fake_key" >secret.txt && git add secret.txt && GIT_AUTHOR_NAME="claude-cir" GIT_AUTHOR_EMAIL="claude-cir@selamy.dev" GIT_COMMITTER_NAME="claude-cir" GIT_COMMITTER_EMAIL="claude-cir@selamy.dev" git commit -q -m "dirty commit with secret")
+  git -C "$dirty_repo" checkout -q main
+
+  # Full push-mode scan fails on dirty-branch
+  expect "full push scan fails on dirty history in other ref" 1 "$S" "$dirty_repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event push
+  grep -qF "secret pattern at blob" "$T/out" || {
+    echo "FAIL expected secret pattern detection in full scan"; failures=$((failures + 1))
+  }
+
+  # Targeted --commit scan passes because it only scans the candidate commit and changed blobs
+  expect "targeted commit scan ignores unrelated dirty history" 0 "$S" "$dirty_repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --internal-simulation
+  grep -qE "scope: 1 commit, [0-9]+ changed blobs, [0-9]+ distinct paths, 0 refs, all identities" "$T/out" || {
+    echo "FAIL expected scoped scan output for targeted commit scan"; failures=$((failures + 1))
+  }
+  rm -rf "$dirty_repo"
+
+  # Negative test for regex metacharacters in allowlist committer matching (BFF-RM14-03)
+  # selamyXdev decoy line: "." in regex would match "X", but exact-field match must reject
+  decoy_allow="$T/decoy-metachar.allow"
+  sed 's/selamy\.dev/selamyXdev/g' "$allow_canonical" >"$decoy_allow"
+
+  # verify_rebase_merge.sh pre-check fails closed with exit 1
+  expect "verify_rebase_merge fails closed on regex metacharacter decoy allowlist" 1 "$vrm_sh" --repo "$T/vrm-repo" --allow "$decoy_allow" --head "$vrm_bot_head" --base "$vrm_bot_base"
+  grep -qF "does not permit observed bot merger committer identity" "$T/out" || {
+    echo "FAIL missing pre-check rejection message in verify_rebase_merge with decoy allowlist"; failures=$((failures + 1))
+  }
+
+  # neutrality.sh PR mode pre-check fails closed with exit 1
+  expect "PR neutrality scan fails closed on regex metacharacter decoy allowlist" 1 "$S" "$T/vrm-repo" --allow "$decoy_allow" --base "$vrm_bot_base" --event pull_request
+  grep -qF "neutrality.allow must accept observed bot merger committer identity (github-bot@selamy.dev)" "$T/out" || {
+    echo "FAIL missing pre-check rejection message in PR neutrality with decoy allowlist"; failures=$((failures + 1))
+  }
+  rm -f "$decoy_allow"
+
+  # SOL-R15-01 / BFF-RM15-01 negative tests: --commit option must be restricted to internal simulation only
+  # 1. --commit without --internal-simulation exits 2
+  expect "--commit without --internal-simulation fails closed with exit 2" 2 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head"
+  grep -qF "permitted only for internal simulation" "$T/out" || {
+    echo "FAIL expected internal simulation required message in output"; failures=$((failures + 1))
+  }
+
+  # 2. --commit plus --event pull_request exits 2
+  expect "--commit plus --event pull_request fails closed with exit 2" 2 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --event pull_request
+  grep -qF "cannot be combined with --event pull_request" "$T/out" || {
+    echo "FAIL expected cannot combine with --event pull_request message in output"; failures=$((failures + 1))
+  }
+
+  # 3. --commit --internal-simulation plus --event pull_request exits 2
+  expect "--commit --internal-simulation plus --event pull_request fails closed with exit 2" 2 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --internal-simulation --event pull_request
+  grep -qF "cannot be combined with --event pull_request" "$T/out" || {
+    echo "FAIL expected cannot combine with --event pull_request message in output"; failures=$((failures + 1))
+  }
+
+  # 4. --commit plus --event push exits 2
+  expect "--commit plus --event push fails closed with exit 2" 2 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --event push
+  grep -qF "cannot be combined with --event push" "$T/out" || {
+    echo "FAIL expected cannot combine with --event push message in output"; failures=$((failures + 1))
+  }
+
+  # 5. --commit --internal-simulation plus --event push exits 2
+  expect "--commit --internal-simulation plus --event push fails closed with exit 2" 2 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --internal-simulation --event push
+  grep -qF "cannot be combined with --event push" "$T/out" || {
+    echo "FAIL expected cannot combine with --event push message in output"; failures=$((failures + 1))
+  }
+
+  # 6. --commit in GitHub Actions CI environment exits 2
+  expect "--commit under GITHUB_ACTIONS=true fails closed with exit 2" 2 env GITHUB_ACTIONS="true" "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --internal-simulation
+  grep -qF "cannot be used in a GitHub Actions CI environment" "$T/out" || {
+    echo "FAIL expected CI environment rejection in output"; failures=$((failures + 1))
+  }
+
+  expect "--commit under GITHUB_RUN_ID fails closed with exit 2" 2 env GITHUB_RUN_ID="12345" "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --internal-simulation
+  grep -qF "cannot be used in a GitHub Actions CI environment" "$T/out" || {
+    echo "FAIL expected CI environment rejection in output for GITHUB_RUN_ID"; failures=$((failures + 1))
+  }
+
+  expect "--commit under GITHUB_EVENT_NAME=push fails closed with exit 2" 2 env GITHUB_EVENT_NAME="push" "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --internal-simulation
+  grep -qE "cannot be (combined with --event|used in a GitHub Actions CI environment)" "$T/out" || {
+    echo "FAIL expected event or CI rejection in output for GITHUB_EVENT_NAME"; failures=$((failures + 1))
+  }
+
+  # 7. Multi-commit PR with human actor is still rejected in PR mode (without --commit)
+  multi_pr_repo="$T/multi-pr-repo"
+  git clone -q "$T/vrm-repo" "$multi_pr_repo"
+  (cd "$multi_pr_repo" && git checkout -q -b multi-pr-branch "$vrm_bot_base" && \
+   printf 'commit1\n' >file1.txt && git add file1.txt && \
+   GIT_AUTHOR_NAME="Alice Human" GIT_AUTHOR_EMAIL="alice@example.com" GIT_COMMITTER_NAME="Alice Human" GIT_COMMITTER_EMAIL="alice@example.com" git commit -q -m "first PR commit" && \
+   printf 'commit2\n' >file2.txt && git add file2.txt && \
+   GIT_AUTHOR_NAME="Alice Human" GIT_AUTHOR_EMAIL="alice@example.com" GIT_COMMITTER_NAME="Alice Human" GIT_COMMITTER_EMAIL="alice@example.com" git commit -q -m "second PR commit")
+  expect "multi-commit PR with human actor is rejected in PR mode" 1 "$S" "$multi_pr_repo" --allow "$allow_canonical" --base "$vrm_bot_base" --event pull_request
+  grep -qF "commits ahead of base; squash to a single neutral-author commit" "$T/out" || {
+    echo "FAIL expected multi-commit ratchet failure in output"; failures=$((failures + 1))
+  }
+  rm -rf "$multi_pr_repo"
+
+  # 8. Pin test: quality/registry.textproto neutrality command does not pass simulation flags
+  repo_root="$(cd "$(dirname "$S")/../.." 2>/dev/null && pwd || true)"
+  if [[ -f "$repo_root/quality/registry.textproto" ]]; then
+    if grep -qF -- "--commit" "$repo_root/quality/registry.textproto"; then
+      echo "FAIL quality/registry.textproto neutrality command contains --commit"; failures=$((failures + 1))
+    fi
+    if grep -qF -- "--internal-simulation" "$repo_root/quality/registry.textproto"; then
+      echo "FAIL quality/registry.textproto neutrality command contains --internal-simulation"; failures=$((failures + 1))
+    fi
+    echo "ok   quality/registry.textproto neutrality command contains no simulation flags"
+  fi
+
+  # 9. Private marker scan in simulation mode (ARGON-BFF-R15-001)
+  # paths.zu and refs are populated; clean run succeeds
+  sim_marker_file="$T/sim-markers.txt"
+  sim_map_file="$T/sim-mapping.txt"
+  printf '%s\n' "secret-sim-marker-absent" >"$sim_marker_file"
+  expect "marker scan succeeds in simulation mode when marker is absent" 0 "$S" "$T/vrm-repo" --allow "$allow_canonical" --base "$vrm_bot_base" --commit "$vrm_bot_head" --internal-simulation --markers "$sim_marker_file" --mapping "$sim_map_file"
+  grep -qF "private passed" "$T/out" || {
+    echo "FAIL expected private passed in simulation marker scan"; failures=$((failures + 1))
+  }
+  rm -f "$sim_marker_file" "$sim_map_file"
+
+  # Pin b2cd2b1f's actual committer as observed in repository history (BFF-RM12-03)
+  if git rev-parse --verify --quiet "b2cd2b1f3f9a2bdf1450d99b8c446d2b5095a40f^{commit}" >/dev/null 2>&1; then
+    b2_cn="$(git log -1 --format='%cn' b2cd2b1f3f9a2bdf1450d99b8c446d2b5095a40f)"
+    b2_ce="$(git log -1 --format='%ce' b2cd2b1f3f9a2bdf1450d99b8c446d2b5095a40f)"
+    if [[ "$b2_cn" == "selamy-labs-bot" && "$b2_ce" == "github-bot@selamy.dev" ]]; then
+      echo "ok   b2cd2b1f committer pinned to observed identity selamy-labs-bot <github-bot@selamy.dev>"
+    else
+      echo "FAIL b2cd2b1f committer mismatch: got '$b2_cn <$b2_ce>'"
+      failures=$((failures + 1))
+    fi
+  fi
 fi
 
 echo "fixture failures: $failures"; exit "$failures"
