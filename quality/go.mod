@@ -1,6 +1,6 @@
 module github.com/selamy-labs/bazel-protobuf-bff-template/quality
 
-go 1.27.3
+go 1.27.4
 
 require (
 	github.com/fzipp/gocyclo v0.6.0
