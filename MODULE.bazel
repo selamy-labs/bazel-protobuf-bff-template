@@ -28,11 +28,11 @@ go_sdk = use_extension("@rules_go//go:extensions.bzl", "go_sdk")
 go_sdk.download(
     name = "go_sdk",
     sdks = {
-        "darwin_arm64": ("go1.27.3.darwin-arm64.tar.gz", "dd3908cf20959d798c1e06ebe5b72213f0505ce01373b40ce3110975a6cd99c2"),
-        "linux_amd64": ("go1.27.3.linux-amd64.tar.gz", "65efbc80fdc1fa2cd2631cad5b481777a68e8725f34e89f50fc6ac714e379b40"),
-        "linux_arm64": ("go1.27.3.linux-arm64.tar.gz", "a06e99309dbcbdca1a8ccd2282c3ee146e55930886e26b4f1193269587165f49"),
+        "darwin_arm64": ("go1.27.4.darwin-arm64.tar.gz", "91a44a2b8a716600ad94a4f143e156116620db8828086a6e3602291be9bd0bb4"),
+        "linux_amd64": ("go1.27.4.linux-amd64.tar.gz", "7226736c2339719cda28fbf3a54d71aa63bcefe376e98cef00034268dab24840"),
+        "linux_arm64": ("go1.27.4.linux-arm64.tar.gz", "3392582988a273a87ab5043ee1b2c9c17a2c3c00580bf9326c47a2e0aaaeac92"),
     },
-    version = "1.27.3",
+    version = "1.27.4",
 )
 use_repo(go_sdk, "go_sdk")
 
