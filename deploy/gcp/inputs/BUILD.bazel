@@ -37,6 +37,7 @@ go_test(
     name = "inputs_test",
     size = "small",
     srcs = [
+        "apply_quote_test.go",
         "inputs_test.go",
         "plan_test.go",
         "resolve_test.go",
