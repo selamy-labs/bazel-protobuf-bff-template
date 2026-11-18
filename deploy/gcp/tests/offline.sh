@@ -26,7 +26,7 @@ trap 'chmod -R u+w "$work" 2>/dev/null || true; rm -rf "$work"' EXIT
 "$validator" --effective "$work/effective.inputs.json" "$inputs" >"$work/validate.out" || { echo "offline: the inputs are refused; no plan"; exit 1; }
 [[ -s "$work/effective.inputs.json" ]] || { echo "offline: the funnel wrote no effective document"; exit 1; }
 grep -q '^release.serving_digest="sha256:[0-9a-f]*" # from ' "$work/validate.out" || { echo "offline: the funnel named no source for the serving digest"; exit 1; }
-hash="$(grep -oE 'h1:[A-Za-z0-9+/=]+' "$service/.terraform.lock.hcl" | head -1)"
+hash="$(grep -oE 'h1:[A-Za-z0-9+/=]+' "$service/.terraform.lock.hcl" | sed -n '1p')"
 [[ -n "$hash" ]] || refuse "the lock names no h1 hash"
 mirror="$work/mirror/registry.opentofu.org/hashicorp/google"
 mkdir -p "$mirror"
@@ -84,36 +84,36 @@ for step in validate-inputs cancel-in-flight promote-by-digest plan apply-behind
   [[ "$flags" == *e* ]] || { echo "offline: pipeline step $step does not enable -e in args" >&2; exit 1; }
   [[ "$flags" == *u* ]] || { echo "offline: pipeline step $step does not enable -u in args" >&2; exit 1; }
   script="$(step_active_script "$step")"
-  echo "$script" | grep -E -q '^[[:space:]]*set -o pipefail(\b|[[:space:]]|$)' || { echo "offline: pipeline step $step does not set pipefail" >&2; exit 1; }
+  grep -E -q '^[[:space:]]*set -o pipefail(\b|[[:space:]]|$)' <<<"$script" || { echo "offline: pipeline step $step does not set pipefail" >&2; exit 1; }
 done
 
 for step in promote-by-digest plan apply-behind-the-gate; do
   script="$(step_active_script "$step")"
-  echo "$script" | grep -E -q '^[[:space:]]*\[\[ ! -e /workspace/cancelled \]\] \|\|' || { echo "offline: the step $step ignores a cancellation" >&2; exit 1; }
+  grep -E -q '^[[:space:]]*\[\[ ! -e /workspace/cancelled \]\] \|\|' <<<"$script" || { echo "offline: the step $step ignores a cancellation" >&2; exit 1; }
 done
 
 cancel_script="$(step_active_script "cancel-in-flight")"
-echo "$cancel_script" | grep -q "release.cancel_in_flight=true" || { echo "offline: the pipeline does not read the cancellation from the funnel" >&2; exit 1; }
-echo "$cancel_script" | grep -F -q "id!=\${BUILD_ID}" || {
+grep -q "release.cancel_in_flight=true" <<<"$cancel_script" || { echo "offline: the pipeline does not read the cancellation from the funnel" >&2; exit 1; }
+grep -F -q "id!=\${BUILD_ID}" <<<"$cancel_script" || {
   echo "offline: cancel-in-flight must exclude current build id from cancellation filter" >&2
   exit 1
 }
 
 promote_script="$(step_active_script "promote-by-digest")"
-echo "$promote_script" | grep -F -q 'crane digest' || {
+grep -F -q 'crane digest' <<<"$promote_script" || {
   echo "offline: promote-by-digest must re-check digest with crane digest" >&2
   exit 1
 }
 
 apply_script="$(step_active_script "apply-behind-the-gate")"
-if echo "$apply_script" | grep -v '^[[:space:]]*#' | grep -E -q '\b(TF|OPENTOFU)_[a-zA-Z0-9_]*\b'; then
+if grep -v '^[[:space:]]*#' <<<"$apply_script" | grep -E '\b(TF|OPENTOFU)_[a-zA-Z0-9_]*\b' >/dev/null; then
   echo "offline: apply step must not set or export TF_* or OPENTOFU_* environment variables" >&2
   exit 1
 fi
 for env_entry in $("$yq" '.options.env[]' "$pipeline" 2>/dev/null || true); do
   var_name="${env_entry%%=*}"
   var_name="$(echo "$var_name" | tr -d '[:space:]')"
-  if echo "$var_name" | grep -E -q -i '^(TF|OPENTOFU)_'; then
+  if grep -E -q -i '^(TF|OPENTOFU)_' <<<"$var_name"; then
     echo "offline: options.env must not set TF_* or OPENTOFU_* environment variables" >&2
     exit 1
   fi
@@ -121,70 +121,70 @@ done
 for env_entry in $("$yq" '.steps[].env[]' "$pipeline" 2>/dev/null || true); do
   var_name="${env_entry%%=*}"
   var_name="$(echo "$var_name" | tr -d '[:space:]')"
-  if echo "$var_name" | grep -E -q -i '^(TF|OPENTOFU)_'; then
+  if grep -E -q -i '^(TF|OPENTOFU)_' <<<"$var_name"; then
     echo "offline: step env must not set TF_* or OPENTOFU_* environment variables" >&2
     exit 1
   fi
 done
-tofu_lines="$(echo "$apply_script" | grep -v '^[[:space:]]*#' | grep -E '\btofu\b' || true)"
-if echo "$tofu_lines" | grep -E -q '\btofu\b.*(\s|^)(destroy|plan|state|import|refresh|taint|untaint|force-unlock|workspace|output)\b'; then
+tofu_lines="$(grep -v '^[[:space:]]*#' <<<"$apply_script" | grep -E '\btofu\b' || true)"
+if grep -E -q '\btofu\b.*(\s|^)(destroy|plan|state|import|refresh|taint|untaint|force-unlock|workspace|output)\b' <<<"$tofu_lines"; then
   echo "offline: apply step contains forbidden tofu subcommand" >&2
   exit 1
 fi
-static_apply_count="$(echo "$tofu_lines" | grep -c -E '\btofu\b.*(\s|^)apply\b' || true)"
+static_apply_count="$(grep -c -E '\btofu\b.*(\s|^)apply\b' <<<"$tofu_lines" || true)"
 if [[ "$static_apply_count" -ne 1 ]]; then
   echo "offline: apply step must contain exactly one tofu apply, found $static_apply_count" >&2
   exit 1
 fi
-static_init_count="$(echo "$tofu_lines" | grep -c -E '\btofu\b.*(\s|^)init\b' || true)"
+static_init_count="$(grep -c -E '\btofu\b.*(\s|^)init\b' <<<"$tofu_lines" || true)"
 if [[ "$static_init_count" -ne 1 ]]; then
   echo "offline: apply step must contain exactly one tofu init, found $static_init_count" >&2
   exit 1
 fi
-apply_line_no="$(echo "$apply_script" | grep -n 'tofu apply' | cut -d: -f1 | head -1 || true)"
-init_line_no="$(echo "$apply_script" | grep -n -E '\btofu\b.*(\s|^)init\b' | cut -d: -f1 | head -1 || true)"
+apply_line_no="$(grep -n 'tofu apply' <<<"$apply_script" | cut -d: -f1 | sed -n '1p' || true)"
+init_line_no="$(grep -n -E '\btofu\b.*(\s|^)init\b' <<<"$apply_script" | cut -d: -f1 | sed -n '1p' || true)"
 if [[ -n "$init_line_no" && -n "$apply_line_no" && "$apply_line_no" -lt "$init_line_no" ]]; then
   echo "offline: apply step must not invoke tofu apply before tofu init" >&2
   exit 1
 fi
-init_cmd="$(echo "$apply_script" | grep -v '^[[:space:]]*#' | grep -E '^[[:space:]]*tofu\b' | grep -E '\binit\b' | head -1 | sed -e 's/^[[:space:]]*//')"
+init_cmd="$(grep -v '^[[:space:]]*#' <<<"$apply_script" | grep -E '^[[:space:]]*tofu\b' | grep -E '\binit\b' | sed -n '1s/^[[:space:]]*//p' || true)"
 if [[ "$init_cmd" != "tofu init -input=false -lockfile=readonly" ]]; then
   echo "offline: apply step must invoke exact command 'tofu init -input=false -lockfile=readonly'" >&2
   exit 1
 fi
-apply_cmd="$(echo "$apply_script" | grep -v '^[[:space:]]*#' | grep -E '^[[:space:]]*tofu\b' | grep -E '\bapply\b' | head -1 | sed -e 's/^[[:space:]]*//')"
+apply_cmd="$(grep -v '^[[:space:]]*#' <<<"$apply_script" | grep -E '^[[:space:]]*tofu\b' | grep -E '\bapply\b' | sed -n '1s/^[[:space:]]*//p' || true)"
 if [[ "$apply_cmd" != "tofu apply -input=false -auto-approve /workspace/plan.tfplan" ]]; then
   echo "offline: apply step must invoke exact command 'tofu apply -input=false -auto-approve /workspace/plan.tfplan'" >&2
   exit 1
 fi
-digest_line_no="$(echo "$apply_script" | grep -n 'sha256sum' | grep '_APPROVED_PLAN_SHA256' | cut -d: -f1 | tail -1 || true)"
+digest_line_no="$(grep -n 'sha256sum' <<<"$apply_script" | grep '_APPROVED_PLAN_SHA256' | cut -d: -f1 | tail -1 || true)"
 [[ -n "$apply_line_no" && -n "$digest_line_no" && "$digest_line_no" -lt "$apply_line_no" ]] || {
   echo "offline: apply step must verify plan digest before tofu apply" >&2
   exit 1
 }
-echo "$apply_script" | grep -F -q '^[0-9a-f]{64}$' || {
+grep -F -q '^[0-9a-f]{64}$' <<<"$apply_script" || {
   echo "offline: apply step must strictly validate _APPROVED_PLAN_SHA256 format" >&2
   exit 1
 }
-if echo "$apply_script" | grep -v '^[[:space:]]*#' | grep '_APPROVED_PLAN_SHA256' | grep 'sha256sum' | grep -E -q '\|\|[[:space:]]*(true|:)'; then
+if grep -v '^[[:space:]]*#' <<<"$apply_script" | grep '_APPROVED_PLAN_SHA256' | grep 'sha256sum' | grep -E '\|\|[[:space:]]*(true|:)' >/dev/null; then
   echo "offline: apply step approved plan digest check must not be masked with || true" >&2
   exit 1
 fi
-if echo "$apply_script" | grep -v '^[[:space:]]*#' | grep -E '\bsha256sum\b' | grep -v -q -- '--strict'; then
+if grep -v '^[[:space:]]*#' <<<"$apply_script" | grep -E '\bsha256sum\b' | grep -v -- '--strict' >/dev/null; then
   echo "offline: apply step must invoke sha256sum with --strict" >&2
   exit 1
 fi
-if ! echo "$apply_script" | grep -v '^[[:space:]]*#' | grep -F -q "grep -Fq \"\${_APPROVED_PLAN_SHA256}\" /workspace/plan.tfplan.sha256"; then
+if ! grep -v '^[[:space:]]*#' <<<"$apply_script" | grep -F "grep -Fq \"\${_APPROVED_PLAN_SHA256}\" /workspace/plan.tfplan.sha256" >/dev/null; then
   echo "offline: apply step must verify plan sidecar checksum against approved digest" >&2
   exit 1
 fi
 
 record_script="$(step_active_script "record")"
-echo "$record_script" | grep -F -q 'gcloud run services describe bff' || {
+grep -F -q 'gcloud run services describe bff' <<<"$record_script" || {
   echo "offline: record step must describe service after apply" >&2
   exit 1
 }
-echo "$record_script" | grep -F -q 'cancelled=true' || {
+grep -F -q 'cancelled=true' <<<"$record_script" || {
   echo "offline: record step must record cancellation status" >&2
   exit 1
 }
@@ -274,7 +274,7 @@ fi
 echo "tofu_invocation subcmd=$subcmd target_digest=$current_plan_sha" >> "${STUB_LOG:-/dev/null}"
 
 if [[ "$step" == "apply-behind-the-gate" ]]; then
-  if env | grep -E -q '^(TF|OPENTOFU)_[a-zA-Z0-9_]+='; then
+  if env | grep -E '^(TF|OPENTOFU)_[a-zA-Z0-9_]+=' >/dev/null; then
     echo "mock tofu: TF_* and OPENTOFU_* environment variables are forbidden during apply step" >&2
     exit 1
   fi
@@ -561,8 +561,8 @@ if [[ "$init_count" -gt 1 ]]; then
   echo "offline: apply step must execute at most one tofu init, found $init_count" >&2
   exit 1
 fi
-init_idx="$(grep -n '^tofu_invocation subcmd=init ' "$stub_log" | cut -d: -f1 | head -1 || true)"
-apply_idx="$(grep -n '^tofu_invocation subcmd=apply ' "$stub_log" | cut -d: -f1 | head -1 || true)"
+init_idx="$(grep -n '^tofu_invocation subcmd=init ' "$stub_log" | cut -d: -f1 | sed -n '1p' || true)"
+apply_idx="$(grep -n '^tofu_invocation subcmd=apply ' "$stub_log" | cut -d: -f1 | sed -n '1p' || true)"
 if [[ -n "$init_idx" && -n "$apply_idx" && "$apply_idx" -lt "$init_idx" ]]; then
   echo "offline: apply step executed tofu apply before tofu init" >&2
   exit 1

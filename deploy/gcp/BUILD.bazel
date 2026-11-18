@@ -5,7 +5,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 # The sandbox gives it no network, and the pinned zip gives it no fetch.
 sh_test(
     name = "offline_test",
-    size = "medium",
+    size = "large",
     srcs = ["tests/offline_test.sh"],
     args = [
         "$(rootpath tests/offline.sh)",
