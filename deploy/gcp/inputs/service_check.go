@@ -2,8 +2,10 @@ package inputs
 
 import (
 	"bufio"
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -686,17 +688,45 @@ type applyToken struct {
 	isOp  bool
 }
 
-var applyOperators = []string{
-	"&>>", "&&", "||", "|&", ";;", ";&",
-	">>", ">|", ">&", "&>", "<>", "<&",
-	";", "|", "&", "(", ")", ">", "<",
-}
+var (
+	applyOperators = []string{
+		"&>>", "&&", "||", "|&", ";;", ";&",
+		">>", ">|", ">&", "&>", "<>", "<&",
+		";", "|", "&", "(", ")", ">", "<",
+	}
+	applyRedirOperators = []string{
+		">>", ">|", ">&", "<>", "<&", ">", "<",
+	}
+)
 
 func matchApplyOp(s string) string {
 	for _, op := range applyOperators {
 		if strings.HasPrefix(s, op) {
 			return op
 		}
+	}
+	return ""
+}
+
+func matchApplyRedirOp(s string) string {
+	for _, op := range applyRedirOperators {
+		if strings.HasPrefix(s, op) {
+			return op
+		}
+	}
+	return ""
+}
+
+func matchApplyIoRedir(s string) string {
+	j := 0
+	for j < len(s) && s[j] >= '0' && s[j] <= '9' {
+		j++
+	}
+	if j == 0 {
+		return ""
+	}
+	if op := matchApplyRedirOp(s[j:]); op != "" {
+		return s[:j+len(op)]
 	}
 	return ""
 }
@@ -758,6 +788,11 @@ func tokenizeApplyLine(clean string) []applyToken {
 			i++
 			continue
 		}
+		if op := matchApplyIoRedir(clean[i:]); op != "" {
+			tokens = append(tokens, applyToken{raw: op, value: op, isOp: true})
+			i += len(op)
+			continue
+		}
 		if op := matchApplyOp(clean[i:]); op != "" {
 			tokens = append(tokens, applyToken{raw: op, value: op, isOp: true})
 			i += len(op)
@@ -771,14 +806,19 @@ func tokenizeApplyLine(clean string) []applyToken {
 }
 
 func isTofuSeparatorToken(t applyToken) bool {
-	if t.isOp {
-		return isTofuSeparator(t.raw) || t.raw == "|&"
-	}
-	return t.raw == "{" || t.raw == "}"
+	return t.isOp && (isTofuSeparator(t.raw) || t.raw == "|&")
+}
+
+func isPinnedTofuBinary(val string) bool {
+	return val == "tofu" || val == "/usr/bin/tofu" || val == "/usr/local/bin/tofu"
+}
+
+func isPinnedSha256Binary(val string) bool {
+	return val == "sha256sum" || val == "/bin/sha256sum" || val == "/usr/bin/sha256sum"
 }
 
 func isTofuCommandToken(t applyToken) bool {
-	return !t.isOp && (t.value == "tofu" || strings.HasSuffix(t.value, "/tofu"))
+	return !t.isOp && isPinnedTofuBinary(t.value)
 }
 
 func parseTofuToken(tokens []applyToken, j int, inv *tofuInvocation) int {
@@ -852,6 +892,10 @@ func simpleBracedVarLen(rest string) (int, bool) {
 	return 0, false
 }
 
+func isUnbracedApplyParamStart(b byte) bool {
+	return isApplyIdentByte(b, true) || (b >= '0' && b <= '9') || strings.ContainsRune("@*#?$-!", rune(b))
+}
+
 func checkApplyDollar(rest string, quote rune) (int, error) {
 	if quote == 0 && (strings.HasPrefix(rest, "'") || strings.HasPrefix(rest, "\"")) {
 		return 0, fmt.Errorf("offline: dollar-quoted string is not supported in apply step")
@@ -864,6 +908,9 @@ func checkApplyDollar(rest string, quote rune) (int, error) {
 			return n, nil
 		}
 		return 0, fmt.Errorf("offline: unsupported parameter expansion in apply step")
+	}
+	if len(rest) > 0 && isUnbracedApplyParamStart(rest[0]) {
+		return 0, fmt.Errorf("offline: unbraced parameter expansion is not supported in apply step")
 	}
 	return 0, nil
 }
@@ -958,18 +1005,83 @@ func stripApplyComment(line string) (string, error) {
 	return line, nil
 }
 
+func isStagePrefixWord(tok applyToken) bool {
+	if tok.isOp {
+		return false
+	}
+	switch tok.raw {
+	case "if", "elif", "then", "else", "fi", "}", "!":
+		return true
+	}
+	return isShellIdentAssignment(tok.value)
+}
+
+func isStageBreakToken(tok applyToken) bool {
+	return tok.isOp && (isTofuSeparator(tok.raw) || tok.raw == "|&" || tok.raw == "(" || tok.raw == ")" || tok.raw == ";;" || tok.raw == ";&")
+}
+
+func advanceStagePrefix(tokens []applyToken, i int) int {
+	tok := tokens[i]
+	if isStageBreakToken(tok) || isStagePrefixWord(tok) {
+		return i + 1
+	}
+	if tok.isOp {
+		if i+1 < len(tokens) && !tokens[i+1].isOp {
+			return i + 2
+		}
+		return i + 1
+	}
+	return -1
+}
+
+func skipTrailingBraceRedirs(tokens []applyToken, i int) int {
+	for i < len(tokens) && tokens[i].isOp && !isStageBreakToken(tokens[i]) {
+		if i+1 < len(tokens) && !tokens[i+1].isOp {
+			i += 2
+		} else {
+			i++
+		}
+	}
+	return i
+}
+
+func collectCommandStages(tokens []applyToken) [][]applyToken {
+	var stages [][]applyToken
+	for i := 0; i < len(tokens); {
+		if next := advanceStagePrefix(tokens, i); next >= 0 {
+			i = next
+			continue
+		}
+		if !tokens[i].isOp && tokens[i].raw == "{" {
+			closeIdx := findMatchingBrace(tokens[i:])
+			if closeIdx < 2 {
+				i++
+				continue
+			}
+			stages = append(stages, collectCommandStages(tokens[i+1:i+closeIdx])...)
+			i = skipTrailingBraceRedirs(tokens, i+closeIdx+1)
+			continue
+		}
+		end := i + 1
+		for end < len(tokens) && !isStageBreakToken(tokens[end]) {
+			end++
+		}
+		stages = append(stages, tokens[i:end])
+		i = end
+	}
+	return stages
+}
+
 func parseTofuCommands(line string) []tofuInvocation {
 	clean, err := stripApplyComment(line)
 	if err != nil {
 		return nil
 	}
-	tokens := tokenizeApplyLine(clean)
 	var invocations []tofuInvocation
-	for i := 0; i < len(tokens); i++ {
-		if isTofuCommandToken(tokens[i]) {
-			inv, next := parseOneTofu(tokens, i)
+	for _, st := range collectCommandStages(tokenizeApplyLine(clean)) {
+		if isTofuCommandToken(st[0]) {
+			inv, _ := parseOneTofu(st, 0)
 			invocations = append(invocations, inv)
-			i = next - 1
 		}
 	}
 	return invocations
@@ -1001,8 +1113,16 @@ func isPlanPath(target string) bool {
 	return base == "plan.tfplan" || base == "plan.tfplan.sha256"
 }
 
+func stripLeadingDigits(s string) string {
+	i := 0
+	for i < len(s) && s[i] >= '0' && s[i] <= '9' {
+		i++
+	}
+	return s[i:]
+}
+
 func isOutputRedirectOp(op string) bool {
-	switch op {
+	switch stripLeadingDigits(op) {
 	case ">", ">>", ">|", ">&", "&>", "&>>", "<>":
 		return true
 	}
@@ -1026,6 +1146,64 @@ func isPlanMutatingCmd(cmd string) bool {
 	return false
 }
 
+func applyBracedVarName(body string) string {
+	name, _, _ := strings.Cut(body[:len(body)-1], ":-")
+	return name
+}
+
+func skipApplyWordEscOrSingleQuote(raw string, i int, inDQ bool) (int, bool, bool) {
+	if !inDQ && raw[i] == '\'' {
+		for i++; i < len(raw) && raw[i] != '\''; i++ {
+		}
+		return min(i+1, len(raw)), inDQ, true
+	}
+	if raw[i] == '\\' && i+1 < len(raw) && (!inDQ || strings.ContainsRune("\"\\$`", rune(raw[i+1]))) {
+		return i + 2, inDQ, true
+	}
+	if raw[i] == '"' {
+		return i + 1, !inDQ, true
+	}
+	return i, inDQ, false
+}
+
+func scanApplyWordVarsAndGlob(raw string) ([]string, bool) {
+	var vars []string
+	hasGlob := false
+	inDQ := false
+	for i := 0; i < len(raw); {
+		if next, nextDQ, handled := skipApplyWordEscOrSingleQuote(raw, i, inDQ); handled {
+			i, inDQ = next, nextDQ
+			continue
+		}
+		if strings.HasPrefix(raw[i:], "${") {
+			if n, ok := simpleBracedVarLen(raw[i+1:]); ok {
+				vars = append(vars, applyBracedVarName(raw[i+2:i+1+n]))
+				i += 1 + n
+				continue
+			}
+		}
+		if !inDQ && strings.ContainsRune("*?[]{}", rune(raw[i])) {
+			hasGlob = true
+		}
+		i++
+	}
+	return vars, hasGlob
+}
+
+func isAllowedApplyVar(name string) bool {
+	return name == "_APPROVED_PLAN_SHA256" || name == "_PLAN_STORAGE_URL"
+}
+
+func hasUnquotedGlobOrBrace(tok applyToken) bool {
+	_, hasGlob := scanApplyWordVarsAndGlob(tok.raw)
+	return hasGlob
+}
+
+func hasForbiddenDynamicTarget(tok applyToken) bool {
+	vars, hasGlob := scanApplyWordVarsAndGlob(tok.raw)
+	return hasGlob || len(vars) > 0
+}
+
 func checkCopyOverwrite(fields []string, i int) bool {
 	if i+1 < len(fields) && isPlanMutatingCmd(fields[i]) {
 		return anyFieldIsPlanPath(fields[i+1:])
@@ -1033,18 +1211,35 @@ func checkCopyOverwrite(fields []string, i int) bool {
 	return false
 }
 
+func checkCopyDynamicOverwrite(tokens []applyToken, i int) bool {
+	if i+1 >= len(tokens) || !isPlanMutatingCmd(tokens[i].value) {
+		return false
+	}
+	for _, tok := range tokens[i+1:] {
+		if tok.isOp {
+			break
+		}
+		if hasForbiddenDynamicTarget(tok) {
+			return true
+		}
+	}
+	return false
+}
+
 func tokenAtIsPlanOverwrite(tokens []applyToken, values []string, i int) bool {
 	tok := tokens[i]
 	if tok.isOp {
-		return isOutputRedirectOp(tok.raw) && i+1 < len(tokens) && !tokens[i+1].isOp && isPlanPath(tokens[i+1].value)
+		return isOutputRedirectOp(tok.raw) && i+1 < len(tokens) && !tokens[i+1].isOp &&
+			(isPlanPath(tokens[i+1].value) || hasForbiddenDynamicTarget(tokens[i+1]))
 	}
-	if strings.HasPrefix(tok.value, "-out=") && isPlanPath(strings.TrimPrefix(tok.value, "-out=")) {
-		return true
+	if strings.HasPrefix(tok.value, "-out=") {
+		target := strings.TrimPrefix(tok.value, "-out=")
+		return isPlanPath(target) || hasForbiddenDynamicTarget(tok)
 	}
-	if tok.value == "-out" && i+1 < len(tokens) && !tokens[i+1].isOp && isPlanPath(tokens[i+1].value) {
-		return true
+	if tok.value == "-out" && i+1 < len(tokens) && !tokens[i+1].isOp {
+		return isPlanPath(tokens[i+1].value) || hasForbiddenDynamicTarget(tokens[i+1])
 	}
-	return checkCopyOverwrite(values, i)
+	return checkCopyOverwrite(values, i) || checkCopyDynamicOverwrite(tokens, i)
 }
 
 func checkNoPlanOverwriteInApply(line string) error {
@@ -1153,11 +1348,11 @@ func (v *applyScriptValidator) validateLine(line string) error {
 }
 
 func isSha256CmdToken(tok applyToken) bool {
-	return !tok.isOp && (tok.value == "sha256sum" || strings.HasSuffix(tok.value, "/sha256sum"))
+	return !tok.isOp && isPinnedSha256Binary(tok.value)
 }
 
 func isGrepCmdToken(tok applyToken) bool {
-	return !tok.isOp && (tok.value == "grep" || strings.HasSuffix(tok.value, "/grep"))
+	return !tok.isOp && tok.value == "grep"
 }
 
 func hasSha256CheckFlag(arg string) bool {
@@ -1168,16 +1363,20 @@ func hasSha256CheckFlag(arg string) bool {
 }
 
 func checkTokensSha256Strict(tokens []applyToken) error {
-	for i, tok := range tokens {
-		if !isSha256CmdToken(tok) {
+	for _, st := range collectCommandStages(tokens) {
+		if !isSha256CmdToken(st[0]) {
 			continue
 		}
 		hasCheck, hasStrict := false, false
-		for j := i + 1; j < len(tokens) && !isTofuSeparatorToken(tokens[j]); j++ {
-			if tokens[j].value == "--strict" {
+		for j := 1; j < len(st); j++ {
+			if st[j].isOp {
+				j++
+				continue
+			}
+			if st[j].value == "--strict" {
 				hasStrict = true
 			}
-			if hasSha256CheckFlag(tokens[j].value) {
+			if hasSha256CheckFlag(st[j].value) {
 				hasCheck = true
 			}
 		}
@@ -1203,23 +1402,52 @@ func isUnsupportedApplyToken(tok applyToken) bool {
 	return false
 }
 
-func isUnsupportedApplyKeyword(val string) bool {
+func isAllowedApplyCommand(val string) bool {
+	if isPinnedTofuBinary(val) || isPinnedSha256Binary(val) {
+		return true
+	}
 	switch val {
-	case "function", "for", "while", "until", "case", "select":
+	case "set", "echo", "printf", "exit", "true", "false", "cd", "grep":
 		return true
 	}
 	return false
 }
 
-func continuesApplyLine(tok applyToken) bool {
+func isBraceGroupPrefixToken(tok applyToken) bool {
 	if tok.isOp {
 		return tok.raw == "|" || tok.raw == "||" || tok.raw == "&&" || tok.raw == ";"
 	}
-	return tok.raw == "{"
+	switch tok.raw {
+	case "then", "else", "{", "!":
+		return true
+	}
+	return false
+}
+
+func lineContinuesApplyStream(ltoks []applyToken) bool {
+	last := ltoks[len(ltoks)-1]
+	if last.isOp {
+		return last.raw == "|" || last.raw == "||" || last.raw == "&&" || last.raw == ";"
+	}
+	return last.raw == "{" && (len(ltoks) == 1 || isBraceGroupPrefixToken(ltoks[len(ltoks)-2]))
+}
+
+func checkTrailingApplyStreamOp(all []applyToken) error {
+	if len(all) == 0 || !all[len(all)-1].isOp {
+		return nil
+	}
+	switch all[len(all)-1].raw {
+	case "||":
+		return fmt.Errorf("offline: apply step approved plan digest check must not be masked with || true")
+	case "|", "&&":
+		return fmt.Errorf("offline: incomplete command operator in apply step")
+	}
+	return nil
 }
 
 func buildApplyTokenStream(script string) ([]applyToken, error) {
 	var all []applyToken
+	prevContinues := false
 	for _, line := range strings.Split(script, "\n") {
 		clean, err := stripApplyComment(line)
 		if err != nil {
@@ -1234,18 +1462,14 @@ func buildApplyTokenStream(script string) ([]applyToken, error) {
 				return nil, fmt.Errorf("offline: unsupported shell construct in apply step")
 			}
 		}
-		if len(all) > 0 && !continuesApplyLine(all[len(all)-1]) {
+		if len(all) > 0 && !prevContinues {
 			all = append(all, applyToken{raw: ";", value: ";", isOp: true})
 		}
 		all = append(all, ltoks...)
+		prevContinues = lineContinuesApplyStream(ltoks)
 	}
-	if len(all) > 0 && all[len(all)-1].isOp {
-		if all[len(all)-1].raw == "||" {
-			return nil, fmt.Errorf("offline: apply step approved plan digest check must not be masked with || true")
-		}
-		if all[len(all)-1].raw == "|" || all[len(all)-1].raw == "&&" {
-			return nil, fmt.Errorf("offline: incomplete command operator in apply step")
-		}
+	if err := checkTrailingApplyStreamOp(all); err != nil {
+		return nil, err
 	}
 	return all, nil
 }
@@ -1302,51 +1526,54 @@ type applyListItem struct {
 	tokens   []applyToken
 }
 
-func splitApplyListItems(chain []applyToken) ([]applyListItem, error) {
-	var items []applyListItem
-	var cur []applyToken
-	opBefore := ""
-	depth := 0
-	for _, tok := range chain {
-		depth, _ = updateBraceDepth(depth, tok)
-		if depth == 0 && tok.isOp && (tok.raw == "&&" || tok.raw == "||") {
-			if len(cur) == 0 {
-				return nil, fmt.Errorf("offline: incomplete command operator in apply step")
-			}
-			items = append(items, applyListItem{opBefore: opBefore, tokens: cur})
-			opBefore, cur = tok.raw, nil
-			continue
-		}
-		cur = append(cur, tok)
-	}
-	if len(cur) == 0 {
-		return nil, fmt.Errorf("offline: incomplete command operator in apply step")
-	}
-	items = append(items, applyListItem{opBefore: opBefore, tokens: cur})
-	return items, nil
-}
-
-func splitPipelineStages(tokens []applyToken) ([][]applyToken, error) {
-	var stages [][]applyToken
+func splitTokensDepthZero(tokens []applyToken, isSep func(string) bool) ([][]applyToken, []string, error) {
+	var segments [][]applyToken
+	var seps []string
 	var cur []applyToken
 	depth := 0
 	for _, tok := range tokens {
-		depth, _ = updateBraceDepth(depth, tok)
-		if depth == 0 && tok.isOp && tok.raw == "|" {
+		nextDepth, err := updateBraceDepth(depth, tok)
+		if err != nil {
+			return nil, nil, err
+		}
+		depth = nextDepth
+		if depth == 0 && tok.isOp && isSep(tok.raw) {
 			if len(cur) == 0 {
-				return nil, fmt.Errorf("offline: incomplete command operator in apply step")
+				return nil, nil, fmt.Errorf("offline: incomplete command operator in apply step")
 			}
-			stages = append(stages, cur)
+			segments = append(segments, cur)
+			seps = append(seps, tok.raw)
 			cur = nil
 			continue
 		}
 		cur = append(cur, tok)
 	}
 	if len(cur) == 0 {
-		return nil, fmt.Errorf("offline: incomplete command operator in apply step")
+		return nil, nil, fmt.Errorf("offline: incomplete command operator in apply step")
 	}
-	stages = append(stages, cur)
-	return stages, nil
+	segments = append(segments, cur)
+	return segments, seps, nil
+}
+
+func splitApplyListItems(chain []applyToken) ([]applyListItem, error) {
+	segs, seps, err := splitTokensDepthZero(chain, func(op string) bool { return op == "&&" || op == "||" })
+	if err != nil {
+		return nil, err
+	}
+	items := make([]applyListItem, len(segs))
+	for i, seg := range segs {
+		op := ""
+		if i > 0 {
+			op = seps[i-1]
+		}
+		items[i] = applyListItem{opBefore: op, tokens: seg}
+	}
+	return items, nil
+}
+
+func splitPipelineStages(tokens []applyToken) ([][]applyToken, error) {
+	segs, _, err := splitTokensDepthZero(tokens, func(op string) bool { return op == "|" })
+	return segs, err
 }
 
 func isDigestGrepFrom(tokens []applyToken, start int) bool {
@@ -1360,11 +1587,11 @@ func isDigestGrepFrom(tokens []applyToken, start int) bool {
 }
 
 func itemContainsDigestCmd(tokens []applyToken) bool {
-	for i, tok := range tokens {
-		if isSha256CmdToken(tok) {
+	for _, st := range collectCommandStages(tokens) {
+		if isSha256CmdToken(st[0]) {
 			return true
 		}
-		if isGrepCmdToken(tok) && isDigestGrepFrom(tokens, i) {
+		if isGrepCmdToken(st[0]) && isDigestGrepFrom(st, 0) {
 			return true
 		}
 	}
@@ -1399,6 +1626,18 @@ func isExitNonZeroCmd(toks []applyToken) bool {
 	return len(toks) == 2 && !toks[0].isOp && toks[0].raw == "exit" && isNonZeroExitCode(toks[1])
 }
 
+func isAllowedApplyRedirOp(raw string) bool {
+	return raw == ">&" || raw == "1>&" || raw == "2>&"
+}
+
+func isValidStageRedirAt(tokens []applyToken, i int) bool {
+	return i+1 < len(tokens) &&
+		tokens[i].isOp &&
+		isAllowedApplyRedirOp(tokens[i].raw) &&
+		!tokens[i+1].isOp &&
+		(tokens[i+1].raw == "1" || tokens[i+1].raw == "2")
+}
+
 func isSafeErrorEchoCmd(cmd []applyToken) bool {
 	if len(cmd) == 0 || cmd[0].isOp || cmd[0].raw != "echo" {
 		return false
@@ -1406,7 +1645,7 @@ func isSafeErrorEchoCmd(cmd []applyToken) bool {
 	for i, tok := range cmd[1:] {
 		if tok.isOp {
 			rest := cmd[i+1:]
-			return len(rest) == 2 && rest[0].raw == ">&" && !rest[1].isOp && (rest[1].raw == "1" || rest[1].raw == "2")
+			return len(rest) == 2 && isValidStageRedirAt(rest, 0)
 		}
 	}
 	return true
@@ -1441,12 +1680,12 @@ func splitBraceBlockCmds(inner []applyToken) ([][]applyToken, bool) {
 	return cmds, true
 }
 
-func isFailClosedBraceBlock(toks []applyToken) bool {
+func isExitBraceBlock(toks []applyToken, checkExit func([]applyToken) bool) bool {
 	if len(toks) < 4 || toks[0].isOp || toks[0].raw != "{" || toks[len(toks)-1].isOp || toks[len(toks)-1].raw != "}" {
 		return false
 	}
 	cmds, ok := splitBraceBlockCmds(toks[1 : len(toks)-1])
-	if !ok || len(cmds) == 0 || !isExitNonZeroCmd(cmds[len(cmds)-1]) {
+	if !ok || len(cmds) == 0 || !checkExit(cmds[len(cmds)-1]) {
 		return false
 	}
 	for _, prev := range cmds[:len(cmds)-1] {
@@ -1458,7 +1697,32 @@ func isFailClosedBraceBlock(toks []applyToken) bool {
 }
 
 func isFailClosedOrHandler(toks []applyToken) bool {
-	return isExitNonZeroCmd(toks) || isFailClosedBraceBlock(toks)
+	return isExitNonZeroCmd(toks) || isExitBraceBlock(toks, isExitNonZeroCmd)
+}
+
+func isExitZeroCmd(toks []applyToken) bool {
+	return rawTokensEqual(toks, "exit", "0")
+}
+
+func isCancelExitZeroHandler(toks []applyToken) bool {
+	return isExitZeroCmd(toks) || isExitBraceBlock(toks, isExitZeroCmd)
+}
+
+func isValidCancelGuardItems(items []applyListItem) bool {
+	return len(items) == 2 &&
+		items[0].opBefore == "" &&
+		rawTokensEqual(items[0].tokens, "[[", "!", "-e", "/workspace/cancelled", "]]") &&
+		items[1].opBefore == "||" &&
+		isCancelExitZeroHandler(items[1].tokens)
+}
+
+func isPreambleApplyItems(items []applyListItem) bool {
+	if len(items) != 1 || items[0].opBefore != "" {
+		return false
+	}
+	toks := items[0].tokens
+	return rawTokensEqual(toks, "set", "-o", "pipefail") ||
+		(len(toks) == 1 && isAllowedApplyAssignment(toks[0]))
 }
 
 func rawTokensEqual(tokens []applyToken, want ...string) bool {
@@ -1473,13 +1737,23 @@ func rawTokensEqual(tokens []applyToken, want ...string) bool {
 	return true
 }
 
+func isCanonicalShaStage(st []applyToken) bool {
+	if len(st) != 4 || st[0].isOp {
+		return false
+	}
+	if st[0].raw != "sha256sum" && st[0].raw != "/bin/sha256sum" && st[0].raw != "/usr/bin/sha256sum" {
+		return false
+	}
+	return rawTokensEqual(st[1:], "--strict", "-c", "-")
+}
+
 func isValidShaPipeline(stages [][]applyToken) bool {
 	if len(stages) == 1 {
-		return rawTokensEqual(stages[0], "sha256sum", "--strict", "-c", "-")
+		return isCanonicalShaStage(stages[0])
 	}
 	if len(stages) == 2 {
 		return rawTokensEqual(stages[0], "printf", `'%s  /workspace/plan.tfplan\n'`, `"${_APPROVED_PLAN_SHA256}"`) &&
-			rawTokensEqual(stages[1], "sha256sum", "--strict", "-c", "-")
+			isCanonicalShaStage(stages[1])
 	}
 	return false
 }
@@ -1488,14 +1762,31 @@ func isValidGrepPipeline(stages [][]applyToken) bool {
 	return len(stages) == 1 && rawTokensEqual(stages[0], "grep", "-Fq", `"${_APPROVED_PLAN_SHA256}"`, "/workspace/plan.tfplan.sha256")
 }
 
-func itemHasTofuApply(stages [][]applyToken) bool {
-	for _, st := range stages {
-		for i, tok := range st {
-			if isTofuCommandToken(tok) {
-				inv, _ := parseOneTofu(st, i)
-				if inv.subcommand == "apply" {
-					return true
-				}
+func itemContainsTofuCmd(tokens []applyToken) bool {
+	for _, st := range collectCommandStages(tokens) {
+		if isTofuCommandToken(st[0]) {
+			return true
+		}
+	}
+	return false
+}
+
+func checkTofuItemPlacement(items []applyListItem, idx int, stages [][]applyToken, topLevel bool) error {
+	if !itemContainsTofuCmd(items[idx].tokens) {
+		return nil
+	}
+	if !topLevel || len(items) != 1 || len(stages) != 1 || hasDigestWrapper(stages) {
+		return fmt.Errorf("offline: tofu commands in apply step must execute unmasked at top level")
+	}
+	return nil
+}
+
+func itemHasTofuApply(tokens []applyToken) bool {
+	for _, st := range collectCommandStages(tokens) {
+		if isTofuCommandToken(st[0]) {
+			inv, _ := parseOneTofu(st, 0)
+			if inv.subcommand == "apply" {
+				return true
 			}
 		}
 	}
@@ -1508,12 +1799,16 @@ type applyIfFrame struct {
 }
 
 type digestOrderTracker struct {
-	shaSeq   int
-	grepSeq  int
-	applySeq int
-	seq      int
-	awaiting bool
-	frames   []applyIfFrame
+	shaSeq          int
+	pipedShaSeq     int
+	grepSeq         int
+	applySeq        int
+	cancelGuardSeq  int
+	seq             int
+	cdCount         int
+	nonPreambleSeen bool
+	awaiting        bool
+	frames          []applyIfFrame
 }
 
 func checkDigestItemMask(items []applyListItem, idx int, stages [][]applyToken, allowDigest bool) error {
@@ -1529,12 +1824,326 @@ func checkDigestItemMask(items []applyListItem, idx int, stages [][]applyToken, 
 	return nil
 }
 
-func validatePipelineStages(stages [][]applyToken) error {
-	for _, st := range stages {
-		if !st[0].isOp && isUnsupportedApplyKeyword(st[0].value) {
+func isShellIdentAssignment(val string) bool {
+	eq := strings.IndexByte(val, '=')
+	if eq <= 0 || !isApplyIdentByte(val[0], true) {
+		return false
+	}
+	for i := 1; i < eq; i++ {
+		if !isApplyIdentByte(val[i], false) {
+			return false
+		}
+	}
+	return true
+}
+
+func isAllowedApplyAssignment(tok applyToken) bool {
+	for _, name := range []string{"_APPROVED_PLAN_SHA256", "_PLAN_STORAGE_URL"} {
+		if tok.raw == name+`="${`+name+`}"` || tok.raw == name+`=${`+name+`}` {
+			return true
+		}
+	}
+	return false
+}
+
+func checkStageTokenVars(tok applyToken) error {
+	vars, _ := scanApplyWordVarsAndGlob(tok.raw)
+	for _, name := range vars {
+		if !isAllowedApplyVar(name) {
+			return fmt.Errorf("offline: unapproved variable %q in apply step", name)
+		}
+	}
+	return nil
+}
+
+func isAllowedDoubleBracketUnaryOp(op string) bool {
+	switch op {
+	case "-e", "-f", "-z", "-n":
+		return true
+	}
+	return false
+}
+
+func isAllowedDoubleBracketBinaryOp(tok applyToken) bool {
+	if tok.isOp {
+		return tok.raw == "<" || tok.raw == ">"
+	}
+	switch tok.raw {
+	case "=", "==", "!=", "=~":
+		return true
+	}
+	return false
+}
+
+func checkDoubleBracketOperand(tok applyToken) error {
+	if tok.isOp || tok.raw == "{" || tok.raw == "}" {
+		return fmt.Errorf("offline: unsupported conditional test expression in apply step")
+	}
+	return checkStageTokenVars(tok)
+}
+
+func validateDoubleBracketUnary(inner []applyToken) error {
+	if inner[0].isOp || !isAllowedDoubleBracketUnaryOp(inner[0].raw) {
+		return fmt.Errorf("offline: unsupported conditional test expression in apply step")
+	}
+	return checkDoubleBracketOperand(inner[1])
+}
+
+func validateDoubleBracketBinary(inner []applyToken) error {
+	if !isAllowedDoubleBracketBinaryOp(inner[1]) {
+		return fmt.Errorf("offline: unsupported conditional test expression in apply step")
+	}
+	if err := checkDoubleBracketOperand(inner[0]); err != nil {
+		return err
+	}
+	return checkDoubleBracketOperand(inner[2])
+}
+
+func validateDoubleBracketStage(st []applyToken) error {
+	if len(st) < 4 || st[0].isOp || st[0].raw != "[[" || st[len(st)-1].isOp || st[len(st)-1].raw != "]]" {
+		return fmt.Errorf("offline: unclosed conditional test in apply step")
+	}
+	inner := st[1 : len(st)-1]
+	if !inner[0].isOp && inner[0].raw == "!" {
+		inner = inner[1:]
+	}
+	if len(inner) == 2 {
+		return validateDoubleBracketUnary(inner)
+	}
+	if len(inner) == 3 {
+		return validateDoubleBracketBinary(inner)
+	}
+	return fmt.Errorf("offline: unsupported conditional test expression in apply step")
+}
+
+func validateSetStage(st []applyToken) error {
+	if len(st) == 3 && !st[1].isOp && st[1].value == "-o" && !st[2].isOp && st[2].value == "pipefail" {
+		return nil
+	}
+	return fmt.Errorf("offline: unsupported set options in apply step")
+}
+
+func validateStageCmdWord(cmdTok applyToken, stageLen int) error {
+	if cmdTok.isOp {
+		return fmt.Errorf("offline: unsupported shell construct in apply step")
+	}
+	if isShellIdentAssignment(cmdTok.value) {
+		if stageLen == 1 && isAllowedApplyAssignment(cmdTok) {
+			return nil
+		}
+		return fmt.Errorf("offline: arbitrary variable assignment is not supported in apply step")
+	}
+	if vars, hasGlob := scanApplyWordVarsAndGlob(cmdTok.raw); len(vars) > 0 || hasGlob {
+		return fmt.Errorf("offline: dynamic or glob command name is not supported in apply step")
+	}
+	if !isAllowedApplyCommand(cmdTok.value) {
+		return fmt.Errorf("offline: unsupported command %q in apply step", cmdTok.value)
+	}
+	return nil
+}
+
+func validateStageArgsAndRedirs(tokens []applyToken) error {
+	for i := 0; i < len(tokens); i++ {
+		tok := tokens[i]
+		if tok.isOp {
+			if !isValidStageRedirAt(tokens, i) {
+				return fmt.Errorf("offline: unsupported redirection in apply step")
+			}
+			i++
+			continue
+		}
+		if err := checkStageTokenVars(tok); err != nil {
+			return err
+		}
+		if hasUnquotedGlobOrBrace(tok) {
+			return fmt.Errorf("offline: unquoted glob or brace expansion is not supported in apply step")
+		}
+	}
+	return nil
+}
+
+func validateSha256StageArgs(args []applyToken) error {
+	targets, hasCheck, hasStrict := 0, false, false
+	for i := 0; i < len(args); i++ {
+		tok := args[i]
+		if tok.isOp {
+			i++
+			continue
+		}
+		if strings.HasPrefix(tok.value, "-") && tok.value != "-" {
+			switch tok.value {
+			case "-c", "--check":
+				hasCheck = true
+			case "--strict":
+				hasStrict = true
+			default:
+				return fmt.Errorf("offline: unsupported sha256sum flag %q in apply step", tok.value)
+			}
+			continue
+		}
+		if tok.value != "-" && tok.value != "/workspace/plan.tfplan.sha256" {
+			return fmt.Errorf("offline: unapproved sha256sum target %q in apply step", tok.value)
+		}
+		targets++
+	}
+	if targets != 1 || !hasCheck || !hasStrict {
+		return fmt.Errorf("offline: sha256sum must invoke -c with --strict on a single approved target in apply step")
+	}
+	return nil
+}
+
+func validateGrepStageArgs(args []applyToken) error {
+	for i := 0; i < len(args); i++ {
+		tok := args[i]
+		if tok.isOp {
+			i++
+			continue
+		}
+		if strings.HasPrefix(tok.value, "-") {
+			switch tok.value {
+			case "-Fq", "-qF", "-F", "-q":
+			default:
+				return fmt.Errorf("offline: unsupported grep flag %q in apply step", tok.value)
+			}
+		}
+	}
+	return nil
+}
+
+func validatePrintfStageArgs(args []applyToken) error {
+	hasFormat := false
+	for i := 0; i < len(args); i++ {
+		tok := args[i]
+		if tok.isOp {
+			i++
+			continue
+		}
+		if strings.HasPrefix(tok.value, "-") {
+			return fmt.Errorf("offline: printf option flags are not supported in apply step")
+		}
+		if !hasFormat {
+			if tok.value == "" || strings.Contains(tok.raw, "$") {
+				return fmt.Errorf("offline: printf requires a static non-empty format string in apply step")
+			}
+			hasFormat = true
+		}
+	}
+	if !hasFormat {
+		return fmt.Errorf("offline: printf requires a format string in apply step")
+	}
+	return nil
+}
+
+func validateStageCommandArgs(cmd string, args []applyToken) error {
+	switch {
+	case cmd == "printf":
+		return validatePrintfStageArgs(args)
+	case cmd == "cd":
+		if len(args) != 1 || args[0].isOp || args[0].value != "deploy/gcp/service" {
+			return fmt.Errorf("offline: cd target must be deploy/gcp/service in apply step")
+		}
+	case isPinnedSha256Binary(cmd):
+		return validateSha256StageArgs(args)
+	case cmd == "grep":
+		return validateGrepStageArgs(args)
+	}
+	return nil
+}
+
+func validateSimpleStage(st []applyToken) error {
+	if !st[0].isOp && st[0].raw == "[[" {
+		return validateDoubleBracketStage(st)
+	}
+	if err := validateStageCmdWord(st[0], len(st)); err != nil {
+		return err
+	}
+	if st[0].value == "set" {
+		return validateSetStage(st)
+	}
+	if err := validateStageArgsAndRedirs(st[1:]); err != nil {
+		return err
+	}
+	if err := checkTokensSha256Strict(st); err != nil {
+		return err
+	}
+	return validateStageCommandArgs(st[0].value, st[1:])
+}
+
+func findMatchingBrace(tokens []applyToken) int {
+	depth := 0
+	for i, tok := range tokens {
+		depth, _ = updateBraceDepth(depth, tok)
+		if depth == 0 {
+			return i
+		}
+	}
+	return -1
+}
+
+func validateStageTrailing(trailing []applyToken) error {
+	for i := 0; i < len(trailing); i += 2 {
+		if !trailing[i].isOp {
 			return fmt.Errorf("offline: unsupported shell construct in apply step")
 		}
-		if err := checkTokensSha256Strict(st); err != nil {
+		if !isValidStageRedirAt(trailing, i) {
+			return fmt.Errorf("offline: unsupported redirection in apply step")
+		}
+	}
+	return nil
+}
+
+func stagesHaveCmd(stages [][]applyToken, name string) bool {
+	for _, st := range stages {
+		if len(st) > 0 && !st[0].isOp && st[0].value == name {
+			return true
+		}
+	}
+	return false
+}
+
+func validateStageBlock(inner []applyToken) error {
+	chains, err := splitApplyChains(inner)
+	if err != nil {
+		return err
+	}
+	for _, chain := range chains {
+		items, err := splitApplyListItems(chain)
+		if err != nil {
+			return err
+		}
+		for _, item := range items {
+			stages, err := splitPipelineStages(item.tokens)
+			if err != nil {
+				return err
+			}
+			if stagesHaveCmd(stages, "cd") {
+				return fmt.Errorf("offline: cd inside brace block is not supported in apply step")
+			}
+			if err := validatePipelineStages(stages); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func validateOneStage(st []applyToken) error {
+	if !st[0].isOp && st[0].raw == "{" {
+		closeIdx := findMatchingBrace(st)
+		if closeIdx < 2 {
+			return fmt.Errorf("offline: unsupported shell construct in apply step")
+		}
+		if err := validateStageTrailing(st[closeIdx+1:]); err != nil {
+			return err
+		}
+		return validateStageBlock(st[1:closeIdx])
+	}
+	return validateSimpleStage(st)
+}
+
+func validatePipelineStages(stages [][]applyToken) error {
+	for _, st := range stages {
+		if err := validateOneStage(st); err != nil {
 			return err
 		}
 	}
@@ -1542,8 +2151,13 @@ func validatePipelineStages(stages [][]applyToken) error {
 }
 
 func (t *digestOrderTracker) recordDigestSeqs(stages [][]applyToken, itemSeq int) {
-	if t.shaSeq < 0 && len(t.frames) == 0 && isValidShaPipeline(stages) {
-		t.shaSeq = itemSeq
+	if len(t.frames) == 0 && isValidShaPipeline(stages) {
+		if t.shaSeq < 0 {
+			t.shaSeq = itemSeq
+		}
+		if t.pipedShaSeq < 0 && len(stages) == 2 {
+			t.pipedShaSeq = itemSeq
+		}
 	}
 	inTopOrSidecar := len(t.frames) == 0 || (len(t.frames) == 1 && t.frames[0].allowSidecar && !t.frames[0].inElse)
 	if t.grepSeq < 0 && inTopOrSidecar && isValidGrepPipeline(stages) {
@@ -1560,9 +2174,18 @@ func (t *digestOrderTracker) visitItem(items []applyListItem, idx int, allowDige
 	if err := validatePipelineStages(stages); err != nil {
 		return err
 	}
+	if err := checkTofuItemPlacement(items, idx, stages, allowDigest && len(t.frames) == 0); err != nil {
+		return err
+	}
+	if stagesHaveCmd(stages, "cd") {
+		t.cdCount++
+		if t.cdCount > 1 {
+			return fmt.Errorf("offline: duplicate cd in apply step")
+		}
+	}
 	t.seq++
 	itemSeq := t.seq
-	if itemHasTofuApply(stages) && t.applySeq < 0 {
+	if itemHasTofuApply(item.tokens) && t.applySeq < 0 {
 		t.applySeq = itemSeq
 	}
 	if !itemContainsDigestCmd(item.tokens) {
@@ -1570,9 +2193,6 @@ func (t *digestOrderTracker) visitItem(items []applyListItem, idx int, allowDige
 	}
 	if err := checkDigestItemMask(items, idx, stages, allowDigest); err != nil {
 		return err
-	}
-	if idx+1 < len(items) && items[idx+1].opBefore == "&&" {
-		return nil
 	}
 	t.recordDigestSeqs(stages, itemSeq)
 	return nil
@@ -1588,6 +2208,13 @@ func (t *digestOrderTracker) evalChain(chain []applyToken, allowDigest bool) err
 			return err
 		}
 	}
+	if allowDigest && len(t.frames) == 0 {
+		if !t.nonPreambleSeen && t.cancelGuardSeq < 0 && isValidCancelGuardItems(items) {
+			t.cancelGuardSeq = t.seq
+		} else if !isPreambleApplyItems(items) {
+			t.nonPreambleSeen = true
+		}
+	}
 	return nil
 }
 
@@ -1596,6 +2223,7 @@ func (t *digestOrderTracker) handleIfControl(chain []applyToken, kw string) erro
 		if t.awaiting {
 			return fmt.Errorf("offline: unexpected if before then in apply step")
 		}
+		t.nonPreambleSeen = true
 		cond := chain[1:]
 		if err := t.evalChain(cond, false); err != nil {
 			return err
@@ -1606,15 +2234,13 @@ func (t *digestOrderTracker) handleIfControl(chain []applyToken, kw string) erro
 		t.awaiting = true
 		return nil
 	}
-	if t.awaiting || len(t.frames) == 0 {
+	if t.awaiting || len(t.frames) == 0 || t.frames[len(t.frames)-1].inElse {
 		return fmt.Errorf("offline: unexpected elif in apply step")
 	}
 	if err := t.evalChain(chain[1:], false); err != nil {
 		return err
 	}
-	top := &t.frames[len(t.frames)-1]
-	top.allowSidecar = false
-	top.inElse = true
+	t.frames[len(t.frames)-1].allowSidecar = false
 	t.awaiting = true
 	return nil
 }
@@ -1632,7 +2258,7 @@ func (t *digestOrderTracker) stepChain(chain []applyToken) error {
 			t.awaiting = false
 			return nil
 		case "else":
-			if t.awaiting || len(t.frames) == 0 {
+			if t.awaiting || len(t.frames) == 0 || t.frames[len(t.frames)-1].inElse {
 				return fmt.Errorf("offline: unexpected else in apply step")
 			}
 			t.frames[len(t.frames)-1].inElse = true
@@ -1651,7 +2277,7 @@ func (t *digestOrderTracker) stepChain(chain []applyToken) error {
 	return t.evalChain(chain, true)
 }
 
-func (t digestOrderTracker) verify() error {
+func (t digestOrderTracker) verify(requirePipedSha bool) error {
 	if t.awaiting || len(t.frames) != 0 {
 		return fmt.Errorf("offline: unclosed conditional in apply step")
 	}
@@ -1664,10 +2290,18 @@ func (t digestOrderTracker) verify() error {
 	if t.applySeq >= 0 && (t.shaSeq >= t.applySeq || t.grepSeq >= t.applySeq) {
 		return fmt.Errorf("offline: apply step must verify plan digest before tofu apply")
 	}
+	if requirePipedSha {
+		if t.cancelGuardSeq < 0 {
+			return fmt.Errorf("offline: apply-behind-the-gate step must check /workspace/cancelled at top level before running")
+		}
+		if t.pipedShaSeq < 0 || (t.applySeq >= 0 && t.pipedShaSeq >= t.applySeq) {
+			return fmt.Errorf("offline: apply-behind-the-gate must pipe approved digest printf into sha256sum --strict -c - before tofu apply")
+		}
+	}
 	return nil
 }
 
-func checkApprovalDigestVerification(script string) error {
+func validateApplyScriptTracker(script string, requirePipedSha bool) error {
 	all, err := buildApplyTokenStream(script)
 	if err != nil {
 		return err
@@ -1676,20 +2310,27 @@ func checkApprovalDigestVerification(script string) error {
 	if err != nil {
 		return err
 	}
-	tracker := digestOrderTracker{shaSeq: -1, grepSeq: -1, applySeq: -1}
+	tracker := digestOrderTracker{shaSeq: -1, pipedShaSeq: -1, grepSeq: -1, applySeq: -1, cancelGuardSeq: -1}
 	for _, chain := range chains {
 		if err := tracker.stepChain(chain); err != nil {
 			return err
 		}
 	}
-	return tracker.verify()
+	return tracker.verify(requirePipedSha)
 }
 
-// ValidateApplyStepScript verifies that an apply step script contains no unauthorized tofu commands,
-// no TF_* or OPENTOFU_* overrides, does not overwrite /workspace/plan.tfplan, and uses exact approved
-// tofu init and tofu apply arguments.
-func ValidateApplyStepScript(script string) error {
-	if err := checkApprovalDigestVerification(script); err != nil {
+func checkApprovalDigestVerification(script string) error {
+	return validateApplyScriptTracker(script, false)
+}
+
+func validateApplyScriptWithPipelineRule(script string, requirePipedSha bool) error {
+	var err error
+	if requirePipedSha {
+		err = validateApplyScriptTracker(script, true)
+	} else {
+		err = checkApprovalDigestVerification(script)
+	}
+	if err != nil {
 		return err
 	}
 	v := &applyScriptValidator{}
@@ -1704,103 +2345,158 @@ func ValidateApplyStepScript(script string) error {
 	return nil
 }
 
-func isScriptTerminator(trimmed, rawLine string) bool {
-	if len(rawLine) > 0 && !strings.HasPrefix(rawLine, " ") && !strings.HasPrefix(rawLine, "\t") {
-		return true
+// ValidateApplyStepScript verifies that an apply step script contains no unauthorized tofu commands,
+// no TF_* or OPENTOFU_* overrides, does not overwrite /workspace/plan.tfplan, and uses exact approved
+// tofu init and tofu apply arguments.
+func ValidateApplyStepScript(script string) error {
+	return validateApplyScriptWithPipelineRule(script, false)
+}
+
+func physicalActiveLines(script string) ([]string, error) {
+	if strings.ContainsAny(script, "\r\v\f\x00") {
+		return nil, fmt.Errorf("offline: unsupported control characters in pipeline script")
 	}
-	return strings.HasPrefix(trimmed, "- id:") || strings.HasPrefix(trimmed, "options:") || strings.HasPrefix(trimmed, "timeout:")
+	var out []string
+	continued := false
+	for _, rawLine := range strings.Split(script, "\n") {
+		trimmed := strings.TrimSpace(rawLine)
+		if !continued && (trimmed == "" || strings.HasPrefix(trimmed, "#")) {
+			continue
+		}
+		if strings.HasSuffix(trimmed, "\\") && !strings.HasSuffix(rawLine, "\\") {
+			return nil, fmt.Errorf("offline: trailing whitespace after backslash in pipeline script")
+		}
+		out = append(out, trimmed)
+		continued = strings.HasSuffix(trimmed, "\\")
+	}
+	if continued {
+		return nil, fmt.Errorf("offline: dangling trailing backslash in pipeline script")
+	}
+	return out, nil
 }
 
-type stepExtractor struct {
-	targetID string
-	inStep   bool
-	inScript bool
-	lines    []string
-}
-
-func (e *stepExtractor) matchStepHeader(trimmed string) bool {
-	if !strings.HasPrefix(trimmed, "- id:") {
+func hasBashFailClosedFlags(arg string) bool {
+	if len(arg) < 4 || arg[0] != '-' || arg[1] == '-' {
 		return false
 	}
-	if e.inStep {
-		return true
-	}
-	idVal := strings.Trim(strings.TrimPrefix(trimmed, "- id:"), " \"'")
-	if idVal == e.targetID {
-		e.inStep = true
-	}
-	return false
-}
-
-func (e *stepExtractor) step(rawLine string) bool {
-	trimmed := strings.TrimSpace(rawLine)
-	if e.matchStepHeader(trimmed) {
-		return false
-	}
-	if !e.inStep {
-		return true
-	}
-	if !e.inScript {
-		if trimmed == "|" || trimmed == ">" || strings.HasSuffix(trimmed, "|") || strings.HasSuffix(trimmed, ">") {
-			e.inScript = true
-		}
-		return true
-	}
-	if isScriptTerminator(trimmed, rawLine) {
-		return false
-	}
-	e.lines = append(e.lines, rawLine)
-	return true
-}
-
-func extractStepScript(content, stepID string) string {
-	e := &stepExtractor{targetID: stepID}
-	for _, line := range strings.Split(content, "\n") {
-		if !e.step(line) {
-			break
+	hasC, hasE, hasU := false, false, false
+	for i := 1; i < len(arg); i++ {
+		switch arg[i] {
+		case 'c':
+			hasC = true
+		case 'e':
+			hasE = true
+		case 'u':
+			hasU = true
+		default:
+			return false
 		}
 	}
-	return strings.Join(e.lines, "\n")
+	return hasC && hasE && hasU
 }
 
-func containsActiveCommand(script, command string) bool {
-	for _, line := range strings.Split(script, "\n") {
-		trimmed := strings.TrimSpace(line)
-		if !strings.HasPrefix(trimmed, "#") && strings.Contains(trimmed, command) {
-			return true
+func extractVerifiedBashStepLines(stepMap map[string]cloudbuildStep, stepID string) (string, []string, error) {
+	step, ok := stepMap[stepID]
+	if !ok || step.Name != "${_TOOLS_IMAGE}" || step.Entrypoint != "bash" || len(step.Args) != 2 || !hasBashFailClosedFlags(step.Args[0]) {
+		return "", nil, fmt.Errorf("offline: step %s must use builder ${_TOOLS_IMAGE}, entrypoint bash, and -ceu script args", stepID)
+	}
+	lines, err := physicalActiveLines(step.Args[1])
+	if err != nil {
+		return "", nil, fmt.Errorf("offline: step %s invalid script: %w", stepID, err)
+	}
+	if len(lines) == 0 || lines[0] != "set -o pipefail" {
+		return "", nil, fmt.Errorf("offline: step %s must begin with set -o pipefail", stepID)
+	}
+	for _, line := range lines {
+		if m := forbiddenEnvRegex.FindString(line); m != "" {
+			return "", nil, fmt.Errorf("offline: step %s must not reference %s", stepID, m)
 		}
 	}
-	return false
+	return step.Args[1], lines, nil
 }
 
-func verifyPipelinePromoteStep(content string) error {
-	script := extractStepScript(content, "promote-by-digest")
-	if !containsActiveCommand(script, "crane digest") {
-		return fmt.Errorf("offline: promote-by-digest step must verify digest with crane digest")
-	}
-	return nil
+var expectedNonApplyStepLines = map[string][]string{
+	"validate-inputs": {
+		`set -o pipefail`,
+		`bazel run //deploy/gcp/inputs:validate -- --effective /workspace/effective.inputs.json "${_INPUTS_FILE}" | tee /workspace/validate.out`,
+	},
+	"cancel-in-flight": {
+		`set -o pipefail`,
+		`if grep -q '^release.cancel_in_flight=true ' /workspace/validate.out; then`,
+		`gcloud builds list --ongoing --format='value(id)' \`,
+		`--filter="substitutions.TRIGGER_NAME=${TRIGGER_NAME} AND id!=${BUILD_ID}" | xargs -r gcloud builds cancel`,
+		`touch /workspace/cancelled`,
+		`echo "cancelled: the previous revision keeps serving; nothing below applies"`,
+		`fi`,
+	},
+	"promote-by-digest": {
+		`set -o pipefail`,
+		`[[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }`,
+		`crane copy "${_SOURCE_IMAGE}@${_SERVING_DIGEST}" "${_ARTIFACT_REGISTRY}@${_SERVING_DIGEST}"`,
+		`test "$(crane digest "${_ARTIFACT_REGISTRY}@${_SERVING_DIGEST}")" = "${_SERVING_DIGEST}"`,
+	},
+	"plan": {
+		`set -o pipefail`,
+		`_APPROVED_PLAN_SHA256="${_APPROVED_PLAN_SHA256}"`,
+		`_PLAN_STORAGE_URL="${_PLAN_STORAGE_URL}"`,
+		`[[ ! -e /workspace/cancelled ]] || { echo "skipped: cancelled"; exit 0; }`,
+		`if [[ -n "${_APPROVED_PLAN_SHA256:-}" ]]; then`,
+		`echo "apply mode: skipping plan generation, using approved plan artifact"`,
+		`if [[ ! "${_APPROVED_PLAN_SHA256}" =~ ^[0-9a-f]{64}$ ]]; then`,
+		`echo "refused: _APPROVED_PLAN_SHA256 must be exactly 64 lowercase hex characters" >&2`,
+		`exit 1`,
+		`fi`,
+		`storage_url="${_PLAN_STORAGE_URL:-}"`,
+		`if [[ -n "${storage_url}" ]]; then`,
+		`storage_prefix="${storage_url%/}"`,
+		`gcloud storage cp "${storage_prefix}/plan.tfplan" /workspace/plan.tfplan`,
+		`gcloud storage cp "${storage_prefix}/plan.tfplan.sha256" /workspace/plan.tfplan.sha256`,
+		`fi`,
+		`exit 0`,
+		`fi`,
+		`cd deploy/gcp/service`,
+		`tofu init -input=false -lockfile=readonly`,
+		`tofu plan -input=false -var "inputs_file=/workspace/effective.inputs.json" -out=/workspace/plan.tfplan`,
+		`sha256sum /workspace/plan.tfplan | tee /workspace/plan.tfplan.sha256`,
+		`tofu show -no-color /workspace/plan.tfplan > /workspace/service.plan.txt`,
+		`storage_url="${_PLAN_STORAGE_URL:-}"`,
+		`if [[ -n "${storage_url}" ]]; then`,
+		`storage_prefix="${storage_url%/}"`,
+		`gcloud storage cp /workspace/plan.tfplan "${storage_prefix}/plan.tfplan"`,
+		`gcloud storage cp /workspace/plan.tfplan.sha256 "${storage_prefix}/plan.tfplan.sha256"`,
+		`fi`,
+	},
+	"record": {
+		`set -o pipefail`,
+		`_APPROVED_PLAN_SHA256="${_APPROVED_PLAN_SHA256}"`,
+		`cancelled=false; [[ ! -e /workspace/cancelled ]] || cancelled=true`,
+		`if [[ "$cancelled" = false && -n "${_APPROVED_PLAN_SHA256:-}" ]]; then`,
+		`gcloud run services describe bff --region "${_REGION}" --format=json > /workspace/service.after.json`,
+		`fi`,
+		`printf '{"build":"%s","serving_digest":"%s","previous_digest":"%s","source_revision":"%s","cancelled":%s}\n' \`,
+		`"${BUILD_ID}" "${_SERVING_DIGEST}" "${_PREVIOUS_DIGEST}" "${COMMIT_SHA}" "$cancelled" > /workspace/deployment.json`,
+	},
 }
 
-func verifyPipelineCancelStep(content string) error {
-	script := extractStepScript(content, "cancel-in-flight")
-	if !containsActiveCommand(script, "id!=${BUILD_ID}") {
-		return fmt.Errorf("offline: cancel-in-flight step must exclude current build id from filter")
-	}
-	return nil
-}
-
-func verifyPipelineRecordStep(content string) error {
-	script := extractStepScript(content, "record")
-	if !containsActiveCommand(script, "gcloud run services describe bff") {
-		return fmt.Errorf("offline: record step must describe service")
+func verifyCanonicalNonApplySteps(stepMap map[string]cloudbuildStep) error {
+	for _, stepID := range []string{"validate-inputs", "cancel-in-flight", "promote-by-digest", "plan", "record"} {
+		_, lines, err := extractVerifiedBashStepLines(stepMap, stepID)
+		if err != nil {
+			return err
+		}
+		if !equalSlices(lines, expectedNonApplyStepLines[stepID]) {
+			return fmt.Errorf("offline: step %s script does not match canonical pipeline contract", stepID)
+		}
 	}
 	return nil
 }
 
 type cloudbuildStep struct {
-	ID   string   `yaml:"id"`
-	Env  []string `yaml:"env"`
-	Args []string `yaml:"args"`
+	ID         string   `yaml:"id"`
+	Name       string   `yaml:"name"`
+	Entrypoint string   `yaml:"entrypoint"`
+	Env        []string `yaml:"env"`
+	Args       []string `yaml:"args"`
 }
 
 type cloudbuildOptions struct {
@@ -1812,27 +2508,68 @@ type cloudbuildOptions struct {
 type cloudbuildConfig struct {
 	Steps   []cloudbuildStep  `yaml:"steps"`
 	Options cloudbuildOptions `yaml:"options"`
+	Timeout string            `yaml:"timeout"`
 }
 
-func isForbiddenEnvName(entry string) bool {
-	name := entry
-	if idx := strings.IndexByte(entry, '='); idx != -1 {
-		name = entry[:idx]
+var (
+	forbiddenExactEnvNames = map[string]bool{
+		"PATH": true, "HOME": true, "CDPATH": true, "BASH_ENV": true, "ENV": true,
+		"SHELLOPTS": true, "BASHOPTS": true, "IFS": true, "PS4": true,
+		"PROMPT_COMMAND": true, "GLOBIGNORE": true, "EXECIGNORE": true,
+		"HTTP_PROXY": true, "HTTPS_PROXY": true, "ALL_PROXY": true, "NO_PROXY": true,
+		"TRIGGER_NAME": true, "BUILD_ID": true, "COMMIT_SHA": true,
 	}
-	name = strings.TrimSpace(name)
-	upper := strings.ToUpper(name)
-	return strings.HasPrefix(upper, "TF_") ||
-		strings.HasPrefix(upper, "OPENTOFU_") ||
-		strings.HasPrefix(upper, "GOOGLE_") ||
-		strings.HasPrefix(upper, "GCLOUD_") ||
-		strings.HasPrefix(upper, "CLOUDSDK_")
+	forbiddenEnvPrefixes = []string{
+		"TF_", "OPENTOFU_", "GOOGLE_", "GCLOUD_", "CLOUDSDK_",
+		"BASH_FUNC_", "LD_", "DYLD_", "XDG_",
+	}
+	expectedPipelineStepIDs = []string{
+		"validate-inputs",
+		"cancel-in-flight",
+		"promote-by-digest",
+		"plan",
+		"apply-behind-the-gate",
+		"record",
+	}
+)
+
+func isForbiddenEnvEntry(entry string) bool {
+	idx := strings.IndexByte(entry, '=')
+	if idx <= 0 || entry != strings.TrimSpace(entry) {
+		return true
+	}
+	upper := strings.ToUpper(strings.TrimSpace(entry[:idx]))
+	if upper == "_APPROVED_PLAN_SHA256" {
+		return entry != "_APPROVED_PLAN_SHA256=${_APPROVED_PLAN_SHA256}"
+	}
+	if upper == "_PLAN_STORAGE_URL" {
+		return entry != "_PLAN_STORAGE_URL=${_PLAN_STORAGE_URL}"
+	}
+	if strings.HasPrefix(upper, "_") {
+		return true
+	}
+	if forbiddenExactEnvNames[upper] {
+		return true
+	}
+	for _, prefix := range forbiddenEnvPrefixes {
+		if strings.HasPrefix(upper, prefix) {
+			return true
+		}
+	}
+	return false
 }
 
 func checkEnvList(entries []string, context string) error {
+	seen := make(map[string]bool, len(entries))
 	for _, entry := range entries {
-		if isForbiddenEnvName(entry) {
-			return fmt.Errorf("offline: %s must not set TF_*, OPENTOFU_*, GOOGLE_*, GCLOUD_*, or CLOUDSDK_* environment variables: %q", context, entry)
+		if isForbiddenEnvEntry(entry) {
+			return fmt.Errorf("offline: %s must not set forbidden or malformed environment variable %q", context, entry)
 		}
+		upper := strings.ToUpper(strings.TrimSpace(entry[:strings.IndexByte(entry, '=')]))
+		if seen[upper] {
+			return fmt.Errorf("offline: %s must not contain duplicate environment variable %q", context, upper)
+		}
+		seen[upper] = true
 	}
 	return nil
 }
@@ -1867,11 +2604,35 @@ func verifyRequiredStepEnv(step cloudbuildStep, required []string) error {
 	return nil
 }
 
-func verifyStepEnvMappings(cfg cloudbuildConfig) error {
-	stepMap := make(map[string]cloudbuildStep)
-	for _, step := range cfg.Steps {
+func indexOrderedPipelineSteps(steps []cloudbuildStep) (map[string]cloudbuildStep, error) {
+	if len(steps) != len(expectedPipelineStepIDs) {
+		return nil, fmt.Errorf("offline: expected %d ordered cloudbuild steps, got %d", len(expectedPipelineStepIDs), len(steps))
+	}
+	stepMap := make(map[string]cloudbuildStep, len(steps))
+	for i, step := range steps {
+		if step.ID != expectedPipelineStepIDs[i] {
+			return nil, fmt.Errorf("offline: expected cloudbuild step[%d] id %q, got %q", i, expectedPipelineStepIDs[i], step.ID)
+		}
 		stepMap[step.ID] = step
 	}
+	return stepMap, nil
+}
+
+func decodePipelineYAML(raw []byte) (cloudbuildConfig, error) {
+	var cfg cloudbuildConfig
+	dec := yaml.NewDecoder(bytes.NewReader(raw))
+	dec.KnownFields(true)
+	if err := dec.Decode(&cfg); err != nil {
+		return cloudbuildConfig{}, fmt.Errorf("offline: invalid pipeline yaml: %w", err)
+	}
+	var extra yaml.Node
+	if err := dec.Decode(&extra); err != io.EOF {
+		return cloudbuildConfig{}, fmt.Errorf("offline: multi-document pipeline yaml is not supported")
+	}
+	return cfg, nil
+}
+
+func verifyStepEnvMappings(stepMap map[string]cloudbuildStep) error {
 	planReq := []string{"_APPROVED_PLAN_SHA256=${_APPROVED_PLAN_SHA256}", "_PLAN_STORAGE_URL=${_PLAN_STORAGE_URL}"}
 	if err := verifyRequiredStepEnv(stepMap["plan"], planReq); err != nil {
 		return err
@@ -1884,39 +2645,48 @@ func verifyStepEnvMappings(cfg cloudbuildConfig) error {
 	return verifyRequiredStepEnv(stepMap["record"], recordReq)
 }
 
-// CheckPipelineConfig verifies that the Cloud Build pipeline file obeys all approval,
-// step-behavior, and apply-step argument constraints.
-func CheckPipelineConfig(pipelinePath string) error {
-	bytes, err := os.ReadFile(pipelinePath)
-	if err != nil {
-		return err
-	}
-	var cfg cloudbuildConfig
-	if err := yaml.Unmarshal(bytes, &cfg); err != nil {
-		return fmt.Errorf("offline: invalid pipeline yaml: %w", err)
-	}
+var pipelineTimeoutRegex = regexp.MustCompile(`^[1-9][0-9]*s$`)
+
+func checkPipelineOptions(cfg cloudbuildConfig) error {
 	if !cfg.Options.AutomapSubstitutions {
 		return fmt.Errorf("offline: options.automapSubstitutions must be true")
 	}
-	if err := checkPipelineEnv(cfg); err != nil {
+	if cfg.Options.Logging != "CLOUD_LOGGING_ONLY" {
+		return fmt.Errorf("offline: options.logging must be CLOUD_LOGGING_ONLY")
+	}
+	if !pipelineTimeoutRegex.MatchString(cfg.Timeout) {
+		return fmt.Errorf("offline: timeout must be a positive duration in seconds")
+	}
+	return checkPipelineEnv(cfg)
+}
+
+// CheckPipelineConfig verifies that the Cloud Build pipeline file obeys all approval,
+// strict schema, step ordering, and script constraints.
+func CheckPipelineConfig(pipelinePath string) error {
+	raw, err := os.ReadFile(pipelinePath)
+	if err != nil {
 		return err
 	}
-	if err := verifyStepEnvMappings(cfg); err != nil {
+	cfg, err := decodePipelineYAML(raw)
+	if err != nil {
 		return err
 	}
-	content := string(bytes)
-	applyScript := extractStepScript(content, "apply-behind-the-gate")
-	if applyScript == "" {
-		return fmt.Errorf("offline: missing apply-behind-the-gate step in pipeline")
-	}
-	if err := ValidateApplyStepScript(applyScript); err != nil {
+	if err := checkPipelineOptions(cfg); err != nil {
 		return err
 	}
-	if err := verifyPipelinePromoteStep(content); err != nil {
+	stepMap, err := indexOrderedPipelineSteps(cfg.Steps)
+	if err != nil {
 		return err
 	}
-	if err := verifyPipelineCancelStep(content); err != nil {
+	if err := verifyStepEnvMappings(stepMap); err != nil {
 		return err
 	}
-	return verifyPipelineRecordStep(content)
+	if err := verifyCanonicalNonApplySteps(stepMap); err != nil {
+		return err
+	}
+	applyScript, _, err := extractVerifiedBashStepLines(stepMap, "apply-behind-the-gate")
+	if err != nil {
+		return err
+	}
+	return validateApplyScriptWithPipelineRule(applyScript, true)
 }
