@@ -57,3 +57,6 @@ leg_without_base	(.jobs["build-test"].steps[] | select(.name == "Verify")).run =
 e2e_without_base	(.jobs.e2e.steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=e2e"	run body
 leg_base_step_removed	.jobs.e2e.steps |= map(select(.id != "base"))	step order
 leg_own_base	(.jobs["build-test"].steps[] | select(.name == "Verify")).env.POLICY_BASE = "${{ github.sha }}"	env
+artifact_missing_failure_logs	(.jobs["build-test"].steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with.path = ".verify/receipt.json"	with inputs
+artifact_hidden_logs_disabled	(.jobs["build-test"].steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with["include-hidden-files"] = false	with inputs
+artifact_workspace_glob	(.jobs["build-test"].steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with.path = "**/*"	with inputs

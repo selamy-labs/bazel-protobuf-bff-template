@@ -2087,3 +2087,19 @@ done`
 		t.Fatalf("exit %d\n%s", code, h.out.String())
 	}
 }
+
+func TestFailedBazelAssertionSurvivesRetainedLog(t *testing.T) {
+	// Arrange: ordinary Go assertion text is not a target-summary or ERROR line.
+	h := committed(newHarness(t))
+	fakeBazel(h, `printf '%s\n' '--- FAIL: TestSpecificAssertion (0.01s)' '    example_test.go:42: native assertion got 7 want 11' '//a:t FAILED in 0.1s'; exit 3`)
+	options := h.options(bazelCheck("tests", "//a:t", "STAGE_FULL"), registrypb.Stage_STAGE_FULL)
+	options.ReceiptPath = filepath.Join(h.dir, "receipt.json")
+	// Act
+	code := h.run(options)
+	receipt := receiptOf(t, options.ReceiptPath)
+	data, err := os.ReadFile(receipt.Checks[0].Log)
+	// Assert: diagnostic retention does not turn a failing test into a pass.
+	if code != ExitFailed || receipt.Checks[0].State != Failed || err != nil || !bytes.Contains(data, []byte("native assertion got 7 want 11")) {
+		t.Fatalf("failed assertion was lost: exit=%d state=%s read=%v retained=%q", code, receipt.Checks[0].State, err, data)
+	}
+}

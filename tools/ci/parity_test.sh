@@ -108,5 +108,38 @@ gate "success" 1
 gate "" 1
 gate "success success success success" 1
 
+
+# Execute each actual CI run block with transport-only stubs. A failed verifier must retain its
+# original exit, exporter failure cannot create a green leg, and verifier arguments pass unchanged.
+fixture="$work/ci-status"
+mkdir -p "$fixture/tools/ci"
+cat >"$fixture/tools/verify.sh" <<'VERIFY'
+#!/usr/bin/env bash
+printf 'called\n' >>"$CI_CALLS"
+printf '%s\n' "$@" >"$CI_ARGS"
+exit "$CI_VERIFY_EXIT"
+VERIFY
+cat >"$fixture/tools/ci/receipt_artifact.sh" <<'ARTIFACT'
+#!/usr/bin/env bash
+if [[ "$CI_ARTIFACT_EXIT" == 0 ]]; then echo 'artifact_path=/owned/prepared'; fi
+exit "$CI_ARTIFACT_EXIT"
+ARTIFACT
+chmod +x "$fixture/tools/verify.sh" "$fixture/tools/ci/receipt_artifact.sh"
+for leg in build-test e2e policy; do
+  id="$(CI_LEG="$leg" "$yq" '.jobs[strenv(CI_LEG)].steps[] | select(.name == "Verify") | .id' "$wf")"
+  [[ "$id" == artifact ]] || fail "$leg verifier output ID is not artifact"
+  CI_LEG="$leg" "$yq" '.jobs[strenv(CI_LEG)].steps[] | select(.name == "Verify") | .run' "$wf" >"$work/run-block.sh"
+  for pair in '0 0 0' '9 0 9' '0 7 7' '9 7 9'; do
+    read -r verify_exit artifact_exit want <<<"$pair"
+    : >"$work/calls"
+    rc=0
+    (cd "$fixture" && POLICY_BASE=reviewed GITHUB_OUTPUT="$work/output" CI_CALLS="$work/calls" CI_ARGS="$work/args" CI_VERIFY_EXIT="$verify_exit" CI_ARTIFACT_EXIT="$artifact_exit" bash -e "$work/run-block.sh") || rc=$?
+    printf '%s\n' "--shard=$leg" '--base=reviewed' '--base-source=ci-event' >"$work/want-args"
+    if [[ "$rc" != "$want" || "$(wc -l <"$work/calls")" -ne 1 ]] || ! cmp -s "$work/args" "$work/want-args"; then
+      fail "$leg preserves verifier status/arguments (verify $verify_exit artifact $artifact_exit: got $rc want $want)"
+    fi
+  done
+done
+
 [[ $failures -eq 0 ]] && echo "ok   ci-parity ($cases mutations rejected; publishing: $publish_cases)"
 exit "$failures"

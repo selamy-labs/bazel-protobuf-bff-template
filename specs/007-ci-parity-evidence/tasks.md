@@ -35,6 +35,8 @@ evidence. T017 stops for independent review, and later tasks do not start until 
 - [x] T026 Freeze; normal and hostile gates with `--base`; measure once; hold for independent acceptance. **Needs** T025. **Spec** SC-002. **Parent** T070. **Witness** Receipts
 - [x] T027 Repair the measurement harness: a gofmt-clean edit, each run's log and receipt kept outside the clone, a failed passing scenario refused, offline recorded apart, private servers stopped before the work tree goes. **Needs** T026. **Spec** SC-002. **Parent** T070. **Witness** Stub and real-server controls, one `--edited-only` run
 
+- [ ] T028 Export only current receipt-referenced, marked, regular bounded logs into a fresh private artifact; retain raw bounded Bazel assertions separately from terminal summaries (FR-024a). Preserve original receipt/failure state and unrelated files. Exercise foreign-prefix sentinel, passing receipt-only, unsafe-reference negatives, actual failed runner-to-artifact assertion readback and exact CI step/input controls. **Witness** `runner_test`, `ci_parity_test`, actionlint, zizmor and actual hosted artifacts when available.
+
 Remain open by design: parent T067 and T068, blocked on upstream releases.
 
 ## Execution record

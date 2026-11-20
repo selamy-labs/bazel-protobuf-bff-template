@@ -3,6 +3,7 @@ load("@rules_go//go:def.bzl", "go_library", "go_test")
 go_library(
     name = "runner",
     srcs = [
+        "artifact.go",
         "base.go",
         "bazel.go",
         "legs.go",
@@ -40,7 +41,10 @@ go_test(
 go_test(
     name = "runner_test",
     size = "medium",
-    srcs = ["runner_test.go"],
+    srcs = [
+        "artifact_test.go",
+        "runner_test.go",
+    ],
     data = [
         "//:registry.textproto",
         "//:rules.textproto",

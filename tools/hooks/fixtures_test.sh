@@ -336,17 +336,17 @@ git -C "$pin" add src/pin.go
 commit "$pin" -q -m bad
 rejected "hooks still judge after the installed-from binary is gone" "format-go" "src/pin.go"
 
-# The limit docs/quality/hooks.md states: with the copy deleted too, prek's shim takes any prek on PATH.
+# A deleted installed pin is a configuration rejection, never a PATH fallback/content verdict.
 mkdir -p "$work/fake"
 printf '#!/bin/sh\necho not-the-pin\nexit 0\n' >"$work/fake/prek"
 chmod +x "$work/fake/prek"
 rm -- "${pin:?}/.git/bff-template/bin/prek"
 rc=0
-PATH="$work/fake:$PATH" git -C "$pin" commit -q -m limit </dev/null >"$work/out" 2>&1 || rc=$?
-if [[ $rc -eq 0 ]] && grep -qF not-the-pin "$work/out"; then
-  pass "the documented limit: a deleted pin falls back to PATH"
+PATH="$work/fake:$PATH" git -C "$pin" commit -q -m missing-pin </dev/null >"$work/out" 2>&1 || rc=$?
+if [[ $rc -ne 0 ]] && grep -qF 'recorded pinned prek is absent' "$work/out" && ! grep -qF not-the-pin "$work/out"; then
+  pass "a deleted pin rejects without PATH fallback or a stage verdict"
 else
-  fail "the PATH fallback changed; correct docs/quality/hooks.md (exit $rc)"
+  fail "a deleted pin did not fail closed (exit $rc)"
   show
 fi
 
@@ -389,7 +389,7 @@ worktree="$p/.git/bff-template/push-worktree"
 [[ "$(git -C "$p" symbolic-ref --short HEAD)" == main ]] || fail "the push moved the checkout"
 [[ "$(state_of "$p/.git/bff-template/receipts/pre-push.json" tests)" == PASSED ]] || fail "the receipt lost the pushed verdict"
 
-# The contract's limit, kept visible: prek evaluates only the first ref of a multi-ref push.
+# An unsupported source batch is rejected before prek selects its first ref.
 git -C "$p" checkout -q -b other
 echo x >"$p/BROKEN"
 git -C "$p" add BROKEN
@@ -399,7 +399,16 @@ echo z >"$p/src/z.txt"
 git -C "$p" add src/z.txt
 commit "$p" -q -m 'first ref'
 push "$p" -q origin main other
-accepted "the documented limit: a failure on a second pushed ref is not seen locally"
+if [[ $rc -ne 0 ]] && grep -qF 'multiple source updates are unsupported' "$work/out"; then
+  pass "multiple source updates reject before a stage verdict"
+else
+  fail "unsupported source batch was not rejected"
+  show
+fi
+if [[ "$(git -C "$remote" rev-parse main)" == "$(git -C "$p" rev-parse HEAD)" ]] ||
+    git -C "$remote" show-ref --verify --quiet refs/heads/other; then
+  fail "an unsupported source update reached the bare remote"
+fi
 
 # --- Bypass is real, and the full policy still catches it.
 printf 'package src\n\nfunc  Skipped() {}\n' >"$p/src/skipped.go"
@@ -552,7 +561,7 @@ if grep -qF 'escalated to full' "$work/out"; then pass "a policy change escalate
 
 # --- The document states what these cases showed. A limit that changes must change the document.
 for statement in "git commit --no-verify" "git push --no-verify" "SKIP=pre-commit" "PREK_SKIP=pre-commit" \
-  "Only the first pushed ref is judged" "A deleted pin falls back to \`PATH\`" "A foreign hook needs a shebang" \
+  "Unsupported source batches are rejected" "Missing or changed pins fail closed" "A foreign hook needs a shebang" \
   "bootstrap ERROR" "at most the newest 5"; do
   if grep -qF -- "$statement" "$source_root/${HOOKS_DOC:?}"; then
     pass "the hooks document states: $statement"

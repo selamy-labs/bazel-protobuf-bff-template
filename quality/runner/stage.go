@@ -189,7 +189,7 @@ func (e *execution) record(result Result, check *registrypb.Check) {
 	result.Blocking = check.GetClassification() == registrypb.Classification_CLASSIFICATION_GUARANTEE
 	e.mu.Lock()
 	defer e.mu.Unlock()
-	if e.options.ReceiptPath != "" && result.output != "" && result.State != Passed {
+	if e.options.ReceiptPath != "" && (result.output != "" || result.retainedOutput != "") && result.State != Passed {
 		if e.logs == "" {
 			directory, err := newLogDirectory(e.options.ReceiptPath)
 			if err != nil {
@@ -198,7 +198,11 @@ func (e *execution) record(result Result, check *registrypb.Check) {
 			e.logs = directory
 		}
 		if e.logs != "" {
-			if path, err := RetainLog(e.logs, result.Check, result.output); err == nil {
+			retained := result.output
+			if result.retainedOutput != "" {
+				retained = result.retainedOutput
+			}
+			if path, err := RetainLog(e.logs, result.Check, retained); err == nil {
 				result.Log = path
 			}
 		}
@@ -487,6 +491,7 @@ func (e *execution) runBazel(ctx context.Context) {
 		result.Seconds = seconds
 		if result.State != Passed {
 			result.output = output
+			result.retainedOutput = readBounded(e.log)
 		}
 		e.record(result, check)
 	}

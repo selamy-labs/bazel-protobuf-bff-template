@@ -69,7 +69,7 @@ resource "github_repository_ruleset" "main" {
     commit_author_email_pattern {
       operator = "regex"
       negate   = false
-      pattern  = "^claude-cir@selamy\\.dev$"
+      pattern  = "^(claude-cir|github-bot)@selamy\\.dev$"
     }
   }
 }

@@ -96,6 +96,18 @@ other_gh="other${at}github.com"
 personal_gmail="pselamy${at}gmail.com"
 claude_author="claude-cir${at}selamy.dev"
 
+# The declared contribution bot is also an approved source author (spec010 T025).
+printf 'example.com\nselamy.dev\ncommitter github-bot selamy.dev bot committer\n' >"$T/allow-contribution-bot"
+GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_EMAIL="$claude_author" mk "$T/contribution-bot-author"
+(cd "$T/contribution-bot-author" && GIT_AUTHOR_NAME="selamy-labs-bot" GIT_AUTHOR_EMAIL="$bot_committer" GIT_COMMITTER_NAME="selamy-labs-bot" GIT_COMMITTER_EMAIL="$bot_committer" git commit -q --allow-empty -m "bot contribution")
+expect "approved contribution bot author passes" 0 "$S" "$T/contribution-bot-author" --allow "$T/allow-contribution-bot"
+GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_EMAIL="$claude_author" mk "$T/contribution-human-author"
+(cd "$T/contribution-human-author" && GIT_AUTHOR_EMAIL="$human_selamy" GIT_COMMITTER_EMAIL="$bot_committer" git commit -q --allow-empty -m "unapproved personal author")
+expect "personal author still fails with approved bot committer" 1 "$S" "$T/contribution-human-author" --allow "$T/allow-contribution-bot"
+GIT_AUTHOR_EMAIL="$claude_author" GIT_COMMITTER_EMAIL="$claude_author" mk "$T/contribution-lookalike-author"
+(cd "$T/contribution-lookalike-author" && GIT_AUTHOR_EMAIL="github-bot-other${at}selamy.dev" GIT_COMMITTER_EMAIL="$bot_committer" git commit -q --allow-empty -m "unapproved lookalike author")
+expect "lookalike bot author still fails with approved bot committer" 1 "$S" "$T/contribution-lookalike-author" --allow "$T/allow-contribution-bot"
+
 # 1) A decided commit object: printed with allowlist line and hash, not a failure; a new commit with unallowed domain still fails
 mk "$T/commit-decided"; (cd "$T/commit-decided" && GIT_AUTHOR_EMAIL="$foreign_bad" git commit -q --allow-empty -m "historical commit")
 c_id="$(git -C "$T/commit-decided" rev-parse HEAD)"
@@ -387,10 +399,9 @@ run_isolated_scratch_case "case7" "$human_selamy" "claude-cir" "$claude_author" 
   "scratch-clone case 7: human user selamy.dev author fails" \
   "unapproved selamy.dev author identity in commit"
 
-# 7b) github-bot as author -> FAIL (exit != 0)
-run_isolated_scratch_case "case7b" "$bot_committer" "claude-cir" "$claude_author" 1 \
-  "scratch-clone case 7b: github-bot as author fails" \
-  "unapproved selamy.dev author identity in commit"
+# 7b) The approved contribution bot as author -> PASS (exit 0)
+run_isolated_scratch_case "case7b" "$bot_committer" "claude-cir" "$claude_author" 0 \
+  "scratch-clone case 7b: approved contribution bot author passes"
 
 # 8) Author claude-cir, Committer claude-cir -> PASS (exit 0)
 run_isolated_scratch_case "case8" "$claude_author" "claude-cir" "$claude_author" 0 \
@@ -437,7 +448,7 @@ a_regex="${a_pattern_hcl//\\\\/\\}"
 
 candidates=(
   "${claude_author} 1 1"
-  "${bot_committer} 0 1"
+  "${bot_committer} 1 1"
   "${gh_noreply} 0 1"
   "${bot_noreply} 0 0"
   "${human_selamy} 0 0"
