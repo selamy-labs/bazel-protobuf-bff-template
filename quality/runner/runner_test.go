@@ -24,6 +24,9 @@ import (
 )
 
 func TestMain(m *testing.M) {
+	if len(os.Args) > 1 && os.Args[1] == BazelClientArg {
+		os.Exit(BazelClient(os.Args[2:], os.Stdout, os.Stderr))
+	}
 	if len(os.Args) > 2 && os.Args[1] == SuperviseArg {
 		os.Exit(Supervise(os.Args[2:]))
 	}
@@ -2101,5 +2104,129 @@ func TestFailedBazelAssertionSurvivesRetainedLog(t *testing.T) {
 	// Assert: diagnostic retention does not turn a failing test into a pass.
 	if code != ExitFailed || receipt.Checks[0].State != Failed || err != nil || !bytes.Contains(data, []byte("native assertion got 7 want 11")) {
 		t.Fatalf("failed assertion was lost: exit=%d state=%s read=%v retained=%q", code, receipt.Checks[0].State, err, data)
+	}
+}
+
+// The actual host helpers receive one executable, not a flattened command string.
+func TestNativeBazelClientKeepsStartupVector(t *testing.T) {
+	for _, id := range []string{"image-release", "vulnerabilities"} {
+		for _, isolated := range []bool{false, true} {
+			t.Run(fmt.Sprintf("%s/isolated=%t", id, isolated), func(t *testing.T) {
+				h := newHarness(t)
+				options := h.options(native("host-helper", "true"), registrypb.Stage_STAGE_FULL)
+				for _, check := range realRegistry(t).GetChecks() {
+					if check.GetId() == id {
+						options.Registry.Checks[0].Command = slices.Clone(check.GetCommand())
+					}
+				}
+				helper := options.Registry.Checks[0].GetCommand()[0]
+				if helper == "sh" {
+					t.Fatal("the production native consumer was not found")
+				}
+				h.writeAbs(filepath.Join(h.dir, helper), "#!/bin/sh\n\"$1\" build 'target with space' ''\n", 0o755)
+				options.Wrapper = "tools/bootstrap/bazel.sh"
+				options.Bazel = filepath.Join(h.dir, options.Wrapper)
+				seen := filepath.Join(t.TempDir(), "argv")
+				h.writeAbs(options.Bazel, fmt.Sprintf("#!/bin/sh\nprintf '%%s\\0' \"$@\" >%q\n", seen), 0o755)
+				injected := filepath.Join(t.TempDir(), "must-not-exist")
+				if isolated {
+					options.BazelStartup = []string{
+						"--output_base=" + filepath.Join(t.TempDir(), "owned base's path"),
+						"--max_idle_secs=123",
+						"--host_jvm_args=literal$(touch " + injected + ")\nnext",
+					}
+				}
+				if code := h.run(options); code != ExitOK {
+					t.Fatalf("exit %d\n%s", code, h.out.String())
+				}
+				data, err := os.ReadFile(seen)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got := strings.Split(string(bytes.TrimSuffix(data, []byte{0})), "\x00")
+				want := append(slices.Clone(options.BazelStartup), "build", "target with space", "")
+				if !slices.Equal(got, want) {
+					t.Fatalf("native Bazel argv: %q; want exact startup and client vector %q", got, want)
+				}
+				if _, err := os.Lstat(injected); !errors.Is(err, os.ErrNotExist) {
+					t.Fatalf("argument content was evaluated: %v", err)
+				}
+			})
+		}
+	}
+}
+
+// Base-built evaluators still need a host-relative path resolved in the base tree.
+func TestNativeBaseWrapperRemainsRelative(t *testing.T) {
+	h := newHarness(t)
+	seen := filepath.Join(t.TempDir(), "base-wrapper")
+	options := h.options(native("base-helper", `printf '%s' "$1" >`+seen), registrypb.Stage_STAGE_FULL)
+	options.Registry.Checks[0].Command = append(options.Registry.Checks[0].GetCommand(), "base-helper", "{bazel}")
+	options.BazelStartup = []string{"--output_base=proposal-only"}
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("exit %d\n%s", code, h.out.String())
+	}
+	data, err := os.ReadFile(seen)
+	if err != nil || string(data) != options.Wrapper {
+		t.Fatalf("base helper saw %q, %v; want host-relative %q", data, err, options.Wrapper)
+	}
+}
+
+func TestExclusiveAfterBazelDoesNotOverlap(t *testing.T) {
+	h := newHarness(t)
+	lock := filepath.Join(t.TempDir(), "critical-section")
+	command := fmt.Sprintf(`mkdir %q || { echo 'exclusive checks overlapped'; exit 1; }
+trap 'rmdir %q' EXIT
+sleep 1`, lock, lock)
+	options := h.options(native("first", command, "after_bazel: true exclusive: true")+
+		native("second", command, "after_bazel: true exclusive: true"), registrypb.Stage_STAGE_FULL)
+	if code := h.run(options); code != ExitOK {
+		t.Fatalf("exclusive native critical sections must serialize: exit %d\n%s", code, h.out.String())
+	}
+}
+
+func TestExclusiveAfterBazelWaitsForParallelPostconditions(t *testing.T) {
+	h := newHarness(t)
+	bazelDone := filepath.Join(t.TempDir(), "bazel-done")
+	postDone := filepath.Join(t.TempDir(), "post-done")
+	fakeBazel(h, fmt.Sprintf("touch %q; echo '//a:t PASSED in 1s'", bazelDone))
+	body := bazelCheck("tests", "//a:t", "STAGE_FULL") +
+		native("post", fmt.Sprintf("test -f %q && sleep 1 && touch %q", bazelDone, postDone), "after_bazel: true") +
+		native("exclusive", fmt.Sprintf("test -f %q && test -f %q", bazelDone, postDone), "after_bazel: true exclusive: true")
+	if code := h.run(h.options(body, registrypb.Stage_STAGE_FULL)); code != ExitOK {
+		t.Fatalf("exclusive check must follow both Bazel and parallel postconditions: exit %d\n%s", code, h.out.String())
+	}
+}
+
+// A serial-only correction would satisfy exclusion but break the ordinary bounded pools.
+func TestNonexclusiveNativeChecksRemainPooled(t *testing.T) {
+	for _, after := range []bool{false, true} {
+		t.Run(fmt.Sprintf("after_bazel=%t", after), func(t *testing.T) {
+			h := newHarness(t)
+			dir := t.TempDir()
+			bazelDone := filepath.Join(dir, "bazel-done")
+			fakeBazel(h, fmt.Sprintf("touch %q; echo '//a:t PASSED in 1s'", bazelDone))
+			flags := ""
+			phase := fmt.Sprintf("test ! -e %q", bazelDone)
+			if after {
+				flags = "after_bazel: true"
+				phase = fmt.Sprintf("test -f %q", bazelDone)
+			}
+			first := filepath.Join(dir, "first-ready")
+			second := filepath.Join(dir, "second-ready")
+			command := func(own, peer string) string {
+				return fmt.Sprintf(`%s || exit 1
+touch %q
+while [ ! -f %q ]; do sleep 0.01; done`, phase, own, peer)
+			}
+			body := native("first", command(first, second), flags) +
+				native("second", command(second, first), flags) +
+				bazelCheck("tests", "//a:t", "STAGE_FULL")
+			options := h.options(body, registrypb.Stage_STAGE_FULL)
+			options.Jobs = 2
+			if code := h.run(options); code != ExitOK {
+				t.Fatalf("ordinary checks must reach each other's barrier in their bounded pool: exit %d\n%s", code, h.out.String())
+			}
+		})
 	}
 }

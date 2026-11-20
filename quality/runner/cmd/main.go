@@ -54,6 +54,9 @@ var deadlines = map[registrypb.Stage]time.Duration{
 
 // A failed flag or registry prints a configuration diagnostic and exits 2, never a silent pass.
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == runner.BazelClientArg {
+		os.Exit(runner.BazelClient(os.Args[2:], os.Stdout, os.Stderr))
+	}
 	if len(os.Args) > 2 && os.Args[1] == runner.SuperviseArg {
 		os.Exit(runner.Supervise(os.Args[2:]))
 	}

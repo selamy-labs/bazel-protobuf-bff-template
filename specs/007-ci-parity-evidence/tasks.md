@@ -60,3 +60,5 @@ Remain open by design: parent T067 and T068, blocked on upstream releases.
 - Review of `33e6a55`: every leg's receipt binds the event's base, and a supplied base that cannot resolve denies PASSED in a leg that reads none. Red first.
 - T025, T026: their boxes stayed open in the frozen source, because a file cannot record results about the commit that contains it. Results by scope are in the [evidence record](../../docs/evidence/m6.md). T025 replayed the flows through the `policy` leg, not as literal unsharded commands.
 - T027: `a5ebd95`, then `e16718d` for the cleanup found in review.
+
+- [ ] T029 Preserve the exact startup vector in current-tree native Bazel clients and serialize exclusive native checks even with after_bazel; retain relative base-wrapper behavior. **Needs** merged T028 correction. **Spec** FR-028, FR-029. **Witness** production-registry native helper argument controls, exclusive critical-section controls, `runner_test`, unchanged full verifier, exact review/hosted/main and focused FUTURE acceptance.

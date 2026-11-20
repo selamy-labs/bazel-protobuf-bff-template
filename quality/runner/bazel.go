@@ -149,15 +149,30 @@ func TranslateBazel(check *registrypb.Check, stage registrypb.Stage, code int, s
 // repeated interrupts ask Bazel to kill its server, and kills it after clientGrace. It signals only
 // the client it started, through the process handle it holds. It never touches the server.
 func RunBazel(ctx context.Context, bazel string, args []string, dir string, env []string, log *os.File) (int, error) {
+	if err := ctx.Err(); err != nil {
+		return 0, err
+	}
 	command := exec.Command(bazel, args...)
 	command.Dir, command.Env, command.Stdout, command.Stderr = dir, env, log, log
 	if err := command.Start(); err != nil {
 		return 0, err
 	}
+	return waitBazelClient(ctx, command)
+}
+
+// waitBazelClient owns the one Wait and client-only interrupt/grace sequence after Start.
+func waitBazelClient(ctx context.Context, command *exec.Cmd) (int, error) {
 	done := make(chan error, 1)
 	go func() { done <- command.Wait() }()
 	select {
 	case err := <-done:
+		if ctx.Err() != nil {
+			return exitCode(err), ctx.Err()
+		}
+		var exited *exec.ExitError
+		if err != nil && !errors.As(err, &exited) {
+			return exitCode(err), err
+		}
 		return exitCode(err), nil
 	case <-ctx.Done():
 	}

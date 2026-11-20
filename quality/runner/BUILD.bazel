@@ -6,7 +6,9 @@ go_library(
         "artifact.go",
         "base.go",
         "bazel.go",
+        "bazel_streams.go",
         "legs.go",
+        "native_bazel.go",
         "push.go",
         "registry.go",
         "report.go",
@@ -43,6 +45,7 @@ go_test(
     size = "medium",
     srcs = [
         "artifact_test.go",
+        "native_bazel_test.go",
         "runner_test.go",
     ],
     data = [

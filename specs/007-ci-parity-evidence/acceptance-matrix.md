@@ -44,3 +44,12 @@ first.
 | SC-002 | Fresh clones | both exit 0 at the frozen revision | planted defect fails first in the hostile run | G | loc |
 | SC-004 | R6 flows, logged | three flows pass | each listed negative → exit 11 by cause | G | loc |
 | SC-005 | Review | claims separate | hosted claim with no run → review rejects | S | hum |
+
+| FR-028 | Supervised native helper using production image/vulnerability command definitions | exact startup and client argument vector, empty-startup and relative base-wrapper controls | startup vector omitted, reordered, split or shell-evaluated -> argument/owned-output assertion fails; wrapper preparation failure -> native error | G | off |
+| FR-029 | Supervised native critical-section controls | exclusive checks serialize after parallel postconditions and stage Bazel work; all results present | exclusive plus after_bazel enters a shared critical section concurrently -> named native failure | G | off |
+
+| FR-028 | Cold-start native client with unrelated producer; ordinary leaked-child positive control | intended checkout daemon/client survives native completion and private startup is preserved | unproved ambient daemon killed by native teardown or leaked ordinary child left alive -> lifecycle control fails | G | off |
+
+| FR-028 | Native client channel lifecycle/protocol controls | exact split streams/raw argv, start admitted once and all owned clients waited | completion/deadline before decode/start, late invocation, unread/full output peer, disconnect, malformed/truncated response or failed stdout/stderr write -> nonzero/bounded drain; ordinary leaked child still reaped | G | off |
+
+| FR-028 | Parent error/ack/output ownership controls | healthy full local output/status acknowledgement, helper-interpreted genuine nonzero client exit | helper0 after suppressed proxy failure, silent disconnect/half-close, concurrent split-frame corruption, partial write or exited client with stalled/incomplete output -> sticky parent error, bounded drain and non-PASSED check | G | off |
