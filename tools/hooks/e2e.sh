@@ -8,6 +8,7 @@
 #   4. a deadline beside an independent `bazel build` on the same server: the runner stops only its own
 #      client, and the other build finishes on the same server;
 #   5. a pre-push deadline on the private output base: that server, and only it, stops.
+#   6. a cold native Bazel client leaves its checkout daemon and an independent producer alive (007 T029).
 #
 #   tools/hooks/e2e.sh <NUL list of the tested tree> <full|weakened>
 set -euo pipefail
@@ -104,6 +105,13 @@ genrule(
     name = "producer",
     outs = ["producer.txt"],
     cmd = "sleep 40 && echo finished >$@",
+    tags = ["manual"],
+)
+
+genrule(
+    name = "native_producer",
+    outs = ["native_producer.txt"],
+    cmd = "sleep 45 && echo native-finished >$@",
     tags = ["manual"],
 )
 FIXTURE
@@ -269,3 +277,86 @@ kill "$control"
 wait "$control" || true
 control=""
 echo "ok   hook-e2e a pre-push deadline stopped only the private server"
+
+# 6. Use the actual image consumer's invocation boundary; the helper starts a genuinely cold daemon.
+# Keeping the helper open while an independent build starts makes native teardown the causal edge.
+native_cold_survival() {
+  local cold_base cold_server cold_start cold_run cold_rc command_line ready
+  step in_checkout tools/bootstrap/bazel.sh run --noshow_progress "--script_path=$work/native-runner" "${flags[@]}" //:quality
+  [[ $rc -eq 0 ]] || die "the cold-native runner did not build"
+  cold_base="$(cd "$repo" && tools/bootstrap/bazel.sh info output_base </dev/null 2>/dev/null)"
+  step in_checkout tools/bootstrap/bazel.sh shutdown
+  [[ $rc -eq 0 ]] || die "the owned checkout daemon did not stop before the cold control"
+  command_line="$(awk '/id: "image-release"/ { found=1 } found && /command:/ { print; exit }' "$repo/quality/registry.textproto")"
+  [[ "$command_line" == *'"tools/checks/image_release.sh"'* ]] || die "the production image consumer command was not found"
+  {
+    printf '#!/usr/bin/env bash\nset -euo pipefail\n'
+    printf 'pid_file=%q\nready=%q\nrelease=%q\n' "$work/native.pid" "$work/native-ready" "$work/native-release"
+    cat <<'NATIVE'
+flags=()
+if [[ "${2:-full}" == weakened ]]; then flags+=(--config=weak-isolation); fi
+"$1" info "${flags[@]}" server_pid >"$pid_file"
+touch "$ready"
+for _ in $(seq 1 600); do
+  if [[ -f "$release" ]]; then exit 0; fi
+  sleep 0.1
+done
+exit 1
+NATIVE
+  } >"$repo/tools/checks/image_release.sh"
+  chmod +x "$repo/tools/checks/image_release.sh"
+  {
+    cat <<'NATIVE'
+version: "cold-native"
+vendored_manifest: "tools/speckit/scaffold.sha256"
+fixture_manifest: "quality/checks/suppression/testdata/fixtures.sha256"
+checks {
+  id: "image-release"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 90
+  witness: "//:verify_body_test"
+NATIVE
+    printf '%s\n}\n' "$command_line"
+  } >"$work/native-check.textproto"
+  BUILD_WORKSPACE_DIRECTORY="$repo" "$work/native-runner" --stage=full --deadline=120s \
+    "--registry=$work/native-check.textproto" "--isolation=$isolation" </dev/null >"$work/native-runner.log" 2>&1 &
+  cold_run=$!
+  ready=false
+  for _ in $(seq 1 300); do
+    if [[ -f "$work/native-ready" ]]; then ready=true; break; fi
+    if ! kill -0 "$cold_run" 2>/dev/null; then break; fi
+    sleep 0.1
+  done
+  if [[ "$ready" != true ]]; then cp "$work/native-runner.log" "$work/out"; die "the cold native client never became ready"; fi
+  cold_server="$(<"$work/native.pid")"
+  [[ "$cold_server" =~ ^[1-9][0-9]*$ ]] || die "the native client did not return a server PID"
+  cold_start="$(start_of "$cold_server")"
+  [[ -n "$cold_start" && "$(<"$cold_base/server/server.pid.txt")" == "$cold_server" ]] || die "the cold native client did not start the intended checkout daemon"
+  echo "cold-native: server=$cold_server start=$cold_start output_base=$cold_base"
+  (cd "$repo" && exec tools/bootstrap/bazel.sh build --subcommands --color=no --curses=no "${flags[@]}" //e2e_fixture:native_producer) </dev/null >"$work/native-producer.log" 2>&1 &
+  control=$!
+  ready=false
+  for _ in $(seq 1 200); do
+    if grep -qE 'SUBCOMMAND:.*//e2e_fixture:native_producer' "$work/native-producer.log"; then ready=true; break; fi
+    if ! kill -0 "$control" 2>/dev/null; then break; fi
+    sleep 0.1
+  done
+  [[ "$ready" == true ]] || { cp "$work/native-producer.log" "$work/out"; die "the independent cold-native producer never entered its uncached action"; }
+  kill -0 "$control" 2>/dev/null || die "the independent cold-native producer ended before native teardown"
+  touch "$work/native-release"
+  cold_rc=0
+  wait "$cold_run" || cold_rc=$?
+  [[ $cold_rc -eq 0 ]] || { cp "$work/native-runner.log" "$work/out"; die "the native helper exited $cold_rc before the survival assertion"; }
+  [[ "$(start_of "$cold_server")" == "$cold_start" ]] || die "native completion reaped the cold checkout daemon"
+  kill -0 "$control" 2>/dev/null || die "native completion ended the independent producer"
+  cold_rc=0
+  wait "$control" || cold_rc=$?
+  control=""
+  [[ $cold_rc -eq 0 ]] || { cp "$work/native-producer.log" "$work/out"; die "the independent cold-native producer exited $cold_rc"; }
+  [[ "$(start_of "$cold_server")" == "$cold_start" && "$(<"$cold_base/server/server.pid.txt")" == "$cold_server" ]] || die "the cold daemon changed while the independent producer ran"
+  echo "ok   hook-e2e a cold native client left the checkout daemon and independent producer alive"
+}
+
+native_cold_survival

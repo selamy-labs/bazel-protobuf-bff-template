@@ -247,10 +247,10 @@ func (e *execution) run(ctx context.Context) []Result {
 		switch {
 		case skip != nil:
 			e.record(*skip, check)
-		case check.GetAfterBazel():
-			after = append(after, plan)
 		case check.GetExclusive():
 			exclusive = append(exclusive, plan)
+		case check.GetAfterBazel():
+			after = append(after, plan)
 		default:
 			pool = append(pool, plan)
 		}
@@ -301,7 +301,7 @@ func (e *execution) runPool(ctx context.Context, plans []planned) {
 	group.Wait()
 }
 
-func (e *execution) expand(plan planned) ([]string, error) {
+func (e *execution) expand(plan planned, clientPath string) ([]string, error) {
 	list := filepath.Join(e.scratch, plan.check.GetId()+".list")
 	listNL := list + ".nl"
 	if err := os.WriteFile(list, []byte(strings.Join(plan.inputs, "\x00")+nulIf(plan.inputs)), 0o644); err != nil {
@@ -313,7 +313,7 @@ func (e *execution) expand(plan planned) ([]string, error) {
 	pairs := []string{
 		"{adapter}", e.options.Adapter, "{list}", list, "{list_nl}", listNL, "{root}", e.inputs.Root,
 		"{bazel_log}", e.log, "{isolation}", e.options.Isolation, "{shard}", e.options.Shard, "{base}", e.base.Revision, "{bazel_exit}", e.bazelExit,
-		"{contract}", e.options.Contract, "{bazel}", e.options.Wrapper,
+		"{contract}", e.options.Contract, "{bazel}", e.options.Wrapper, "{bazel_client}", clientPath,
 	}
 	for name, path := range e.options.Tools {
 		pairs = append(pairs, "{"+name+"}", path)
@@ -335,9 +335,10 @@ func nulIf(paths []string) string {
 
 // native runs one check under its own supervisor. On its deadline, or the stage's, the supervisor
 // is told to stop, so the check's whole tree goes with it.
-func (e *execution) native(ctx context.Context, plan planned) Result {
+func (e *execution) native(ctx context.Context, plan planned) (result Result) {
 	started := time.Now()
-	result := Result{Inputs: len(plan.inputs)}
+	result = Result{Inputs: len(plan.inputs)}
+	defer func() { result.Seconds = time.Since(started).Seconds() }()
 	finish := func(state State, reason string) Result {
 		result.State, result.Reason = state, reason
 		result.Seconds = time.Since(started).Seconds()
@@ -346,7 +347,18 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 	if ctx.Err() != nil {
 		return finish(Cancelled, "the stage deadline had passed")
 	}
-	argv, err := e.expand(plan)
+	checkCtx, cancel := context.WithTimeout(ctx, time.Duration(plan.check.GetTimeoutSeconds())*time.Second)
+	defer cancel()
+	clientPath := ""
+	if slices.ContainsFunc(plan.check.GetCommand(), func(arg string) bool { return strings.Contains(arg, "{bazel_client}") }) {
+		client, err := newNativeBazelClient(checkCtx, e.options)
+		if err != nil {
+			return finish(Errored, err.Error())
+		}
+		clientPath = client.path
+		defer func() { result = nativeChannelResult(result, client.close()) }()
+	}
+	argv, err := e.expand(plan, clientPath)
 	if err != nil {
 		return finish(Errored, err.Error())
 	}
@@ -359,8 +371,6 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 		return finish(Errored, err.Error())
 	}
 	defer func() { _ = log.Close() }()
-	checkCtx, cancel := context.WithTimeout(ctx, time.Duration(plan.check.GetTimeoutSeconds())*time.Second)
-	defer cancel()
 	code, runErr := supervised(checkCtx, argv, e.inputs.Root, e.options.Env, log)
 	result.output = readBounded(logPath)
 	if plan.check.GetSummary() {
@@ -384,6 +394,21 @@ func (e *execution) native(ctx context.Context, plan planned) Result {
 	default:
 		return finish(Failed, "")
 	}
+}
+
+// nativeChannelResult retains the parent channel's failure independently of helper status.
+func nativeChannelResult(result Result, err error) Result {
+	if err == nil {
+		return result
+	}
+	if result.State == Passed || result.State == Failed {
+		result.State = Errored
+	}
+	if result.Reason != "" {
+		result.Reason += "; "
+	}
+	result.Reason += "native Bazel channel: " + err.Error()
+	return result
 }
 
 // supervised runs argv under its own supervisor, with both output streams in one file.

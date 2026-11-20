@@ -175,6 +175,11 @@ Usability, CI and documents
 - **FR-027**: A bypassed-hook commit MUST fail a CI-equivalent run. S005 spellings MUST be re-witnessed against
   the pinned tools where a tool exists (parent T047).
 
+Native stage execution (T029)
+
+- **FR-028**: A native check that launches the current host's Bazel MUST use `{bazel_client}`, an executable that preserves the stage's exact Bazel startup argument vector before the client's arguments. Quoting MUST preserve literal bytes and empty arguments; no shell evaluation of argument content is allowed. `{bazel}` remains the host-relative wrapper path for the base-built evaluator, which must continue to build using the base's own wrapper and isolated output base. A client-wrapper preparation failure MUST fail that native check rather than silently fall back. Native Bazel invocation MUST preserve the intended checkout daemon outside indiscriminate per-check descendant teardown, including a cold start with an unrelated client. Preserve normal native leaked-child cleanup and locked-private-base/exact-process authority for server termination. Warm preflight alone does not satisfy this lifecycle requirement.
+- **FR-029**: `exclusive: true` MUST serialize a native check after the stage's parallel native pools and Bazel invocation even when `after_bazel: true` is also set. The post-Bazel flag MUST NOT move an exclusive check into a parallel pool. Nonexclusive postconditions retain their bounded pool and all selected results remain accounted for.
+
 ## Success criteria
 
 - **SC-001**: Every row of the acceptance matrix has an observed positive and a named negative.

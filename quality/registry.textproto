@@ -235,7 +235,7 @@ checks {
   after_bazel: true
   allow_empty: true
   summary: true
-  command: ["tools/checks/image_release.sh", "{bazel}", "{isolation}", "{YQ}"]
+  command: ["tools/checks/image_release.sh", "{bazel_client}", "{isolation}", "{YQ}"]
   witness: "//:image_release_test"
 }
 
@@ -255,7 +255,7 @@ checks {
   allow_empty: true
   summary: true
   needs_network: true
-  command: ["tools/checks/vulnerabilities.sh", "{bazel}", "{isolation}", "{GOVULNCHECK}", "https://vuln.go.dev", "//bff/cmd/bff:bff"]
+  command: ["tools/checks/vulnerabilities.sh", "{bazel_client}", "{isolation}", "{GOVULNCHECK}", "https://vuln.go.dev", "//bff/cmd/bff:bff"]
   witness: "//:vulnerabilities_test"
 }
 
