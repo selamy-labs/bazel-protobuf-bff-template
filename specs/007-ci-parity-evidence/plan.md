@@ -55,3 +55,9 @@ explicit first-push CI case, and the provisioning plan offline.
 | Base worktree inherits tested-tree config | Builds from the base's `.bazelrc` and `MODULE.bazel`; a mutant makes the tested tree's copy break it |
 | A second private output base doubles disk and memory | Measure; keep the capacity slot |
 | TS coverage cannot be measured natively | A mature tool under the 14-day pin rule, with provenance. `unmeasured` is not an end state |
+
+## Bounded failure-log retention (T028)
+
+The existing quality runner prepares a fresh private artifact from the current receipt and its explicitly referenced logs. Its export uses the current registry only to constrain check IDs and copy counts; it does not certify evidence claims or replace upstream receipt validation. A root-confined reader refuses symbolic links, non-regular files, foreign/unmarked directories and files beyond the existing retention bound. Selection is limited to the single marked run directory and exact check filenames. The original receipt bytes and failure state remain intact; unrelated files are neither copied nor removed. CI uploads only the prepared directory, not a naming glob.
+
+The stage retains bounded combined Bazel output independently of its concise terminal summary, so ordinary target assertion text survives. A real runner/fake-Bazel fixture fails a named test, exports that receipt, and reads the assertion back beside an excluded same-prefix foreign sentinel. Passing receipt-only, malformed/foreign/symlink/outside/oversize reference cases and closed workflow input/step-order mutations cover the export boundary. Required verifier/gate, tool pins, permissions and retention remain unchanged.

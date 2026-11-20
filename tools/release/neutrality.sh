@@ -20,6 +20,12 @@ is_approved_bot_login() {
     *) return 1 ;;
   esac
 }
+is_approved_author_email() {
+  case "${1:-}" in
+    claude-cir@selamy.dev | github-bot@selamy.dev) return 0 ;;
+    *) return 1 ;;
+  esac
+}
 repo="${1:?usage: neutrality.sh <repository> [--allow <file>] [--markers <file> --mapping <file>] [--base <rev>] [--event <name>] [--event-path <file>]}"
 shift
 allow="" markers="" mapping="" base="" event="${GITHUB_EVENT_NAME:-}" event_path="${GITHUB_EVENT_PATH:-}" explicit_event_path=0 target_commit="" internal_simulation=0
@@ -209,7 +215,7 @@ while IFS= read -r sha; do
 
   if [[ $is_decided_commit -eq 0 ]]; then
     if [[ -n "$allow" ]] && grep -qxF -- "selamy.dev" "$allow"; then
-      if [[ "$ae" != "claude-cir@selamy.dev" ]]; then
+      if ! is_approved_author_email "$ae"; then
         if [[ "$ae" == *"@selamy.dev" ]]; then
           hit "unapproved selamy.dev author identity in commit" "commit $sha"
         elif [[ "$ae" == *"@anthropic.com" ]]; then
@@ -238,7 +244,7 @@ while IFS= read -r sha; do
         fi
       fi
     else
-      if [[ "$ae" == *"@selamy.dev" && "$ae" != "claude-cir@selamy.dev" ]]; then
+      if [[ "$ae" == *"@selamy.dev" ]] && ! is_approved_author_email "$ae"; then
         hit "unapproved selamy.dev author identity in commit" "commit $sha"
       fi
       if [[ "$ce" == *"@selamy.dev" && "$ce" != "claude-cir@selamy.dev" ]]; then

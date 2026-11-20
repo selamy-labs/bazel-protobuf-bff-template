@@ -100,7 +100,7 @@ is reported `TIMED_OUT`, the child is gone and the run exits 10.
 
 - Staged symlinks, gitlinks and conflicted entries.
 - A deletion-only commit has no content to check and passes.
-- A multi-ref push evaluates only the first ref (a limit of prek; CI covers the rest).
+- Supported push input is zero source updates (deletions only), or one checked-out branch/HEAD source update plus optional deletions. Multiple non-deletion source updates, tag creation/update, an unknown source ref, or a source commit different from checked-out HEAD is rejected before any source verdict. No unqualified ref is silently forwarded.
 - A pushed commit without `//:quality` fails with a configuration error, never a pass.
 - Concurrent pushes in one repository share one worktree and must not interleave.
 - A hook interrupted with Ctrl-C leaves no running child.
@@ -139,6 +139,8 @@ is reported `TIMED_OUT`, the child is gone and the run exits 10.
   running and reported. The push worktree's owned server has a short idle bound.
 - **FR-015**: Hooks MUST be pinned prek, one local hook per stage, with `pass_filenames = false` and
   installation that is idempotent, preserves foreign hooks, and honors worktrees and `core.hooksPath`.
+- **FR-015a**: Installed hooks MUST fail closed when the recorded pinned prek is missing, not executable, or differs from its installed SHA256. They MUST NOT select PATH/module fallbacks. Reinstallation remains idempotent and preserves unrelated legacy hooks.
+- **FR-015b**: The installed pre-push adapter MUST preserve the complete original Git input and validate every row before delegating to prek. It supports at most one non-deletion branch/HEAD source update at checked-out HEAD, plus optional deletions; it rejects all other source-update batches before a source check. Deletion-only input introduces no source checks but retains legacy-hook behavior. Tag creation/update is unsupported and rejected; tag deletion is permitted. A bounded input/configuration rejection is distinct from a content verdict.
 - **FR-016**: Go analyzers MUST fail the build on a finding, under the pinned Go SDK.
 - **FR-017**: TypeScript MUST be linted and format-checked with pinned tools, and the suppression
   ban's ESLint spellings MUST be re-witnessed against that pinned ESLint.

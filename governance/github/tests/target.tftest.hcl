@@ -41,7 +41,7 @@ run "one_public_template_repository" {
     error_message = "ruleset committer_email_pattern must match exact approved bot committer identities"
   }
   assert {
-    condition     = github_repository_ruleset.main.rules[0].commit_author_email_pattern[0].operator == "regex" && github_repository_ruleset.main.rules[0].commit_author_email_pattern[0].negate == false && github_repository_ruleset.main.rules[0].commit_author_email_pattern[0].pattern == "^claude-cir@selamy\\.dev$"
+    condition     = github_repository_ruleset.main.rules[0].commit_author_email_pattern[0].operator == "regex" && github_repository_ruleset.main.rules[0].commit_author_email_pattern[0].negate == false && github_repository_ruleset.main.rules[0].commit_author_email_pattern[0].pattern == "^(claude-cir|github-bot)@selamy\\.dev$"
     error_message = "ruleset commit_author_email_pattern must match exact approved bot author identities"
   }
 }

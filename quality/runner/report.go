@@ -59,9 +59,10 @@ type Result struct {
 	Reason     string `json:"reason,omitempty"`
 	NoEvidence bool   `json:"no_evidence,omitempty"`
 	// Measurements is the bounded summary of a check that declares one.
-	Measurements []string `json:"measurements,omitempty"`
-	EmptyInput   bool     `json:"empty_input,omitempty"`
-	output       string
+	Measurements   []string `json:"measurements,omitempty"`
+	EmptyInput     bool     `json:"empty_input,omitempty"`
+	output         string
+	retainedOutput string
 }
 
 // Measurements picks a check's summary out of its output, within the bound. Overflow is named, so a
@@ -271,9 +272,8 @@ func pruneLogDirectories(receipt string) error {
 	return nil
 }
 
-// RetainLog keeps a failed check's output in its run's directory, so the terminal's bound hides
-// nothing for good. It holds what the terminal would have shown in full, so it carries the same
-// redaction, and it is private to this user. Size is bounded, and a cut says so.
+// RetainLog keeps failed diagnostic output beside its receipt. Bazel's bounded combined output
+// is retained independently of its concise terminal summary. A size cut is named explicitly.
 func RetainLog(directory, check, output string) (string, error) {
 	path := filepath.Join(directory, check+".log")
 	if int64(len(output)) > maxRetainedLog {

@@ -37,6 +37,7 @@ first.
 | FR-022 | Doc assertions, `fresh_clone.sh` | `--base` documented | bare command passes, or a stale command in README → fails | G | off, loc |
 | FR-023 | Real-registry tests | new input escalates and changes the digest | input outside the list → red | G | off |
 | FR-024 | `parity_test`, `runner_test` | `if-no-files-found: error`, name with attempt | setting removed, name without attempt, personal identifier → rejected | G | off |
+| FR-024a | `runner_test`, `ci_parity_test` | original receipt and exact marked current logs retain a failed target assertion; passing receipt alone exports | foreign-prefix sentinel omitted/unchanged; symlink, unmarked, outside, unknown/duplicate and oversized references refused; glob or missing preparation step rejected | G | off |
 | FR-025 | `parity_test`, `zizmor` | read-only, no secrets | `write` permission, a `secrets.` use, `pull_request_target`, a moved `ref` → rejected | G | off |
 | FR-026 | Doc assertion | sentence matches triggers | wider sentence → review | S | hum |
 | FR-027 | `fixtures_test`, suppression fixtures | clean commit passes | `--no-verify` commit with a secret → CI-equivalent run fails; unbanned spelling → fails | G | off |

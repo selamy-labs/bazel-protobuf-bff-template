@@ -160,6 +160,15 @@ Usability, CI and documents
 - **FR-024**: A receipt MUST be uploaded per leg per attempt, under a unique name, with
   `if-no-files-found: error`, binding leg, revision, base revision, base policy digest, producer, attempt,
   terminal state, inventory and claim layer, with no personal identifier.
+- **FR-024a**: Each leg MUST prepare a fresh private artifact directory containing the original receipt
+  bytes and only the regular bounded logs explicitly referenced by its registered check IDs. Referenced
+  logs MUST belong to one marked runner-created sibling directory of that receipt; symlink, foreign,
+  outside, duplicate, unknown-check or oversized references fail artifact preparation. Same-prefix
+  unrelated files and unreferenced logs MUST remain unchanged and absent from the artifact. No directory
+  glob establishes ownership. A passing leg exports only its receipt. The upload selects this prepared
+  directory, preserving the action pin, attempt name, read-only permissions, retention and failed verdict.
+  Failed Bazel checks MUST retain bounded combined output including target assertion details; the concise
+  terminal summary remains separate. This content selection does not replace upstream receipt validation.
 - **FR-025**: CI MUST use read-only permissions, no secrets, no private network and no credentials, MUST check
   out the claimed source, and fork proposals MUST behave the same.
 - **FR-026**: Trigger scope and documentation MUST agree. The sentence "CI checks every ref" is narrowed.

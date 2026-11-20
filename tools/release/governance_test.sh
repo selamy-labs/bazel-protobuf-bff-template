@@ -78,7 +78,7 @@ workflow="$(abs "$workflow")"
 
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
 failures=0
-replace() { local content; content="$(cat "$1")"; printf '%s\n' "${content/"$2"/"$3"}" >"$1"; }
+replace() { local content; content="$(cat "$1")"; [[ "$content" == *"$2"* ]] || { echo "fixture: replacement target missing" >&2; exit 2; }; printf '%s\n' "${content/"$2"/"$3"}" >"$1"; }
 expect() { # expect <name> <want> <mutation> [tofu]
   local name="$1" want="$2" rc=0
   rm -rf "$T/g"; cp -rL "$config" "$T/g"; cp -L "$policy" "$T/policy.json"; cp -L "$workflow" "$T/ci.yml"
@@ -109,8 +109,10 @@ expect() { # expect <name> <want> <mutation> [tofu]
     ruleset_committer_slash_comment_shadow) sed -i '/committer_email_pattern/,/}/s,pattern  = .*,pattern  = ".*"\n      // &,g' "$T/g/main.tf"; "$tofu" -chdir="$T/g" fmt >/dev/null 2>&1 ;;
     ruleset_committer_block_comment_shadow) sed -i '/committer_email_pattern/,/}/s,pattern  = .*,pattern  = ".*" /* & */,g' "$T/g/main.tf"; "$tofu" -chdir="$T/g" fmt >/dev/null 2>&1 ;;
     ruleset_no_commit_author_email_pattern) sed -i '/commit_author_email_pattern {/,/}/d' "$T/g/main.tf" ;;
-    ruleset_author_pattern_bot) replace "$T/g/main.tf" 'pattern  = "^claude-cir@selamy\\.dev$"' 'pattern  = "^(github-bot@selamy\\.dev|claude-cir@selamy\\.dev)$"' ;;
-    ruleset_author_pattern_all) replace "$T/g/main.tf" 'pattern  = "^claude-cir@selamy\\.dev$"' 'pattern  = ".*"' ;;
+    ruleset_author_pattern_lookalike) replace "$T/g/main.tf" 'pattern  = "^(claude-cir|github-bot)@selamy\\.dev$"' 'pattern  = "^(claude-cir|github-bot-other)@selamy\\.dev$"' ;;
+    ruleset_author_pattern_legacy_only) replace "$T/g/main.tf" 'pattern  = "^(claude-cir|github-bot)@selamy\\.dev$"' 'pattern  = "^claude-cir@selamy\\.dev$"' ;;
+    ruleset_author_pattern_bot_only) replace "$T/g/main.tf" 'pattern  = "^(claude-cir|github-bot)@selamy\\.dev$"' 'pattern  = "^github-bot@selamy\\.dev$"' ;;
+    ruleset_author_pattern_all) replace "$T/g/main.tf" 'pattern  = "^(claude-cir|github-bot)@selamy\\.dev$"' 'pattern  = ".*"' ;;
     ruleset_author_negate_true) sed -i '/commit_author_email_pattern/,/}/s/negate   = false/negate   = true/' "$T/g/main.tf" ;;
     ruleset_author_comment_shadow) sed -i '/commit_author_email_pattern/,/}/s,pattern  = .*,pattern  = ".*"\n      # &,g' "$T/g/main.tf"; "$tofu" -chdir="$T/g" fmt >/dev/null 2>&1 ;;
     ruleset_author_slash_comment_shadow) sed -i '/commit_author_email_pattern/,/}/s,pattern  = .*,pattern  = ".*"\n      // &,g' "$T/g/main.tf"; "$tofu" -chdir="$T/g" fmt >/dev/null 2>&1 ;;
@@ -153,7 +155,9 @@ grep -q 'ruleset must declare exact committer_email_pattern and commit_author_em
 expect "ruleset with committer trailing block comment shadow is rejected" 1 ruleset_committer_block_comment_shadow
 grep -q 'ruleset must declare exact committer_email_pattern and commit_author_email_pattern' "$T/out" || { echo "FAIL ruleset_committer_block_comment_shadow: expected pattern error, got: $(cat "$T/out")"; failures=$((failures + 1)); }
 expect "ruleset removes commit_author_email_pattern" 1 ruleset_no_commit_author_email_pattern
-expect "ruleset with author pattern accepting bot is rejected" 1 ruleset_author_pattern_bot
+expect "ruleset with lookalike bot author pattern is rejected" 1 ruleset_author_pattern_lookalike
+expect "ruleset omitting approved contribution author is rejected" 1 ruleset_author_pattern_legacy_only
+expect "ruleset omitting approved legacy author is rejected" 1 ruleset_author_pattern_bot_only
 expect "ruleset with author pattern .* is rejected" 1 ruleset_author_pattern_all
 expect "ruleset with author negate = true is rejected" 1 ruleset_author_negate_true
 expect "ruleset with author trailing comment shadow is rejected" 1 ruleset_author_comment_shadow

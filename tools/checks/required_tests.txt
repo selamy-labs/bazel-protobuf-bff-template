@@ -48,6 +48,7 @@
 @bff_template_quality//checks/ciparity:ciparity_test build-test
 @bff_template_quality//checks/suppression:suppression_test build-test
 @bff_template_quality//hooks:pin_test build-test
+@bff_template_quality//hooks:defensive_test build-test
 @bff_template_quality//proto:proto_test build-test
 @bff_template_quality//release:release_test build-test
 @bff_template_quality//runner:runner_test build-test

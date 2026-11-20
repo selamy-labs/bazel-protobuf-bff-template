@@ -12,8 +12,7 @@ tools/bootstrap/bazel.sh run //tools/hooks:install -- --weak-isolation
 ```
 
 This copies the pinned prek to `$(git rev-parse --git-common-dir)/bff-template/bin/prek` and installs
-from there. A path in Bazel's outputs would disappear with `bazel clean`. Installing twice changes
-nothing. It works in linked worktrees and honors `core.hooksPath`.
+from there, recording its SHA256 and a small maintained guard beside it. A path in Bazel outputs would disappear with `bazel clean`. Installing twice changes nothing. It works in linked worktrees and honors `core.hooksPath`; prek retains foreign-hook migration/chaining. A missing, non-executable or changed pin is a configuration rejection, with no PATH/module fallback or content-verdict claim.
 
 ## Stages
 
@@ -71,10 +70,8 @@ operator opens it.
 
 ## Limits
 
-- **Only the first pushed ref is judged.** prek evaluates one ref of `git push origin main other`. The
-  others reach the remote unchecked by the hook.
-- **A deleted pin falls back to `PATH`.** prek's shim runs any `prek` on `PATH` if the copy under the
-  Git directory is gone, and that is not the pinned tool. Reinstall to restore the pin.
+- **Unsupported source batches are rejected.** The installed guard preserves and validates the full original Git input before prek selects a ref. It permits one checked-out branch/HEAD source update plus optional deletions, or deletion-only input. Multiple source updates, tag creation/update, a source tip different from checked-out HEAD, malformed/NUL input, tab/repeated/leading/trailing field separators or input over 1 MiB is rejected before a stage verdict. Push supported branches separately; this adapter does not introduce a multi-worktree checking engine. Deletion-only input (including tag deletion) runs legacy hooks but introduces no source verdict.
+- **Missing or changed pins fail closed.** The recorded executable must be present, executable and match its installed SHA256. No PATH/module fallback runs. Reinstall from the maintained pinned Bazel target to restore it. Hooks remain locally bypassable; this is not a filesystem-tamper or authorization security boundary.
 - **A foreign hook needs a shebang.** prek moves an existing hook to `<hook>.legacy` and runs it first.
   One with no shebang fails every commit with `Exec format error`.
 - **prek stashes unstaged changes,** at pre-commit and at pre-push, and restores them afterward. That

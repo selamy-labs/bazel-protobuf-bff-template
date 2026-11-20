@@ -69,6 +69,7 @@ func run() int {
 	hostRegistry := flags.String("registry-path", "", "the registry's path in the repository")
 	contract := flags.String("contract", "", "the coverage contract's path in the repository")
 	wrapper := flags.String("bazel", "", "the host's Bazel wrapper, relative to the repository root")
+	exportReceipt := flags.String("export-receipt", "", "prepare a private artifact from this receipt and its owned logs")
 	list := flags.Bool("list", false, "print each resolved check as id, witness, leg and kind, and stop")
 	adapter := flags.String("adapter", "", "the native adapter")
 	isolation := flags.String("isolation", "full", "full or weakened")
@@ -94,11 +95,8 @@ func run() int {
 	if err != nil {
 		return fail(err)
 	}
-	if *list {
-		for _, check := range registry.GetChecks() {
-			fmt.Printf("%s\t%s\t%s\t%s\n", check.GetId(), check.GetWitness(), check.GetShard(), check.GetKind())
-		}
-		return runner.ExitOK
+	if *exportReceipt != "" || *list {
+		return requestedOutput(registry, *exportReceipt)
 	}
 	stage, known := runner.StageNames[*stageName]
 	if !known {
@@ -230,4 +228,30 @@ func environment(root string, tools toolFlag, runfiles string) []string {
 		env = append(env, name+"="+path)
 	}
 	return append(env, "RUNFILES_ROOT="+runfiles)
+}
+
+func exportArtifact(registry *registrypb.Registry, receipt string) int {
+	root := os.Getenv("BUILD_WORKSPACE_DIRECTORY")
+	if root == "" {
+		root, _ = os.Getwd()
+	}
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
+	directory, err := runner.ExportReceipt(ctx, runner.ArtifactOptions{Registry: registry, Root: root, ReceiptPath: receipt})
+	if err != nil {
+		return fail(err)
+	}
+	fmt.Printf("artifact_path=%s\n", directory)
+	return runner.ExitOK
+}
+
+// requestedOutput serves the two output-only requests before stage execution.
+func requestedOutput(registry *registrypb.Registry, receipt string) int {
+	if receipt != "" {
+		return exportArtifact(registry, receipt)
+	}
+	for _, check := range registry.GetChecks() {
+		fmt.Printf("%s\t%s\t%s\t%s\n", check.GetId(), check.GetWitness(), check.GetShard(), check.GetKind())
+	}
+	return runner.ExitOK
 }

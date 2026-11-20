@@ -257,3 +257,5 @@ T029 bff/cmd/bff/config_test.go       T031 web/client/errors.test.ts   T032 web/
 - Commit after each task or logical group; each commit names its task id.
 - A checkpoint is complete only with full-verifier evidence at the exact revision.
 - Never implement upstream-owned contracts (#25/#20 Python/TS adapters, #26 policy-diff, #27 evidence validator, #28 analyzer, #29 worker profile) here.
+
+Focused lifecycle adapter correction is tracked in spec006 T020–T022 (FR-015a/b); no feature/CI/main acceptance is claimed by this follow-through entry.

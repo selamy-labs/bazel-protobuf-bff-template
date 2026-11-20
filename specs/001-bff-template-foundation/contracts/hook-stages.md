@@ -34,8 +34,7 @@ user-facing behavior and limits are in [docs/quality/hooks.md](../../../docs/qua
      reused across pushes with its own warm output base.
    - A push that widens to `full` is compared with the declared `bff-template.policy-base` setting, and never
      with `--from`. With no setting it exits 11 (spec 007 FR-015a).
-   - prek evaluates only the first pushed ref. A multi-ref push is a documented limit. CI judges pull
-     requests, merge groups and `main`; a branch with neither gets no hosted run.
+   - The installed adapter validates the full original Git pre-push input before prek selects a ref. Support at most one branch/HEAD source update at checked-out HEAD plus optional deletions; reject multiple source updates, tag creation/update, non-HEAD tips and malformed/NUL/oversized (>1 MiB) input. Deletion-only input (including tag deletion) still reaches legacy hooks without a source verdict. No unchecked source update is silently forwarded. Required hosted CI remains independent of bypassable local hooks.
 4. **Paths are passed NUL-delimited** end to end. This covers renames, deletions and paths that
    contain spaces or newlines.
 5. **Escalation happens at pre-push only.** A change to a policy input, which the registry's
@@ -46,8 +45,7 @@ user-facing behavior and limits are in [docs/quality/hooks.md](../../../docs/qua
    exactly the same paths. Judging whether a policy change is authorized is upstream #26.
 6. **Installation** uses `bazel run //tools/hooks:install`, which copies the pinned prek beside the
    Git data, because prek's shim records the path it was installed from, and calls that copy's
-   `install` for the configured hook types. If the copy is deleted, the shim takes any `prek` on
-   `PATH`; this is a documented limit.
+   `install` for the configured hook types. A maintained guard requires the recorded executable and its installed SHA256, with no PATH/module fallback when absent, non-executable or changed. Configuration/input rejections say no stage verdict ran.
    - prek moves an existing foreign hook aside (`.legacy`) and still runs it; a fixture verifies
      this.
    - Installation honors `core.hooksPath` and worktree-local configuration.
@@ -73,11 +71,11 @@ Each fixture runs in a temporary repository:
 | Untracked and unstaged content | partial staging with an unrelated unstaged edit (byte-identical afterward); an untracked bad file in the same package (must not affect the verdict) |
 | Path handling | a rename; a deletion; a filename with spaces; a filename with a newline |
 | Scale | a 500-file batch (whole-project checks run once) |
-| Installation | double install; a pre-existing foreign hook; install in a worktree; `core.hooksPath`; the installed-from binary removed; the pinned copy removed (the documented limit) |
-| Push | a failing push (a test breaks in the pushed commit while the checkout holds the staged fix); the corrected push; an untracked file in the checkout; a policy change; the multi-ref limit |
+| Installation | double install; a pre-existing foreign hook; install in a worktree; `core.hooksPath`; the installed-from binary removed; the pinned copy absent/non-executable/tampered (fail closed without PATH fallback) |
+| Push | a failing push (a test breaks in the pushed commit while the checkout holds the staged fix); the corrected push; an untracked file in the checkout; a policy change; unsupported multi-source/tag/non-HEAD updates, original input/argv preservation, deletion-only and mixed source/deletion input |
 | Index | `git commit -a`; `git commit <path>` |
 | Bootstrap | a broken runner build, an `ERROR` that names no check |
 | Bypass | `SKIP`; `PREK_SKIP`; a bypassed commit and push, caught by `full` |
 
-`//tools/hooks:fixtures_test` replaces only Bazel. `hook-e2e` runs the commit, the push, the bootstrap
+`//tools/hooks:defensive_test` uses real Git, the pinned prek and local bare remotes for pin and full-input admission. `//tools/hooks:fixtures_test` replaces only Bazel. `hook-e2e` runs the commit, the push, the bootstrap
 failure and both deadline cases against a real Bazel.

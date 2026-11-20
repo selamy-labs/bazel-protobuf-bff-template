@@ -4,6 +4,7 @@ load("@rules_shell//shell:sh_test.bzl", "sh_test")
 exports_files(
     [
         "install.sh",
+        "guard.sh",
         "pin.sh",
     ],
     visibility = ["//visibility:public"],
@@ -13,7 +14,10 @@ sh_binary(
     name = "install",
     srcs = ["install.sh"],
     args = ["$(rootpath //tools:prek)"],
-    data = ["//tools:prek"],
+    data = [
+        "guard.sh",
+        "//tools:prek",
+    ],
     visibility = ["//visibility:public"],
 )
 
@@ -29,4 +33,20 @@ sh_test(
     srcs = ["pin_test.sh"],
     args = ["$(rootpath pin.sh)"],
     data = ["pin.sh"] + glob(["testdata/**"]),
+)
+
+sh_test(
+    name = "defensive_test",
+    size = "medium",
+    srcs = ["defensive_test.sh"],
+    args = [
+        "$(rootpath install.sh)",
+        "$(rootpath //tools:prek)",
+    ],
+    data = [
+        "guard.sh",
+        "install.sh",
+        "//tools:prek",
+    ],
+    visibility = ["//visibility:public"],
 )
