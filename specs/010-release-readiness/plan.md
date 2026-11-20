@@ -79,3 +79,7 @@ Stop there. Technical readiness can pass with release gates pending. Every later
 ## Complexity Tracking
 
 None.
+
+## Approved contribution-author parity (T025)
+
+Add the designated contribution bot to the same exact author-email predicate as the retained legacy author. Selectively reconcile the existing declared author regex, its offline mock assertion and the source-owned governance checker expectation; retain independent committer decisions, approved actor checks, all-ref/reflog scanning, denied principals and the single-commit/rebase-only ratchet. Exercise the existing real-Git fixture matrix with approved bot, personal-author and lookalike-bot controls before the small scanner correction. This changes source declarations only; no provider settings or apply is part of this task. Full current-revision qualification and independent review remain required.

@@ -57,3 +57,9 @@ review is pending.
   lock. Red first, with the real runner as the owner.
 
 Carried forward: the S005 coverage-marker re-witness in parent T047 moves to M6, so T047 stays open.
+
+## Defensive installation and complete-input follow-through
+
+- [ ] T020 Make the installed pin fail closed for missing/non-executable/tampered prek and retain maintained installer ownership, foreign hooks, repeat install and linked-worktree/custom-hook-path behavior. **Spec** FR-015, FR-015a. **Witness** `defensive_test` pin/installation cases and real local Git controls.
+- [ ] T021 Preserve and validate the complete original pre-push packet before prek selects a ref. Permit one checked-out branch/HEAD source plus deletions or deletion-only; reject unsupported source batches, tags, malformed input and different tips. **Spec** FR-010, FR-015b. **Witness** valid single-source push, multi-source/tag/different-tip negatives, direct malformed-separator admission negatives paired with a real source-stage positive, deletion/legacy-input controls.
+- [ ] T022 Reconcile hook documentation and contract/matrix claims, run affected canonical checks and existing lifecycle controls, bind exact source evidence, independent review, normal merge and exact main. **Needs** T020,T021. **Spec** FR-018,FR-021. No old completed-task checkmark proves these new witnesses.

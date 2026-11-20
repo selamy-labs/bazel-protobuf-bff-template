@@ -95,3 +95,7 @@ T003, T004, T007 and T010 touch different paths and can proceed together once T0
 ## Implementation Strategy
 
 User Stories 1 and 2 first, because the final scan depends on both. The provisioning target is written once the probe says what offline validation can actually claim.
+
+## Approved contribution-author follow-through
+
+- [ ] T025 Reconcile the exact approved contribution-bot author address across the generic scanner, declared author-email rule and existing identity-drift fixtures. **Spec** FR-005a, FR-006b. **Witness** approved bot/legacy author controls, personal and lookalike-bot negatives, existing committer/actor/whole-export/single-commit controls, unchanged full verification, independent exact-head review and normal merge/main acceptance. No historical author rewrite, broad domain exemption or provider apply.

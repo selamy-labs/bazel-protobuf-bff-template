@@ -26,7 +26,7 @@ TypeScript lint arrive here, because the registry has to judge them.
 | --- | --- | --- |
 | I. Real slice | PASS | Every check judges real inputs. Entries with nothing to judge are not registered (R11). |
 | II. Contracts first | PASS | Follows the two parent contracts; deviations are written back to them. |
-| III. Hermetic, pinned | PASS | New tools are pinned by digest or lock. The shim's `PATH` fallback is closed by the installer (R2). |
+| III. Hermetic, pinned | PASS | New tools are pinned by digest or lock. Historical R2 intended to close the shim fallback; current defensive follow-through FR-015a/b remains unqualified until its pin and complete-input fixtures pass. |
 | IV. One policy | PASS | This milestone is that principle. |
 | V. Cannot weaken itself | PASS (scoped) | M6 owns base-built evaluators. Bypassable hooks are not a security boundary. |
 | VI. Exact-revision evidence | PASS | Receipts keep every field; pre-push evidence names the pushed commit. |
@@ -72,3 +72,9 @@ to it and deletes the old body (T011). Hooks follow (T012–T014). The closing t
 CI shards, base-built floors, coverage (M6); a separate consumer (M7); provenance inventory and
 release plan (M8). Upstream hook adapters, policy-diff, evidence validators, the consumer analyzer
 and worker runtime (#25–#29, TS #20) stay upstream.
+
+## Focused defensive follow-through
+
+T020–T022 repair the installed adapter without a new framework, policy list, tool version or multi-worktree execution engine. Keep prek 0.5.5 responsible for hook discovery, foreign-hook migration/chaining and its selected stage invocation. A small installed guard verifies the persistent binary digest and validates the entire original pre-push packet before invoking `hook-impl` with unchanged arguments/input. The source-stage runner and all existing thresholds remain unchanged.
+
+The guard supports deletions only, or one branch/HEAD source at checked-out HEAD plus deletions. Reject multiple source updates, tag updates, malformed input and a different source tip. Admit exactly four non-whitespace fields separated by three single ASCII spaces, matching the pinned parser; reject tabs and repeated/leading/trailing separators without normalization. Pair direct-hook negatives with an ordinary source-stage positive and original legacy stdin/argv equality. Deletion-only input still reaches prek so legacy hooks run; no source verdict is claimed. Bound input to 1 MiB and reject interactive/malformed input, rather than silently truncating it. Tests use real Git, the pinned prek and local bare remotes, including ordinary valid commit/push, absence/tamper, unsupported refs, foreign hooks, repeat install, linked worktrees and core.hooksPath. Keep bootstrap/configuration rejection distinct from product/content checks. Full verification, exact-revision review/CI and separate post-merge acceptance remain required.

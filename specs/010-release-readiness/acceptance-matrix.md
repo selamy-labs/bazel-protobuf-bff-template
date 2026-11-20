@@ -9,6 +9,7 @@ External draft, revision 3, unchanged in direction. Spec 010. At landing `/speck
 | FR-003 | Inventory check | three scopes; runtime contents observed; codegen inputs and output families listed | a bundled dependency or generator missing from the table → fails | G | off |
 | FR-004 | Inventory check, review | known licenses shown | unknown license → stays visible, never read as permissive; a compliance claim → review rejects | G/S | off, hum |
 | FR-005 | `neutrality.sh` fixtures | clean scratch repository passes | a planted identifier in a file, a deleted file and a message → fails | G | off |
+| FR-005a | `neutrality_test` identity cases and `governance_test` exact declared-rule parity | exact approved contribution and legacy author emails pass | personal/lookalike/foreign/reserved/noreply author or declaration/scanner drift → rejected; independent committer/actor/ref scope unchanged | G | off, loc pending |
 | FR-006 | Marker fixtures | clean export reports scope and literal absence | a marker in a file name, directory, blob, message, ref or identity → found, and its text appears in no output or locator | G | off |
 | FR-006a | Review | scope stated; run-local labels | a hash presented as confidential → review rejects | S | hum |
 | FR-006b | `neutrality.sh` & governance fixtures | single commit under PR event; rebase-only merge enforcement | multi-commit PR branch (ahead_count > 1) or non-rebase merge method in governance/github/main.tf → fails merge ratchet | G | off |

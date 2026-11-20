@@ -227,7 +227,7 @@ expected_c_pat="$(awk '
     print "^(" c ")$"
   }
 ' "$allow_file")"
-expected_a_pat="^claude-cir@selamy\\.dev$"
+expected_a_pat="^(claude-cir|github-bot)@selamy\\.dev$"
 
 tofu_test_log="$work/tofu_test.json"
 tofu_test_rc=0
