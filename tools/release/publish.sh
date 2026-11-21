@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Trusted publishing (spec 010 FR-013): on the tagged revision, already verified by the workflow's verify job,
-# build the image through the build graph, publish it by digest to the repository-linked container package with
+# build and run the actual image through the one graph, publish its tested digest to the linked package with
 # the job's own token, and attach the release artifacts with their hashes. Nothing is rebuilt by another builder;
 # the digest pushed is compared with the digest the plain build measures, and a mismatch ends the run.
 #
@@ -17,12 +17,16 @@ package="ghcr.io/${repository,,}/bff"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 # The plain build and its digest, measured from content by the same witness the verifier runs.
-tools/bootstrap/bazel.sh build --noshow_progress "--ui_event_filters=-info,-stdout,-stderr" //bff/cmd/bff:image //bff/cmd/bff:image_tarball --output_groups=+tarball
-digest="$(tools/checks/image_release.sh | sed -nE 's/^measurement: image (sha256:[0-9a-f]{64}),.*/\1/p')"
+tools/bootstrap/bazel.sh build --noshow_progress "--ui_event_filters=-info,-stdout,-stderr" //bff/cmd/bff:image //bff/cmd/bff:image_tarball @bff_template_quality//tools:yq --output_groups=+tarball
+parser="$(tools/bootstrap/bazel.sh cquery --output=files @bff_template_quality//tools:yq 2>/dev/null | head -1)"
+digest="$(tools/checks/image_release.sh "$root/tools/bootstrap/bazel.sh" full "$parser" | sed -nE 's/^measurement: image (sha256:[0-9a-f]{64}),.*/\1/p')"
 [[ -n "$digest" ]] || { echo "publish: the plain build's digest could not be measured" >&2; exit 2; }
+# Run this exact built archive before any registry credential or write, then bind its accepted manifest.
+runtime_digest="$(BFF_IMAGE_RUNTIME_OUTPUTS="$work/runtime" tools/checks/image_runtime.sh | sed -nE 's/^measurement: runtime image (sha256:[0-9a-f]{64})$/\1/p')"
+[[ "$runtime_digest" == "$digest" ]] || { echo 'publish: actual-runtime digest does not match the plain built image' >&2; exit 1; }
 # The push, with the job's token; the registry answers with the digest it stored, which must be the measured one.
 printf '%s' "$GITHUB_TOKEN" | docker login ghcr.io -u "${GITHUB_ACTOR:-token}" --password-stdin >/dev/null
-tools/bootstrap/bazel.sh run --noshow_progress "--ui_event_filters=-info,-stdout,-stderr" //bff/cmd/bff:image_push -- --repository "$package" --tag "$tag"
+tools/bootstrap/bazel.sh run --noshow_progress "--ui_event_filters=-info,-stdout,-stderr" //bff/cmd/bff:image_push -- --registry ghcr.io --repository "${repository,,}/bff" --tag "$tag"
 pushed="$(docker manifest inspect --verbose "$package@$digest" >/dev/null 2>&1 && echo "$digest" || true)"
 [[ "$pushed" == "$digest" ]] || { echo "publish: the registry does not serve $digest after the push" >&2; exit 1; }
 # The release: the tarball, the receipt, the inventory, the notices, and the hashes of each.
@@ -31,6 +35,10 @@ cp "$tarball" "$work/bff-image-$tag.tar"
 cp .verify/receipt.json "$work/verify-receipt-$tag.json" 2>/dev/null || echo "publish: no receipt beside the build; the verify job's artifact is the receipt" >&2
 cp docs/provenance.md "$work/provenance-$tag.md"
 cp LICENSE "$work/LICENSE"
+cp docs/licenses/go-x509roots-BSD-3-Clause.txt "$work/go-x509roots-BSD-3-Clause.txt"
+# Attach the actual runtime proof, including archive/config/rootfs identities and seven test results.
+tar -czf "$work/runtime-acceptance-$tag.tar.gz" -C "$work/runtime" .
+rm -rf -- "$work/runtime"
 printf '%s\n' "$revision" >"$work/source-revision-$tag.txt"
 printf '%s\n' "$digest" >"$work/image-digest-$tag.txt"
 (cd "$work" && sha256sum ./* >SHA256SUMS)

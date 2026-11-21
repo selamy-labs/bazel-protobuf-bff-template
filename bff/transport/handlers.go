@@ -64,6 +64,7 @@ func (l Limits) Check() error {
 
 // Options configures the handler. Limits must have passed Check.
 type Options struct {
+	Web               http.Handler
 	Telemetry         connect.ServerInterceptor
 	Notes             *app.Notes
 	Authenticator     identity.Authenticator
@@ -83,6 +84,9 @@ func NewHandler(options Options) http.Handler {
 	notesv1connect.RegisterNoteServiceHandler(server, notes{app: options.Notes})
 	mux := http.NewServeMux()
 	connecthttp.Mount(mux, server, connecthttp.WithReadMaxBytes(options.Limits.MaxRequestBytes))
+	if options.Web != nil {
+		mux.Handle("/", options.Web)
+	}
 	return cors(options.AllowedOrigin, mux)
 }
 

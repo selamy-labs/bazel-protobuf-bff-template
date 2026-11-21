@@ -73,6 +73,7 @@ func (l ListenerLimits) Check() error {
 
 // Config is everything a server needs. Every bound is required: nothing here has a default.
 type Config struct {
+	Web           http.Handler // optional static browser handler composed by the production binary
 	Telemetry     connect.ServerInterceptor
 	Mode          Mode
 	Addr          string
@@ -141,6 +142,7 @@ func checkLoopback(addr string) error {
 // NewHandler returns the handler for a checked configuration.
 func NewHandler(config Config) http.Handler {
 	return transport.NewHandler(transport.Options{
+		Web:               config.Web,
 		Notes:             app.New(config.Store),
 		Telemetry:         config.Telemetry,
 		Authenticator:     config.Authenticator,

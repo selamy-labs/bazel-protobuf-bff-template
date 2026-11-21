@@ -181,18 +181,22 @@ func TestConfigStatesThePlatformUserAndEntrypoint(t *testing.T) {
 	}
 }
 
-func TestTheLayerHoldsOnlyTheServer(t *testing.T) {
+func TestTheLayerHoldsOnlyProductionRuntimeFiles(t *testing.T) {
 	loaded := built(t)
-	if len(loaded.files) != 1 {
-		names := make([]string, 0, len(loaded.files))
-		for _, header := range loaded.files {
-			names = append(names, header.Name)
+	names := make([]string, 0, len(loaded.files))
+	for _, header := range loaded.files {
+		name := strings.TrimSuffix(strings.TrimPrefix(header.Name, "./"), "/")
+		names = append(names, name)
+		if strings.HasPrefix(name, "web/") && (header.Typeflag != tar.TypeReg || header.Uid != 65532 || header.Gid != 65532 || header.Mode != 0o644 || !header.ModTime.Equal(time.Unix(0, 0))) {
+			t.Errorf("browser asset %s: type %c, %d:%d, mode %o, time %v", name, header.Typeflag, header.Uid, header.Gid, header.Mode, header.ModTime)
 		}
-		t.Fatalf("layer holds %q, want only the server", names)
+		if name == "bff" && (header.Typeflag != tar.TypeReg || header.Uid != 65532 || header.Gid != 65532 || header.Mode != 0o555 || !header.ModTime.Equal(time.Unix(0, 0))) {
+			t.Errorf("server entry: type %c, %d:%d, mode %o, time %v", header.Typeflag, header.Uid, header.Gid, header.Mode, header.ModTime)
+		}
 	}
-	file := loaded.files[0]
-	if file.Typeflag != tar.TypeReg || file.Uid != 65532 || file.Gid != 65532 || file.Mode != 0o555 || !file.ModTime.Equal(time.Unix(0, 0)) {
-		t.Errorf("server entry: type %c, %d:%d, mode %o, time %v", file.Typeflag, file.Uid, file.Gid, file.Mode, file.ModTime)
+	slices.Sort(names)
+	if !slices.Equal(names, []string{"bff", "web", "web/index.html", "web/main.js"}) {
+		t.Fatalf("runtime layer holds %q, want only server and built UI", names)
 	}
 }
 

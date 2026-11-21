@@ -1,5 +1,10 @@
 # Contract: BFF image
 
+## Historical rules_oci implementation contract
+
+This table and refusal witness describe the retained implementation. The current required
+contract is the single-image amendment below; it is not implemented or qualified yet.
+
 | Property               | Value                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
 | ---------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Target                 | `//bff/cmd/bff:image`, an OCI layout                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
@@ -27,3 +32,23 @@ process's observed behavior: today, this refusal. A profile that claims a health
 startup and real HTTP journeys against the configured artifact before it claims readiness.
 
 **A hosted pipeline** may run the Bazel target and publish the resulting digest. It does not rebuild the image.
+
+## Current single-image amendment (source implemented; qualification pending)
+
+The table above describes the retained rules_oci candidate. The final qualified image MUST use
+pinned compatible rules_img through Bazel/Bzlmod, include the production server and its built UI,
+and serve static assets and Connect on the same origin using `PORT` on every interface. The exact
+minimal runtime file inventory is established by T015–T018; the historical `/bff`-only assertion
+cannot certify this candidate. Keep linux/amd64, non-root, deterministic content/digest checks,
+missing-verifier refusal, and test keys/identity outside the production image.
+
+Required GitHub CI must build and start the actual image and execute the real UI/Connect journey
+against that same digest with positive/negative controls. An extracted entrypoint is a separate
+witness. A configured publisher consumes the tested artifact; Cloud Build does not rebuild it.
+Production identity, OpenTofu infrastructure and runtime approval gates remain separate.
+
+Current source implements the builder, static serving and built UI layer. Local content and
+source/browser witnesses pass; actual-container/required CI/exact review/main/FUTURE are
+pending. Public browser metadata uses the verifier issuer and the explicitly configured
+`BFF_SIGNIN_CLIENT_ID`; it carries no secret. The default asset root is `/web`, configurable
+through `--web-root` / `BFF_WEB_ROOT`. Unknown assets and directory/symlink escapes fail closed.

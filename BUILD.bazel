@@ -411,3 +411,11 @@ sh_test(
         "tools/release/archive_ref.sh",
     ],
 )
+
+sh_test(
+    name = "publish_runtime_test",
+    size = "small",
+    srcs = ["tools/release/publish_runtime_test.sh"],
+    args = ["$(rootpath tools/release/publish.sh)"],
+    data = ["tools/release/publish.sh"],
+)
