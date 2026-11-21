@@ -2,8 +2,15 @@
 
 **Feature Branch**: `009-bff-image`
 **Created**: 2026-11-01
-**Status**: Implemented and tested locally. Current status is in the [index](../README.md)
+**Status**: Existing rules_oci implementation retained; the rules_img and same-image serving amendment below is specified and not implemented or qualified. Current status is in the [index](../README.md)
 **Input**: Goal amendment 2026-11-01: Bazel and rules_oci own application images. Reconcile the Cloud Build image promise, and implement the smallest target with build, structure and startup evidence. Parent: spec 001 FR-034.
+
+## Historical implementation contract
+
+The following original scenarios, FR-001–FR-011 and SC-001–SC-004 describe the retained
+rules_oci implementation. The current selected requirements are FR-012–FR-016 in the
+single-image amendment below, which supersedes their binary-only/refusal-only builder and
+acceptance scope. Historical source and evidence remain intact until the migration is qualified.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -87,3 +94,45 @@ A reader of the design finds one image builder. A hosted pipeline, if one is eve
 - The production server needs no file from the image to reach its refusal. An adopter whose verifier needs CA roots or other files adds them with that verifier.
 - Any later runtime asset, such as CA roots, is its own decision with its own pin and license.
 - Only linux/amd64 is built, because that is the supported host. A second architecture waits for a consumer.
+
+## Single-image serving amendment (2026-11-21)
+
+This amendment supersedes the rules_oci builder in FR-001 and User Story 3, the binary-only
+content restriction in FR-002, and refusal-only acceptance in FR-005/SC-004. The preceding
+implementation and evidence describe the historical candidate, not acceptance of this amendment.
+No issuer configured must still fail closed; the production image must never package a development
+identity or signing keys to manufacture a healthy start.
+
+### User Story 4 - Build once, serve the browser and Connect together (Priority: P1)
+
+An adopter builds one optional image target and runs that same artifact. It serves the built
+browser assets and the existing generated Connect API from one origin, with the production
+composition reading `PORT`. No second frontend service, shared template runtime, or cloud account
+is required for the credentialless acceptance journey.
+
+- **FR-012**: Replace the image builder with a compatible exact `rules_img` release in Bzlmod,
+  regenerate the applicable module lock, and remove superseded rules_oci targets/dependencies
+  once no production consumer needs them. Preserve existing public target behavior or document
+  its deliberate migration. Keep the minimal runtime, linux/amd64 and numeric non-root identity.
+- **FR-013**: The one image MUST include the built UI and production server, serve both from
+  the same origin and honor Cloud Run's `PORT` listener contract. It MUST require no source
+  checkout, Bazel runfiles, development server or host asset mount at runtime.
+- **FR-014**: Required GitHub CI MUST build the actual OCI artifact, check its descriptor closure,
+  platform/content/entrypoint and startup, and run a real generated-client Connect journey with
+  a visible success and typed failure against that same artifact. An extracted binary witness
+  alone does not establish container startup. Record the tested manifest digest and executed
+  runtime; a rebuild or merely green source test does not qualify the image.
+- **FR-015**: Acceptance MUST retain missing-verifier startup refusal and exercise absent or invalid
+  bearer rejection against the real configured server. Use the existing external local signed
+  issuer fixture and memory store in credentialless tests; never embed test keys or an identity
+  bypass in the image. This is local fixture acceptance, not deployed authentication.
+- **FR-016**: Any configured publisher MUST consume the qualified artifact/digest instead of
+  rebuilding it. Cloud Build may publish to Artifact Registry and deploy that digest only under
+  existing identity, infrastructure and production approval gates. This source amendment grants
+  no publication or deployment authority. Template adoption remains selective and app-owned.
+
+**Success**: the unchanged canonical full verifier and required current-head CI pass; the same
+built image serves UI assets and the successful/failed protocol journey, with a wrong image,
+missing assets, wrong `PORT` binding or broken RPC causing acceptance to fail. Independent
+exact-revision review, normal merge, actual-main qualification and distinct focused FUTURE
+acceptance remain required. No hosting or deployment claim follows from local or CI evidence.

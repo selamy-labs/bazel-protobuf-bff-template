@@ -60,3 +60,8 @@ leg_own_base	(.jobs["build-test"].steps[] | select(.name == "Verify")).env.POLIC
 artifact_missing_failure_logs	(.jobs["build-test"].steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with.path = ".verify/receipt.json"	with inputs
 artifact_hidden_logs_disabled	(.jobs["build-test"].steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with["include-hidden-files"] = false	with inputs
 artifact_workspace_glob	(.jobs["build-test"].steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with.path = "**/*"	with inputs
+
+# Actual-image acceptance is mandatory inside the existing e2e leg (spec009 T019).
+runtime_removed	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/image_runtime.sh"; "true")	run body
+runtime_failure_tolerated	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/image_runtime.sh"; "tools/checks/image_runtime.sh || true")	run body
+runtime_conditional	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/image_runtime.sh"; "test false && tools/checks/image_runtime.sh")	run body

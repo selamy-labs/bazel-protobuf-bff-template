@@ -181,3 +181,18 @@ run "the_serving_output_is_invariant_when_budget_alert_changes" {
     error_message = "the resource scaling and timeout bounds must remain invariant when budget alert amount changes"
   }
 }
+
+run "same_origin_image_has_the_browser_client_and_one_origin" {
+  command = plan
+  variables {
+    inputs_file = "../inputs/same-origin.inputs.json"
+  }
+  assert {
+    condition     = one([for e in google_cloud_run_v2_service.bff.template[0].containers[0].env : e.value if e.name == "BFF_SIGNIN_CLIENT_ID"]) == "bff-hosted-example"
+    error_message = "the image browser client ID must be the existing verifier audience"
+  }
+  assert {
+    condition     = output.serving.allowed_origin == "https://bff.example.invalid"
+    error_message = "the image UI and RPC must use the validated same origin"
+  }
+}

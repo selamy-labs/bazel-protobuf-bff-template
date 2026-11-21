@@ -219,14 +219,23 @@ func validatePersistence(p Persistence) error {
 
 func (in *Inputs) validateFrontend() error {
 	f := in.Frontend
-	if f.Host != "github-pages" {
-		return fmt.Errorf("frontend.host: %q is not github-pages", f.Host)
+	if f.Host != "github-pages" && f.Host != "same-origin" {
+		return fmt.Errorf("frontend.host: %q is neither same-origin nor github-pages", f.Host)
 	}
 	if !basePath.MatchString(f.BasePath) {
 		return fmt.Errorf("frontend.base_path: %q must start and end with a slash", f.BasePath)
 	}
 	if err := exactOrigin("frontend.rpc_base_url", f.RPCBaseURL); err != nil {
 		return err
+	}
+	if f.Host == "same-origin" {
+		if f.BasePath != "/" {
+			return errors.New("frontend.base_path: the image frontend is served at the origin root")
+		}
+		if f.RPCBaseURL != in.Runtime.AllowedOrigin {
+			return errors.New("frontend.rpc_base_url: the image frontend and RPC must use runtime.allowed_origin")
+		}
+		return nil
 	}
 	if f.RPCBaseURL == in.Runtime.AllowedOrigin {
 		return errors.New("frontend.rpc_base_url equals runtime.allowed_origin: the backend's origin and the page's origin are different hosts")

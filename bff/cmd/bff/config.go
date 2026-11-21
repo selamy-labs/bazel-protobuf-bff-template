@@ -18,6 +18,8 @@ import (
 )
 
 type options struct {
+	webRoot         string
+	signInClientID  string
 	addr            string
 	allowedOrigin   string
 	mode            string
@@ -69,6 +71,8 @@ func parse(args []string, getenv func(string) string) (options, error) {
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&parsed.addr, "addr", fallback(getenv("BFF_ADDR"), defaultAddr(getenv("PORT"))), "listen address")
 	flags.StringVar(&parsed.allowedOrigin, "allowed-origin", getenv("BFF_ALLOWED_ORIGIN"), "exact web origin")
+	flags.StringVar(&parsed.webRoot, "web-root", fallback(getenv("BFF_WEB_ROOT"), "/web"), "built production browser assets")
+	flags.StringVar(&parsed.signInClientID, "signin-client-id", getenv("BFF_SIGNIN_CLIENT_ID"), "public browser OIDC client ID; unset omits browser sign-in configuration")
 	flags.StringVar(&parsed.mode, "mode", fallback(getenv("BFF_MODE"), string(server.ModeProduction)), "only production")
 	flags.StringVar(&parsed.identity, "identity", fallback(getenv("BFF_IDENTITY"), "verifier"), "only verifier")
 	// The issuer whose tokens are accepted (spec 012 FR-015): no default, each required when the identity is the
@@ -189,7 +193,12 @@ func configure(parsed options, newVerifier func(oidc.Settings) (identity.Verifie
 	}
 	limits := listener
 	limits.ShutdownBound = parsed.shutdownBound
+	var signIn *browserSignIn
+	if parsed.signInClientID != "" {
+		signIn = &browserSignIn{Issuer: parsed.verifier.Issuer, ClientID: parsed.signInClientID}
+	}
 	return server.Config{
+		Web:           webHandler(parsed.webRoot, signIn),
 		Mode:          server.ModeProduction,
 		Addr:          parsed.addr,
 		AllowedOrigin: parsed.allowedOrigin,

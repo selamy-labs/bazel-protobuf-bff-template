@@ -3,6 +3,12 @@ package main
 import (
 	"context"
 	"errors"
+	"io"
+	"log/slog"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -234,6 +240,172 @@ func TestTheStoreIsTheComposition(t *testing.T) {
 			t.Errorf("%s: got %v, want %q", name, err, c.want)
 		case c.want == "" && config.Store == nil:
 			t.Errorf("%s: no store", name)
+		}
+	}
+}
+
+// The production composition serves its own built assets, not the separate development web server.
+func productionWebServer(t *testing.T, root, clientID string) *httptest.Server {
+	t.Helper()
+	parsed, err := parse([]string{"--allowed-origin=https://app.example.com", "--verifier-issuer=https://issuer.example/", "--verifier-audience=bff", "--verifier-jwks-url=https://issuer.example/jwks"}, func(name string) string {
+		return map[string]string{"BFF_WEB_ROOT": root, "BFF_SIGNIN_CLIENT_ID": clientID}[name]
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	config, err := configure(parsed, withVerifier)
+	if err != nil {
+		t.Fatal(err)
+	}
+	config.Logger = slog.New(slog.DiscardHandler)
+	site := httptest.NewServer(server.NewHandler(config))
+	t.Cleanup(site.Close)
+	return site
+}
+
+func webFixture(t *testing.T) string {
+	t.Helper()
+	root := t.TempDir()
+	for name, body := range map[string]string{"index.html": "<main>Built notes</main>", "main.js": "console.log('built notes');"} {
+		if err := os.WriteFile(filepath.Join(root, name), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.Mkdir(filepath.Join(root, "private-directory"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	return root
+}
+
+func TestProductionServesItsBuiltAssets(t *testing.T) {
+	site := productionWebServer(t, webFixture(t), "")
+	for route, want := range map[string]string{"/": "<main>Built notes</main>", "/main.js": "console.log('built notes');"} {
+		t.Run(route, func(t *testing.T) {
+			response, err := site.Client().Get(site.URL + route)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = response.Body.Close() }()
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != http.StatusOK || string(body) != want {
+				t.Fatalf("built asset %s: status %d, body %q", route, response.StatusCode, body)
+			}
+		})
+	}
+}
+
+func TestProductionWebConfigUsesTheSameOrigin(t *testing.T) {
+	for clientID, want := range map[string]string{"": "{\"bffUrl\":\"\"}\n", "browser-client": "{\"bffUrl\":\"\",\"signIn\":{\"issuer\":\"https://issuer.example/\",\"clientId\":\"browser-client\"}}\n"} {
+		t.Run(clientID, func(t *testing.T) {
+			site := productionWebServer(t, webFixture(t), clientID)
+			response, err := site.Client().Get(site.URL + "/config.json")
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = response.Body.Close() }()
+			body, err := io.ReadAll(response.Body)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if response.StatusCode != http.StatusOK || string(body) != want {
+				t.Fatalf("same-origin config: status %d, body %q", response.StatusCode, body)
+			}
+		})
+	}
+}
+
+func TestProductionWebDoesNotListDirectoriesOrInventAssets(t *testing.T) {
+	site := productionWebServer(t, webFixture(t), "")
+	for _, route := range []string{"/missing.js", "/private-directory/"} {
+		t.Run(route, func(t *testing.T) {
+			response, err := site.Client().Get(site.URL + route)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = response.Body.Close() }()
+			if response.StatusCode != http.StatusNotFound {
+				t.Fatalf("unexpected asset %s: status %d", route, response.StatusCode)
+			}
+		})
+	}
+}
+
+func TestProductionAssetsDoNotReplaceRPCAuthentication(t *testing.T) {
+	site := productionWebServer(t, webFixture(t), "")
+	response, err := site.Client().Post(site.URL+"/template.notes.v1.NoteService/CreateNote", "application/json", strings.NewReader(`{"note":{"title":"unauthenticated"}}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("RPC without bearer: status %d", response.StatusCode)
+	}
+}
+
+func TestProductionAssetsConfineSymlinks(t *testing.T) {
+	root := webFixture(t)
+	outside := filepath.Join(t.TempDir(), "outside.txt")
+	if err := os.WriteFile(outside, []byte("not a browser asset"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(outside, filepath.Join(root, "escape.txt")); err != nil {
+		t.Fatal(err)
+	}
+	site := productionWebServer(t, root, "")
+	response, err := site.Client().Get(site.URL + "/escape.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = response.Body.Close() }()
+	if response.StatusCode != http.StatusNotFound {
+		t.Fatalf("outside-root symlink: status %d", response.StatusCode)
+	}
+}
+
+func TestProductionAssetsKeepHTTPMethodsAndTypes(t *testing.T) {
+	site := productionWebServer(t, webFixture(t), "")
+	for _, c := range []struct {
+		method, route, contentType string
+		status                     int
+	}{
+		{http.MethodHead, "/", "text/html", http.StatusOK},
+		{http.MethodHead, "/main.js", "text/javascript", http.StatusOK},
+		{http.MethodHead, "/config.json", "application/json", http.StatusOK},
+		{http.MethodPost, "/", "text/plain", http.StatusNotFound},
+	} {
+		t.Run(c.method+c.route, func(t *testing.T) {
+			request, err := http.NewRequestWithContext(t.Context(), c.method, site.URL+c.route, nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			response, err := site.Client().Do(request)
+			if err != nil {
+				t.Fatal(err)
+			}
+			defer func() { _ = response.Body.Close() }()
+			if response.StatusCode != c.status || !strings.HasPrefix(response.Header.Get("Content-Type"), c.contentType) {
+				t.Fatalf("%s %s: status %d, type %q", c.method, c.route, response.StatusCode, response.Header.Get("Content-Type"))
+			}
+		})
+	}
+}
+
+func TestProductionWebRootAndSignInClientPrecedence(t *testing.T) {
+	for _, c := range []struct {
+		args           []string
+		env            map[string]string
+		root, clientID string
+	}{
+		{nil, nil, "/web", ""},
+		{nil, map[string]string{"BFF_WEB_ROOT": "/built", "BFF_SIGNIN_CLIENT_ID": "browser"}, "/built", "browser"},
+		{[]string{"--web-root=/selected", "--signin-client-id=selected"}, map[string]string{"BFF_WEB_ROOT": "/built", "BFF_SIGNIN_CLIENT_ID": "browser"}, "/selected", "selected"},
+	} {
+		parsed, err := parse(c.args, func(name string) string { return c.env[name] })
+		if err != nil || parsed.webRoot != c.root || parsed.signInClientID != c.clientID {
+			t.Fatalf("web configuration: root %q, client %q, error %v", parsed.webRoot, parsed.signInClientID, err)
 		}
 	}
 }

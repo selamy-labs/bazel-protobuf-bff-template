@@ -12,3 +12,5 @@ build:weak-isolation --spawn_strategy=processwrapper-sandbox
 coverage --coverage_output_generator=@bff_template_quality//checks/coverage:merger
 coverage --coverage_report_generator=@bff_template_quality//checks/coverage:merger
 coverage --instrumentation_filter=^//bff[/:],^//deploy/gcp[/:],^//tools/dev/profile[/:],^//web/client[/:],^@@bff_template_quality[+]//
+build --@rules_img//img/settings:push_at_build_time=disabled
+build --@rules_img//img/settings:treeartifact_symlinks=disabled

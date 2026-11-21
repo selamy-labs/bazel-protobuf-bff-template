@@ -1,6 +1,8 @@
 load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
-load("@rules_oci//oci:defs.bzl", "oci_image", "oci_load", "oci_push")
-load("@tar.bzl", "tar")
+load("@rules_img//img:image.bzl", "image_manifest")
+load("@rules_img//img:layer.bzl", "file_metadata", "image_layer")
+load("@rules_img//img:load.bzl", "image_load")
+load("@rules_img//img:push.bzl", "image_push")
 load(":release.bzl", "release_binary")
 
 go_library(
@@ -10,6 +12,7 @@ go_library(
         "main.go",
         "telemetry.go",
         "verifier.go",
+        "web.go",
     ],
     importpath = "example.com/bfftemplate/bff/cmd/bff",
     deps = [
@@ -20,6 +23,7 @@ go_library(
         "//bff/ports",
         "//bff/server",
         "//bff/telemetry",
+        "@org_golang_x_crypto_x509roots_fallback//:fallback",
     ],
 )
 
@@ -51,9 +55,8 @@ go_test(
     ],
 )
 
-# The production server as one OCI image (spec 009, contracts/image.md). No base: the binary is pure
-# Go and needs no loader. The layer is declared as an mtree, because tar.bzl's mutate helper needs a C++
-# toolchain that this repository does not have. Only linux x86_64 is built, and nothing else is labeled.
+# One production runtime: static Go server and the built production browser, without runfiles.
+# Only linux x86_64 is built, and nothing else is labeled (spec 009 T017).
 LINUX_AMD64 = [
     "@platforms//cpu:x86_64",
     "@platforms//os:linux",
@@ -65,29 +68,55 @@ release_binary(
     binary = ":bff",
 )
 
-tar(
+image_layer(
     name = "image_layer",
-    srcs = [":bff_release"],
-    mtree = ["./bff uid=65532 gid=65532 time=0 mode=0555 type=file content=$(execpath :bff_release)"],
+    srcs = {
+        "/bff": ":bff_release",
+        "/web": "//web/app:dist",
+    },
+    compress = "none",
+    default_metadata = file_metadata(
+        gid = 65532,
+        mode = "0644",
+        mtime = "1970-01-01T00:00:00Z",
+        uid = 65532,
+    ),
+    file_metadata = {
+        "/bff": file_metadata(mode = "0555"),
+        "/web": file_metadata(
+            gid = 65532,
+            mode = "0755",
+            uid = 65532,
+        ),
+    },
+    include_runfiles = False,
     target_compatible_with = LINUX_AMD64,
 )
 
-oci_image(
-    name = "image",
-    architecture = "amd64",
+# rules_img exposes manifest/config files by default. Preserve the public layout target used by
+# the content witness and publisher through its documented complete OCI layout output group.
+image_manifest(
+    name = "image_manifest",
+    created = "image_created.txt",
     entrypoint = ["/bff"],
-    os = "linux",
+    layers = [":image_layer"],
     target_compatible_with = LINUX_AMD64,
-    tars = [":image_layer"],
     user = "65532:65532",
+)
+
+filegroup(
+    name = "image",
+    srcs = [":image_manifest"],
+    output_group = "oci_layout",
+    target_compatible_with = LINUX_AMD64,
     visibility = ["//visibility:public"],
 )
 
-# A loadable tarball for a real runtime on a host that has one. The verifier never needs it.
-oci_load(
+# Preserve the executable loader and its tarball output group for authorized runtime hosts.
+image_load(
     name = "image_tarball",
-    image = ":image",
-    repo_tags = ["bff-template/bff:local"],
+    image = ":image_manifest",
+    tag = "bff-template/bff:local",
     target_compatible_with = LINUX_AMD64,
 )
 
@@ -103,8 +132,33 @@ go_test(
 
 # The publishing path (spec 010 FR-013): the same image, pushed by digest to the repository the publishing
 # script names at run time with the job's own token. Never run by the verifier.
-oci_push(
+image_push(
     name = "image_push",
-    image = ":image",
-    repository = "ghcr.io/example/bff",
+    image = ":image_manifest",
+    push_at_build_time = "disabled",
+    registry = "ghcr.io",
+    repository = "example/bff",
+)
+
+filegroup(
+    name = "image_archive",
+    testonly = True,
+    srcs = [":image_tarball"],
+    output_group = "tarball",
+    visibility = ["//web/e2e:__pkg__"],
+)
+
+# The regular empty file also serves as a non-directory SSL_CERT_DIR. Both OS root paths are
+# unavailable before init; this target embeds the actual production composition.
+go_test(
+    name = "trust_test",
+    size = "small",
+    srcs = ["trust_test.go"],
+    data = ["empty-system-roots.pem"],
+    embed = [":bff_lib"],
+    env = {
+        "SSL_CERT_FILE": "$(rootpath :empty-system-roots.pem)",
+        "SSL_CERT_DIR": "$(rootpath :empty-system-roots.pem)",
+    },
+    deps = ["@org_golang_x_crypto_x509roots_fallback//bundle"],
 )
