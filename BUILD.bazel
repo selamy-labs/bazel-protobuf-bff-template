@@ -411,3 +411,23 @@ sh_test(
         "tools/release/archive_ref.sh",
     ],
 )
+
+sh_test(
+    name = "publish_runtime_test",
+    size = "small",
+    srcs = ["tools/release/publish_runtime_test.sh"],
+    args = [
+        "$(rootpath tools/release/prepare.sh)",
+        "$(rootpath tools/release/publish.sh)",
+        "$(rootpath tools/release/verify_handoff.py)",
+        "$(rootpath tools/release/oras.sh)",
+        "$(rootpath tools/release/oras.pins)",
+    ],
+    data = [
+        "tools/release/oras.pins",
+        "tools/release/oras.sh",
+        "tools/release/prepare.sh",
+        "tools/release/publish.sh",
+        "tools/release/verify_handoff.py",
+    ],
+)

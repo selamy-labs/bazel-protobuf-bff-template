@@ -37,7 +37,7 @@ by one pin.
 | --- | --- | --- |
 | Application builds, tests and toolchain pins | Bazel | [002](../002-hermetic-skeleton/) |
 | Quality rules and their release | `bff_template_quality` | [006](../006-quality-hooks/), [008](../008-second-consumer/) |
-| Application images | rules_oci, through Bazel | [009](../009-bff-image/) |
+| Application images | rules_img, through Bazel; retained rules_oci implementation awaits spec009 migration | [009](../009-bff-image/) |
 | Repository settings, as a reviewed plan | OpenTofu, applied only by an operator | [010](../010-release-readiness/) |
 | Infrastructure lifecycle | OpenTofu | M10, optional |
 | Workloads, where they apply | GitOps | Outside this repository |
@@ -355,7 +355,7 @@ Optional profiles, provenance and governance
   review checklist, and MUST pass a neutrality scan before publication.
 - **FR-033**: Repository ownership, name, visibility and settings MUST be planned as declarative
   provisioning; nothing is created or applied without an operator gate.
-- **FR-034**: Application images, if offered, MUST be produced only by the Bazel graph through rules_oci.
+- **FR-034**: Application images, if offered, MUST be produced only by the Bazel graph through a compatible pinned rules_img Bzlmod dependency. The optional browser-app image serves built UI assets and Connect from one origin on `PORT`; required GitHub CI proves structure, real startup and a protocol journey against that same image digest. See spec009 single-image amendment; implementation and qualification are pending.
   A pipeline MAY invoke that target and publish its digest, and MUST NOT rebuild the image.
 - **FR-035**: No template user MUST need NixOS. Support stays Linux only, as qualified. An optional host
   profile MUST be a stated contract of measured requirements, and MUST be qualified by the existing
@@ -400,8 +400,10 @@ Optional profiles, provenance and governance
   changing a single version pin plus documented reviewed edits.
 - **SC-009**: The neutrality scan finds zero private identifiers and the provenance inventory covers
   100% of third-party assets before any publication.
-- **SC-010**: The image's manifest digest repeats across two clean builds, and its entrypoint shows the
-  server's exact refusal.
+- **SC-010**: The image's manifest digest repeats across two clean builds. The same built image serves
+  its UI and generated-client Connect success and typed failure on `PORT`, with real startup and
+  structure evidence in required GitHub CI. Missing issuer still produces the exact startup refusal;
+  no packaged test identity is allowed. Historical refusal-only evidence does not qualify this amendment.
 
 ## Milestone Map (spec of specs)
 
@@ -421,7 +423,7 @@ strict; parallel-safe pairs are marked.
 | M8a | BFF container image | M7 | FR-034, SC-010 | #30 |
 | M8 | Public-release readiness and repository provisioning plan | M7, M8a | FR-032, FR-033 | #31 |
 | M9 | Quality baseline: every control measured, budgets that only ratchet stricter, gates with planted defects; mandatory for initiative closure (amendment of 2026-11-01) | M8 frozen | FR-019, FR-020, FR-026 | — |
-| M10 | Hosted example: a dedicated BFF-owned GCP project, Cloud Build CD, the spec 009 image by digest, a real verifier and store behind the ports, the static frontend on Pages; required by the direction of 2026-11-01, and never a requirement on template users | M8, M8a, and spec 010 US6 for the package | FR-030, spec 012 | #30 |
+| M10 | Hosted example: a dedicated BFF-owned GCP project, Cloud Build CD, the spec 009 image by digest, a real verifier and store behind the ports, the same image serving static UI and Connect on one origin (superseding the historical Pages shape under spec009 T019); provider hosting remains optional to adopters, and never a requirement on template users | M8, M8a, and spec 010 US6 for the package | FR-030, spec 012 | #30 |
 | M11 | Optional worker-integration conformance | M6 (optional) | FR-031 | #29 |
 
 The **first implementation slice** is M1 → M4 with the minimal M5/M6 gates needed to keep them

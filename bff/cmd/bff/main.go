@@ -10,6 +10,10 @@ import (
 	"os/signal"
 	"syscall"
 
+	// Binary-only fallback public roots for the scratch runtime; never an insecure verifier.
+	// https://pkg.go.dev/golang.org/x/crypto/x509roots/fallback
+	_ "golang.org/x/crypto/x509roots/fallback"
+
 	"example.com/bfftemplate/bff/adapters/identity/oidc"
 	"example.com/bfftemplate/bff/identity"
 	"example.com/bfftemplate/bff/server"

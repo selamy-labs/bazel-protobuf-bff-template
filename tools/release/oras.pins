@@ -1,0 +1,2 @@
+# Pinned ORAS release archive and binary SHA-256 digests: <version> <platform> <archive_sha256> <binary_sha256>.
+1.3.0 linux_amd64 6cdc692f929100feb08aa8de584d02f7bcc30ec7d88bc2adc2054d782db57c64 040e140304b7dbdd9b40dacd798e2303cea44ad84eeb210750afdf15f1dcf8b4

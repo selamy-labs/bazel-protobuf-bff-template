@@ -5,6 +5,18 @@
 **Status**: Specified. Current status is in the [index](../README.md)
 **Input**: M10. The human directions of 2026-11-01: the whole stack is easy to bring up locally and demo, with a recording of the real frontend in the repository; the public template keeps GitHub for public CI and artifact hosting; a hosted example of the synthetic application runs on GCP, deployed by Cloud Build into a dedicated, BFF-owned GCP project, with the static frontend on GitHub Pages and the backend actually running. Parent: spec 001 FR-030 and the host-profile contract; spec 009 (the one image, by digest); spec 010 (publication, the IaC discipline, the operator gates); spec 011 (the adapters' contract suites). Nothing here makes a host mandatory for template users: the reusable core stays portable, the NixOS contract stays optional, and this feature is the template's own example.
 
+## Current single-image amendment
+
+Spec009 Phase6 supersedes the separate frontend deployment as the selected browser-app packaging:
+one rules_img image serves the built UI and Connect handlers on the injected `PORT`. The original
+Pages scenarios, profile, typed fixtures and evidence below are preserved as historical/optional
+source, with no acceptance transferred to the new image. The current typed same-origin profile
+uses `deploy/gcp/inputs/same-origin.inputs.json`, requires root UI and RPC equal to the exact
+runtime origin, and binds the existing verifier audience as the image browser client ID. The
+legacy `example.inputs.json` remains the optional Pages fixture. Offline source tests cover both;
+actual-container CI and final delivery qualification remain open. Nothing here changes
+Cloud Build digest promotion, exact saved-plan approval, production authority or live status.
+
 ## Clarifications
 
 ### Session 2026-11-01

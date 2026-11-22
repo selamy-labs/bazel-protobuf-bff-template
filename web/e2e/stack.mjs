@@ -14,6 +14,27 @@ const required = (name) => {
   return value;
 };
 
+const BLOCKED_BROWSER_ENV = [
+  "GITHUB_TOKEN",
+  "GH_TOKEN",
+  "ACTIONS_RUNTIME_TOKEN",
+  "ACTIONS_ID_TOKEN_REQUEST_TOKEN",
+];
+
+function sanitizedBrowserEnv(browser) {
+  const env = { ...process.env };
+  for (const key of BLOCKED_BROWSER_ENV) {
+    delete env[key];
+  }
+  return {
+    ...env,
+    LD_LIBRARY_PATH: path.join(browser, "lib"),
+    // Every fontconfig path resolves inside the pinned tree, so host fonts and /etc/fonts are out of reach.
+    FONTCONFIG_SYSROOT: path.join(browser, "fontconfig-root"),
+    HOME: process.env.TEST_TMPDIR ?? process.env.HOME,
+  };
+}
+
 export function browserLaunchOptions() {
   if (process.platform !== "linux" || process.arch !== "x64") {
     throw new Error(
@@ -23,13 +44,7 @@ export function browserLaunchOptions() {
   const browser = path.resolve(required("BROWSER_DIR"));
   return {
     executablePath: path.join(browser, "chrome-headless-shell"),
-    env: {
-      ...process.env,
-      LD_LIBRARY_PATH: path.join(browser, "lib"),
-      // Every fontconfig path resolves inside the pinned tree, so host fonts and /etc/fonts are out of reach.
-      FONTCONFIG_SYSROOT: path.join(browser, "fontconfig-root"),
-      HOME: process.env.TEST_TMPDIR ?? process.env.HOME,
-    },
+    env: sanitizedBrowserEnv(browser),
   };
 }
 

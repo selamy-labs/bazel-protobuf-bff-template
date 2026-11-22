@@ -21,6 +21,14 @@ made.** The app works:
 pages under [docs/evidence](docs/evidence/) list what has and has not been observed at which revision,
 and [capability states](docs/quality/capability-states.md) has the summary. Current-revision native macOS remains unverified. The production server and its container image refuse to start without an issuer and its telemetry inputs ([bff/README.md](bff/README.md), [spec 009](specs/009-bff-image/contracts/image.md)), and a healthy production deployment remains unsupported until a real issuer exists. The hosted deployment input funnel ([deploy/gcp/inputs/telemetry.go](deploy/gcp/inputs/telemetry.go) at `e82bc8f`) additionally rejects browser origins with IPv6 zone indices (%), private/loopback/link-local IP literals, and non-ASCII hosts before provisioning.
 
+## Current browser-app image amendment
+
+The current candidate uses pinned rules_img to package the static production server, its built
+browser assets and embedded public trust roots in one linux/amd64 image. See
+[packaging and current qualification](docs/packaging.md) for same-origin UI/Connect, `PORT`,
+actual-container CI and digest reuse. Historical milestone/image observations above retain their
+original revision scope; they do not qualify this new candidate. Live deployment remains unverified.
+
 ## How to use and test
 
 Prerequisites: Git, bash, curl, coreutils (GNU `timeout`, `sha256sum`, `tar`) and util-linux (`flock`), on a Linux x86_64

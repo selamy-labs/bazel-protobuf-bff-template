@@ -29,6 +29,7 @@ func serviceEnvironment(in *Inputs) map[string]string {
 		"BFF_ALLOWED_ORIGIN":    in.Runtime.AllowedOrigin,
 		"BFF_VERIFIER_ISSUER":   in.Runtime.Verifier.Issuer,
 		"BFF_VERIFIER_AUDIENCE": in.Runtime.Verifier.Audience,
+		"BFF_SIGNIN_CLIENT_ID":  in.Runtime.Verifier.Audience,
 		"BFF_VERIFIER_JWKS_URL": in.Runtime.Verifier.JWKSURL,
 		"BFF_STORE":             "object",
 		"BFF_OBJECT_BUCKET":     in.Contract.NotesBucket,

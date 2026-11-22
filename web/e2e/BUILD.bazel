@@ -230,3 +230,79 @@ js_library(
     srcs = ["issuer.mjs"],
     visibility = ["//tools/otel:__pkg__"],
 )
+
+# Same-origin production composition; real-container acceptance remains a separate required witness.
+playwright.playwright_test(
+    name = "same_origin_e2e_test",
+    size = "medium",
+    args = [
+        "test",
+        "--config",
+        "web/e2e/playwright.config.mjs",
+        "single-origin.spec.mjs",
+    ],
+    data = BROWSER_DATA + [
+        "issuer.mjs",
+        "playwright.config.mjs",
+        "same-origin-journey.mjs",
+        "single-origin.spec.mjs",
+        "stack.mjs",
+        "//:node_modules/@playwright/test",
+        "//bff/cmd/bff",
+        "//web/app:dist",
+        "//web/serve:serve_lib",
+    ],
+    env = BROWSER_ENV | {
+        "BFF_PRODUCTION": "$(rootpath //bff/cmd/bff)",
+        "WEB_DIST_PRODUCTION": "$(rootpath //web/app:dist)",
+    },
+)
+
+js_test(
+    name = "image_identity_test",
+    size = "small",
+    data = [
+        "image-identity.mjs",
+        "//:node_modules/fast-check",
+    ],
+    entry_point = "image-identity.test.mjs",
+)
+
+js_test(
+    name = "runtime_contract_test",
+    size = "small",
+    data = ["runtime-contract.mjs"],
+    entry_point = "runtime-contract.test.mjs",
+)
+
+# Run outside the Bazel test namespace on the authorized disposable CI local Docker host.
+playwright.playwright_binary(
+    name = "image_runtime",
+    testonly = True,
+    args = [
+        "test",
+        "--config",
+        "web/e2e/playwright.config.mjs",
+        "runtime.spec.mjs",
+        "--workers=1",
+        "--timeout=90000",
+    ],
+    data = BROWSER_DATA + [
+        "image-identity.mjs",
+        "image-runtime.mjs",
+        "issuer.mjs",
+        "playwright.config.mjs",
+        "runtime.spec.mjs",
+        "runtime-contract.mjs",
+        "same-origin-journey.mjs",
+        "stack.mjs",
+        "//:node_modules/@playwright/test",
+        "//bff/cmd/bff:image",
+        "//bff/cmd/bff:image_archive",
+        "//web/serve:serve_lib",
+    ],
+    env = BROWSER_ENV | {
+        "BFF_IMAGE_LAYOUT": "$(rootpath //bff/cmd/bff:image)",
+        "BFF_IMAGE_ARCHIVE": "$(rootpath //bff/cmd/bff:image_archive)",
+    },
+)
