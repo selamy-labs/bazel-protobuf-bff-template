@@ -1,0 +1,4 @@
+# BFF Live Cloud Run Smoke Verification & Release Record
+
+- `verify_deployed.py`: Verifies a live Cloud Run URL and private GCS notes bucket end-to-end: same-origin HTML `200`, unauthenticated Connect `CreateNote` `401`, authenticated `CreateNote`/`GetNote`, anonymous GCS object read denial (`401`/`403`), authorized durable GCS readback matching owner/id/title/body, and scoped `smoke-` object cleanup verified by `404`.
+- `release_record.py`: Validates the canonical release record joining `source_revision`, `github_ci_run_id`, `cloud_build_id`, `image_digest`, `dev_service_url`, `dev_revision`, forward `smoke_evidence` (bound explicitly to `service_url`, separately observed `observed_revision`, and `observed_image_digest`), and `dev_rollback_evidence` (distinct `previous_digest`, `serving_digest_after_rollback`, distinct `rollback_revision`, and `rollback_smoke_evidence` bound to the same `dev_service_url`, `rollback_revision`, and `previous_digest`).

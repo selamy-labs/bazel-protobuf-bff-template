@@ -1,0 +1,21 @@
+# BFF Production CD Trigger & Saved-Plan Guard
+
+- `main.tf` & `variables.tf`: Provisions `bff-prod-deployer` and a `google_cloudbuild_trigger` with `approval_config { approval_required = true }` (`disabled = true` until its trigger UUID is recorded and state/bundle/notes buckets are verified separate).
+  - **Required capabilities declared for `bff-prod-deployer`**:
+    - `roles/logging.logWriter` (Cloud Build logs)
+    - custom `bffProductionBuildRead` (`cloudbuild.builds.get` only — verify native approval evidence)
+    - `roles/storage.objectViewer` CEL-scoped to exact `bundle_bucket`/`bundle_object`
+    - `roles/artifactregistry.reader` on `registry_id` only
+    - `roles/run.developer` CEL-scoped to exact `projects/<project>/locations/<region>/services/<service_name>`
+    - `google_service_account_iam_member` granting `roles/iam.serviceAccountUser` directly on the `runtime_service_account` policy (`actAs` on that single runtime SA only; never project-wide `roles/iam.serviceAccountUser`, and enforces runtime SA separation from `bff-prod-deployer`)
+    - custom `bffProductionStateList` (`storage.objects.list` only) on the dedicated `state_bucket` so pinned OpenTofu `1.13.2` GCS `Workspaces` can list `state_prefix` during `tofu init` (bucket-level listing exposes object names/metadata within `state_bucket` only, with zero content read/write/delete outside `state_prefix/`, which is why `state_bucket` must stay dedicated and disjoint from `notes_bucket` and `bundle_bucket`)
+    - `roles/storage.objectUser` CEL-scoped to `resource.type == 'storage.googleapis.com/Object'` and `state_bucket`/`state_prefix/` (distinct from `notes_bucket` and `bundle_bucket`)
+  - **Verification boundary**: Offline `tofu test` runs against `mock_provider "google"` validate declared resource composition and preconditions only; they do not evaluate live GCP IAM policies or inherited bindings.
+  - **Explicitly forbidden capabilities** (never granted to `bff-prod-deployer`):
+    - No `cloudbuild.builds.create` / `roles/cloudbuild.builds.editor` (cannot self-trigger)
+    - No `roles/cloudbuild.builds.approver` on any service account (explicit human `user:` approvers only)
+    - No `roles/artifactregistry.writer` (cannot publish or overwrite images)
+    - No `roles/run.admin`, `roles/owner`, `roles/editor`, or unconditional `roles/iam.serviceAccountUser`
+    - No IAM access to `notes_bucket` (runtime data isolation preserved)
+- `plan_guard.py`: Verifies saved plan SHA-256, `tofu show -json`, exact `expected_changes`, zero deletes/replacements, single Cloud Run v2 service with digest-pinned approved image, expected runtime SA, and `BFF_STORE=object` pointing to `notes_bucket`.
+- `execute.py`: Enforces native Cloud Build `APPROVED` evidence, generation-pinned bundle URI & SHA-256, registry digest match, safe zip unpack, OpenTofu `1.13.2`, pre/post `plan_guard.check` hash stability, and `tofu apply` of only the approved plan.

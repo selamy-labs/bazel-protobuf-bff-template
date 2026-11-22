@@ -1,0 +1,21 @@
+# Submitted explicitly only after release gate verifies protected main CI and immutable handoff URI/SHA-256.
+# Fetches the generation-pinned credentialless qualified OCI/runtime handoff archive without rebuilding.
+serviceAccount: ${_PUBLISHER_SERVICE_ACCOUNT}
+options:
+  logging: CLOUD_LOGGING_ONLY
+steps:
+  - id: publish-qualified-handoff
+    name: ${_PUBLISH_IMAGE}
+    entrypoint: bash
+    env:
+      - RELEASE_COMMIT=${_COMMIT}
+      - RELEASE_TAG=${_TAG}
+      - RELEASE_EXPECTED_DIGEST=${_EXPECTED_DIGEST}
+      - RELEASE_HANDOFF_URI=${_HANDOFF_URI}
+      - RELEASE_HANDOFF_SHA256=${_HANDOFF_SHA256}
+      - RELEASE_BUILD_ID=$BUILD_ID
+      - RELEASE_PROJECT=$PROJECT_ID
+      - RELEASE_REGION=${_REGION}
+      - RELEASE_REPOSITORY=${_REPOSITORY}
+    args:
+      - deploy/gcp/release/publish-image.sh
