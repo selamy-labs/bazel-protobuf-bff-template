@@ -55,16 +55,7 @@ rm -rf -- "$work/runtime"
 printf '%s\n' "$revision" >"$staging/source-revision-$tag.txt"
 printf '%s\n' "$digest" >"$staging/image-digest-$tag.txt"
 
-public_assets=(
-  "LICENSE"
-  "bff-image-$tag.tar"
-  "go-x509roots-BSD-3-Clause.txt"
-  "image-digest-$tag.txt"
-  "provenance-$tag.md"
-  "runtime-acceptance-$tag.tar.gz"
-  "source-revision-$tag.txt"
-  "verify-receipt-$tag.json"
-)
+mapfile -t public_assets < <(python3 "$root/tools/release/verify_handoff.py" --list-public-assets --tag "$tag")
 (cd "$staging" && LC_ALL=C sha256sum -- "${public_assets[@]}" >SHA256SUMS)
 tar -czf "$staging/image-layout-$tag.tar.gz" -C "$layout" .
 all_assets=("${public_assets[@]}" "SHA256SUMS" "image-layout-$tag.tar.gz")
