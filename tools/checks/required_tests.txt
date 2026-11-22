@@ -6,6 +6,7 @@
 //api:validate_test build-test
 //bff/adapters/memory:memory_test build-test
 //deploy/gcp:offline_test build-test
+//deploy/gcp:rollout_offline_test build-test
 //deploy/gcp/inputs:inputs_test build-test
 //bff/adapters/store/local:local_test build-test
 //bff/adapters/store/object:object_test build-test

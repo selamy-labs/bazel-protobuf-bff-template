@@ -9,6 +9,13 @@ load("//tools/hooks:tools.bzl", "QUALITY_TOOLS")
 
 exports_files(
     [
+        "tools/release/verify_handoff.py",
+    ],
+    visibility = ["//deploy/gcp:__pkg__"],
+)
+
+exports_files(
+    [
         "tools/checks/dependency_rules.sh",
         "tools/checks/dependency_rules_test.sh",
     ],
