@@ -23,6 +23,7 @@ sh_test(
         "cloudbuild/cloudbuild.yaml",
         "tests/offline.sh",
         "//deploy/gcp/inputs:example.inputs.json",
+        "//deploy/gcp/inputs:same-origin.inputs.json",
         "//deploy/gcp/inputs:testdata/bounds.inputs.json",
         "//deploy/gcp/inputs:testdata/budget.inputs.json",
         "//deploy/gcp/inputs:testdata/cancel.inputs.json",

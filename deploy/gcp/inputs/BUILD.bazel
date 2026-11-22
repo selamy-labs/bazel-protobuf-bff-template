@@ -4,6 +4,7 @@ load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
 exports_files(
     [
         "example.inputs.json",
+        "same-origin.inputs.json",
         "testdata/bounds.inputs.json",
         "testdata/budget.inputs.json",
         "testdata/cancel.inputs.json",
@@ -41,6 +42,7 @@ go_test(
         "inputs_test.go",
         "plan_test.go",
         "resolve_test.go",
+        "same_origin_test.go",
         "service_check_test.go",
         "start_test.go",
     ],
@@ -48,6 +50,7 @@ go_test(
         "contract.schema.json",
         "example.inputs.json",
         "inputs.schema.json",
+        "same-origin.inputs.json",
         "//bff/cmd/bff",
         "//deploy/gcp:cloudbuild/cloudbuild.yaml",
         "//deploy/gcp:service/main.tf",
@@ -60,6 +63,7 @@ go_test(
         "EXAMPLE": "$(rlocationpath example.inputs.json)",
         "MAIN_TF": "$(rlocationpath //deploy/gcp:service/main.tf)",
         "SCHEMA": "$(rlocationpath inputs.schema.json)",
+        "SAME_ORIGIN_EXAMPLE": "$(rlocationpath same-origin.inputs.json)",
     },
 )
 

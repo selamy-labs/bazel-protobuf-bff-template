@@ -1,5 +1,6 @@
 # Required CI (specs/002-hermetic-skeleton US4, specs/007-ci-parity-evidence). The only policy step is
-# the canonical verifier, one leg per job, and the registry names the legs. `gate` is the single
+# the canonical verifier, one leg per job, plus actual-image acceptance in e2e. The registry names
+# the three source legs. `gate` is the single
 # required check. This file is local until a remote exists (M8).
 name: ci
 
@@ -101,7 +102,12 @@ jobs:
           if [ "$status" != 0 ]; then
             exit "$status"
           fi
-          exit "$artifact_status"
+          if [ "$artifact_status" != 0 ]; then
+            exit "$artifact_status"
+          fi
+          artifact_path="$(sed -n 's/^artifact_path=//p' "$GITHUB_OUTPUT" | tail -1)"
+          test -n "$artifact_path"
+          BFF_IMAGE_RUNTIME_OUTPUTS="$artifact_path/image-runtime" tools/checks/image_runtime.sh
       - name: Upload receipt
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

@@ -47,7 +47,10 @@ vite.vite(
     ],
     chdir = package_name(),
     out_dirs = ["dist"],
-    visibility = ["//web:__subpackages__"],
+    visibility = [
+        "//bff/cmd/bff:__pkg__",
+        "//web:__subpackages__",
+    ],
 )
 
 vite.vite(

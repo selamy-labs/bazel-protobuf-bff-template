@@ -148,17 +148,17 @@
       "required": ["host", "base_path", "rpc_base_url"],
       "properties": {
         "host": {
-          "enum": ["github-pages"]
+          "enum": ["github-pages", "same-origin"]
         },
         "base_path": {
           "type": "string",
           "pattern": "^/([a-z0-9-]+/)*$",
-          "description": "The path the static site is served under; a project site has one."
+          "description": "The image profile uses /; the historical Pages profile may name its project path."
         },
         "rpc_base_url": {
           "type": "string",
           "pattern": "^https://[a-z0-9.-]+(:[0-9]+)?$",
-          "description": "The backend's origin, independent of the base path."
+          "description": "For same-origin this equals runtime.allowed_origin; the historical Pages profile uses a distinct backend origin."
         }
       }
     },

@@ -112,7 +112,7 @@ gate "success success success success" 1
 # Execute each actual CI run block with transport-only stubs. A failed verifier must retain its
 # original exit, exporter failure cannot create a green leg, and verifier arguments pass unchanged.
 fixture="$work/ci-status"
-mkdir -p "$fixture/tools/ci"
+mkdir -p "$fixture/tools/ci" "$fixture/tools/checks"
 cat >"$fixture/tools/verify.sh" <<'VERIFY'
 #!/usr/bin/env bash
 printf 'called\n' >>"$CI_CALLS"
@@ -124,6 +124,12 @@ cat >"$fixture/tools/ci/receipt_artifact.sh" <<'ARTIFACT'
 if [[ "$CI_ARTIFACT_EXIT" == 0 ]]; then echo 'artifact_path=/owned/prepared'; fi
 exit "$CI_ARTIFACT_EXIT"
 ARTIFACT
+cat >"$fixture/tools/checks/image_runtime.sh" <<'RUNTIME'
+#!/usr/bin/env bash
+printf '%s\n' "$BFF_IMAGE_RUNTIME_OUTPUTS" >>"$CI_RUNTIME_CALLS"
+exit "$CI_RUNTIME_EXIT"
+RUNTIME
+chmod +x "$fixture/tools/checks/image_runtime.sh"
 chmod +x "$fixture/tools/verify.sh" "$fixture/tools/ci/receipt_artifact.sh"
 for leg in build-test e2e policy; do
   id="$(CI_LEG="$leg" "$yq" '.jobs[strenv(CI_LEG)].steps[] | select(.name == "Verify") | .id' "$wf")"
@@ -133,12 +139,26 @@ for leg in build-test e2e policy; do
     read -r verify_exit artifact_exit want <<<"$pair"
     : >"$work/calls"
     rc=0
-    (cd "$fixture" && POLICY_BASE=reviewed GITHUB_OUTPUT="$work/output" CI_CALLS="$work/calls" CI_ARGS="$work/args" CI_VERIFY_EXIT="$verify_exit" CI_ARTIFACT_EXIT="$artifact_exit" bash -e "$work/run-block.sh") || rc=$?
+    (cd "$fixture" && POLICY_BASE=reviewed GITHUB_OUTPUT="$work/output" CI_CALLS="$work/calls" CI_ARGS="$work/args" CI_VERIFY_EXIT="$verify_exit" CI_ARTIFACT_EXIT="$artifact_exit" CI_RUNTIME_CALLS="$work/runtime-calls" CI_RUNTIME_EXIT=0 bash -e "$work/run-block.sh") || rc=$?
     printf '%s\n' "--shard=$leg" '--base=reviewed' '--base-source=ci-event' >"$work/want-args"
     if [[ "$rc" != "$want" || "$(wc -l <"$work/calls")" -ne 1 ]] || ! cmp -s "$work/args" "$work/want-args"; then
       fail "$leg preserves verifier status/arguments (verify $verify_exit artifact $artifact_exit: got $rc want $want)"
     fi
   done
+done
+
+# Execute the actual e2e block: runtime refusal cannot be hidden by a green source receipt.
+CI_LEG=e2e "$yq" '.jobs[strenv(CI_LEG)].steps[] | select(.name == "Verify") | .run' "$wf" >"$work/runtime-block.sh"
+for pair in '0 0 0 0 1' '0 0 11 11 1' '9 0 11 9 0' '0 7 11 7 0'; do
+  read -r verify_exit artifact_exit runtime_exit want calls <<<"$pair"
+  : >"$work/output"
+  : >"$work/runtime-calls"
+  rc=0
+  (cd "$fixture" && POLICY_BASE=reviewed GITHUB_OUTPUT="$work/output" CI_CALLS="$work/calls" CI_ARGS="$work/args" CI_VERIFY_EXIT="$verify_exit" CI_ARTIFACT_EXIT="$artifact_exit" CI_RUNTIME_CALLS="$work/runtime-calls" CI_RUNTIME_EXIT="$runtime_exit" bash -e "$work/runtime-block.sh") || rc=$?
+  [[ "$rc" == "$want" && "$(wc -l <"$work/runtime-calls")" == "$calls" ]] || fail "e2e runtime status is required (got $rc want $want, calls $calls)"
+  if [[ "$calls" == 1 ]]; then
+    [[ "$(cat "$work/runtime-calls")" == /owned/prepared/image-runtime ]] || fail "runtime outputs must stay in the owned receipt artifact"
+  fi
 done
 
 [[ $failures -eq 0 ]] && echo "ok   ci-parity ($cases mutations rejected; publishing: $publish_cases)"

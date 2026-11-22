@@ -33,6 +33,10 @@ rejects_rc() { # rejects_rc <label> <sed expression or appended line>
     failures=$((failures + 1))
   fi
 }
+rejects_rc "build-time image publication guard removed" '/push_at_build_time/d'
+rejects_rc "portable image layout guard removed" '/treeartifact_symlinks/d'
+rejects_rc "build-time image publication enabled" 's/:push_at_build_time=disabled/:push_at_build_time=enabled/'
+rejects_rc "external image blob links enabled" 's/:treeartifact_symlinks=disabled/:treeartifact_symlinks=enabled/'
 rejects_rc "network flag removed" '/sandbox_default_allow_network/d'
 rejects_rc "strict env removed" '/incompatible_strict_action_env/d'
 rejects_rc "sandbox weakened" 's/--spawn_strategy=linux-sandbox/--spawn_strategy=local/'

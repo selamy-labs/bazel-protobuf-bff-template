@@ -34,13 +34,23 @@ in_ws mod deps || { echo "lock-fixture: unmodified copy failed:" >&2; tail -5 "$
 cp "$work/ws/MODULE.bazel" "$work/MODULE.clean"
 # Bazel 9 locks registry file hashes and extension results, not the resolved graph, so the witness
 # adds a module version whose registry files the lock has never recorded.
-echo 'bazel_dep(name = "bazel_skylib", version = "1.9.2")' >>"$work/ws/MODULE.bazel"
+# 1.9.2 is now transitively recorded by rules_img. The negative must require an actually
+# unrecorded registry file; BCR metadata lists this pinned1.8.0 release.
+# https://raw.githubusercontent.com/bazelbuild/bazel-central-registry/main/modules/bazel_skylib/metadata.json
+fixture_registry_file="https://bcr.bazel.build/modules/bazel_skylib/1.8.0/MODULE.bazel"
+registry_recorded="$("$YQ" -p json ".registryFileHashes | has(\"$fixture_registry_file\")" "$work/ws/MODULE.bazel.lock")"
+[[ "$registry_recorded" == false ]] || { echo "lock-fixture: negative registry file is already recorded; reconcile the fixture" >&2; exit 1; }
+cp "$work/ws/MODULE.bazel.lock" "$work/MODULE.lock.clean"
+echo 'bazel_dep(name = "bazel_skylib", version = "1.8.0")' >>"$work/ws/MODULE.bazel"
+cmp -s "$work/MODULE.clean" "$work/ws/MODULE.bazel" && { echo "lock-fixture: mutation changed nothing" >&2; exit 1; }
 if in_ws mod deps; then
   echo "lock-fixture: unlocked MODULE.bazel edit was accepted" >&2
   exit 1
 fi
 grep -qi 'lockfile' "$work/log" || { echo "lock-fixture: failure did not name the lockfile:" >&2; tail -5 "$work/log" >&2; exit 1; }
+cmp -s "$work/MODULE.lock.clean" "$work/ws/MODULE.bazel.lock" || { echo "lock-fixture: error mode rewrote the lock" >&2; exit 1; }
 cp "$work/MODULE.clean" "$work/ws/MODULE.bazel"
+in_ws mod deps || { echo "lock-fixture: restored module was refused" >&2; tail -5 "$work/log" >&2; exit 1; }
 echo "ok   lock-fixture defect and corrected"
 
 printf 'not the pinned tool\n' >"$work/tampered.tar.gz"

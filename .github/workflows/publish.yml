@@ -1,6 +1,7 @@
-# Trusted publishing (spec 010 US6, FR-013, FR-014): on a tag of the trusted repository, build once, verify at that
-# exact revision, publish the image by digest to the repository-linked package with the job's own token, attach
-# the artifacts to the release, and verify anonymously from a credentialless job. No deployment runs here.
+# Trusted publishing (spec 010 US6, FR-013, FR-014): on a tag of the trusted repository, build once,
+# verify and witness the image without credentials at that exact revision, hand off the digest-attested
+# archive to the publishing job, publish by digest with the job's own token via pinned ORAS, attach the
+# public release assets, and verify anonymously from a credentialless job. No deployment runs here.
 name: publish
 
 on:
@@ -35,12 +36,17 @@ jobs:
         env:
           POLICY_BASE: ${{ vars.POLICY_BASE }}
         run: tools/verify.sh "--base=$POLICY_BASE" --base-source=ci-event
-      - name: Upload receipt
+      - name: Prepare and witness the release artifacts without credentials
+        env:
+          TAG: ${{ github.ref_name }}
+        run: tools/release/prepare.sh "$TAG" .verify/release-handoff
+      - name: Upload receipt and verified release handoff
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: verify-receipt-${{ github.job }}-${{ github.run_attempt }}
-          path: .verify/receipt.json
+          path: .verify
+          include-hidden-files: true
           if-no-files-found: error
           retention-days: 14
 
@@ -59,14 +65,17 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
           ref: ${{ github.sha }}
-      - name: Allow unprivileged user namespaces on this disposable runner
-        run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+      - name: Download the verified release handoff
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: verify-receipt-verify-${{ github.run_attempt }}
+          path: .verify
       - name: Publish by digest with the job's token
         env:
           GITHUB_TOKEN: ${{ github.token }}
           REPOSITORY: ${{ github.repository }}
           TAG: ${{ github.ref_name }}
-        run: tools/release/publish.sh "$REPOSITORY" "$TAG"
+        run: tools/release/publish.sh "$REPOSITORY" "$TAG" .verify/release-handoff
 
   verify-published:
     name: verify-published

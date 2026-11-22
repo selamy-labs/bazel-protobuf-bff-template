@@ -49,6 +49,11 @@ resource "google_cloud_run_v2_service" "bff" {
         name  = "BFF_VERIFIER_AUDIENCE"
         value = local.inputs.runtime.verifier.audience
       }
+      # The same public client identifier is the verifier audience; no new credential/default.
+      env {
+        name  = "BFF_SIGNIN_CLIENT_ID"
+        value = local.inputs.runtime.verifier.audience
+      }
       env {
         name  = "BFF_VERIFIER_JWKS_URL"
         value = local.inputs.runtime.verifier.jwks_url

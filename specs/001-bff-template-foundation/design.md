@@ -36,7 +36,7 @@ flowchart LR
 | D5 | One declarative registry and one runner; one prek hook per stage; one Bazel invocation per stage; pre-commit reads staged blobs, pre-push checks the pushed commit in a detached worktree | One definition per rule; Bazel's output-base lock; prek stashes only unstaged (not untracked) changes and checks only the working tree (R-08) | Imperative shell dispatcher; per-tool prek hooks; Bazel builds over the working tree in hooks |
 | D6 | Only bans and base-built floors locally; #26 policy-diff, #27 evidence validator and #28 analyzer adopted on release | No duplicate of active issue work (issue-map.md); evaluator built from base cannot be replaced by the proposal | Re-implementing the shared contracts here |
 | D7 | Git, bash, curl and coreutils on the host, with Bazel itself fetched by verified pin; network off in the sandbox; pinned browsers | Constitution III; SC-001 | Host Node/Go installs |
-| D8 | Deployment is an optional GCP profile with operator gates, design only until M10. Images come only from Bazel and rules_oci | RFC #30: keep the provider optional (R-13) | Deploy in the core path |
+| D8 | Deployment is an optional GCP profile with operator gates, design only until M10. Images come only from Bazel and a compatible pinned rules_img dependency; migration is pending under spec009 | RFC #30: keep the provider optional (R-13) | Deploy in the core path |
 
 ## 3. Boundaries and dependency rules (deterministic, T038)
 
@@ -158,3 +158,12 @@ Until then the repository stays local with no origin. Publication requires
 | Pre-push worktree adds disk/warm-cache cost | measured in T059 |
 | Hook latency driven by Bazel startup | one invocation per stage; measured budgets |
 | Template-copy drift of app code | documented; checks are shared, apps are meant to diverge |
+
+### D8 image-builder amendment
+
+The current requirement supersedes D8's rules_oci selection with a compatible pinned rules_img
+Bzlmod dependency. The optional browser-app image holds its own UI and BFF, serves both from one
+origin on `PORT`, and is qualified as the actual same artifact in GitHub CI. The retained rules_oci
+implementation is pending migration under spec009 T014–T021. Cloud Build publishes/deploys only a
+qualified digest through the existing declarative infrastructure and operator gates; it does not
+rebuild. Applications own selectively adopted source; no shared template runtime is introduced.

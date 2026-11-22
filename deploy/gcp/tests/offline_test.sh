@@ -28,6 +28,7 @@ expect() { # expect <name> <want> <mutation> [tofu]
     null_sample_ratio) replace "$T/inputs.json" '"sample_ratio": 1' '"sample_ratio": null' ;;
     telemetry_with_no_host) replace "$T/inputs.json" '"endpoint": "https://otel.example.invalid"' '"endpoint": "https://:443"' ;;
     loopback_telemetry) replace "$T/inputs.json" '"endpoint": "https://otel.example.invalid"' '"endpoint": "https://127.0.0.1:4318"' ;;
+    signin_client_dropped) replace "$T/s/main.tf" 'name  = "BFF_SIGNIN_CLIENT_ID"' 'name  = "BFF_SIGNIN_CLIENT_ID_UNREAD"' ;;
     telemetry_endpoint_dropped) replace "$T/s/main.tf" 'name  = "BFF_OTEL_ENDPOINT"' 'name  = "BFF_OTEL_ENDPOINT_UNREAD"' ;;
     rollback_reports_the_newer_revision) replace "$T/s/main.tf" ': local.inputs.release.previous_revision' ': local.inputs.image.source_revision' ;;
     cancel_step_removed) replace "$T/cloudbuild.yaml" "grep -q '^release.cancel_in_flight=true ' /workspace/validate.out" "false" ;;
@@ -526,5 +527,6 @@ expect "harmless nested heredoc template in default_labels" 0 provider_nested_he
 expect "budget alert changes resource bound" 1 budget_changes_resource_bound
 expect "budget comparison plan deleted" 1 budget_run_deleted
 expect "no tofu" 11 none "$T/absent"
+expect "image browser client binding omitted" 1 signin_client_dropped
 expect "restored control" 0 none
 exit "$failures"

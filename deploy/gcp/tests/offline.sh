@@ -44,6 +44,9 @@ CLI
 mkdir -p "$work/deploy/gcp/inputs"
 cp -rL "$service" "$work/deploy/gcp/service"
 cp "$work/effective.inputs.json" "$work/deploy/gcp/inputs/example.inputs.json"
+# Preserve the legacy Pages fixture; also validate the selected image profile before its mock plan.
+same_origin_src="$(dirname "$(dirname "$rollback")")/same-origin.inputs.json"
+"$validator" --effective "$work/deploy/gcp/inputs/same-origin.inputs.json" "$same_origin_src" >/dev/null || { echo "offline: the same-origin image inputs are refused"; exit 1; }
 # The rollback, cancel, zero-sample, and bounds inputs pass the same funnel before the mock tests read them (FR-009, FR-010).
 mkdir -p "$work/deploy/gcp/inputs/testdata"
 "$validator" --effective "$work/deploy/gcp/inputs/testdata/rollback.inputs.json" "$rollback" >/dev/null || { echo "offline: the rollback inputs are refused"; exit 1; }

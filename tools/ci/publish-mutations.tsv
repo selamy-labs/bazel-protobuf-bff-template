@@ -19,3 +19,7 @@ reusable_job	.jobs.publish = {"uses": "example/repo/.github/workflows/x.yml@0123
 larger_runner	.jobs.publish["runs-on"] = "ubuntu-24.04-16core"	permitted runner
 workflow_write_permissions	.permissions.packages = "write"	permissions
 verify_body_replaced	(.jobs.verify.steps[] | select(.name == "Verify at the tagged revision with the declared base")).run = "echo verified"	run body
+prepare_gets_github_token	(.jobs.verify.steps[] | select(.name == "Prepare and witness the release artifacts without credentials")).env.GITHUB_TOKEN = "${{ github.token }}"	env
+verify_skips_prepare	.jobs.verify.steps |= map(select(.name != "Prepare and witness the release artifacts without credentials"))	step order
+publish_skips_download	.jobs.publish.steps |= map(select(.name != "Download the verified release handoff"))	step order
+publish_runs_image_runtime	.jobs.publish.steps += [{"name": "Runtime", "run": "tools/checks/image_runtime.sh"}]	run body
