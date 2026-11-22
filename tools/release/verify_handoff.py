@@ -90,44 +90,75 @@ def normalize_tar_path(raw: str) -> str:
     return "/".join(parts)
 
 
+def public_asset_names(tag: str) -> tuple[str, ...]:
+    """Return the canonical sorted public release asset filenames for a validated release tag."""
+    if not TAG_RE.match(tag):
+        raise HandoffError(f"verify-handoff: invalid release tag {tag!r}")
+    return (
+        "LICENSE",
+        f"bff-image-{tag}.tar",
+        "go-x509roots-BSD-3-Clause.txt",
+        f"image-digest-{tag}.txt",
+        f"provenance-{tag}.md",
+        f"runtime-acceptance-{tag}.tar.gz",
+        f"source-revision-{tag}.txt",
+        f"verify-receipt-{tag}.json",
+    )
+
+
+def _prepare_extract_root(extract_to: Path) -> Path:
+    if extract_to.is_symlink():
+        raise HandoffError("verify-handoff: extract target must not be a symlink")
+    if extract_to.exists() and any(extract_to.iterdir()):
+        raise HandoffError("verify-handoff: extract target directory must be empty")
+    extract_to.mkdir(parents=True, exist_ok=True, mode=0o700)
+    os.chmod(extract_to, 0o700)
+    return extract_to.resolve()
+
+
+def _write_extracted(extract_to: Path, root_resolved: Path, rel: str, payload: bytes | None) -> None:
+    if not rel:
+        return
+    dest = (extract_to / rel).resolve()
+    dest.relative_to(root_resolved)
+    if payload is None:
+        dest.mkdir(parents=True, exist_ok=True, mode=0o700)
+        return
+    dest.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+    dest.write_bytes(payload)
+    os.chmod(dest, 0o600)
+
+
+def _read_tar_member(
+    tar: tarfile.TarFile, member: tarfile.TarInfo, archive_name: str, files: dict[str, bytes]
+) -> tuple[str, bytes | None]:
+    rel = normalize_tar_path(member.name)
+    if member.isdir():
+        return rel, None
+    if not member.isfile() or not rel:
+        raise HandoffError(f"verify-handoff: unsupported tar member {member.name!r} in {archive_name}")
+    if rel in files:
+        raise HandoffError(f"verify-handoff: duplicate tar entry {rel} in {archive_name}")
+    stream = tar.extractfile(member)
+    if stream is None:
+        raise HandoffError(f"verify-handoff: unreadable tar entry {rel} in {archive_name}")
+    return rel, stream.read()
+
+
 def read_tar_files(archive: Path, extract_to: Path | None = None) -> dict[str, bytes]:
     """Validate every tar member safely, optionally extract regular files/dirs, and return regular file map."""
     if archive.is_symlink() or not archive.is_file():
         raise HandoffError(f"verify-handoff: missing archive {archive.name}")
-    if extract_to is not None:
-        if extract_to.is_symlink():
-            raise HandoffError("verify-handoff: extract target must not be a symlink")
-        if extract_to.exists() and any(extract_to.iterdir()):
-            raise HandoffError("verify-handoff: extract target directory must be empty")
-        extract_to.mkdir(parents=True, exist_ok=True, mode=0o700)
-        os.chmod(extract_to, 0o700)
+    root_resolved = _prepare_extract_root(extract_to) if extract_to is not None else None
     files: dict[str, bytes] = {}
-    root_resolved = extract_to.resolve() if extract_to is not None else None
     mode = "r:gz" if archive.name.endswith(".gz") else "r:"
     with tarfile.open(archive, mode) as tar:
         for member in tar.getmembers():
-            rel = normalize_tar_path(member.name)
-            if member.isdir():
-                if rel and extract_to is not None and root_resolved is not None:
-                    dest_dir = (extract_to / rel).resolve()
-                    dest_dir.relative_to(root_resolved)
-                    dest_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
-                continue
-            if not member.isfile() or not rel:
-                raise HandoffError(f"verify-handoff: unsupported tar member {member.name!r} in {archive.name}")
-            if rel in files:
-                raise HandoffError(f"verify-handoff: duplicate tar entry {rel} in {archive.name}")
-            stream = tar.extractfile(member)
-            if stream is None:
-                raise HandoffError(f"verify-handoff: unreadable tar entry {rel} in {archive.name}")
-            payload = stream.read()
-            files[rel] = payload
+            rel, payload = _read_tar_member(tar, member, archive.name, files)
+            if payload is not None:
+                files[rel] = payload
             if extract_to is not None and root_resolved is not None:
-                dest = (extract_to / rel).resolve()
-                dest.relative_to(root_resolved)
-                dest.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-                dest.write_bytes(payload)
-                os.chmod(dest, 0o600)
+                _write_extracted(extract_to, root_resolved, rel, payload)
     return files
 
 
@@ -226,45 +257,45 @@ def verify_tarball_layers(
         verify_single_tarball_layer(tarball_files, tar_entry, layer_desc, oci_bytes, diff_id, idx)
 
 
-def verify_layout_and_tarball(
-    layout_files: dict[str, bytes], tarball_files: dict[str, bytes], expected_digest: str
-) -> None:
-    """Verify OCI layout closure matches expected_digest and binds to the release Docker tarball."""
+def _verify_oci_index(layout_files: dict[str, bytes], expected_digest: str) -> dict[str, Any]:
     oci_layout = json.loads(layout_files.get("oci-layout", b"{}").decode("utf-8"))
     if oci_layout.get("imageLayoutVersion") != "1.0.0":
         raise HandoffError("verify-handoff: missing or unsupported oci-layout version")
-
     index_raw = layout_files.get("index.json")
     if index_raw is None:
         raise HandoffError("verify-handoff: missing index.json in OCI layout")
-    index = json.loads(index_raw.decode("utf-8"))
-    manifests = index.get("manifests")
+    manifests = json.loads(index_raw.decode("utf-8")).get("manifests")
     if not isinstance(manifests, list) or len(manifests) != 1:
         raise HandoffError("verify-handoff: index.json must describe exactly one manifest")
     root_desc = manifests[0]
     if not isinstance(root_desc, dict) or root_desc.get("digest") != expected_digest:
         raise HandoffError("verify-handoff: OCI index manifest digest does not match image-digest file")
+    return root_desc
 
-    manifest_bytes = verify_blob(layout_files, root_desc, "manifest")
-    manifest = json.loads(manifest_bytes.decode("utf-8"))
+
+def _verify_oci_layout(
+    layout_files: dict[str, bytes], expected_digest: str
+) -> tuple[str, dict[str, Any], list[tuple[dict[str, Any], bytes]], list[Any]]:
+    root_desc = _verify_oci_index(layout_files, expected_digest)
+    manifest = json.loads(verify_blob(layout_files, root_desc, "manifest").decode("utf-8"))
     config_desc = manifest.get("config")
     config_bytes = verify_blob(layout_files, config_desc, "config")
     layers = manifest.get("layers")
     if not isinstance(layers, list) or not layers:
         raise HandoffError("verify-handoff: manifest must declare at least one layer")
-    oci_layers: list[tuple[dict[str, Any], bytes]] = []
-    for idx, layer in enumerate(layers):
-        layer_bytes = verify_blob(layout_files, layer, f"layer[{idx}]")
-        oci_layers.append((layer, layer_bytes))
-
-    oci_cfg = json.loads(config_bytes.decode("utf-8"))
-    oci_rootfs = oci_cfg.get("rootfs")
+    oci_layers = [(layer, verify_blob(layout_files, layer, f"layer[{idx}]")) for idx, layer in enumerate(layers)]
+    oci_rootfs = json.loads(config_bytes.decode("utf-8")).get("rootfs")
     if not isinstance(oci_rootfs, dict) or oci_rootfs.get("type") != "layers":
         raise HandoffError("verify-handoff: OCI config missing rootfs.layers")
     diff_ids = oci_rootfs.get("diff_ids")
     if not isinstance(diff_ids, list) or len(diff_ids) != len(oci_layers):
         raise HandoffError("verify-handoff: OCI rootfs.diff_ids count mismatches layer count")
+    return config_desc["digest"], oci_rootfs, oci_layers, diff_ids
 
+
+def _verify_tarball_manifest(
+    tarball_files: dict[str, bytes], expected_config_digest: str, oci_rootfs: dict[str, Any]
+) -> list[Any]:
     tar_manifest_raw = tarball_files.get("manifest.json")
     if tar_manifest_raw is None:
         raise HandoffError("verify-handoff: release tarball missing manifest.json")
@@ -281,33 +312,30 @@ def verify_layout_and_tarball(
     tar_cfg_bytes = tarball_files.get(cfg_rel)
     if tar_cfg_bytes is None:
         raise HandoffError("verify-handoff: release tarball config blob missing")
-    if sha256_bytes(tar_cfg_bytes) != config_desc["digest"]:
+    if sha256_bytes(tar_cfg_bytes) != expected_config_digest:
         raise HandoffError("verify-handoff: release tarball config digest does not match OCI layout")
-    tar_cfg = json.loads(tar_cfg_bytes.decode("utf-8"))
-    if tar_cfg.get("rootfs") != oci_rootfs:
+    if json.loads(tar_cfg_bytes.decode("utf-8")).get("rootfs") != oci_rootfs:
         raise HandoffError("verify-handoff: release tarball rootfs does not match OCI layout")
+    return tar_layers
+
+
+def verify_layout_and_tarball(
+    layout_files: dict[str, bytes], tarball_files: dict[str, bytes], expected_digest: str
+) -> None:
+    """Verify OCI layout closure matches expected_digest and binds to the release Docker tarball."""
+    config_digest, oci_rootfs, oci_layers, diff_ids = _verify_oci_layout(layout_files, expected_digest)
+    tar_layers = _verify_tarball_manifest(tarball_files, config_digest, oci_rootfs)
     verify_tarball_layers(tarball_files, tar_layers, oci_layers, diff_ids)
 
 
 def verify_handoff(handoff: Path, tag: str, revision: str, extract_layout: Path | None) -> str:
     """Validate complete handoff directory and return the verified sha256:<hex> image digest."""
-    if not TAG_RE.match(tag):
-        raise HandoffError(f"verify-handoff: invalid release tag {tag!r}")
+    public_assets = set(public_asset_names(tag))
     if not REVISION_RE.match(revision):
         raise HandoffError(f"verify-handoff: invalid source revision {revision!r}")
     if handoff.is_symlink() or not handoff.is_dir():
         raise HandoffError("verify-handoff: handoff directory does not exist or is a symlink")
 
-    public_assets = {
-        "LICENSE",
-        f"bff-image-{tag}.tar",
-        "go-x509roots-BSD-3-Clause.txt",
-        f"image-digest-{tag}.txt",
-        f"provenance-{tag}.md",
-        f"runtime-acceptance-{tag}.tar.gz",
-        f"source-revision-{tag}.txt",
-        f"verify-receipt-{tag}.json",
-    }
     handoff_files = public_assets | {"SHA256SUMS", f"image-layout-{tag}.tar.gz"}
 
     actual_entries = {entry.name for entry in handoff.iterdir()} - {"HANDOFF.sha256"}
@@ -337,12 +365,18 @@ def verify_handoff(handoff: Path, tag: str, revision: str, extract_layout: Path 
 def main(argv: list[str] | None = None) -> int:
     """CLI entry point returning 0 on verified handoff and 1 on any rejection."""
     parser = argparse.ArgumentParser(description="Verify credentialless release handoff.")
-    parser.add_argument("--handoff", required=True, type=Path)
+    parser.add_argument("--handoff", type=Path)
     parser.add_argument("--tag", required=True)
-    parser.add_argument("--revision", required=True)
+    parser.add_argument("--revision")
     parser.add_argument("--extract-layout", type=Path, default=None)
+    parser.add_argument("--list-public-assets", action="store_true")
     args = parser.parse_args(argv)
     try:
+        if args.list_public_assets:
+            print("\n".join(public_asset_names(args.tag)))
+            return 0
+        if args.handoff is None or not args.revision:
+            raise HandoffError("verify-handoff: --handoff and --revision are required")
         digest = verify_handoff(args.handoff, args.tag, args.revision, args.extract_layout)
     except (OSError, ValueError, KeyError, json.JSONDecodeError, tarfile.TarError, HandoffError) as exc:
         print(str(exc), file=sys.stderr)

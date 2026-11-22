@@ -315,15 +315,12 @@ fi
 
 rehash_handoff_dir() {
   local dir="$1"
+  local pub=()
+  mapfile -t pub < <(python3 "$fixture/tools/release/verify_handoff.py" --list-public-assets --tag v0.0.1-fixture)
   (
     cd "$dir"
-    LC_ALL=C sha256sum -- LICENSE bff-image-v0.0.1-fixture.tar go-x509roots-BSD-3-Clause.txt \
-      image-digest-v0.0.1-fixture.txt provenance-v0.0.1-fixture.md runtime-acceptance-v0.0.1-fixture.tar.gz \
-      source-revision-v0.0.1-fixture.txt verify-receipt-v0.0.1-fixture.json >SHA256SUMS
-    LC_ALL=C sha256sum -- LICENSE bff-image-v0.0.1-fixture.tar go-x509roots-BSD-3-Clause.txt \
-      image-digest-v0.0.1-fixture.txt provenance-v0.0.1-fixture.md runtime-acceptance-v0.0.1-fixture.tar.gz \
-      source-revision-v0.0.1-fixture.txt verify-receipt-v0.0.1-fixture.json SHA256SUMS \
-      image-layout-v0.0.1-fixture.tar.gz >HANDOFF.sha256
+    LC_ALL=C sha256sum -- "${pub[@]}" >SHA256SUMS
+    LC_ALL=C sha256sum -- "${pub[@]}" SHA256SUMS image-layout-v0.0.1-fixture.tar.gz >HANDOFF.sha256
   )
 }
 
@@ -396,6 +393,28 @@ with tarfile.open(p, "w:") as tf:
 PY
       rehash_handoff_dir "$dir"
       ;;
+    symlink-tar-member | traversal-tar-member | duplicate-tar-member)
+      python3 - "$dir/bff-image-v0.0.1-fixture.tar" "$mode" <<'PY'
+import io, sys, tarfile
+from pathlib import Path
+p, mode = Path(sys.argv[1]), sys.argv[2]
+with tarfile.open(p, "a:") as tf:
+    if mode == "symlink-tar-member":
+        ti = tarfile.TarInfo("evil-link")
+        ti.type = tarfile.SYMTYPE
+        ti.linkname = "/etc/passwd"
+        tf.addfile(ti)
+    elif mode == "traversal-tar-member":
+        ti = tarfile.TarInfo("../escape.txt")
+        ti.size = 1
+        tf.addfile(ti, io.BytesIO(b"x"))
+    else:
+        ti = tarfile.TarInfo("manifest.json")
+        ti.size = 2
+        tf.addfile(ti, io.BytesIO(b"[]"))
+PY
+      rehash_handoff_dir "$dir"
+      ;;
     *) echo "FAIL unknown tamper mode $mode" >&2; return 1 ;;
   esac
 }
@@ -451,6 +470,15 @@ run_restored_positive missing-tar-layer
 run_tamper_case substituted-tar-layer synthetic-fixture-token
 grep -qF 'does not match diff_id' "$work/tamper-substituted-tar-layer.log" || fail "substituted-tar-layer diagnostic: $(cat "$work/tamper-substituted-tar-layer.log")"
 run_restored_positive substituted-tar-layer
+run_tamper_case symlink-tar-member synthetic-fixture-token
+grep -qF 'unsupported tar member' "$work/tamper-symlink-tar-member.log" || fail "symlink-tar-member diagnostic: $(cat "$work/tamper-symlink-tar-member.log")"
+run_tamper_case traversal-tar-member synthetic-fixture-token
+grep -qF 'path traversal' "$work/tamper-traversal-tar-member.log" || fail "traversal-tar-member diagnostic: $(cat "$work/tamper-traversal-tar-member.log")"
+run_tamper_case duplicate-tar-member synthetic-fixture-token
+grep -qF 'duplicate tar entry' "$work/tamper-duplicate-tar-member.log" || fail "duplicate-tar-member diagnostic: $(cat "$work/tamper-duplicate-tar-member.log")"
+if python3 "$fixture/tools/release/verify_handoff.py" --list-public-assets --tag invalid >/dev/null 2>&1; then
+  fail "verify_handoff.py --list-public-assets accepted invalid tag"
+fi
 
 : >"$FIXTURE_MUTATIONS"
 : >"$FIXTURE_FORBIDDEN_CALLS"
