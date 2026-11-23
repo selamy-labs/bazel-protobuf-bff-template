@@ -27,8 +27,8 @@
     }
   },
   "concurrency": {
-    "cancel-in-progress": false,
-    "group": "${{ github.workflow }}-${{ github.event_name }}-${{ github.sha }}"
+    "cancel-in-progress": "${{ github.event_name == 'pull_request' }}",
+    "group": "${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}"
   },
   "runs_on": ["ubuntu-24.04"],
   "max_timeout_minutes": 45,

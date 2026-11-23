@@ -30,6 +30,9 @@ missing_verify_job	del(.jobs["build-test"]) | .jobs.gate.needs = []	registry's l
 action_input_injection	(.jobs["build-test"].steps[] | select(.uses // "" | test("^actions/upload-artifact@"))).with.path = "/etc"	with inputs
 trigger_narrowed	.on = {"workflow_dispatch": null}	on triggers
 concurrency_cancels	.concurrency["cancel-in-progress"] = true	concurrency
+concurrency_cancel_disabled	.concurrency["cancel-in-progress"] = false	concurrency
+concurrency_group_pr_sha_only	.concurrency.group = "${{ github.workflow }}-${{ github.event_name }}-${{ github.sha }}"	concurrency
+concurrency_group_shared_ref	.concurrency.group = "${{ github.workflow }}-${{ github.ref }}"	concurrency
 runner_changed	.jobs["build-test"]["runs-on"] = "self-hosted"	runs-on
 timeout_removed	del(.jobs["build-test"]["timeout-minutes"])	timeout-minutes
 verifier_flag_added	(.jobs["build-test"].steps[] | select(.name == "Verify")).run = "tools/verify.sh --shard=build-test \"--base=$POLICY_BASE\" --base-source=ci-event --offline"	run body

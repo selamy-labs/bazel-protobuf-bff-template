@@ -14,7 +14,7 @@ readback. Layers: **off** offline test, **loc** local verifier, **ci** hosted CI
 | FR-007 | `sandbox-evidence`, `//:verify_body_test`, `docs/evidence/m1-isolation.md` | default on a restricted host fails; label comes from Bazel's process summary | G; R for full isolation | loc, hum |
 | FR-008 | preflight output in `m1-isolation.md` | missing isolation → cause and remediations | G | loc |
 | FR-009 | root `MODULE.bazel`; `REPO.bazel` ignores `quality/` | quality module has no application dependency | S | hum |
-| FR-010 | `//:ci_parity_test` | 40 workflow mutations rejected for named reasons | G (shape); R (hosted run) | off, ci |
+| FR-010 | `//:ci_parity_test`, PR `#39` runs `45206755810` & `45207945368` | workflow mutations rejected for named reasons including unconditional cancellation, disabled PR cancellation, per-SHA PR grouping, and cross-event shared ref grouping; hosted PR `#39` observed mid-flight cancellation of `45206755810` (`gate` refused cancelled legs) and `45207945368` (`build-test`/`e2e`/28 of 29 `policy` checks passed, failing solely 2-commit `neutrality`); single-commit PR qualification and protected-`main` execution pending | G (shape); R (hosted run) | off, ci |
 | FR-011 | `fresh_clone.sh`, `--hostile` | hostile rc files and env, planted defect → fails on that defect alone | G | loc |
 | FR-012 | `tools/bench/measure.sh`, `docs/budgets/` | scenario split, exact revision | S | loc |
 | FR-013 | `//:speckit_scaffold_test`, `//:normalize_json_test`, `speckit-provenance` | changed, added or removed scaffold file or digest → fails; key order alone passes | G | off, loc, ci |
