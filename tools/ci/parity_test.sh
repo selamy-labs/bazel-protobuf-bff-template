@@ -129,7 +129,12 @@ cat >"$fixture/tools/checks/image_runtime.sh" <<'RUNTIME'
 printf '%s\n' "$BFF_IMAGE_RUNTIME_OUTPUTS" >>"$CI_RUNTIME_CALLS"
 exit "$CI_RUNTIME_EXIT"
 RUNTIME
-chmod +x "$fixture/tools/checks/image_runtime.sh"
+cat >"$fixture/tools/checks/web_video_evidence.sh" <<'VIDEO'
+#!/usr/bin/env bash
+printf '%s\n' "$BFF_VIDEO_EVIDENCE_OUTPUTS" >>"$CI_VIDEO_CALLS"
+exit "$CI_VIDEO_EXIT"
+VIDEO
+chmod +x "$fixture/tools/checks/image_runtime.sh" "$fixture/tools/checks/web_video_evidence.sh"
 chmod +x "$fixture/tools/verify.sh" "$fixture/tools/ci/receipt_artifact.sh"
 for leg in build-test e2e policy; do
   id="$(CI_LEG="$leg" "$yq" '.jobs[strenv(CI_LEG)].steps[] | select(.name == "Verify") | .id' "$wf")"
@@ -139,7 +144,7 @@ for leg in build-test e2e policy; do
     read -r verify_exit artifact_exit want <<<"$pair"
     : >"$work/calls"
     rc=0
-    (cd "$fixture" && POLICY_BASE=reviewed GITHUB_OUTPUT="$work/output" CI_CALLS="$work/calls" CI_ARGS="$work/args" CI_VERIFY_EXIT="$verify_exit" CI_ARTIFACT_EXIT="$artifact_exit" CI_RUNTIME_CALLS="$work/runtime-calls" CI_RUNTIME_EXIT=0 bash -e "$work/run-block.sh") || rc=$?
+    (cd "$fixture" && POLICY_BASE=reviewed GITHUB_OUTPUT="$work/output" CI_CALLS="$work/calls" CI_ARGS="$work/args" CI_VERIFY_EXIT="$verify_exit" CI_ARTIFACT_EXIT="$artifact_exit" CI_RUNTIME_CALLS="$work/runtime-calls" CI_RUNTIME_EXIT=0 CI_VIDEO_CALLS="$work/video-calls" CI_VIDEO_EXIT=0 bash -e "$work/run-block.sh") || rc=$?
     printf '%s\n' "--shard=$leg" '--base=reviewed' '--base-source=ci-event' >"$work/want-args"
     if [[ "$rc" != "$want" || "$(wc -l <"$work/calls")" -ne 1 ]] || ! cmp -s "$work/args" "$work/want-args"; then
       fail "$leg preserves verifier status/arguments (verify $verify_exit artifact $artifact_exit: got $rc want $want)"
@@ -147,17 +152,21 @@ for leg in build-test e2e policy; do
   done
 done
 
-# Execute the actual e2e block: runtime refusal cannot be hidden by a green source receipt.
+# Execute the actual e2e block: runtime and video-evidence refusal cannot be hidden by a green source receipt.
 CI_LEG=e2e "$yq" '.jobs[strenv(CI_LEG)].steps[] | select(.name == "Verify") | .run' "$wf" >"$work/runtime-block.sh"
-for pair in '0 0 0 0 1' '0 0 11 11 1' '9 0 11 9 0' '0 7 11 7 0'; do
-  read -r verify_exit artifact_exit runtime_exit want calls <<<"$pair"
+for pair in '0 0 0 0 0 1 1' '0 0 11 0 11 1 0' '0 0 0 13 13 1 1' '9 0 11 13 9 0 0' '0 7 11 13 7 0 0'; do
+  read -r verify_exit artifact_exit runtime_exit video_exit want runtime_calls video_calls <<<"$pair"
   : >"$work/output"
   : >"$work/runtime-calls"
+  : >"$work/video-calls"
   rc=0
-  (cd "$fixture" && POLICY_BASE=reviewed GITHUB_OUTPUT="$work/output" CI_CALLS="$work/calls" CI_ARGS="$work/args" CI_VERIFY_EXIT="$verify_exit" CI_ARTIFACT_EXIT="$artifact_exit" CI_RUNTIME_CALLS="$work/runtime-calls" CI_RUNTIME_EXIT="$runtime_exit" bash -e "$work/runtime-block.sh") || rc=$?
-  [[ "$rc" == "$want" && "$(wc -l <"$work/runtime-calls")" == "$calls" ]] || fail "e2e runtime status is required (got $rc want $want, calls $calls)"
-  if [[ "$calls" == 1 ]]; then
+  (cd "$fixture" && POLICY_BASE=reviewed GITHUB_OUTPUT="$work/output" CI_CALLS="$work/calls" CI_ARGS="$work/args" CI_VERIFY_EXIT="$verify_exit" CI_ARTIFACT_EXIT="$artifact_exit" CI_RUNTIME_CALLS="$work/runtime-calls" CI_RUNTIME_EXIT="$runtime_exit" CI_VIDEO_CALLS="$work/video-calls" CI_VIDEO_EXIT="$video_exit" bash -e "$work/runtime-block.sh") || rc=$?
+  [[ "$rc" == "$want" && "$(wc -l <"$work/runtime-calls")" == "$runtime_calls" && "$(wc -l <"$work/video-calls")" == "$video_calls" ]] || fail "e2e runtime/video status is required (got $rc want $want, runtime_calls $runtime_calls, video_calls $video_calls)"
+  if [[ "$runtime_calls" == 1 ]]; then
     [[ "$(cat "$work/runtime-calls")" == /owned/prepared/image-runtime ]] || fail "runtime outputs must stay in the owned receipt artifact"
+  fi
+  if [[ "$video_calls" == 1 ]]; then
+    [[ "$(cat "$work/video-calls")" == /owned/prepared/web-video-evidence ]] || fail "video outputs must stay in the owned receipt artifact"
   fi
 done
 

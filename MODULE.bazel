@@ -127,6 +127,15 @@ filegroup(name = "files", srcs = glob(["**"]), visibility = ["//visibility:publi
     urls = ["https://cdn.playwright.dev/builds/cft/156.0.8078.4/linux64/chrome-headless-shell-linux64.zip"],
 )
 
+# Pinned static FFmpeg matching @playwright/test 1.64.1 (browsers.json revision 1013) for
+# hermetic testonly Playwright video evidence recording (Linux x86_64).
+http_archive(
+    name = "playwright_ffmpeg",
+    build_file_content = """exports_files(["ffmpeg-linux"], visibility = ["//visibility:public"])""",
+    sha256 = "ee986434d158f74fb5d9c5ff1092026ceedb63f324fe90b5be89460926b7b679",
+    urls = ["https://cdn.playwright.dev/builds/ffmpeg/1013/ffmpeg-linux.zip"],
+)
+
 # OpenTofu and the GitHub provider, for the offline governance test only (spec 010 FR-009). Both are pinned by
 # the sha256 published with their releases, fetched at test time, and never run against a live account.
 http_archive(

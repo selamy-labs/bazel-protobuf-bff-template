@@ -1,10 +1,13 @@
-load("@aspect_rules_js//js:defs.bzl", "js_library", "js_test")
+load("@aspect_rules_js//js:defs.bzl", "js_binary", "js_library", "js_test")
 load("@npm//:@playwright/test/package_json.bzl", playwright = "bin")
 load("@rules_go//go:def.bzl", "go_binary", "go_library")
 
 BROWSER_DATA = ["//tools/browser:browser"]
 
-BROWSER_ENV = {"BROWSER_DIR": "$(rootpath //tools/browser:browser)"}
+BROWSER_ENV = {
+    "BROWSER_DIR": "$(rootpath //tools/browser:browser)",
+    "PLAYWRIGHT_BROWSERS_PATH": "$(rootpath //tools/browser:browser)/playwright-browsers",
+}
 
 js_test(
     name = "browser_smoke_test",
@@ -305,4 +308,56 @@ playwright.playwright_binary(
         "BFF_IMAGE_LAYOUT": "$(rootpath //bff/cmd/bff:image)",
         "BFF_IMAGE_ARCHIVE": "$(rootpath //bff/cmd/bff:image_archive)",
     },
+)
+
+CONNECT_FAKE_DATA = [
+    "connect-notes-fake.mjs",
+    "//:node_modules/@bufbuild/protobuf",
+    "//:node_modules/@connectrpc/connect",
+    "//api:notes_ts",
+]
+
+VIDEO_EVIDENCE_DATA = BROWSER_DATA + CONNECT_FAKE_DATA + [
+    "playwright.video.config.mjs",
+    "record-notes-video.mjs",
+    "stack.mjs",
+    "issuer.mjs",
+    "video-evidence.mjs",
+    "//:node_modules/@playwright/test",
+    "//web/app:dist_dev",
+    "//web/serve:serve_lib",
+]
+
+# Contract conformance witness for the stateful Connect fake using the generated Connect client (#27).
+js_test(
+    name = "connect_fake_test",
+    size = "small",
+    data = CONNECT_FAKE_DATA + [
+        "//:node_modules/@connectrpc/connect-web",
+        "//web/client",
+    ],
+    entry_point = "connect-fake.test.mjs",
+)
+
+# Positive, negative, and derivative-adoption verification for Playwright video evidence (#27).
+js_test(
+    name = "video_evidence_test",
+    size = "medium",
+    data = VIDEO_EVIDENCE_DATA,
+    entry_point = "video-evidence.test.mjs",
+    env = BROWSER_ENV | {
+        "WEB_DIST": "$(rootpath //web/app:dist_dev)",
+    },
+)
+
+# Single-command template recording target for reproducible Notes flow video evidence (#27).
+js_binary(
+    name = "record_video_evidence",
+    testonly = True,
+    data = VIDEO_EVIDENCE_DATA,
+    entry_point = "record-notes-video.mjs",
+    env = BROWSER_ENV | {
+        "WEB_DIST": "$(rootpath //web/app:dist_dev)",
+    },
+    visibility = ["//visibility:public"],
 )

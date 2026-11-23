@@ -41,17 +41,28 @@ browser_libs = repository_rule(
 def _browser_tree_impl(ctx):
     tree = ctx.actions.declare_directory(ctx.label.name)
     ctx.actions.run_shell(
-        inputs = ctx.files.browser + ctx.files.libs + ctx.files.fonts + [ctx.file.font_config],
+        inputs = ctx.files.browser + ctx.files.libs + ctx.files.fonts + [ctx.file.font_config, ctx.file.ffmpeg],
         outputs = [tree],
-        arguments = [tree.path, ctx.file.executable.dirname, ctx.file.font_config.path],
+        arguments = [
+            tree.path,
+            ctx.file.executable.dirname,
+            ctx.file.font_config.path,
+            ctx.file.ffmpeg.path,
+            ctx.attr.ffmpeg_revision,
+        ],
         command = """set -eu
 tree="$1"
 source="$2"
 font_config="$3"
+ffmpeg="$4"
+ffmpeg_revision="$5"
 fontconfig_root="$tree/fontconfig-root"
-mkdir -p "$tree/lib" "$fontconfig_root/etc/fonts" "$fontconfig_root/usr/share/fonts"
+ffmpeg_dir="$tree/playwright-browsers/ffmpeg-$ffmpeg_revision"
+mkdir -p "$tree/lib" "$fontconfig_root/etc/fonts" "$fontconfig_root/usr/share/fonts" "$ffmpeg_dir"
 cp -RL "$source/." "$tree/"
 cp -L "$font_config" "$fontconfig_root/etc/fonts/fonts.conf"
+cp -L "$ffmpeg" "$ffmpeg_dir/ffmpeg-linux"
+chmod 0755 "$ffmpeg_dir/ffmpeg-linux"
 while IFS= read -r library; do cp -L "$library" "$tree/lib/"; done <<LIBRARIES
 %s
 LIBRARIES
@@ -66,10 +77,12 @@ FONTS
 
 browser_tree = rule(
     implementation = _browser_tree_impl,
-    doc = "One directory holding the browser, in lib/ every library it loads, and in fontconfig-root/ its fonts and their configuration.",
+    doc = "One directory holding the browser, in lib/ every library it loads, in fontconfig-root/ its fonts and their configuration, and in playwright-browsers/ its pinned ffmpeg.",
     attrs = {
         "browser": attr.label(allow_files = True, mandatory = True),
         "executable": attr.label(allow_single_file = True, mandatory = True),
+        "ffmpeg": attr.label(allow_single_file = True, mandatory = True),
+        "ffmpeg_revision": attr.string(mandatory = True),
         "font_config": attr.label(allow_single_file = True, mandatory = True),
         "fonts": attr.label(allow_files = True, mandatory = True),
         "libs": attr.label(allow_files = True, mandatory = True),
