@@ -265,7 +265,7 @@ checks {
   id: "python-lint"
   shard: "policy"
   tool: "RUFF"
-  selector { include: "\\.py$" }
+  selector { include: "\\.py$" context: "^ruff\\.toml$" }
   stages: [STAGE_PRE_COMMIT, STAGE_FULL]
   classification: CLASSIFICATION_GUARANTEE
   kind: KIND_NATIVE
