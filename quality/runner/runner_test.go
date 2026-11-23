@@ -992,6 +992,29 @@ func TestRealRegistryEscalatesPolicyInputs(t *testing.T) {
 	}
 }
 
+func TestPythonLintPreCommitSnapshotIncludesRuffConfig(t *testing.T) {
+	h := newHarness(t)
+	h.write("ruff.toml", "line-length = 120\n")
+	h.write("pkg/sample.py", "x = 1\n")
+	h.git("add", "-A")
+	h.git("commit", "-q", "-m", "base")
+
+	h.write("pkg/sample.py", "x = 2\n")
+	h.git("add", "pkg/sample.py")
+
+	scratch := t.TempDir()
+	if _, err := Snapshot(context.Background(), Git{Dir: h.dir, Env: gitEnv()}, realRegistry(t), scratch); err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	got, err := os.ReadFile(filepath.Join(scratch, "ruff.toml"))
+	if err != nil {
+		t.Fatalf("pre-commit snapshot missing ruff.toml for staged Python file: %v", err)
+	}
+	if string(got) != "line-length = 120\n" {
+		t.Fatalf("ruff.toml content = %q, want %q", got, "line-length = 120\n")
+	}
+}
+
 // The digest in a receipt names the same inputs that escalate: a change to one moves it, and an
 // ordinary change does not.
 func TestPolicyDigestCoversTheEscalationInputs(t *testing.T) {
