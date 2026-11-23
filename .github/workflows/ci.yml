@@ -14,9 +14,10 @@ permissions:
   contents: read
 
 concurrency:
-  # One group per commit: pull-request runs for a newer head do not cancel evidence for this one.
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.sha }}
-  cancel-in-progress: false
+  # Supersede older runs for the same pull request while preserving distinct non-cancelling keys
+  # for protected main pushes, merge_group, and any other event (#35).
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   build-test:

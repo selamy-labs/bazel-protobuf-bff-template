@@ -76,12 +76,14 @@
   - `permissions: contents: read`
   - a sysctl step that lifts the AppArmor restriction on the disposable runner
   - `tools/verify.sh` as the only policy step
-  - a per-SHA concurrency group
+  - event-scoped concurrency (`#35`): `pull_request` runs group across SHAs by PR number (`${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.sha }}`) with `cancel-in-progress: ${{ github.event_name == 'pull_request' }}` so superseded PR runs cancel, while protected `push` (`main`) and `merge_group` runs keep distinct per-SHA non-cancelling keys
   - an aggregate `gate` job with `if: always()`
 
-  Parent T013.
-- [x] T016 [US4] CI parity and gate fixture test: the only policy run step is `tools/verify.sh`, and
-  every job is listed in `gate.needs`. File: `tools/ci/parity_test.sh`.
+  Parent T013. **Witness**: `//:ci_parity_test` (closed allowlist `tools/ci/policy.json` + adversarial mutations in `tools/ci/mutations.tsv`, offline); paired native hosted PR runs on PR `#39` (`45206755810` cancelled mid-flight with `gate` refusing cancelled legs; `45207945368` passed `build-test`, `e2e`, and 28 of 29 `policy` checks, failing solely 2-commit `neutrality`); single-commit PR qualification and protected-`main` execution pending post-merge run on `main`.
+- [x] T016 [US4] CI parity and gate fixture test: the only policy run step is `tools/verify.sh`,
+  every job is listed in `gate.needs`, and closed-policy concurrency mutations reject unconditional
+  cancellation, disabled PR cancellation, per-SHA PR grouping, and cross-event shared ref grouping.
+  File: `tools/ci/parity_test.sh` (target `//:ci_parity_test`).
 - [x] T017 [US4] Run actionlint, zizmor and shellcheck on the workflow and the scripts; these run
   inside verify's native checks.
 
