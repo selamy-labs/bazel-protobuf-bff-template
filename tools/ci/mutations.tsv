@@ -65,3 +65,8 @@ artifact_workspace_glob	(.jobs["build-test"].steps[] | select(.uses // "" | test
 runtime_removed	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/image_runtime.sh"; "true")	run body
 runtime_failure_tolerated	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/image_runtime.sh"; "tools/checks/image_runtime.sh || true")	run body
 runtime_conditional	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/image_runtime.sh"; "test false && tools/checks/image_runtime.sh")	run body
+
+# Playwright video evidence is mandatory inside the existing e2e leg (#27).
+video_evidence_removed	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/web_video_evidence.sh"; "true")	run body
+video_evidence_failure_tolerated	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/web_video_evidence.sh"; "tools/checks/web_video_evidence.sh || true")	run body
+video_evidence_conditional	(.jobs.e2e.steps[] | select(.name == "Verify")).run |= sub("tools/checks/web_video_evidence.sh"; "test false && tools/checks/web_video_evidence.sh")	run body

@@ -46,6 +46,8 @@
 //web/e2e:hosted_e2e_test e2e
 //web/e2e:signin_e2e_test e2e
 //web/e2e:same_origin_e2e_test e2e
+//web/e2e:connect_fake_test e2e
+//web/e2e:video_evidence_test e2e
 //web/lint:eslint_test build-test
 //web/lint:eslint_witness_test build-test
 @bff_template_quality//checks/complexity:complexity_test build-test
@@ -74,3 +76,4 @@
 @bff_template_quality//runner:select_property_test build-test
 //bff/telemetry:e2e_receiver_test build-test
 //:publish_runtime_test build-test
+//:web_video_evidence_script_test build-test

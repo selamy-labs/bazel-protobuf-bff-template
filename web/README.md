@@ -12,6 +12,9 @@ This is the browser client: one form and one lookup that call the BFF through th
 - [e2e/notes.spec.mjs](e2e/notes.spec.mjs) lists every scenario, run in a real browser.
 - [e2e/signin.spec.mjs](e2e/signin.spec.mjs) runs the production bundle and the production server against a
   local issuer ([e2e/issuer.mjs](e2e/issuer.mjs)): the sign-in and the verified calls.
+- [../docs/web-video-evidence.md](../docs/web-video-evidence.md) documents the single-command Playwright video
+  evidence recipe (`tools/checks/web_video_evidence.sh`), the conforming stateful Connect fake, and the boundary
+  between deterministic UI evidence and hosted acceptance.
 
 ## Layout
 

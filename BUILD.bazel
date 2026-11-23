@@ -438,3 +438,11 @@ sh_test(
         "tools/release/verify_handoff.py",
     ],
 )
+
+sh_test(
+    name = "web_video_evidence_script_test",
+    size = "small",
+    srcs = ["tools/checks/web_video_evidence_test.sh"],
+    args = ["$(rootpath tools/checks/web_video_evidence.sh)"],
+    data = ["tools/checks/web_video_evidence.sh"],
+)

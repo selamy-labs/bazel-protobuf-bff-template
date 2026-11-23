@@ -20,6 +20,9 @@ tasks. Boxes are ticked only when the named witness passes in the verifier.
 - [x] T012 Enforce the Linux glibc floor in the preflight; a below-floor or unknown libc fails early. **Needs** T001. **Spec** FR-011. **Parent** T030, FR-025. **Witness** `//:preflight_test`
 - [x] T013 Stop detecting a host C compiler; Go builds with cgo off. **Needs** T001. **Spec** FR-012. **Parent** FR-025. **Witness** `compiler-fixture` in `toolchain-fixtures`, `bazelrc-policy`
 - [x] T014 Pin the browser's fonts and font configuration in its tree; the smoke paints text. **Needs** T001. **Spec** FR-006, FR-013. **Parent** T030, FR-025. **Witness** `//web/e2e:browser_smoke_test`
+- [x] T015 Add conforming stateful Protobuf/Connect fake with Unicode code-point bounds, persistence, denial, and unavailability faults (#27). **Needs** T003. **Spec** FR-014. **Parent** T031, T032. **Witness** `//web/e2e:connect_fake_test`
+- [x] T016 Pin static Playwright FFmpeg (`1013`) in testonly browser tooling and add reusable video evidence config, recorder, WebM/PNG validator, negative controls, and derivative adoption test (#27). **Needs** T014, T015. **Spec** FR-006, FR-008, FR-015. **Parent** T030, T032. **Witness** `//web/e2e:video_evidence_test`, `//web/app:bundle_test`
+- [x] T017 Wire staged-then-publish `tools/checks/web_video_evidence.sh` into `.github/workflows/ci.yml` (`e2e` leg), CI parity policy/mutations, provenance, and docs (#27; `#29` downstream acceptance separate). **Needs** T016. **Spec** FR-010, FR-016. **Parent** T042. **Witness** `//:web_video_evidence_script_test`, `//:ci_parity_test`, `//:inventory_test`
 
 ## Execution record
 

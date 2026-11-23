@@ -124,6 +124,22 @@ A developer runs one command and gets the app locally, with test identity clearl
 - **FR-013**: Fonts and font configuration MUST come from the pinned browser tree, never from the
   host. The smoke MUST lay out and paint text with them, and MUST show that the same render fails
   by name without them.
+- **FR-014**: Test-only browser evidence tooling MUST provide a conforming stateful Protobuf/Connect
+  fake (`web/e2e/connect-notes-fake.mjs`) speaking the generated `NoteService` schemas with Unicode
+  code-point validation bounds, persistence across reloads/restarts, cross-subject denial, and
+  unavailability faults, verified directly by the generated Connect client (`#27`).
+- **FR-015**: Test-only browser evidence tooling MUST pin Playwright's matching static FFmpeg by
+  SHA-256 (`//tools/browser:browser`) and provide a reusable Playwright video evidence config,
+  recorder, and fail-closed validator (`web/e2e/playwright.video.config.mjs`,
+  `web/e2e/video-evidence.mjs`, `web/e2e/record-notes-video.mjs`) supporting single-revision
+  representative smoke and explicit dual-revision comparative `before-after` captures, inspecting
+  actual WebM video track dimensions and PNG headers, enforcing synthetic-only and byte bounds, and
+  allowing derivative apps to adopt the same recipe without copying a second framework (`#27`).
+- **FR-016**: The single-command recorder (`tools/checks/web_video_evidence.sh`) wired into the
+  existing `e2e` CI leg MUST stage captures outside the artifact directory and publish media and
+  `manifest.json` ONLY after validation succeeds while preserving failure logs and receipts, and
+  MUST keep hosted sign-in/provider/live release smoke (`#20`) and downstream `#29` CLI/web
+  acceptance distinct (`#27`).
 
 ### Key Entities
 

@@ -36,7 +36,7 @@
   "gate": "gate",
   "required_run": {
     "build-test": "status=0\ntools/verify.sh --shard=build-test \"--base=$POLICY_BASE\" --base-source=ci-event || status=$?\nartifact_status=0\ntools/ci/receipt_artifact.sh >>\"$GITHUB_OUTPUT\" || artifact_status=$?\nif [ \"$status\" != 0 ]; then\n  exit \"$status\"\nfi\nexit \"$artifact_status\"",
-    "e2e": "status=0\ntools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event || status=$?\nartifact_status=0\ntools/ci/receipt_artifact.sh >>\"$GITHUB_OUTPUT\" || artifact_status=$?\nif [ \"$status\" != 0 ]; then\n  exit \"$status\"\nfi\nif [ \"$artifact_status\" != 0 ]; then\n  exit \"$artifact_status\"\nfi\nartifact_path=\"$(sed -n 's/^artifact_path=//p' \"$GITHUB_OUTPUT\" | tail -1)\"\ntest -n \"$artifact_path\"\nBFF_IMAGE_RUNTIME_OUTPUTS=\"$artifact_path/image-runtime\" tools/checks/image_runtime.sh",
+    "e2e": "status=0\ntools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event || status=$?\nartifact_status=0\ntools/ci/receipt_artifact.sh >>\"$GITHUB_OUTPUT\" || artifact_status=$?\nif [ \"$status\" != 0 ]; then\n  exit \"$status\"\nfi\nif [ \"$artifact_status\" != 0 ]; then\n  exit \"$artifact_status\"\nfi\nartifact_path=\"$(sed -n 's/^artifact_path=//p' \"$GITHUB_OUTPUT\" | tail -1)\"\ntest -n \"$artifact_path\"\nBFF_IMAGE_RUNTIME_OUTPUTS=\"$artifact_path/image-runtime\" tools/checks/image_runtime.sh\nBFF_VIDEO_EVIDENCE_OUTPUTS=\"$artifact_path/web-video-evidence\" tools/checks/web_video_evidence.sh",
     "policy": "status=0\ntools/verify.sh --shard=policy \"--base=$POLICY_BASE\" --base-source=ci-event || status=$?\nartifact_status=0\ntools/ci/receipt_artifact.sh >>\"$GITHUB_OUTPUT\" || artifact_status=$?\nif [ \"$status\" != 0 ]; then\n  exit \"$status\"\nfi\nexit \"$artifact_status\""
   },
   "runs": [
@@ -50,7 +50,7 @@
       }
     },
     {
-      "body": "status=0\ntools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event || status=$?\nartifact_status=0\ntools/ci/receipt_artifact.sh >>\"$GITHUB_OUTPUT\" || artifact_status=$?\nif [ \"$status\" != 0 ]; then\n  exit \"$status\"\nfi\nif [ \"$artifact_status\" != 0 ]; then\n  exit \"$artifact_status\"\nfi\nartifact_path=\"$(sed -n 's/^artifact_path=//p' \"$GITHUB_OUTPUT\" | tail -1)\"\ntest -n \"$artifact_path\"\nBFF_IMAGE_RUNTIME_OUTPUTS=\"$artifact_path/image-runtime\" tools/checks/image_runtime.sh",
+      "body": "status=0\ntools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event || status=$?\nartifact_status=0\ntools/ci/receipt_artifact.sh >>\"$GITHUB_OUTPUT\" || artifact_status=$?\nif [ \"$status\" != 0 ]; then\n  exit \"$status\"\nfi\nif [ \"$artifact_status\" != 0 ]; then\n  exit \"$artifact_status\"\nfi\nartifact_path=\"$(sed -n 's/^artifact_path=//p' \"$GITHUB_OUTPUT\" | tail -1)\"\ntest -n \"$artifact_path\"\nBFF_IMAGE_RUNTIME_OUTPUTS=\"$artifact_path/image-runtime\" tools/checks/image_runtime.sh\nBFF_VIDEO_EVIDENCE_OUTPUTS=\"$artifact_path/web-video-evidence\" tools/checks/web_video_evidence.sh",
       "env": {
         "POLICY_BASE": "${{ steps.base.outputs.sha }}"
       }
@@ -91,7 +91,7 @@
       "uses:actions/checkout",
       "run:sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0",
       "run:tools/ci/policy_base.sh >>\"$GITHUB_OUTPUT\"",
-      "run:status=0\ntools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event || status=$?\nartifact_status=0\ntools/ci/receipt_artifact.sh >>\"$GITHUB_OUTPUT\" || artifact_status=$?\nif [ \"$status\" != 0 ]; then\n  exit \"$status\"\nfi\nif [ \"$artifact_status\" != 0 ]; then\n  exit \"$artifact_status\"\nfi\nartifact_path=\"$(sed -n 's/^artifact_path=//p' \"$GITHUB_OUTPUT\" | tail -1)\"\ntest -n \"$artifact_path\"\nBFF_IMAGE_RUNTIME_OUTPUTS=\"$artifact_path/image-runtime\" tools/checks/image_runtime.sh",
+      "run:status=0\ntools/verify.sh --shard=e2e \"--base=$POLICY_BASE\" --base-source=ci-event || status=$?\nartifact_status=0\ntools/ci/receipt_artifact.sh >>\"$GITHUB_OUTPUT\" || artifact_status=$?\nif [ \"$status\" != 0 ]; then\n  exit \"$status\"\nfi\nif [ \"$artifact_status\" != 0 ]; then\n  exit \"$artifact_status\"\nfi\nartifact_path=\"$(sed -n 's/^artifact_path=//p' \"$GITHUB_OUTPUT\" | tail -1)\"\ntest -n \"$artifact_path\"\nBFF_IMAGE_RUNTIME_OUTPUTS=\"$artifact_path/image-runtime\" tools/checks/image_runtime.sh\nBFF_VIDEO_EVIDENCE_OUTPUTS=\"$artifact_path/web-video-evidence\" tools/checks/web_video_evidence.sh",
       "uses:actions/upload-artifact"
     ],
     "policy": [
