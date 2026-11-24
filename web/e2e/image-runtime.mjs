@@ -13,7 +13,15 @@ import { setTimeout as delay } from "node:timers/promises";
 import { promisify } from "node:util";
 
 import { readImageIdentity } from "./image-identity.mjs";
-import { checkContainer, checkLoadedImage, emptyAssets } from "./runtime-contract.mjs";
+import {
+  checkContainer,
+  checkDaemonVersion,
+  checkLoadedImage,
+  checkRuntimeReceipt,
+  emptyAssets,
+  reconcileOwnedContainers,
+  resolveLocalDockerHost,
+} from "./runtime-contract.mjs";
 
 const execute = promisify(execFile);
 export async function freePort() {
@@ -96,15 +104,20 @@ export async function openImageRuntime() {
   assert.equal(process.arch, "x64");
   const revision = process.env.BFF_IMAGE_REVISION;
   assert.match(revision ?? "", /^[a-f0-9]{40}$/, "exact source revision required");
+  const sourceTree = process.env.BFF_IMAGE_TREE;
+  assert.match(sourceTree ?? "", /^[a-f0-9]{40}$/, "exact source tree required");
+  const dockerHost = resolveLocalDockerHost(process.env.BFF_IMAGE_DOCKER_HOST);
   const outputs = path.resolve(process.env.BFF_IMAGE_RUNTIME_OUTPUTS);
   await mkdir(outputs, { recursive: true });
   const identity = await readImageIdentity(path.resolve(process.env.BFF_IMAGE_LAYOUT));
   const archive = path.resolve(process.env.BFF_IMAGE_ARCHIVE);
   const privateConfig = await mkdtemp(path.join(os.tmpdir(), "bff-docker-config-"));
+  const runId = randomUUID();
+  const owned = new Set();
   // Closed subprocess environment: no ambient Docker contexts, registry credentials or cloud tokens.
   const env = { PATH: process.env.PATH, HOME: privateConfig, DOCKER_CONFIG: privateConfig };
   const docker = async (...args) => {
-    const result = await execute("docker", ["--host=unix:///var/run/docker.sock", ...args], {
+    const result = await execute("docker", [`--host=${dockerHost}`, ...args], {
       env,
       timeout: 30000,
       maxBuffer: 4 << 20,
@@ -113,9 +126,11 @@ export async function openImageRuntime() {
   };
   const save = async (name, value) =>
     writeFile(path.join(outputs, name), JSON.stringify(value, null, 2) + "\n");
+  let daemon;
   try {
     await checkArchive(archive, identity, env);
     const version = JSON.parse(await docker("version", "--format={{json .}}"));
+    daemon = checkDaemonVersion(version);
     const archiveDigest = await digestFile(archive);
     await writeFile(
       path.join(outputs, "load.log"),
@@ -123,7 +138,15 @@ export async function openImageRuntime() {
     );
     const [image] = JSON.parse(await docker("image", "inspect", identity.configDigest));
     checkLoadedImage(image, identity);
-    await save("image-identity.json", { revision, ...identity, archiveDigest, version, image });
+    await save("image-identity.json", {
+      revision,
+      sourceTree,
+      dockerHost,
+      ...identity,
+      archiveDigest,
+      version,
+      image,
+    });
   } catch (error) {
     await rm(privateConfig, { recursive: true, force: true });
     throw error;
@@ -141,7 +164,7 @@ export async function openImageRuntime() {
     assert.ok(!wrongPort || otherPort !== port, "distinct negative-control port");
     const origin = `http://127.0.0.1:${port}`;
     const name = "bff-image-runtime-" + randomUUID();
-    const owner = { name, label: randomUUID(), cid: "" };
+    const owner = { name, label: randomUUID(), runId, cid: "" };
     const arguments_ = [
       "container",
       "create",
@@ -149,6 +172,8 @@ export async function openImageRuntime() {
       name,
       "--label",
       "bff-template.runtime=" + owner.label,
+      "--label",
+      "bff-template.runtime-run=" + runId,
       "--pull=never",
       "--network=host",
       "--read-only",
@@ -172,6 +197,7 @@ export async function openImageRuntime() {
     arguments_.push(identity.configDigest);
     owner.cid = (await docker(...arguments_)).trim();
     assert.match(owner.cid, /^[a-f0-9]{64}$/, "created container ID");
+    owned.add(owner.cid);
     const inspect = async () => JSON.parse(await docker("container", "inspect", owner.cid))[0];
     const checked = async () => {
       const value = await inspect();
@@ -179,6 +205,7 @@ export async function openImageRuntime() {
       return value;
     };
     async function close() {
+      if (!owned.has(owner.cid)) return;
       let value = await checked();
       if (value.State.Running) await docker("container", "stop", "--time=10", owner.cid);
       value = await checked();
@@ -190,6 +217,7 @@ export async function openImageRuntime() {
       assert.equal(value.State.Running, false, "owned container terminal");
       // Remove only the exact, ownership-checked terminal container; never force/prune/cache cleanup.
       await docker("container", "rm", owner.cid);
+      owned.delete(owner.cid);
       assert.equal(value.State.ExitCode, missingVerifier ? 1 : 0, "expected production exit");
     }
     async function awaitStartup() {
@@ -244,5 +272,32 @@ export async function openImageRuntime() {
       throw error;
     }
   }
-  return { identity, start, close: () => rm(privateConfig, { recursive: true, force: true }) };
+  async function closeRuntime() {
+    try {
+      const { remaining } = await reconcileOwnedContainers({ docker, owned, runId });
+      const terminal = {
+        schemaVersion: 1,
+        revision,
+        sourceTree,
+        sourceDirty: false,
+        manifestDigest: identity.manifestDigest,
+        configDigest: identity.configDigest,
+        dockerHost,
+        serverVersion: daemon.serverVersion,
+        serverApiVersion: daemon.serverApiVersion,
+        ownedContainersRemaining: remaining.length,
+        teardownVerified: remaining.length === 0 && owned.size === 0,
+      };
+      await save("runtime-terminal.json", terminal);
+      checkRuntimeReceipt(terminal, {
+        revision,
+        sourceTree,
+        manifestDigest: identity.manifestDigest,
+        configDigest: identity.configDigest,
+      });
+    } finally {
+      await rm(privateConfig, { recursive: true, force: true });
+    }
+  }
+  return { identity, start, close: closeRuntime };
 }

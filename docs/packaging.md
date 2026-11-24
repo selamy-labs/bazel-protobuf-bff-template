@@ -28,13 +28,20 @@ runtime_outputs="$(mktemp -d)"
 BFF_IMAGE_RUNTIME_OUTPUTS="$runtime_outputs" tools/checks/image_runtime.sh
 ```
 
-The command loads the actual built archive, checks its configuration against the closed OCI
-layout, runs the immutable configuration ID and retains archive/manifest/config/rootfs hashes,
-Docker version, exact container inspection, browser results and terminal readback. Seven tests
+The command refuses any tracked or untracked dirty checkout, binds both `HEAD` and `HEAD^{tree}`,
+defaults to `unix:///var/run/docker.sock` (or an explicit local-only `unix://` socket via
+`BFF_IMAGE_DOCKER_HOST`, refusing remote or traversal endpoints), checks Docker Engine API
+compatibility (`>= 1.41`), loads the actual built archive, checks its configuration against the
+closed OCI layout, runs the immutable configuration ID, verifies owned-container retirement
+(`runtime-terminal.json` with `ownedContainersRemaining: 0`), and retains archive/manifest/config/rootfs
+hashes, Docker version, exact container inspection, browser results and terminal readback. Seven tests
 cover actual same-origin generated-client success/typed owner isolation, bearer negatives,
 missing assets, wrong port, broken RPC and missing-verifier refusal, with restored controls.
 The issuer and discard telemetry receiver are external test fixtures; the latter proves no
 collector/export acceptance. No registry access or live provider operation is performed.
+Offline contract and script refusal controls (`//web/e2e:runtime_contract_test`,
+`//:image_runtime_test`) verify daemon-host validation, API compatibility, source/tree/digest binding,
+and teardown refusal without claiming a live container ran.
 
 The existing credentialless e2e CI leg requires this command after successful source checks and
 receipt export. Its own evidence is placed beneath that owned artifact directory. A source-only
