@@ -192,6 +192,20 @@ sh_test(
     ],
 )
 
+sh_test(
+    name = "image_runtime_test",
+    size = "small",
+    srcs = ["tools/checks/image_runtime_test.sh"],
+    args = [
+        "$(rootpath tools/checks/image_runtime.sh)",
+        "$(rootpath @bff_template_quality//tools:yq)",
+    ],
+    data = [
+        "tools/checks/image_runtime.sh",
+        "@bff_template_quality//tools:yq",
+    ],
+)
+
 # The vulnerability check's planted control (spec 011 T023): the real govulncheck and a real server binary against
 # a local database written by the test; a reachable advisory is a finding, a fixed or absent one is not.
 sh_test(
