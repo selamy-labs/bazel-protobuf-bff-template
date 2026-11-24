@@ -18,6 +18,10 @@
    - `//clients/python/notes_cli:cli_test` (`build-test` leg) tests help, invalid invocations, create/get, `bff-dev` restart persistence, cross-subject `not_found`, server-side `invalid_argument` violations, `unauthenticated`, and `unavailable`.
    - `//web/e2e:cli_web_roundtrip_e2e_test` (`e2e` leg) launches the real `//tools/dev` stack and verifies bidirectional CLI↔Playwright browser create/read-by-ID, full stack restart persistence, and cross-subject refusal in both clients.
    - Because `web/app/` production UI is unchanged in `#29`, existing `#27` `web_video_evidence.sh` continues qualifying the web flow without redundant UI churn.
-5. **Follow-on slices (`#34`, `#30`, `#31`, `#32`)**:
-   - `#34`: Add `textual` to `python/requirements.{in,lock}` and add `//clients/python/notes_tui` reusing `//api:notes_py` with headless Pilot tests.
+5. **Shared Textual TUI reference (`#34`)**:
+   - Pin `textual==8.2.8` (MIT, pure-Python wheel graph with zero C extensions) in `python/requirements.{in,lock}` and `docs/provenance.md` under the shared `rules_python` `3.12` toolchain.
+   - Add `//clients/python/notes_tui` (`notes_tui_app.py`, `main.py`, `tui_test.py`, `README.md`) as a separate interactive entrypoint alongside `//clients/python/notes_cli`, reusing `//api:notes_py` (`NoteServiceClient`, `ConnectError`, `FieldViolation`) with fail-closed flag validation before terminal launch.
+   - Run `//clients/python/notes_tui:tui_test` headlessly in the `build-test` CI leg via Textual Pilot, verifying keyboard navigation (`Enter`, `Tab`, `Ctrl+L`, `Ctrl+R`, `Escape`), deterministic `loading -> success` and typed error transitions against a gated fake, and live `//bff/cmd/bff-dev` read, cross-subject `not_found`, `invalid_argument` violation, and `unauthenticated` paths.
+   - Downstream BFF apps that need an interactive terminal UI reuse this Textual pin and generated client pattern; native noninteractive CLI entrypoints continue to use their language's toolchain.
+6. **Follow-on native platform slices (`#30`, `#31`, `#32`)**:
    - `#30` / `#31` / `#32`: Keep Android, iOS, and desktop (Tauri 2 evaluated first) in isolated opt-in packages so base CI never depends on mobile or desktop SDKs.

@@ -83,6 +83,8 @@ Other entry points:
 | `tools/bootstrap/bazel.sh build //bff/cmd/bff:image` | The production server as an OCI layout, built only here; `:image_tarball` loads it into a runtime elsewhere                                           |
 | `tools/bootstrap/fresh_clone.sh`                     | Fresh-clone witness; `--hostile` also plants rc files and a real defect                                                                               |
 | `tools/bootstrap/bazel.sh run //tools/hooks:install` | Installs the pinned Git hooks; see [hooks](docs/quality/hooks.md)                                                                                     |
+| `tools/bootstrap/bazel.sh run //clients/python/notes_cli -- --help` | Thin noninteractive `absl-py` Notes CLI over generated `//api:notes_py` ([CLI usage](clients/python/notes_cli/README.md))                             |
+| `tools/bootstrap/bazel.sh run //clients/python/notes_tui -- --help` | Interactive Textual Notes TUI reusing `python/requirements.lock` and `//api:notes_py` ([TUI usage](clients/python/notes_tui/README.md))               |
 | `tools/bench/measure.sh`                             | Feedback-cost measurement of bootstrap, first verify, warm and edited runs, or of the hook stages with `--stages-only`; results go to `docs/budgets/` |
 
 `bazel` on your PATH is not used by the verifier. To run Bazel yourself with the same pin and rc

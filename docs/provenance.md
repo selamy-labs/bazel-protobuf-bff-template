@@ -527,11 +527,20 @@ The unchanged fallback module license is included at
 `docs/licenses/go-x509roots-BSD-3-Clause.txt` and attached to release artifacts. Runtime root data
 remain embedded in the static executable; no notice or certificate file is added to the image.
 
-## Python reference client toolchain and dependencies (`#29`)
+## Python reference client toolchain and dependencies (`#29`, `#34`)
 
-| Item                         | Identifier     | Version | License      | Scope                                  | Where pinned                                   |
-| ---------------------------- | -------------- | ------- | ------------ | -------------------------------------- | ---------------------------------------------- |
-| rules_python (Bzlmod)        | `rules_python` | 2.4.6   | Apache-2.0   | tools (Python 3.12 toolchain and pip)  | `MODULE.bazel`, `MODULE.bazel.lock`            |
-| Prebuilt protoc compiler     | `protoc`       | 36.2    | BSD-3-Clause | tools (build-time Python codegen)      | `MODULE.bazel` (per-platform sha256)           |
-| Abseil Python (`absl-py`)    | `absl-py`      | 2.5.1   | Apache-2.0   | reference Python CLI (`#29`)           | `python/requirements.lock` (hashes)            |
-| Protocol Buffers (`protobuf`)| `protobuf`     | 7.36.2  | BSD-3-Clause | generated Python bindings (`#29`)      | `python/requirements.lock` (hashes)            |
+| Item                            | Identifier          | Version | License      | Scope                                     | Where pinned                         |
+| ------------------------------- | ------------------- | ------- | ------------ | ----------------------------------------- | ------------------------------------ |
+| rules_python (Bzlmod)           | `rules_python`      | 2.4.6   | Apache-2.0   | tools (Python 3.12 toolchain and pip)     | `MODULE.bazel`, `MODULE.bazel.lock`  |
+| Prebuilt protoc compiler        | `protoc`            | 36.2    | BSD-3-Clause | tools (build-time Python codegen)         | `MODULE.bazel` (per-platform sha256) |
+| Abseil Python (`absl-py`)       | `absl-py`           | 2.5.1   | Apache-2.0   | reference Python CLI and TUI (`#29`, `#34`) | `python/requirements.lock` (hashes)  |
+| Protocol Buffers (`protobuf`)   | `protobuf`          | 7.36.2  | BSD-3-Clause | generated Python bindings (`#29`, `#34`)  | `python/requirements.lock` (hashes)  |
+| Textual (`textual`)             | `textual`           | 8.2.8   | MIT          | reference Python TUI (`#34`)              | `python/requirements.lock` (hashes)  |
+| Rich (`rich`)                   | `rich`              | 15.0.0  | MIT          | transitive dependency of `textual` (`#34`) | `python/requirements.lock` (hashes)  |
+| markdown-it-py                  | `markdown-it-py`    | 4.3.0   | MIT          | transitive dependency of `textual` (`#34`) | `python/requirements.lock` (hashes)  |
+| linkify-it-py                   | `linkify-it-py`     | 2.2.0   | MIT          | transitive dependency of `textual` (`#34`) | `python/requirements.lock` (hashes)  |
+| mdit-py-plugins                 | `mdit-py-plugins`   | 0.7.0   | MIT          | transitive dependency of `textual` (`#34`) | `python/requirements.lock` (hashes)  |
+| mdurl                           | `mdurl`             | 0.1.2   | MIT          | transitive dependency of `textual` (`#34`) | `python/requirements.lock` (hashes)  |
+| platformdirs                    | `platformdirs`      | 4.14.8  | MIT          | transitive dependency of `textual` (`#34`) | `python/requirements.lock` (hashes)  |
+| Pygments (`pygments`)           | `pygments`          | 2.21.0  | BSD-2-Clause | transitive dependency of `textual` (`#34`) | `python/requirements.lock` (hashes)  |
+| typing-extensions               | `typing-extensions` | 4.16.0  | PSF-2.0      | transitive dependency of `textual` (`#34`) | `python/requirements.lock` (hashes)  |

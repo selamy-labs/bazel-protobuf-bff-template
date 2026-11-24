@@ -10,8 +10,8 @@
 
 ## Phase 2: Shared Textual TUI Reference (`#34`, depends on `#29`)
 
-- [ ] T006 Pin `textual` in `python/requirements.{in,lock}` and `docs/provenance.md` under the shared `rules_python` toolchain.
-- [ ] T007 Add interactive Textual TUI entrypoint (`//clients/python/notes_tui`) reusing `//api:notes_py` with keyboard-driven `GetNote` (loading, success, typed RPC error), headless Textual Pilot tests under Bazel CI, terminal capture, and real-service transcript.
+- [x] T006 Pin `textual==8.2.8` and its pure-Python transitive graph in `python/requirements.{in,lock}` and `docs/provenance.md` under the shared `rules_python` toolchain. **Witness**: `//:inventory_test`, `//:bzlmod_policy_test`.
+- [x] T007 Add interactive Textual TUI entrypoint (`//clients/python/notes_tui`) reusing `//api:notes_py` with keyboard-driven `GetNote` (loading, success, actionable typed RPC error), headless Textual Pilot + live `bff-dev` tests (`//clients/python/notes_tui:tui_test` enrolled in `tools/checks/required_tests.txt`), terminal capture, real-service transcript, and adoption docs (`clients/python/notes_tui/README.md`, `README.md`, `specs/013-reference-clients/`). **Witness**: `//clients/python/notes_tui:tui_test`.
 
 ## Phase 3: Optional Native Mobile & Desktop Clients (`#30`, `#31`, `#32`)
 
