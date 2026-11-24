@@ -1,3 +1,8 @@
+[default]
+# Exact review-receipt IDs cited in specs/012-hosted-example/tasks.md (OT17-01, OT17-02);
+# typos splits the two-letter uppercase prefix from the digits and flags it as a typo.
+extend-ignore-re = ['\bOT17-0[12]\b']
+
 [files]
 # The vendored Spec Kit scaffold is pinned by hash manifest (specs/002-hermetic-skeleton R4) and is
 # not edited here; generated lockfiles are not prose, and neither is the local demo's recording.
