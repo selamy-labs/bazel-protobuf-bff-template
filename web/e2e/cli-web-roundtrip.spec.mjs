@@ -527,31 +527,75 @@ test("post-retirement port poll is observational and teardown handles spawn or s
   expect(missingHandle?.pid).toBeUndefined();
   await expect(missingHandle.stop()).resolves.toBeUndefined();
 
-  // 3. A rejected stop does not prevent teardown from cleaning up remaining acquired handles.
-  const survivingChild = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
-    detached: true,
-    stdio: ["ignore", "pipe", "pipe"],
-  });
-  let firstCleaned = false;
-  const firstHandle = {
-    stop: async () => {
-      await stopStack(
-        survivingChild,
-        `http://127.0.0.1:${stackEnv.ports.web}`,
-        `http://127.0.0.1:${stackEnv.ports.bff}`,
-        { termTimeoutMs: 500, killTimeoutMs: 500, portTimeoutMs: 200 },
-      );
-      firstCleaned = true;
-    },
+  // 3. A rejected stop does not prevent teardown from cleaning up remaining acquired handles,
+  // and the synthetic child probe keeps an independent bounded cleanup owner even if a helper aborts early.
+  const spawnProbeWithCustody = () => {
+    const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], {
+      detached: true,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stopPromise;
+    const stopChild = () => {
+      if (!stopPromise) {
+        stopPromise = stopStack(
+          child,
+          `http://127.0.0.1:${stackEnv.ports.web}`,
+          `http://127.0.0.1:${stackEnv.ports.bff}`,
+          { termTimeoutMs: 500, killTimeoutMs: 500, portTimeoutMs: 200 },
+        );
+      }
+      return stopPromise;
+    };
+    return { child, stopChild };
   };
+
   const failingSecondHandle = {
     stop: async () => {
       throw new Error("simulated second handle stop failure");
     },
   };
-  await expect(stopAllHandles([firstHandle, failingSecondHandle])).rejects.toThrow(
-    /simulated second handle stop failure/,
-  );
-  expect(firstCleaned).toBe(true);
-  expect(groupAlive(survivingChild.pid)).toBe(false);
+
+  // 3a. Production stopAllHandles retires the surviving child before fallback custody runs.
+  const primaryProbe = spawnProbeWithCustody();
+  try {
+    let firstCleaned = false;
+    const firstHandle = {
+      stop: async () => {
+        await primaryProbe.stopChild();
+        firstCleaned = true;
+      },
+    };
+    await expect(stopAllHandles([firstHandle, failingSecondHandle])).rejects.toThrow(
+      /simulated second handle stop failure/,
+    );
+    expect(firstCleaned).toBe(true);
+    expect(groupAlive(primaryProbe.child.pid)).toBe(false);
+  } finally {
+    await primaryProbe.stopChild();
+  }
+
+  // 3b. Independent custody retires the child even when a regression helper aborts on the first rejection.
+  const earlyAbortProbe = spawnProbeWithCustody();
+  const abortingStopAll = async (handles) => {
+    for (const handle of [...handles].reverse()) {
+      await handle.stop();
+    }
+  };
+  let abortProbeFirstCleaned = false;
+  try {
+    const firstHandle = {
+      stop: async () => {
+        await earlyAbortProbe.stopChild();
+        abortProbeFirstCleaned = true;
+      },
+    };
+    await expect(abortingStopAll([firstHandle, failingSecondHandle])).rejects.toThrow(
+      /simulated second handle stop failure/,
+    );
+    expect(abortProbeFirstCleaned).toBe(false);
+    expect(groupAlive(earlyAbortProbe.child.pid)).toBe(true);
+  } finally {
+    await earlyAbortProbe.stopChild();
+  }
+  expect(groupAlive(earlyAbortProbe.child.pid)).toBe(false);
 });
