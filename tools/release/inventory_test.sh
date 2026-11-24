@@ -71,7 +71,7 @@ fresh() {
 | none | `none` | 0 | none | tools | none |
 P
   printf "lockfileVersion: '9.0'\n\npackages:\n\n  left-pad@1.0.0:\n    resolution: {integrity: x}\n\n  vite@1.0.0:\n    resolution: {integrity: x}\n\nsnapshots:\n" >pnpm-lock.yaml
-  mkdir -p tools/browser tools/speckit tools/dev/record; printf 'DEBS = {\n}\n' >tools/browser/debs.bzl; : >tools/speckit/requirements.lock; : >tools/dev/record/requirements.lock
+  mkdir -p tools/browser tools/speckit tools/dev/record python; printf 'DEBS = {\n}\n' >tools/browser/debs.bzl; : >tools/speckit/requirements.lock; : >tools/dev/record/requirements.lock; : >python/requirements.lock
   git add -A; git -c user.name=a -c user.email=a@example.com commit -q -m one
 }
 failures=0
@@ -86,6 +86,7 @@ fresh; printf 'bazel_dep(name = "rules_oci", version = "2.0.0")\n' >>MODULE.baze
 fresh; replace go.mod $'\texample.org/dep v1.2.3' $'\texample.org/dep v1.2.3\n\texample.org/new v2.0.0'; expect "an unlisted Go module" 1
 fresh; replace package.json '"left-pad": "1.0.0"' '"left-pad": "1.0.0", "newpkg": "1"'; expect "an unlisted npm package" 1
 fresh; replace quality/multitool.lock.json '"yq": {}' '"yq": {}, "jq": {}'; expect "an unlisted pinned tool" 1
+fresh; printf 'unlisted-py==1.0.0\n' >python/requirements.lock; expect "an unlisted Python client dependency" 1
 fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | unresolved: no license file in the release |"; expect "an explicit unresolved license is a counted finding, not a pass claim" 0; grep -q 'measurement: inventory .* 1 licenses unresolved' "$T/out" || { echo "FAIL unresolved not counted"; failures=$((failures + 1)); }; grep -q 'every license named' "$T/out" && { echo "FAIL claimed every license named"; failures=$((failures + 1)); }
 fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 | unknown |"; expect "a bare unknown is neither a name nor a stated finding" 1
 fresh; replace docs/provenance.md "| dep | ${bt}example.org/dep${bt} | 1.2.3 | MIT |" "| dep | ${bt}example.org/dep${bt} | 1.2.3 |  |"; expect "an empty license cell" 1; grep -qi 'empty license cell' "$T/out" || { echo "FAIL empty cell not named"; failures=$((failures + 1)); }

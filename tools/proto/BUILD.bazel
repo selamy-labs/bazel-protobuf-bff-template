@@ -1,4 +1,50 @@
+load("@rules_python//python:defs.bzl", "py_binary")
+
 exports_files(
     ["probes_test.sh"],
     visibility = ["//api:__pkg__"],
+)
+
+config_setting(
+    name = "darwin_arm64",
+    constraint_values = [
+        "@platforms//os:macos",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+config_setting(
+    name = "linux_arm64",
+    constraint_values = [
+        "@platforms//os:linux",
+        "@platforms//cpu:arm64",
+    ],
+)
+
+alias(
+    name = "protoc",
+    actual = select({
+        ":darwin_arm64": "@protoc_darwin_arm64//:bin/protoc",
+        ":linux_arm64": "@protoc_linux_aarch64//:bin/protoc",
+        "//conditions:default": "@protoc_linux_x86_64//:bin/protoc",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+alias(
+    name = "well_known_protos",
+    actual = select({
+        ":darwin_arm64": "@protoc_darwin_arm64//:well_known_protos",
+        ":linux_arm64": "@protoc_linux_aarch64//:well_known_protos",
+        "//conditions:default": "@protoc_linux_x86_64//:well_known_protos",
+    }),
+    visibility = ["//visibility:public"],
+)
+
+py_binary(
+    name = "protoc_gen_connect_py",
+    srcs = ["protoc_gen_connect_py.py"],
+    main = "protoc_gen_connect_py.py",
+    visibility = ["//visibility:public"],
+    deps = ["@bff_pypi//protobuf"],
 )

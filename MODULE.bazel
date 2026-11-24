@@ -12,6 +12,7 @@ bazel_dep(name = "platforms", version = "1.1.0")
 bazel_dep(name = "rules_go", version = "0.64.2")
 bazel_dep(name = "rules_img", version = "0.3.26")
 bazel_dep(name = "rules_nodejs", version = "6.7.6")
+bazel_dep(name = "rules_python", version = "2.4.6")
 bazel_dep(name = "rules_shell", version = "0.8.0")
 bazel_dep(name = "tar.bzl", version = "0.10.4")
 
@@ -103,6 +104,24 @@ typescript = use_extension("@aspect_rules_ts//ts:extensions.bzl", "typescript")
 typescript.deps(version_from = "//:package.json")
 use_repo(typescript, "npm_typescript")
 
+# Pinned Python 3.12 toolchain and hash-locked PyPI dependencies for reference Python clients (#29, #34).
+rules_python_config = use_extension("@rules_python//python/extensions:config.bzl", "config")
+rules_python_config.explicit_init_py(default = True)
+
+python = use_extension("@rules_python//python/extensions:python.bzl", "python")
+python.toolchain(
+    is_default = True,
+    python_version = "3.12",
+)
+
+pip = use_extension("@rules_python//python/extensions:pip.bzl", "pip")
+pip.parse(
+    hub_name = "bff_pypi",
+    python_version = "3.12",
+    requirements_lock = "//python:requirements.lock",
+)
+use_repo(pip, "bff_pypi")
+
 # The one schema import the contract needs, at release v1.2.2 (spec 003 research R2).
 http_file = use_repo_rule("@bazel_tools//tools/build_defs/repo:http.bzl", "http_file")
 
@@ -156,6 +175,38 @@ http_file(
     downloaded_file_path = "terraform-provider-github_6.13.0_linux_amd64.zip",
     sha256 = "5dd05dee677f6ebdbed00cbb1b9be444ab2d1062d345cbc9ec50a47cb41b8622",
     urls = ["https://github.com/integrations/terraform-provider-github/releases/download/v6.13.0/terraform-provider-github_6.13.0_linux_amd64.zip"],
+)
+
+# Prebuilt static protoc v36.2 (matching PyPI protobuf 7.36.2) for build-time Python codegen (#29)
+# without requiring a host C++ toolchain.
+_PROTOC_BUILD_FILE = """exports_files(["bin/protoc"], visibility = ["//visibility:public"])
+
+filegroup(
+    name = "well_known_protos",
+    srcs = glob(["include/**/*.proto"]),
+    visibility = ["//visibility:public"],
+)
+"""
+
+http_archive(
+    name = "protoc_linux_x86_64",
+    build_file_content = _PROTOC_BUILD_FILE,
+    sha256 = "121f6c7afe1d4d0e3ea6aab9432038599250134cbf4474cb1167d2c7decd4278",
+    urls = ["https://github.com/protocolbuffers/protobuf/releases/download/v36.2/protoc-36.2-linux-x86_64.zip"],
+)
+
+http_archive(
+    name = "protoc_linux_aarch64",
+    build_file_content = _PROTOC_BUILD_FILE,
+    sha256 = "8b8f18bd2b30346efbc698dd5a73dd7c805f3ef8380f6dfc95c768f3f1852f6a",
+    urls = ["https://github.com/protocolbuffers/protobuf/releases/download/v36.2/protoc-36.2-linux-aarch_64.zip"],
+)
+
+http_archive(
+    name = "protoc_darwin_arm64",
+    build_file_content = _PROTOC_BUILD_FILE,
+    sha256 = "9cd98a532c5c5e0c4161314de0225de27e4c8a323917b6ea7b1b714d3ae23466",
+    urls = ["https://github.com/protocolbuffers/protobuf/releases/download/v36.2/protoc-36.2-osx-aarch_64.zip"],
 )
 
 browser_libs = use_repo_rule("//tools/browser:defs.bzl", "browser_libs")

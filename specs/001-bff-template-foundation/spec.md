@@ -425,6 +425,7 @@ strict; parallel-safe pairs are marked.
 | M9 | Quality baseline: every control measured, budgets that only ratchet stricter, gates with planted defects; mandatory for initiative closure (amendment of 2026-11-01) | M8 frozen | FR-019, FR-020, FR-026 | — |
 | M10 | Hosted example: a dedicated BFF-owned GCP project, Cloud Build CD, the spec 009 image by digest, a real verifier and store behind the ports, the same image serving static UI and Connect on one origin (superseding the historical Pages shape under spec009 T019); provider hosting remains optional to adopters, and never a requirement on template users | M8, M8a, and spec 010 US6 for the package | FR-030, spec 012 | #30 |
 | M11 | Optional worker-integration conformance | M6 (optional) | FR-031 | #29 |
+| M12 | Typed reference clients (`specs/013-reference-clients`): thin Python `absl-py` CLI + cross-client web round-trip (`#29`), shared Textual TUI (`#34`), and opt-in Android (`#30`), iOS (`#31`), and Desktop (`#32`) reference clients over the existing Notes contract | M4, M6, M10 local demo | spec `013-reference-clients` FR-001–FR-006 | `#28` (`#29`, `#34`, `#30`–`#32`), `#27`, `#21` |
 
 The **first implementation slice** is M1 → M4 with the minimal M5/M6 gates needed to keep them
 honest (pins, schema checks, suppression ban, single CI aggregate).
