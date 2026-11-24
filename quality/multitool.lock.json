@@ -298,5 +298,33 @@
         "cpu": "arm64"
       }
     ]
+  },
+  "gremlins": {
+    "binaries": [
+      {
+        "kind": "archive",
+        "url": "https://github.com/go-gremlins/gremlins/releases/download/v0.6.0/gremlins_0.6.0_linux_amd64.tar.gz",
+        "sha256": "b02a42e47935f891c9a411d68c07e211c7082609e79c2435b67c85ee9658c538",
+        "file": "gremlins",
+        "os": "linux",
+        "cpu": "x86_64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/go-gremlins/gremlins/releases/download/v0.6.0/gremlins_0.6.0_linux_arm64.tar.gz",
+        "sha256": "686542674e54559afb7e86d6994d342c19a856cfd970c315748989537936664c",
+        "file": "gremlins",
+        "os": "linux",
+        "cpu": "arm64"
+      },
+      {
+        "kind": "archive",
+        "url": "https://github.com/go-gremlins/gremlins/releases/download/v0.6.0/gremlins_0.6.0_darwin_arm64.tar.gz",
+        "sha256": "90de858ffad3eea5018e41cdf28747b7003966684b9420f4605eb10bdad0c301",
+        "file": "gremlins",
+        "os": "macos",
+        "cpu": "arm64"
+      }
+    ]
   }
 }

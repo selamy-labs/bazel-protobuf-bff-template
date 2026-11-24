@@ -269,6 +269,30 @@ T = [
             ),
         ],
     ),
+    (
+        "gremlins",
+        "gremlins",
+        [
+            (
+                "linux",
+                "x86_64",
+                f"{G}/go-gremlins/gremlins/releases/download/v0.6.0/gremlins_0.6.0_linux_amd64.tar.gz",
+                "b02a42e47935f891c9a411d68c07e211c7082609e79c2435b67c85ee9658c538",
+            ),
+            (
+                "linux",
+                "arm64",
+                f"{G}/go-gremlins/gremlins/releases/download/v0.6.0/gremlins_0.6.0_linux_arm64.tar.gz",
+                "686542674e54559afb7e86d6994d342c19a856cfd970c315748989537936664c",
+            ),
+            (
+                "macos",
+                "arm64",
+                f"{G}/go-gremlins/gremlins/releases/download/v0.6.0/gremlins_0.6.0_darwin_arm64.tar.gz",
+                "90de858ffad3eea5018e41cdf28747b7003966684b9420f4605eb10bdad0c301",
+            ),
+        ],
+    ),
 ]
 out: dict[str, Any] = {
     "$schema": "https://raw.githubusercontent.com/theoremlp/rules_multitool/main/lockfile.schema.json"

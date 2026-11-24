@@ -13,6 +13,8 @@ MODULE_TOOLS = {
     "FLOORS": str(Label("//checks/coverage:floors")),
     "FROM_BASE": str(Label("//adapters:from_base.sh")),
     "GITLEAKS": str(Label("//tools:gitleaks")),
+    "GREMLINS": str(Label("//tools:gremlins")),
+    "MUTATION": str(Label("//checks/mutation:mutation_bin")),
     "PIN": str(Label("//hooks:pin.sh")),
     "SHELLCHECK": str(Label("//tools:shellcheck")),
     "SUPPRESSION": str(Label("//checks/suppression:suppression-ban")),

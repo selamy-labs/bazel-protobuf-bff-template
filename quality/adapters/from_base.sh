@@ -38,8 +38,16 @@ case "$evaluator" in
     default_contract=quality/complexity_budgets.json
     option=--budgets
     ;;
+  mutation)
+    id=mutation-from-base
+    target=@bff_template_quality//checks/mutation:mutation_bin
+    binary=bazel-bin/external/bff_template_quality+/checks/mutation/mutation_bin_/mutation_bin
+    package=quality/checks/mutation
+    default_contract=quality/mutation_floors.json
+    option=--floors
+    ;;
   *)
-    echo "from_base: unknown evaluator '$evaluator'; floors or complexity" >&2
+    echo "from_base: unknown evaluator '$evaluator'; floors, complexity, or mutation" >&2
     exit 11
     ;;
 esac
@@ -71,9 +79,9 @@ else
   git -C "$root" worktree add --quiet --detach "$worktree" "$base"
 fi
 
-if [[ "$evaluator" == complexity && ! -d "$worktree/$package" ]]; then
-  # The base predates the comparator's anchor. Nothing can compare the budgets, and the receipt says so.
-  echo "$id: the base $base holds no complexity comparator; compared nothing. A base at or after the comparator's anchor compares the budgets"
+if [[ ( "$evaluator" == complexity || "$evaluator" == mutation ) && ! -d "$worktree/$package" ]]; then
+  # The base predates the comparator's anchor. Nothing can compare the budgets/floors, and the receipt says so.
+  echo "$id: the base $base holds no $evaluator comparator; compared nothing. A base at or after the comparator's anchor compares them"
   echo "measurement: $id compared nothing: the base $base holds no comparator"
   exit 0
 fi
@@ -95,7 +103,7 @@ if [[ "$contract" != "$default_contract" ]]; then named=("$option=$contract"); f
 rc=0
 "$evaluator_bin" compare "--base-root=$worktree" "--root=$root" "${named[@]}" </dev/null >"$state/$id.out" || rc=$?
 cat "$state/$id.out"
-if [[ "$evaluator" == complexity && ( "$rc" -eq 0 || "$rc" -eq 1 ) ]]; then
+if [[ ( "$evaluator" == complexity || "$evaluator" == mutation ) && ( "$rc" -eq 0 || "$rc" -eq 1 ) ]]; then
   # The comparator's verdict, as a measurement the receipt keeps whatever the result.
   echo "measurement: $id compared with the base $base: $(tail -n 1 "$state/$id.out")"
 fi

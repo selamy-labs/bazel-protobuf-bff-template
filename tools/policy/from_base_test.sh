@@ -38,15 +38,23 @@ printf '%s\n' "\$@" >"$work/complexity"
 exit "\$(cat "$work/complexity-exit" 2>/dev/null || echo 0)"
 INNER
 chmod +x bazel-bin/external/bff_template_quality+/checks/complexity/complexity_bin_/complexity_bin
+mkdir -p bazel-bin/external/bff_template_quality+/checks/mutation/mutation_bin_
+cat >bazel-bin/external/bff_template_quality+/checks/mutation/mutation_bin_/mutation_bin <<'INNER'
+#!/usr/bin/env bash
+printf '%s\n' "\$@" >"$work/mutation"
+exit "\$(cat "$work/mutation-exit" 2>/dev/null || echo 0)"
+INNER
+chmod +x bazel-bin/external/bff_template_quality+/checks/mutation/mutation_bin_/mutation_bin
 STUB
 chmod +x "$repo/tools/bootstrap/bazel.sh"
 echo base >"$repo/marker"
 git -C "$repo" add -A
 git -C "$repo" commit -q -m base
 base="$(git -C "$repo" rev-parse HEAD)"
-# A later base that holds the comparator's package, for the complexity cases.
-mkdir -p "$repo/quality/checks/complexity"
+# A later base that holds the comparator packages, for the complexity and mutation cases.
+mkdir -p "$repo/quality/checks/complexity" "$repo/quality/checks/mutation"
 echo comparator >"$repo/quality/checks/complexity/keep"
+echo comparator >"$repo/quality/checks/mutation/keep"
 git -C "$repo" add -A
 git -C "$repo" commit -q -m "base with the comparator"
 anchored="$(git -C "$repo" rev-parse HEAD)"
@@ -158,8 +166,39 @@ run_cx "$anchored"
 [[ $rc -eq 11 ]] || fail "a comparator that could not judge: exit $rc, want 11"
 grep -qF 'complexity-from-base: the base'"'"'s evaluator could not judge' "$work/out" || fail "the complexity refusal is not named as its own check"
 rm -f "$work/complexity-exit"
+
+# The mutation comparator from the base (spec 011 T013; #10): pre-anchor compares nothing; anchored compares floors.
+floors=quality/mutation_floors.json
+run_mut() { rc=0; bash "$script" "$1" "$repo" full "$floors" tools/bootstrap/bazel.sh mutation </dev/null >"$work/out" 2>&1 || rc=$?; }
+rm -f "$work/mutation"
+run_mut "$base"
+[[ $rc -eq 0 ]] || fail "mutation before the anchor: exit $rc"
+grep -qF 'holds no mutation comparator; compared nothing' "$work/out" || fail "a base without the mutation comparator did not say so"
+grep -qF "measurement: mutation-from-base compared nothing: the base $base holds no comparator" "$work/out" || fail "mutation compared nothing is not a measurement"
+[[ ! -e "$work/mutation" ]] || fail "a base without the mutation comparator ran an evaluator"
+run_mut "$anchored"
+[[ $rc -eq 0 ]] || { fail "mutation control: exit $rc"; cat "$work/out" >&2; }
+grep -qxF '@bff_template_quality//checks/mutation:mutation_bin' "$work/built" || fail "not the mutation comparator target"
+grep -qF "measurement: mutation-from-base compared with the base $anchored:" "$work/out" || fail "the mutation comparator's verdict is not a measurement"
+grep -qxF -- "--base-root=$worktree" "$work/mutation" || fail "the mutation comparator was not given the base's tree"
+grep -qxF -- "--root=$repo" "$work/mutation" || fail "the mutation comparator was not given the tested tree"
+grep -qx -- '--floors=quality/mutation_floors.json' "$work/mutation" && fail "the default floors path was named to an older comparator"
+floors=policy/floors.json
+run_mut "$anchored"
+[[ $rc -eq 0 ]] || fail "a host's mutation floors: exit $rc"
+grep -qx -- '--floors=policy/floors.json' "$work/mutation" || fail "the host's mutation floors did not reach the comparator"
+floors=quality/mutation_floors.json
+echo 1 >"$work/mutation-exit"
+run_mut "$anchored"
+[[ $rc -eq 1 ]] || fail "a lowered mutation floor: exit $rc, want 1"
+echo 2 >"$work/mutation-exit"
+run_mut "$anchored"
+[[ $rc -eq 11 ]] || fail "a mutation comparator that could not judge: exit $rc, want 11"
+grep -qF 'mutation-from-base: the base'"'"'s evaluator could not judge' "$work/out" || fail "the mutation refusal is not named as its own check"
+rm -f "$work/mutation-exit"
+
 rc=0
-bash "$script" "$base" "$repo" full "$budgets" tools/bootstrap/bazel.sh mutation </dev/null >"$work/out" 2>&1 || rc=$?
+bash "$script" "$base" "$repo" full "$budgets" tools/bootstrap/bazel.sh unknown-evaluator </dev/null >"$work/out" 2>&1 || rc=$?
 [[ $rc -eq 11 ]] || fail "an unknown evaluator: exit $rc, want 11"
 
 [[ $failures -eq 0 ]] && echo "ok   from-base"

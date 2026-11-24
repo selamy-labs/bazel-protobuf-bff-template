@@ -6,6 +6,7 @@ QUALITY_TOOLS = MODULE_TOOLS | {
     "BASELINE": "@bff_template_quality//proto/cmd:baseline",
     "BUF": "@bff_template_quality//tools:buf",
     "BUF_CONFIG_FILE": "@bff_template_quality//proto:buf.yaml",
+    "GO": "@go_sdk//:bin/go",
     "GOFMT": "@go_sdk//:bin/gofmt",
     "GOVULNCHECK": "@bff_template_quality//tools:govulncheck",
     "JSCPD": "//:jscpd",

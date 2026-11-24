@@ -1,0 +1,21 @@
+load("@rules_go//go:def.bzl", "go_test")
+
+# Real pinned gremlins + pinned Go SDK witness (spec 011 FR-002, FR-010, T008, T013; #10),
+# hosted in the root module because this module pins @go_sdk.
+go_test(
+    name = "mutation_witness_test",
+    size = "medium",
+    srcs = ["witness_test.go"],
+    data = [
+        "@bff_template_quality//checks/mutation:mutation_bin",
+        "@bff_template_quality//tools:gremlins",
+        "@go_sdk//:bin/go",
+        "@go_sdk//:files",
+        "@go_sdk//:host_compatible_root_file",
+    ],
+    env = {
+        "GO_BIN": "$(rlocationpath @go_sdk//:bin/go)",
+        "GREMLINS_BIN": "$(rlocationpath @bff_template_quality//tools:gremlins)",
+        "MUTATION_BIN": "$(rlocationpath @bff_template_quality//checks/mutation:mutation_bin)",
+    },
+)

@@ -2,6 +2,8 @@ exports_files(
     [
         "complexity_budgets.json",
         "multitool.lock.json",
+        "mutation_equivalents.json",
+        "mutation_floors.json",
         "registry.textproto",
         "rules.textproto",
     ],
