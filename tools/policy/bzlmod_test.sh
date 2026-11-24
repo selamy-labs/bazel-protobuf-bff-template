@@ -14,7 +14,7 @@ fi
 grep -q '^bzlmod-policy third_party/WORKSPACE.bazel:1: ' <<<"$out" || { echo "FAIL: diagnostic: $out" >&2; exit 1; }
 echo "ok   bzlmod-policy defect and corrected"
 
-for path in api/notes.pb.go api/v1connect/notes.connect.go web/gen/notes_pb.ts; do
+for path in api/notes.pb.go api/v1connect/notes.connect.go web/gen/notes_pb.ts api/notes_pb2.py api/notes_connect.py; do
   printf 'MODULE.bazel\0%s\0' "$path" >"$work/bad"
   if out="$("$policy" "$work/bad")"; then
     echo "FAIL: generated file accepted: $path" >&2

@@ -145,6 +145,38 @@ playwright.playwright_test(
     },
 )
 
+# Cross-client Python CLI <-> browser Notes round-trip, restart persistence, and refusal (#29).
+playwright.playwright_test(
+    name = "cli_web_roundtrip_e2e_test",
+    size = "large",
+    args = [
+        "test",
+        "--config",
+        "web/e2e/playwright.config.mjs",
+        "cli-web-roundtrip.spec.mjs",
+    ],
+    data = BROWSER_DATA + [
+        "cli-web-roundtrip.spec.mjs",
+        "issuer.mjs",
+        "playwright.config.mjs",
+        "stack.mjs",
+        "//:node_modules/@playwright/test",
+        "//bff/cmd/bff-dev",
+        "//clients/python/notes_cli",
+        "//tools/dev:dev_sh",
+        "//tools/dev:profile_json",
+        "//tools/dev/profile",
+        "//web/app:dist_dev",
+        "//web/serve",
+    ],
+    env = BROWSER_ENV | {
+        "DEV_SH": "$(rootpath //tools/dev:dev_sh)",
+        "DEV_ARGS": "$(rootpath //bff/cmd/bff-dev) $(rootpath //web/serve) $(rootpath //web/app:dist_dev) $(rootpath //tools/dev/profile) $(rootpath //tools/dev:profile_json)",
+        "NOTES_CLI_BIN": "$(rootpath //clients/python/notes_cli)",
+    },
+    no_copy_to_bin = ["//clients/python/notes_cli:main.py"],
+)
+
 # The defect witness (spec 005 research R5): the same specs against a server whose error mapping is
 # broken in one place. The chain repeats only what must be rebuilt around the edited file.
 genrule(

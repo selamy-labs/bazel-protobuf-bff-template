@@ -1,0 +1,6 @@
+"""Shared Bzlmod rules_python dependency lock for reference Python clients (#29, #34)."""
+
+exports_files([
+    "requirements.in",
+    "requirements.lock",
+])

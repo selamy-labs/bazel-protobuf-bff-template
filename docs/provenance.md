@@ -161,6 +161,7 @@ analyzers and never link here.
 | Family                        | Inputs                           | Generators                                                              | Outputs, untracked                                               |
 | ----------------------------- | -------------------------------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | Protobuf to Go and TypeScript | `api/**/*.proto`                 | buf, protoc-gen-go, protoc-gen-connect-go, protoc-gen-es, protovalidate | Go and TypeScript packages under `bazel-bin`                     |
+| Protobuf to Python            | `api/**/*.proto`                 | protoc, `tools/proto/protoc_gen_connect_py.py`, protovalidate           | Python `*_pb2.py` and `*_connect.py` packages under `bazel-bin`  |
 | Pins                          | upstream release metadata        | `tools/pins/gen_multitool_lock.py`, `tools/pins/gen_browser_libs.py`    | `quality/multitool.lock.json`, `tools/browser/debs.bzl`, tracked |
 | Inventory appendices          | lock files and fetched artifacts | `tools/release/inventory_tables.py`                                     | the generated sections below, tracked                            |
 
@@ -525,3 +526,12 @@ The production command imports the fallback package; shared libraries do not reg
 The unchanged fallback module license is included at
 `docs/licenses/go-x509roots-BSD-3-Clause.txt` and attached to release artifacts. Runtime root data
 remain embedded in the static executable; no notice or certificate file is added to the image.
+
+## Python reference client toolchain and dependencies (`#29`)
+
+| Item                         | Identifier     | Version | License      | Scope                                  | Where pinned                                   |
+| ---------------------------- | -------------- | ------- | ------------ | -------------------------------------- | ---------------------------------------------- |
+| rules_python (Bzlmod)        | `rules_python` | 2.4.6   | Apache-2.0   | tools (Python 3.12 toolchain and pip)  | `MODULE.bazel`, `MODULE.bazel.lock`            |
+| Prebuilt protoc compiler     | `protoc`       | 36.2    | BSD-3-Clause | tools (build-time Python codegen)      | `MODULE.bazel` (per-platform sha256)           |
+| Abseil Python (`absl-py`)    | `absl-py`      | 2.5.1   | Apache-2.0   | reference Python CLI (`#29`)           | `python/requirements.lock` (hashes)            |
+| Protocol Buffers (`protobuf`)| `protobuf`     | 7.36.2  | BSD-3-Clause | generated Python bindings (`#29`)      | `python/requirements.lock` (hashes)            |

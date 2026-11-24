@@ -10,7 +10,7 @@ if [[ -n "$found" ]]; then
   done <<<"$found"
   exit 1
 fi
-generated="$(tr '\0' '\n' <"$1" | grep -E '(\.pb\.go|\.connect\.go|_pb\.ts)$' || true)"
+generated="$(tr '\0' '\n' <"$1" | grep -E '(\.pb\.go|\.connect\.go|_pb\.ts|_pb2\.py|_connect\.py)$' || true)"
 if [[ -n "$generated" ]]; then
   while IFS= read -r path; do
     echo "generated-code $path:1: generated code comes from the build graph; delete this file (rerun: tools/verify.sh)"

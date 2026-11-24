@@ -1,0 +1,33 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_test")
+
+exports_files(
+    ["main.py"],
+    visibility = ["//web/e2e:__pkg__"],
+)
+
+py_binary(
+    name = "notes_cli",
+    srcs = ["main.py"],
+    main = "main.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        "//api:notes_py",
+        "@bff_pypi//absl_py",
+        "@bff_pypi//protobuf",
+    ],
+)
+
+py_test(
+    name = "cli_test",
+    size = "medium",
+    srcs = ["cli_test.py"],
+    data = [
+        ":notes_cli",
+        "//bff/cmd/bff-dev",
+    ],
+    env = {
+        "BFF_DEV_BIN": "$(rootpath //bff/cmd/bff-dev)",
+        "NOTES_CLI_BIN": "$(rootpath :notes_cli)",
+    },
+    main = "cli_test.py",
+)
