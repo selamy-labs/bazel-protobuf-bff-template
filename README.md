@@ -100,6 +100,7 @@ isolation, use `tools/bootstrap/bazel.sh`.
    [acceptance matrix](specs/001-bff-template-foundation/acceptance-matrix.md) and
    [issue map](specs/001-bff-template-foundation/issue-map.md)
 6. [Provenance](docs/provenance.md) and [public-release review](docs/public-release-review.md)
+7. [Contributing](CONTRIBUTING.md) and [canonical testing standard](docs/quality/test-standard.md)
 
 ## Spec Kit
 
