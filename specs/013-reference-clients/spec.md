@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-23
 
-**Status**: In progress (`#29` CLI + web round-trip slice active; `#34`, `#30`, `#31`, `#32` planned). Traces to [001-bff-template-foundation](../001-bff-template-foundation/spec.md) (Milestone `M12`), Epic `#28`.
+**Status**: In progress (`#29` CLI + web round-trip merged; `#34` Textual TUI active; `#30`, `#31`, `#32` planned). Traces to [001-bff-template-foundation](../001-bff-template-foundation/spec.md) (Milestone `M12`), Epic `#28`.
 
 ## Scope and Boundaries
 
@@ -35,7 +35,9 @@ Make this repository a neutral starting point for thin, typed reference clients 
 
 ### US2 (P2 — `#34`): Shared Textual TUI Reference
 
-Pins Textual in the same Bzlmod `rules_python` toolchain and `python/requirements.lock`, provides a separate interactive entrypoint calling `//api:notes_py`, supports keyboard-driven `GetNote` (loading, success, actionable typed RPC error), and runs headless Textual Pilot tests under Bazel CI.
+1. **Shared toolchain & separate interactive entrypoint**: Pins `textual==8.2.8` in the same Bzlmod `rules_python` toolchain and `python/requirements.lock` as `#29`, exposing `//clients/python/notes_tui` separately from the noninteractive `//clients/python/notes_cli` entrypoint over the same build-time generated `//api:notes_py` client and configurable `--endpoint` / auth flags.
+2. **Keyboard-driven `GetNote` lifecycle**: Pressing `Enter` in the note ID input (or navigating via `Tab`, `Ctrl+L`, `Ctrl+R`, `Escape`) transitions visibly from `idle` -> `loading` -> `success` (rendering `name`, `title`, `body`, `create_time`) or actionable typed `ConnectError` (clearing any stale note display, surfacing code, message, decoded `buf.validate.Violations`, and next-step hint). Domain validation, persistence, and subject isolation stay authoritative in the Go BFF.
+3. **Headless Pilot verification & downstream adoption**: `//clients/python/notes_tui:tui_test` runs Textual Pilot tests headlessly under Bazel CI against both a realistic gated fake and live `//bff/cmd/bff-dev`. Downstream BFF apps needing an interactive terminal UI reuse this Textual framework and `//api:notes_py` client pattern, while native noninteractive CLI entrypoints continue to use their language's own toolchain.
 
 ### US3 (P2 — `#30`, `#31`, `#32`): Native Mobile and Desktop Reference Clients
 

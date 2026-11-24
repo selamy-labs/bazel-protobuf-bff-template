@@ -1,0 +1,46 @@
+load("@rules_python//python:defs.bzl", "py_binary", "py_library", "py_test")
+
+py_library(
+    name = "notes_tui_app",
+    srcs = ["notes_tui_app.py"],
+    imports = ["."],
+    visibility = ["//visibility:public"],
+    deps = [
+        "//api:notes_py",
+        "@bff_pypi//protobuf",
+        "@bff_pypi//textual",
+    ],
+)
+
+py_binary(
+    name = "notes_tui",
+    srcs = ["main.py"],
+    main = "main.py",
+    visibility = ["//visibility:public"],
+    deps = [
+        ":notes_tui_app",
+        "//api:notes_py",
+        "@bff_pypi//absl_py",
+    ],
+)
+
+py_test(
+    name = "tui_test",
+    size = "medium",
+    srcs = ["tui_test.py"],
+    data = [
+        ":notes_tui",
+        "//bff/cmd/bff-dev",
+    ],
+    env = {
+        "BFF_DEV_BIN": "$(rootpath //bff/cmd/bff-dev)",
+        "NOTES_TUI_BIN": "$(rootpath :notes_tui)",
+    },
+    main = "tui_test.py",
+    deps = [
+        ":notes_tui_app",
+        "//api:notes_py",
+        "@bff_pypi//protobuf",
+        "@bff_pypi//textual",
+    ],
+)
