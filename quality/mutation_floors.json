@@ -1,0 +1,42 @@
+{
+  "measured_at": "c5fb57d1949608ce90d7b6d9470409f77a945832",
+  "equivalents": "quality/mutation_equivalents.json",
+  "timeout_coefficient": 100,
+  "packages": [
+    {
+      "name": "bff/app",
+      "module": "example.com/bfftemplate",
+      "go_version": "1.27.4",
+      "package": "./bff/app",
+      "sources": [
+        "bff/app",
+        "bff/ports",
+        "bff/adapters/memory"
+      ],
+      "floor": 100
+    },
+    {
+      "name": "bff/adapters/memory",
+      "module": "example.com/bfftemplate",
+      "go_version": "1.27.4",
+      "package": "./bff/adapters/memory",
+      "sources": [
+        "bff/adapters/memory",
+        "bff/ports",
+        "bff/ports/porttest"
+      ],
+      "floor": 100
+    },
+    {
+      "name": "quality/checks/command",
+      "module": "github.com/selamy-labs/bazel-protobuf-bff-template/quality",
+      "go_version": "1.27.4",
+      "package": "./checks/command",
+      "strip_prefix": "quality/",
+      "sources": [
+        "quality/checks/command"
+      ],
+      "floor": 100
+    }
+  ]
+}

@@ -1,0 +1,42 @@
+load("@rules_go//go:def.bzl", "go_binary", "go_library", "go_test")
+
+go_library(
+    name = "mutation",
+    srcs = [
+        "config.go",
+        "evaluate.go",
+        "runner.go",
+    ],
+    importpath = "github.com/selamy-labs/bazel-protobuf-bff-template/quality/checks/mutation",
+    visibility = ["//visibility:public"],
+)
+
+go_test(
+    name = "mutation_test",
+    size = "small",
+    srcs = ["mutation_test.go"],
+    embed = [":mutation"],
+)
+
+go_binary(
+    name = "mutation_bin",
+    srcs = ["cmd/mutation/main.go"],
+    visibility = ["//visibility:public"],
+    deps = [
+        ":mutation",
+        "//checks/command",
+    ],
+)
+
+go_test(
+    name = "mutation_cmd_test",
+    size = "small",
+    srcs = [
+        "cmd/mutation/main.go",
+        "cmd/mutation/main_test.go",
+    ],
+    deps = [
+        ":mutation",
+        "//checks/command",
+    ],
+)

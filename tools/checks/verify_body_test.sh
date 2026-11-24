@@ -100,14 +100,18 @@ stub "$tree/tools/speckit/bootstrap.sh" speckit-provenance
 stub "$work/bin/FROM_BASE" floors-from-base
 sed -i "\$i [[ \"\${6:-floors}\" == complexity && \"\$(cat \"$work/fail\" 2>/dev/null)\" == complexity-from-base ]] && { echo \"stub failure: complexity-from-base\"; exit 1; }" "$work/bin/FROM_BASE"
 sed -i "\$i [[ \"\${6:-floors}\" == complexity ]] && echo \"measurement: complexity-from-base compared with the base: stub\"" "$work/bin/FROM_BASE"
+sed -i "\$i [[ \"\${6:-floors}\" == mutation && \"\$(cat \"$work/fail\" 2>/dev/null)\" == mutation-from-base ]] && { echo \"stub failure: mutation-from-base\"; exit 1; }" "$work/bin/FROM_BASE"
+sed -i "\$i [[ \"\${6:-floors}\" == mutation ]] && echo \"measurement: mutation-from-base compared with the base: stub\"" "$work/bin/FROM_BASE"
 stub "$work/bin/RELEASE" catalog-definitions
 stub "$work/bin/SUPPRESSION" suppression-ban
 stub "$work/bin/FLOORS" coverage-floor
 sed -i '$i echo "measurement: stub: 100.0% statements (1 of 1), floor 0.0%, branches unmeasured"' "$work/bin/FLOORS"
 stub "$work/bin/COMPLEXITY" complexity
+stub "$work/bin/MUTATION" mutation
 stub "$work/bin/DUPLICATION" duplication
 sed -i '$i echo "measurement: duplication 1 files compared at threshold 100; 0 candidate clone lines; stub"' "$work/bin/DUPLICATION"
 sed -i '$i echo "measurement: complexity 1 files measured, 0 excluded, 1 functions; max cognitive 0, max cyclomatic 1; stub"' "$work/bin/COMPLEXITY"
+sed -i '$i echo "measurement: mutation 1 packages, 1/1 killed (100.0%), 0 equivalent, 0 timed-out, 0 not-covered; floors measured at stub"' "$work/bin/MUTATION"
 cat >"$work/bin/adapter" <<STUB
 #!/usr/bin/env bash
 if [[ "\$1" == "\$(cat "$work/hang" 2>/dev/null)" ]]; then
@@ -126,7 +130,7 @@ tools=()
 while read -r name; do
   if [[ "$name" == TEST_EVIDENCE ]]; then
     cp "$PWD/${EVIDENCE:?}" "$work/bin/$name"
-  elif [[ "$name" != SUPPRESSION && "$name" != FLOORS && "$name" != FROM_BASE && "$name" != RELEASE && "$name" != COMPLEXITY && "$name" != DUPLICATION ]]; then
+  elif [[ "$name" != SUPPRESSION && "$name" != FLOORS && "$name" != FROM_BASE && "$name" != RELEASE && "$name" != COMPLEXITY && "$name" != MUTATION && "$name" != DUPLICATION ]]; then
     printf '#!/bin/sh\necho "1.0"\n' >"$work/bin/$name"
     chmod +x "$work/bin/$name"
   fi

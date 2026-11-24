@@ -23,6 +23,8 @@ sh_test(
         "//:prek.toml",
         "//:quality",
         "@bff_template_quality//:complexity_budgets.json",
+        "@bff_template_quality//:mutation_equivalents.json",
+        "@bff_template_quality//:mutation_floors.json",
         "@bff_template_quality//:registry.textproto",
         "@bff_template_quality//:rules.textproto",
         "@bff_template_quality//adapters:native.sh",

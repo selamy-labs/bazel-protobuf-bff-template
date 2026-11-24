@@ -17,6 +17,7 @@ alias(
         "buf",
         "buildifier",
         "gitleaks",
+        "gremlins",
         "prek",
         "ruff",
         "shellcheck",

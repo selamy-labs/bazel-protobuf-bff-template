@@ -50,8 +50,8 @@ new_repo() {
   if [[ ! -e "$dir/.git" ]]; then git -C "$dir" init -q -b main; fi
   cp "$source_root/prek.toml" "$source_root/.gitleaks.toml" "$source_root/_typos.toml" "$dir/"
   cp "$source_root/tools/hooks/stage.sh" "$dir/tools/hooks/"
-  # The complexity budgets are a policy input the check reads from the snapshot (spec 011 FR-004).
-  cp "$(dirname "$registry")/complexity_budgets.json" "$dir/quality/"
+  # The complexity budgets and mutation floors are policy inputs the checks read from the snapshot (spec 011 FR-004).
+  cp "$(dirname "$registry")/complexity_budgets.json" "$(dirname "$registry")/mutation_floors.json" "$(dirname "$registry")/mutation_equivalents.json" "$dir/quality/"
   cp "$source_root/tools/hooks/fixture_bazel.sh" "$dir/tools/bootstrap/bazel.sh"
   printf '%s\n' "$runner" "$catalog" "$registry" "$adapter" "$source_root" "${tools[@]}" >"$dir/tools/bootstrap/bazel.config"
   echo vendored >"$dir/tools/speckit/vendored.txt"

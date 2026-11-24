@@ -15,7 +15,10 @@ tools { name: "DUPLICATION" }
 tools { name: "FLOORS" }
 tools { name: "FROM_BASE" }
 tools { name: "GITLEAKS" version_args: "--version" }
+tools { name: "GO" version_args: "version" }
 tools { name: "GOFMT" }
+tools { name: "GREMLINS" version_args: "--version" }
+tools { name: "MUTATION" }
 tools { name: "PIN" }
 tools { name: "PRETTIER" }
 tools { name: "SHELLCHECK" version_args: "--version" }
@@ -239,6 +242,42 @@ checks {
   needs_base: true
   summary: true
   command: ["{FROM_BASE}", "{base}", "{root}", "{isolation}", "quality/complexity_budgets.json", "{bazel}", "complexity"]
+  witness: "//:from_base_test"
+}
+
+# Go mutation testing over declared domain/policy packages (spec 011 FR-010, T008; #10): runs pristine
+# tests first, then pinned gremlins offline with all 11 mutators enabled, verifying floors and reviewed
+# equivalent-mutant proofs. Whole-package context, so full only.
+checks {
+  id: "mutation"
+  definition: "checks/mutation"
+  definition: "checks/command"
+  definition: "multitool.lock.json"
+  tool: "MUTATION"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 600
+  summary: true
+  command: ["{MUTATION}", "check", "--root={root}", "--gremlins={GREMLINS}", "--go={GO}"]
+  witness: "//tools/checks/mutation:mutation_witness_test"
+}
+
+# Mutation floors compared by the base's own comparator (spec 011 FR-004, T013; #10): a lowered floor or
+# removed package is refused. A base that predates the comparator compares nothing and says so.
+checks {
+  id: "mutation-from-base"
+  definition: "adapters/from_base.sh"
+  definition: "checks/mutation"
+  definition: "checks/command"
+  stages: [STAGE_FULL]
+  classification: CLASSIFICATION_GUARANTEE
+  kind: KIND_NATIVE
+  timeout_seconds: 900
+  exclusive: true
+  needs_base: true
+  summary: true
+  command: ["{FROM_BASE}", "{base}", "{root}", "{isolation}", "quality/mutation_floors.json", "{bazel}", "mutation"]
   witness: "//:from_base_test"
 }
 
