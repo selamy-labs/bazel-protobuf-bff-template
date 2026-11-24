@@ -146,6 +146,33 @@ Rationale: every component a template ships is a component every consumer mainta
 - Upstream Relentless CI issues own their implementations; this repository consumes their outputs
   and MUST NOT duplicate active issue work.
 
+## Testing Standard
+
+Every test suite in this repository converges on one canonical standard, documented in
+[docs/quality/test-standard.md](../../docs/quality/test-standard.md) and
+[CONTRIBUTING.md](../../CONTRIBUTING.md):
+
+1. **AAA and one assertion per test case**: Arrange, Act, and Assert MUST be visibly separated,
+   with exactly one assertion per test case. Several facts mean several named cases; table-driven
+   subtests are encouraged with one assertion per case.
+2. **Property-based testing by default for invariants**: wherever behavior expresses an invariant
+   (round-trip, idempotence, ordering, totality, fail-closed rejection, model equivalence), tests
+   MUST use the language's pinned property-testing library (`testing/quick`, `rapid`, or `gopter`
+   in Go; `fast-check` in TypeScript; `Hypothesis` in Python once pinned) with generators covering
+   the real input space and reproducible seeds.
+3. **All mutants killed with a ratcheting floor**: mutation testing targets a 100% kill score.
+   Once a package's mutation floor is measured and recorded, each change ratchets the floor up to
+   the achieved score and MUST NOT lower it (Principle V). The only permitted survivors are proven
+   *equivalent* mutants (including proven unreachability only when it establishes behavioral
+   equivalence under this same proof requirement), each recorded in a reviewed equivalents file
+   with an ID, exact source location, and a one-line proof. Blanket exclusions and disabled
+   mutators are forbidden.
+
+Consistent with Principles VI and VII, recording this standard establishes the repository target
+and review standard; it does not claim automated enforcement for controls whose tools, floors, or
+module retrofits remain open in [docs/quality/baseline.md](../../docs/quality/baseline.md) and
+`specs/011-quality-baseline/`.
+
 ## Governance
 
 This constitution supersedes conflicting practice in this repository. Amendments are made by pull
@@ -156,4 +183,4 @@ clarification. Reviews verify compliance with each principle; any justified exce
 in the plan's Complexity Tracking table with its owner and expiry. Weakening a principle is itself a
 policy change subject to Principle V.
 
-**Version**: 1.1.0 | **Ratified**: 2026-10-28 | **Last Amended**: 2026-11-01
+**Version**: 1.2.0 | **Ratified**: 2026-10-28 | **Last Amended**: 2026-11-24
