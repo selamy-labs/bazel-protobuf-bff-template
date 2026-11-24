@@ -438,6 +438,131 @@ class NotesCliTest(unittest.TestCase):
                 self.assertEqual(doc["error"]["code"], expected_code)
                 self.assertIn(expected_msg, doc["error"]["message"])
 
+        # Connect protocol HTTP-to-Error-Code fallback for empty/malformed intermediary error bodies,
+        # alongside valid explicit Connect JSON errors whose server-emitted codes are preserved.
+        http_error_cases = [
+            ("400_empty", 400, "text/plain", b"", "internal", "Bad Request"),
+            ("401_empty", 401, "text/plain", b"", "unauthenticated", "Unauthorized"),
+            ("403_empty", 403, "text/plain", b"", "permission_denied", "Forbidden"),
+            ("404_empty", 404, "text/plain", b"", "unimplemented", "Not Found"),
+            ("404_html_intermediary", 404, "text/html", b"<html>404 Not Found</html>", "unimplemented", "Not Found"),
+            ("429_empty", 429, "text/plain", b"", "unavailable", "Too Many Requests"),
+            ("502_empty", 502, "text/plain", b"", "unavailable", "Bad Gateway"),
+            ("503_empty", 503, "text/plain", b"", "unavailable", "Service Unavailable"),
+            ("504_empty", 504, "text/plain", b"", "unavailable", "Gateway Timeout"),
+            ("504_malformed_json", 504, "application/json", b'{"code":', "unavailable", "Gateway Timeout"),
+            ("400_empty_json_object", 400, "application/json", b"{}", "internal", "Bad Request"),
+            (
+                "504_invalid_code_string",
+                504,
+                "application/json",
+                b'{"code":"proxy_error","message":"upstream"}',
+                "unavailable",
+                "Gateway Timeout",
+            ),
+            (
+                "504_non_string_code",
+                504,
+                "application/json",
+                b'{"code":123,"message":"upstream"}',
+                "unavailable",
+                "Gateway Timeout",
+            ),
+            (
+                "504_numeric_message",
+                504,
+                "application/json",
+                b'{"code":"not_found","message":123}',
+                "unavailable",
+                "Gateway Timeout",
+            ),
+            (
+                "504_null_message",
+                504,
+                "application/json",
+                b'{"code":"not_found","message":null}',
+                "unavailable",
+                "Gateway Timeout",
+            ),
+            (
+                "504_bool_message",
+                504,
+                "application/json",
+                b'{"code":"not_found","message":true}',
+                "unavailable",
+                "Gateway Timeout",
+            ),
+            (
+                "504_list_message",
+                504,
+                "application/json",
+                b'{"code":"not_found","message":["x"]}',
+                "unavailable",
+                "Gateway Timeout",
+            ),
+            (
+                "504_dict_message",
+                504,
+                "application/json",
+                b'{"code":"not_found","message":{"detail":"x"}}',
+                "unavailable",
+                "Gateway Timeout",
+            ),
+            ("408_other_status", 408, "text/plain", b"", "unknown", "Request Timeout"),
+            ("409_other_status", 409, "text/plain", b"", "unknown", "Conflict"),
+            (
+                "404_code_only_not_found",
+                404,
+                "application/json",
+                b'{"code":"not_found"}',
+                "not_found",
+                "Not Found",
+            ),
+            (
+                "404_empty_string_message",
+                404,
+                "application/json",
+                b'{"code":"not_found","message":""}',
+                "not_found",
+                "",
+            ),
+            (
+                "404_explicit_connect_not_found",
+                404,
+                "application/json",
+                b'{"code":"not_found","message":"note not found"}',
+                "not_found",
+                "note not found",
+            ),
+            (
+                "400_explicit_connect_invalid_argument",
+                400,
+                "application/json",
+                b'{"code":"invalid_argument","message":"bad note title"}',
+                "invalid_argument",
+                "bad note title",
+            ),
+        ]
+        for label, status, content_type, body, expected_code, expected_msg in http_error_cases:
+            with self.subTest(case=label):
+                response_plan.status = status
+                response_plan.content_type = content_type
+                response_plan.body = body
+                res = self._run_cli(
+                    "get",
+                    f"--endpoint={synth_url}",
+                    "--subject=ana",
+                    "--name=notes/1",
+                    "--output=json",
+                )
+                self.assertEqual(res.returncode, 1, f"stdout={res.stdout!r} stderr={res.stderr!r}")
+                self.assertEqual(res.stdout, "", "HTTP error response must never emit stdout")
+                self.assertNotIn("Traceback", res.stderr)
+                doc = json.loads(res.stderr)
+                self.assertEqual(doc["error"]["code"], expected_code)
+                self.assertEqual(doc["error"]["message"], expected_msg)
+                self.assertEqual(doc["error"]["violations"], [])
+
     def test_interrupted_response_read_fails_as_typed_rpc_error(self) -> None:
         listener = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
