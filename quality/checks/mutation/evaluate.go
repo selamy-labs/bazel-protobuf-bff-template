@@ -44,9 +44,42 @@ type PackageResult struct {
 	Score      float64
 }
 
+type scoreCounts struct {
+	killed     int
+	lived      int
+	equivalent int
+	timedOut   int
+	notCovered int
+}
+
+func (c scoreCounts) denominator() int {
+	return c.killed + c.lived + c.timedOut + c.notCovered
+}
+
+func (c scoreCounts) score() float64 {
+	denom := c.denominator()
+	if denom == 0 {
+		if c.equivalent > 0 {
+			return 100
+		}
+		return 0
+	}
+	return 100.0 * float64(c.killed) / float64(denom)
+}
+
+func (r PackageResult) counts() scoreCounts {
+	return scoreCounts{
+		killed:     r.Killed,
+		lived:      r.Lived,
+		equivalent: r.Equivalent,
+		timedOut:   r.TimedOut,
+		notCovered: r.NotCovered,
+	}
+}
+
 // Denominator returns the count of testable non-equivalent mutants.
 func (r PackageResult) Denominator() int {
-	return r.Killed + r.Lived + r.TimedOut + r.NotCovered
+	return r.counts().denominator()
 }
 
 // Summary aggregates mutation outcomes across all enrolled packages.
@@ -61,23 +94,26 @@ type Summary struct {
 	MeasuredAt string
 }
 
+func (s Summary) counts() scoreCounts {
+	return scoreCounts{
+		killed:     s.Killed,
+		lived:      s.Lived,
+		equivalent: s.Equivalent,
+		timedOut:   s.TimedOut,
+		notCovered: s.NotCovered,
+	}
+}
+
 // Score returns the aggregate kill percentage across testable non-equivalent mutants.
 func (s Summary) Score() float64 {
-	denom := s.Killed + s.Lived + s.TimedOut + s.NotCovered
-	if denom == 0 {
-		if s.Equivalent > 0 {
-			return 100
-		}
-		return 0
-	}
-	return 100.0 * float64(s.Killed) / float64(denom)
+	return s.counts().score()
 }
 
 // String renders the receipt measurement line.
 func (s Summary) String() string {
-	denom := s.Killed + s.Lived + s.TimedOut + s.NotCovered
+	c := s.counts()
 	return fmt.Sprintf("%d packages, %d/%d killed (%.1f%%), %d equivalent, %d timed-out, %d not-covered; floors measured at %s",
-		s.Packages, s.Killed, denom, s.Score(), s.Equivalent, s.TimedOut, s.NotCovered, s.MeasuredAt)
+		s.Packages, s.Killed, c.denominator(), c.score(), s.Equivalent, s.TimedOut, s.NotCovered, s.MeasuredAt)
 }
 
 // ParseReport decodes a gremlins JSON report and rejects empty or malformed payloads.
@@ -116,7 +152,7 @@ func EvaluateReport(pkg PackageConfig, report *GremlinsReport, eqFile *Equivalen
 	if result.Denominator() == 0 && result.Equivalent == 0 {
 		return result, nil, fmt.Errorf("%s: gremlins produced 0 viable testable mutants; refusing measurement", pkg.Name)
 	}
-	result.Score = computeScore(result)
+	result.Score = result.counts().score()
 	problems := judgePackage(result, survivors, timeouts, eqMap, usedEq)
 	return result, problems, nil
 }
@@ -167,17 +203,6 @@ func tallyMutant(
 		return fmt.Errorf("%s: unexpected mutant status %q at %s", pkgName, m.Status, loc)
 	}
 	return nil
-}
-
-func computeScore(r PackageResult) float64 {
-	denom := r.Denominator()
-	if denom == 0 {
-		if r.Equivalent > 0 {
-			return 100
-		}
-		return 0
-	}
-	return 100.0 * float64(r.Killed) / float64(denom)
 }
 
 func judgePackage(
