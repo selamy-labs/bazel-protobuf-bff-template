@@ -33,7 +33,7 @@ Language libraries (adopted only after a pinned checksum probe per `specs/011-qu
 
 | Language   | Library                                 | Current repository state                                                        |
 | ---------- | --------------------------------------- | ------------------------------------------------------------------------------- |
-| Go         | `testing/quick` (or `rapid` / `gopter`) | `testing/quick` in use (`bff/app`, `quality/runner`); partial coverage          |
+| Go         | `testing/quick` (or `rapid` / `gopter`) | `testing/quick` in use (`bff/app`, `bff/identity`, `quality/checks/mutation`, `quality/runner`); partial coverage |
 | TypeScript | `fast-check`                            | `fast-check` 4.10.2 pinned in `pnpm-lock.yaml` (`web/client`); partial coverage |
 | Python     | `Hypothesis`                            | Open gap; awaits pinned `uv` lock adoption (`specs/011-quality-baseline` T009/T011) |
 
@@ -78,6 +78,6 @@ The authoritative measured status of each control lives in [baseline.md](baselin
 | Control                                   | Baseline state | What exists today                                                            | Open work                                                        |
 | ----------------------------------------- | -------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------- |
 | AAA & one assertion per test case         | `partial`      | Review standard recorded in constitution, `CONTRIBUTING.md`, and this doc    | Per-module retrofit slices (`#10`)                               |
-| Property-based testing (Go, TypeScript)   | `partial`      | `testing/quick` (`bff/app`, `quality/runner`), `fast-check` (`web/client`)   | Expand invariant coverage per module (`#10`, `T009`)             |
+| Property-based testing (Go, TypeScript)   | `partial`      | `testing/quick` (`bff/app`, `bff/identity`, `quality/checks/mutation`, `quality/runner`), `fast-check` (`web/client`) | Expand invariant coverage per module (`#10`, `T009`) |
 | Property-based testing (Python)           | `gap`          | Probed only; not pinned in CI                                                | Pin `Hypothesis` and add generator/client invariant tests (`T009`, `T011`) |
-| Mutation testing & ratcheting floor       | `partial`      | `mutation` (`gremlins` 0.6.0, all 11 mutators) + `mutation-from-base` comparator enforced at 100.0% (12/12 killed, 0 equivalents) on `bff/app`, `bff/adapters/memory`, and `quality/checks/command` | Expand enrolled Go packages, add TypeScript (Stryker) and Python (`mutmut`) mutation checks (`T008`, `T013`, `#10`) |
+| Mutation testing & ratcheting floor       | `partial`      | `mutation` (`gremlins` 0.6.0, all 11 mutators) + `mutation-from-base` comparator enforced on four enrolled Go packages (PR `#54` candidate over comparison anchor `df7e058`: 19/20 killed = 95.0%, 0 lived, 0 equivalents, 0 timed-out, 1 non-equivalent `NOT COVERED` compile-time `const iota + 1` in `bff/identity` tracked open under `T030`): `bff/app` (100.0%), `bff/adapters/memory` (100.0%), `bff/identity` (87.5%), and `quality/checks/command` (100.0%) | Resolve `bff/identity` compile-time `const` tooling gap (`T030`), expand enrolled Go packages, add TypeScript (Stryker) and Python (`mutmut`) mutation checks (`T008`, `T013`, `#10`) |
