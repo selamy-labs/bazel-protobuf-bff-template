@@ -15,14 +15,12 @@ import (
 // Run exercises one store implementation against the contract, one subtest per clause.
 func Run(t *testing.T, open func(t *testing.T) ports.Store) {
 	t.Helper()
+	t.Run("a note reads back for its owner", func(t *testing.T) { readsBack(t, open) })
+	runNotFoundLookups(t, open)
 	for _, clause := range []struct {
 		name string
 		run  func(t *testing.T, open func(t *testing.T) ports.Store)
 	}{
-		{"a note reads back for its owner", readsBack},
-		{"another owner does not see a stored note", otherOwnerNotFound},
-		{"an absent id is not found", absentIDNotFound},
-		{"an empty owner does not see a stored note", emptyOwnerNotFound},
 		{"the same id for two owners holds two notes", sameIDTwoOwners},
 		{"a put with the same owner and id replaces the note", putReplaces},
 		{"an ended context stops Put", endedContextStopsPut},
@@ -72,54 +70,35 @@ func readsBack(t *testing.T, open func(t *testing.T) ports.Store) {
 	})
 }
 
-func otherOwnerNotFound(t *testing.T, open func(t *testing.T) ports.Store) {
-	// Arrange
-	store := open(t)
-	ctx := context.Background()
-	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"}); err != nil {
-		t.Fatal(err)
+func runNotFoundLookups(t *testing.T, open func(t *testing.T) ports.Store) {
+	t.Helper()
+	cases := []struct {
+		name  string
+		owner string
+		id    string
+	}{
+		{"another owner does not see a stored note", "bob", "n1"},
+		{"an absent id is not found", "ana", "n2"},
+		{"an empty owner does not see a stored note", "", "n1"},
 	}
 
-	// Act
-	_, err := store.Get(ctx, "bob", "n1")
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			// Arrange
+			store := open(t)
+			ctx := context.Background()
+			if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"}); err != nil {
+				t.Fatal(err)
+			}
 
-	// Assert
-	if !errors.Is(err, ports.ErrNotFound) {
-		t.Fatalf("other owner: got %v, want %v", err, ports.ErrNotFound)
-	}
-}
+			// Act
+			_, err := store.Get(ctx, tc.owner, tc.id)
 
-func absentIDNotFound(t *testing.T, open func(t *testing.T) ports.Store) {
-	// Arrange
-	store := open(t)
-	ctx := context.Background()
-	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"}); err != nil {
-		t.Fatal(err)
-	}
-
-	// Act
-	_, err := store.Get(ctx, "ana", "n2")
-
-	// Assert
-	if !errors.Is(err, ports.ErrNotFound) {
-		t.Fatalf("absent id: got %v, want %v", err, ports.ErrNotFound)
-	}
-}
-
-func emptyOwnerNotFound(t *testing.T, open func(t *testing.T) ports.Store) {
-	// Arrange
-	store := open(t)
-	ctx := context.Background()
-	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"}); err != nil {
-		t.Fatal(err)
-	}
-
-	// Act
-	_, err := store.Get(ctx, "", "n1")
-
-	// Assert
-	if !errors.Is(err, ports.ErrNotFound) {
-		t.Fatalf("empty owner: got %v, want %v", err, ports.ErrNotFound)
+			// Assert
+			if !errors.Is(err, ports.ErrNotFound) {
+				t.Fatalf("%s: got %v; want %v", tc.name, err, ports.ErrNotFound)
+			}
+		})
 	}
 }
 
