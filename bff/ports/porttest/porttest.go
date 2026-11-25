@@ -20,10 +20,14 @@ func Run(t *testing.T, open func(t *testing.T) ports.Store) {
 		run  func(t *testing.T, open func(t *testing.T) ports.Store)
 	}{
 		{"a note reads back for its owner", readsBack},
-		{"another owner never sees it, and an absent id is not found", ownerIsolation},
+		{"another owner does not see a stored note", otherOwnerNotFound},
+		{"an absent id is not found", absentIDNotFound},
+		{"an empty owner does not see a stored note", emptyOwnerNotFound},
 		{"the same id for two owners holds two notes", sameIDTwoOwners},
 		{"a put with the same owner and id replaces the note", putReplaces},
-		{"an ended context stops the call and stores nothing", endedContext},
+		{"an ended context stops Put", endedContextStopsPut},
+		{"an ended context stops Get", endedContextStopsGet},
+		{"a canceled Put stores no note", canceledPutStoresNoNote},
 		{"owners and ids that look like paths stay separate", pathLikeNames},
 	} {
 		t.Run(clause.name, func(t *testing.T) { clause.run(t, open) })
@@ -31,94 +35,275 @@ func Run(t *testing.T, open func(t *testing.T) ports.Store) {
 }
 
 func readsBack(t *testing.T, open func(t *testing.T) ports.Store) {
-	store := open(t)
-	ctx := context.Background()
 	note := ports.Note{Owner: "ana", ID: "n1", Title: "Shopping", Body: "milk", CreateTime: time.Date(2026, 11, 1, 12, 0, 0, 0, time.UTC)}
-	if err := store.Put(ctx, note); err != nil {
-		t.Fatal(err)
-	}
-	got, err := store.Get(ctx, "ana", "n1")
-	if err != nil || got != note {
-		t.Fatalf("read back %+v, %v; want %+v", got, err, note)
-	}
+
+	t.Run("succeeds", func(t *testing.T) {
+		// Arrange
+		store := open(t)
+		ctx := context.Background()
+		if err := store.Put(ctx, note); err != nil {
+			t.Fatal(err)
+		}
+
+		// Act
+		_, err := store.Get(ctx, "ana", "n1")
+
+		// Assert
+		if err != nil {
+			t.Fatalf("read back error: got %v; want nil", err)
+		}
+	})
+
+	t.Run("returns stored note", func(t *testing.T) {
+		// Arrange
+		store := open(t)
+		ctx := context.Background()
+		if err := store.Put(ctx, note); err != nil {
+			t.Fatal(err)
+		}
+
+		// Act
+		got, _ := store.Get(ctx, "ana", "n1")
+
+		// Assert
+		if got != note {
+			t.Fatalf("read back note: got %+v; want %+v", got, note)
+		}
+	})
 }
 
-func ownerIsolation(t *testing.T, open func(t *testing.T) ports.Store) {
+func otherOwnerNotFound(t *testing.T, open func(t *testing.T) ports.Store) {
+	// Arrange
 	store := open(t)
 	ctx := context.Background()
 	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"}); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := store.Get(ctx, "bob", "n1"); !errors.Is(err, ports.ErrNotFound) {
-		t.Fatalf("other owner: want not found, got %v", err)
+
+	// Act
+	_, err := store.Get(ctx, "bob", "n1")
+
+	// Assert
+	if !errors.Is(err, ports.ErrNotFound) {
+		t.Fatalf("other owner: got %v, want %v", err, ports.ErrNotFound)
 	}
-	if _, err := store.Get(ctx, "ana", "n2"); !errors.Is(err, ports.ErrNotFound) {
-		t.Fatalf("absent id: want not found, got %v", err)
+}
+
+func absentIDNotFound(t *testing.T, open func(t *testing.T) ports.Store) {
+	// Arrange
+	store := open(t)
+	ctx := context.Background()
+	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"}); err != nil {
+		t.Fatal(err)
 	}
-	if _, err := store.Get(ctx, "", "n1"); !errors.Is(err, ports.ErrNotFound) {
-		t.Fatalf("empty owner: want not found, got %v", err)
+
+	// Act
+	_, err := store.Get(ctx, "ana", "n2")
+
+	// Assert
+	if !errors.Is(err, ports.ErrNotFound) {
+		t.Fatalf("absent id: got %v, want %v", err, ports.ErrNotFound)
+	}
+}
+
+func emptyOwnerNotFound(t *testing.T, open func(t *testing.T) ports.Store) {
+	// Arrange
+	store := open(t)
+	ctx := context.Background()
+	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"}); err != nil {
+		t.Fatal(err)
+	}
+
+	// Act
+	_, err := store.Get(ctx, "", "n1")
+
+	// Assert
+	if !errors.Is(err, ports.ErrNotFound) {
+		t.Fatalf("empty owner: got %v, want %v", err, ports.ErrNotFound)
 	}
 }
 
 func sameIDTwoOwners(t *testing.T, open func(t *testing.T) ports.Store) {
-	store := open(t)
-	ctx := context.Background()
-	for _, owner := range []string{"ana", "bob"} {
-		if err := store.Put(ctx, ports.Note{Owner: owner, ID: "shared", Title: owner}); err != nil {
-			t.Fatal(err)
+	owners := []string{"ana", "bob"}
+	seedBoth := func(t *testing.T) ports.Store {
+		t.Helper()
+		store := open(t)
+		ctx := context.Background()
+		for _, owner := range owners {
+			if err := store.Put(ctx, ports.Note{Owner: owner, ID: "shared", Title: owner}); err != nil {
+				t.Fatal(err)
+			}
 		}
+		return store
 	}
-	for _, owner := range []string{"ana", "bob"} {
-		got, err := store.Get(ctx, owner, "shared")
-		if err != nil || got.Title != owner {
-			t.Fatalf("%s: %+v, %v", owner, got, err)
-		}
+
+	for _, targetOwner := range owners {
+		t.Run(targetOwner+"/succeeds", func(t *testing.T) {
+			// Arrange
+			store := seedBoth(t)
+
+			// Act
+			_, err := store.Get(context.Background(), targetOwner, "shared")
+
+			// Assert
+			if err != nil {
+				t.Fatalf("%s lookup error: got %v; want nil", targetOwner, err)
+			}
+		})
+
+		t.Run(targetOwner+"/returns owner title", func(t *testing.T) {
+			// Arrange
+			store := seedBoth(t)
+
+			// Act
+			got, _ := store.Get(context.Background(), targetOwner, "shared")
+
+			// Assert
+			if got.Title != targetOwner {
+				t.Fatalf("%s title: got %q; want %q", targetOwner, got.Title, targetOwner)
+			}
+		})
 	}
 }
 
 func putReplaces(t *testing.T, open func(t *testing.T) ports.Store) {
-	store := open(t)
-	ctx := context.Background()
-	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "first"}); err != nil {
-		t.Fatal(err)
+	seedOverwrite := func(t *testing.T) ports.Store {
+		t.Helper()
+		store := open(t)
+		ctx := context.Background()
+		if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "first"}); err != nil {
+			t.Fatal(err)
+		}
+		if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "second"}); err != nil {
+			t.Fatal(err)
+		}
+		return store
 	}
-	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "second"}); err != nil {
-		t.Fatal(err)
-	}
-	got, err := store.Get(ctx, "ana", "n1")
-	if err != nil || got.Title != "second" {
-		t.Fatalf("%+v, %v", got, err)
-	}
+
+	t.Run("succeeds", func(t *testing.T) {
+		// Arrange
+		store := seedOverwrite(t)
+
+		// Act
+		_, err := store.Get(context.Background(), "ana", "n1")
+
+		// Assert
+		if err != nil {
+			t.Fatalf("after overwrite lookup error: got %v; want nil", err)
+		}
+	})
+
+	t.Run("returns replacement title", func(t *testing.T) {
+		// Arrange
+		store := seedOverwrite(t)
+
+		// Act
+		got, _ := store.Get(context.Background(), "ana", "n1")
+
+		// Assert
+		if got.Title != "second" {
+			t.Fatalf("after overwrite title: got %q; want %q", got.Title, "second")
+		}
+	})
 }
 
-func endedContext(t *testing.T, open func(t *testing.T) ports.Store) {
+func endedContextStopsPut(t *testing.T, open func(t *testing.T) ports.Store) {
+	// Arrange
 	store := open(t)
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1"}); !errors.Is(err, context.Canceled) {
-		t.Fatalf("put: %v", err)
+
+	// Act
+	err := store.Put(ctx, ports.Note{Owner: "ana", ID: "n1"})
+
+	// Assert
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("put with canceled context: got %v, want %v", err, context.Canceled)
 	}
-	if _, err := store.Get(ctx, "ana", "n1"); !errors.Is(err, context.Canceled) {
-		t.Fatalf("get: %v", err)
+}
+
+func endedContextStopsGet(t *testing.T, open func(t *testing.T) ports.Store) {
+	// Arrange
+	store := open(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	// Act
+	_, err := store.Get(ctx, "ana", "n1")
+
+	// Assert
+	if !errors.Is(err, context.Canceled) {
+		t.Fatalf("get with canceled context: got %v, want %v", err, context.Canceled)
 	}
-	if _, err := store.Get(context.Background(), "ana", "n1"); !errors.Is(err, ports.ErrNotFound) {
-		t.Fatalf("a cancelled put stored a note: %v", err)
+}
+
+func canceledPutStoresNoNote(t *testing.T, open func(t *testing.T) ports.Store) {
+	// Arrange
+	store := open(t)
+	canceledCtx, cancel := context.WithCancel(context.Background())
+	cancel()
+	_ = store.Put(canceledCtx, ports.Note{Owner: "ana", ID: "n1"})
+
+	// Act
+	_, err := store.Get(context.Background(), "ana", "n1")
+
+	// Assert
+	if !errors.Is(err, ports.ErrNotFound) {
+		t.Fatalf("after canceled put: got %v, want %v", err, ports.ErrNotFound)
 	}
 }
 
 func pathLikeNames(t *testing.T, open func(t *testing.T) ports.Store) {
-	store := open(t)
-	ctx := context.Background()
-	pairs := [][2]string{{"a/b", "c"}, {"a", "b/c"}, {"..", "x"}, {"a", ".."}, {"a\x00b", "c"}}
-	for i, pair := range pairs {
-		if err := store.Put(ctx, ports.Note{Owner: pair[0], ID: pair[1], Title: string(rune('a' + i))}); err != nil {
-			t.Fatalf("%v: %v", pair, err)
-		}
+	cases := []struct {
+		name  string
+		owner string
+		id    string
+		title string
+	}{
+		{"slash in owner", "a/b", "c", "a"},
+		{"slash in id", "a", "b/c", "b"},
+		{"dotdot owner", "..", "x", "c"},
+		{"dotdot id", "a", "..", "d"},
+		{"nul byte in owner", "a\x00b", "c", "e"},
 	}
-	for i, pair := range pairs {
-		got, err := store.Get(ctx, pair[0], pair[1])
-		if err != nil || got.Title != string(rune('a'+i)) {
-			t.Fatalf("%v: %+v, %v", pair, got, err)
+
+	seedAll := func(t *testing.T) ports.Store {
+		t.Helper()
+		store := open(t)
+		ctx := context.Background()
+		for _, seed := range cases {
+			if err := store.Put(ctx, ports.Note{Owner: seed.owner, ID: seed.id, Title: seed.title}); err != nil {
+				t.Fatalf("seed %s: %v", seed.name, err)
+			}
 		}
+		return store
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name+"/succeeds", func(t *testing.T) {
+			// Arrange
+			store := seedAll(t)
+
+			// Act
+			_, err := store.Get(context.Background(), tc.owner, tc.id)
+
+			// Assert
+			if err != nil {
+				t.Fatalf("%s lookup error: got %v; want nil", tc.name, err)
+			}
+		})
+
+		t.Run(tc.name+"/returns stored title", func(t *testing.T) {
+			// Arrange
+			store := seedAll(t)
+
+			// Act
+			got, _ := store.Get(context.Background(), tc.owner, tc.id)
+
+			// Assert
+			if got.Title != tc.title {
+				t.Fatalf("%s title: got %q; want %q", tc.name, got.Title, tc.title)
+			}
+		})
 	}
 }
