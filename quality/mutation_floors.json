@@ -1,5 +1,5 @@
 {
-  "measured_at": "pr-54-candidate-over-df7e058f700b05ee0e7f23e775cb3317383e4842",
+  "measured_at": "slice-6-candidate-over-bb9b4bf90d75af815dc0584da98c69f10a3f4bc9",
   "equivalents": "quality/mutation_equivalents.json",
   "timeout_coefficient": 100,
   "packages": [
@@ -22,6 +22,18 @@
       "package": "./bff/adapters/memory",
       "sources": [
         "bff/adapters/memory",
+        "bff/ports",
+        "bff/ports/porttest"
+      ],
+      "floor": 100
+    },
+    {
+      "name": "bff/adapters/store/local",
+      "module": "example.com/bfftemplate",
+      "go_version": "1.27.4",
+      "package": "./bff/adapters/store/local",
+      "sources": [
+        "bff/adapters/store/local",
         "bff/ports",
         "bff/ports/porttest"
       ],
