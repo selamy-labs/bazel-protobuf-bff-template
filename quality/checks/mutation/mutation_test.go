@@ -3,6 +3,7 @@ package mutation
 import (
 	"fmt"
 	"math"
+	"math/rand"
 	"os"
 	"path/filepath"
 	"strings"
@@ -325,6 +326,269 @@ func TestEvaluateScoreBoundsProperty(t *testing.T) {
 
 	if err := quick.Check(property, nil); err != nil {
 		t.Fatalf("score bounds property failed: %v", err)
+	}
+}
+
+func summaryFromPackageResult(res PackageResult, measuredAt string) Summary {
+	return Summary{
+		Packages:   1,
+		Killed:     res.Killed,
+		Lived:      res.Lived,
+		Equivalent: res.Equivalent,
+		TimedOut:   res.TimedOut,
+		NotCovered: res.NotCovered,
+		NotViable:  res.NotViable,
+		MeasuredAt: measuredAt,
+	}
+}
+
+func mixedOutcomesFixture() (*GremlinsReport, *EquivalentsFile) {
+	report := &GremlinsReport{
+		Files: []FileReport{{
+			FileName: "notes.go",
+			Mutations: []Mutant{
+				{Type: "ARITHMETIC_BASE", Status: "KILLED", Line: 10, Column: 2},
+				{Type: "ARITHMETIC_BASE", Status: "KILLED", Line: 11, Column: 2},
+				{Type: "INVERT_LOGICAL", Status: "LIVED", Line: 12, Column: 2},
+				{Type: "CONDITIONALS_BOUNDARY", Status: "LIVED", Line: 13, Column: 2},
+				{Type: "INCREMENT_DECREMENT", Status: "TIMED OUT", Line: 14, Column: 2},
+				{Type: "CONDITIONALS_NEGATION", Status: "NOT COVERED", Line: 15, Column: 2},
+				{Type: "INVERT_NEGATIVES", Status: "NOT VIABLE", Line: 16, Column: 2},
+			},
+		}},
+	}
+	eqFile := &EquivalentsFile{
+		Equivalents: []Equivalent{{
+			ID:       "EQ-MIXED-1",
+			Package:  "bff/app",
+			Location: "notes.go:13:2",
+			Mutator:  "CONDITIONALS_BOUNDARY",
+			Proof:    "mixed-outcome parity fixture",
+		}},
+	}
+	return report, eqFile
+}
+
+func equivalentOnlyFixture() (*GremlinsReport, *EquivalentsFile) {
+	report := &GremlinsReport{
+		Files: []FileReport{{
+			FileName: "notes.go",
+			Mutations: []Mutant{
+				{Type: "CONDITIONALS_BOUNDARY", Status: "LIVED", Line: 15, Column: 9},
+				{Type: "INVERT_NEGATIVES", Status: "NOT VIABLE", Line: 16, Column: 2},
+			},
+		}},
+	}
+	eqFile := &EquivalentsFile{
+		Equivalents: []Equivalent{{
+			ID:       "EQ-ONLY-1",
+			Package:  "bff/app",
+			Location: "notes.go:15:9",
+			Mutator:  "CONDITIONALS_BOUNDARY",
+			Proof:    "equivalent-only parity fixture",
+		}},
+	}
+	return report, eqFile
+}
+
+func TestPackageScoreOnMixedOutcomes(t *testing.T) {
+	// Arrange
+	report, eqFile := mixedOutcomesFixture()
+
+	// Act
+	res, _, err := EvaluateReport(PackageConfig{Name: "bff/app", Floor: 40}, report, eqFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Assert
+	if math.Abs(res.Score-40.0) > 1e-9 {
+		t.Fatalf("mixed package score: got %.4f; want 40.0", res.Score)
+	}
+}
+
+func TestSummaryScoreMatchesPackageScoreOnMixedOutcomes(t *testing.T) {
+	// Arrange
+	report, eqFile := mixedOutcomesFixture()
+	res, _, err := EvaluateReport(PackageConfig{Name: "bff/app", Floor: 40}, report, eqFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary := summaryFromPackageResult(res, "rev1")
+
+	// Act
+	got := summary.Score()
+
+	// Assert
+	if math.Abs(got-res.Score) > 1e-9 {
+		t.Fatalf("mixed summary score: got %.4f; want package score %.4f", got, res.Score)
+	}
+}
+
+func TestReceiptParityOnMixedOutcomes(t *testing.T) {
+	// Arrange
+	report, eqFile := mixedOutcomesFixture()
+	want := "1 packages, 2/5 killed (40.0%), 1 equivalent, 1 timed-out, 1 not-covered; floors measured at rev1"
+
+	// Act
+	res, _, err := EvaluateReport(PackageConfig{Name: "bff/app", Floor: 40}, report, eqFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := summaryFromPackageResult(res, "rev1").String()
+
+	// Assert
+	if got != want {
+		t.Fatalf("mixed receipt: got %q; want %q", got, want)
+	}
+}
+
+func TestPackageScoreOnEquivalentOnly(t *testing.T) {
+	// Arrange
+	report, eqFile := equivalentOnlyFixture()
+
+	// Act
+	res, _, err := EvaluateReport(PackageConfig{Name: "bff/app", Floor: 100}, report, eqFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Assert
+	if res.Score != 100 {
+		t.Fatalf("equivalent-only package score: got %.4f; want 100.0", res.Score)
+	}
+}
+
+func TestSummaryScoreMatchesPackageScoreOnEquivalentOnly(t *testing.T) {
+	// Arrange
+	report, eqFile := equivalentOnlyFixture()
+	res, _, err := EvaluateReport(PackageConfig{Name: "bff/app", Floor: 100}, report, eqFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	summary := summaryFromPackageResult(res, "rev1")
+
+	// Act
+	got := summary.Score()
+
+	// Assert
+	if got != res.Score {
+		t.Fatalf("equivalent-only summary score: got %.4f; want package score %.4f", got, res.Score)
+	}
+}
+
+func TestReceiptParityOnEquivalentOnly(t *testing.T) {
+	// Arrange
+	report, eqFile := equivalentOnlyFixture()
+	want := "1 packages, 0/0 killed (100.0%), 1 equivalent, 0 timed-out, 0 not-covered; floors measured at rev1"
+
+	// Act
+	res, _, err := EvaluateReport(PackageConfig{Name: "bff/app", Floor: 100}, report, eqFile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := summaryFromPackageResult(res, "rev1").String()
+
+	// Assert
+	if got != want {
+		t.Fatalf("equivalent-only receipt: got %q; want %q", got, want)
+	}
+}
+
+func TestSummaryScoreIsZeroWhenEmpty(t *testing.T) {
+	// Arrange
+	summary := Summary{MeasuredAt: "rev1"}
+
+	// Act
+	got := summary.Score()
+
+	// Assert
+	if got != 0 {
+		t.Fatalf("empty summary score: got %.4f; want 0", got)
+	}
+}
+
+func buildParityFixture(kRaw, lRaw, tRaw, ncRaw, eqRaw uint8) (*GremlinsReport, *EquivalentsFile) {
+	k, l, to, nc, eq := int(kRaw%6), int(lRaw%6), int(tRaw%6), int(ncRaw%6), int(eqRaw%4)
+	if k+l+to+nc+eq == 0 {
+		eq = 1
+	}
+	var muts []Mutant
+	var eqs []Equivalent
+	line := 1
+	for range k {
+		muts = append(muts, Mutant{Type: "ARITHMETIC_BASE", Status: "KILLED", Line: line, Column: 1})
+		line++
+	}
+	for range l {
+		muts = append(muts, Mutant{Type: "ARITHMETIC_BASE", Status: "LIVED", Line: line, Column: 1})
+		line++
+	}
+	for range to {
+		muts = append(muts, Mutant{Type: "ARITHMETIC_BASE", Status: "TIMED OUT", Line: line, Column: 1})
+		line++
+	}
+	for range nc {
+		muts = append(muts, Mutant{Type: "ARITHMETIC_BASE", Status: "NOT COVERED", Line: line, Column: 1})
+		line++
+	}
+	for i := range eq {
+		muts = append(muts, Mutant{Type: "CONDITIONALS_BOUNDARY", Status: "LIVED", Line: line, Column: 1})
+		eqs = append(eqs, Equivalent{
+			ID:       fmt.Sprintf("EQ-%d", i+1),
+			Package:  "bff/app",
+			Location: fmt.Sprintf("notes.go:%d:1", line),
+			Mutator:  "CONDITIONALS_BOUNDARY",
+			Proof:    "parity property fixture",
+		})
+		line++
+	}
+	return &GremlinsReport{Files: []FileReport{{FileName: "notes.go", Mutations: muts}}}, &EquivalentsFile{Equivalents: eqs}
+}
+
+func TestEvaluateAndSummaryScoreParityProperty(t *testing.T) {
+	// Arrange
+	cfg := &quick.Config{Rand: rand.New(rand.NewSource(1))}
+	property := func(kRaw, lRaw, tRaw, ncRaw, eqRaw uint8) bool {
+		report, eqFile := buildParityFixture(kRaw, lRaw, tRaw, ncRaw, eqRaw)
+		res, _, err := EvaluateReport(PackageConfig{Name: "bff/app", Floor: 0}, report, eqFile)
+		if err != nil {
+			return false
+		}
+		summary := summaryFromPackageResult(res, "rev1")
+		return math.Abs(res.Score-summary.Score()) < 1e-9
+	}
+
+	// Act
+	err := quick.Check(property, cfg)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("evaluate/summary score parity property failed: %v", err)
+	}
+}
+
+func TestEvaluateAndSummaryReceiptPrefixProperty(t *testing.T) {
+	// Arrange
+	cfg := &quick.Config{Rand: rand.New(rand.NewSource(1))}
+	property := func(kRaw, lRaw, tRaw, ncRaw, eqRaw uint8) bool {
+		report, eqFile := buildParityFixture(kRaw, lRaw, tRaw, ncRaw, eqRaw)
+		res, _, err := EvaluateReport(PackageConfig{Name: "bff/app", Floor: 0}, report, eqFile)
+		if err != nil {
+			return false
+		}
+		summary := summaryFromPackageResult(res, "rev1")
+		expectedPrefix := fmt.Sprintf("1 packages, %d/%d killed (%.1f%%), %d equivalent, %d timed-out, %d not-covered;",
+			res.Killed, res.Denominator(), res.Score, res.Equivalent, res.TimedOut, res.NotCovered)
+		return strings.HasPrefix(summary.String(), expectedPrefix)
+	}
+
+	// Act
+	err := quick.Check(property, cfg)
+
+	// Assert
+	if err != nil {
+		t.Fatalf("evaluate/summary receipt prefix property failed: %v", err)
 	}
 }
 
