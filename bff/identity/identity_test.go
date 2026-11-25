@@ -68,20 +68,17 @@ func TestKindConstantsAreDistinctFromZero(t *testing.T) {
 	}
 }
 
-func TestBearerTokenValidHeaders(t *testing.T) {
-	cases := []struct {
-		name   string
-		header string
-		want   string
-	}{
-		{"canonical Bearer", "Bearer abc", "abc"},
-		{"lowercase bearer", "bearer abc", "abc"},
-		{"uppercase BEARER", "BEARER abc", "abc"},
-		{"mixed case BeArEr", "BeArEr tok.1-2_3", "tok.1-2_3"},
-	}
+type bearerTokenCase struct {
+	name      string
+	header    string
+	wantOK    bool
+	wantToken string
+}
 
+func runBearerTokenCases(t *testing.T, statusLeaf, tokenLeaf string, cases []bearerTokenCase) {
+	t.Helper()
 	for _, tc := range cases {
-		t.Run(tc.name+"/accepted", func(t *testing.T) {
+		t.Run(tc.name+"/"+statusLeaf, func(t *testing.T) {
 			// Arrange
 			header := tc.header
 
@@ -89,12 +86,12 @@ func TestBearerTokenValidHeaders(t *testing.T) {
 			_, ok := BearerToken(header)
 
 			// Assert
-			if !ok {
-				t.Fatalf("BearerToken(%q): ok=false; want true", header)
+			if ok != tc.wantOK {
+				t.Fatalf("BearerToken(%q): ok=%v; want %v", header, ok, tc.wantOK)
 			}
 		})
 
-		t.Run(tc.name+"/token", func(t *testing.T) {
+		t.Run(tc.name+"/"+tokenLeaf, func(t *testing.T) {
 			// Arrange
 			header := tc.header
 
@@ -102,54 +99,32 @@ func TestBearerTokenValidHeaders(t *testing.T) {
 			token, _ := BearerToken(header)
 
 			// Assert
-			if token != tc.want {
-				t.Fatalf("BearerToken(%q): token=%q; want %q", header, token, tc.want)
+			if token != tc.wantToken {
+				t.Fatalf("BearerToken(%q): token=%q; want %q", header, token, tc.wantToken)
 			}
 		})
 	}
 }
 
+func TestBearerTokenValidHeaders(t *testing.T) {
+	runBearerTokenCases(t, "accepted", "token", []bearerTokenCase{
+		{name: "canonical Bearer", header: "Bearer abc", wantOK: true, wantToken: "abc"},
+		{name: "lowercase bearer", header: "bearer abc", wantOK: true, wantToken: "abc"},
+		{name: "uppercase BEARER", header: "BEARER abc", wantOK: true, wantToken: "abc"},
+		{name: "mixed case BeArEr", header: "BeArEr tok.1-2_3", wantOK: true, wantToken: "tok.1-2_3"},
+	})
+}
+
 func TestBearerTokenInvalidHeaders(t *testing.T) {
-	cases := []struct {
-		name   string
-		header string
-	}{
-		{"empty header", ""},
-		{"scheme without space", "Bearer"},
-		{"empty token", "Bearer "},
-		{"basic scheme", "Basic abc"},
-		{"space inside token", "Bearer a b"},
-		{"tab inside token", "Bearer a\tb"},
-		{"bare token", "abc"},
-	}
-
-	for _, tc := range cases {
-		t.Run(tc.name+"/rejected", func(t *testing.T) {
-			// Arrange
-			header := tc.header
-
-			// Act
-			_, ok := BearerToken(header)
-
-			// Assert
-			if ok {
-				t.Fatalf("BearerToken(%q): ok=true; want false", header)
-			}
-		})
-
-		t.Run(tc.name+"/empty token", func(t *testing.T) {
-			// Arrange
-			header := tc.header
-
-			// Act
-			token, _ := BearerToken(header)
-
-			// Assert
-			if token != "" {
-				t.Fatalf("BearerToken(%q): token=%q; want empty", header, token)
-			}
-		})
-	}
+	runBearerTokenCases(t, "rejected", "empty token", []bearerTokenCase{
+		{name: "empty header", header: "", wantOK: false, wantToken: ""},
+		{name: "scheme without space", header: "Bearer", wantOK: false, wantToken: ""},
+		{name: "empty token", header: "Bearer ", wantOK: false, wantToken: ""},
+		{name: "basic scheme", header: "Basic abc", wantOK: false, wantToken: ""},
+		{name: "space inside token", header: "Bearer a b", wantOK: false, wantToken: ""},
+		{name: "tab inside token", header: "Bearer a\tb", wantOK: false, wantToken: ""},
+		{name: "bare token", header: "abc", wantOK: false, wantToken: ""},
+	})
 }
 
 const tokenAlphabet = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-._~+/="
