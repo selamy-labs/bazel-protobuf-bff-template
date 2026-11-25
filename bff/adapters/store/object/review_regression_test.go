@@ -3,10 +3,12 @@ package object
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -26,33 +28,121 @@ func regressionStore(t *testing.T, handler http.Handler) (*Store, *httptest.Serv
 	return store, srv
 }
 
-func awaitPhaseAndCancel(t *testing.T, phase string, started <-chan struct{}, done <-chan error, cancel context.CancelFunc) error {
-	t.Helper()
+func awaitPhaseAndCancel(phase string, startWait, stopWait time.Duration, started <-chan struct{}, done <-chan error, cancel context.CancelFunc) (error, error) {
 	select {
 	case <-started:
-		cancel()
-		return <-done
 	case err := <-done:
-		t.Fatalf("returned before %s started: %v", phase, err)
-		return nil
+		return nil, fmt.Errorf("returned before %s started: %w", phase, err)
+	case <-time.After(startWait):
+		return nil, fmt.Errorf("timed out waiting for %s to start", phase)
 	}
+	cancel()
+	select {
+	case err := <-done:
+		return err, nil
+	case <-time.After(stopWait):
+		return nil, fmt.Errorf("timed out waiting for %s to stop after cancel", phase)
+	}
+}
+
+func startWitnessWorker(t *testing.T, phase string, callCtx context.Context, release chan struct{}, run func(context.Context) error) <-chan error {
+	t.Helper()
+	workerCtx, cancelWorker := context.WithCancel(callCtx)
+	done := make(chan error, 1)
+	finished := make(chan struct{})
+	go func() {
+		defer close(finished)
+		done <- run(workerCtx)
+	}()
+	t.Cleanup(func() {
+		cancelWorker()
+		close(release)
+		select {
+		case <-finished:
+		case <-time.After(time.Second):
+			t.Errorf("timed out waiting for %s worker cleanup", phase)
+		}
+	})
+	return done
+}
+
+func startTokenFetchWitness(t *testing.T, callCtx context.Context) (<-chan struct{}, <-chan error) {
+	t.Helper()
+	started, release := make(chan struct{}), make(chan struct{})
+	var markOnce sync.Once
+	store, _ := regressionStore(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/token" {
+			w.WriteHeader(http.StatusNotFound)
+			return
+		}
+		markOnce.Do(func() { close(started) })
+		<-release
+	}))
+	done := startWitnessWorker(t, "token fetch", callCtx, release, func(ctx context.Context) error {
+		return store.Put(ctx, ports.Note{})
+	})
+	return started, done
+}
+
+func startObjectRequestWitness(t *testing.T, callCtx context.Context) (<-chan struct{}, <-chan error) {
+	t.Helper()
+	started, release := make(chan struct{}), make(chan struct{})
+	var markOnce sync.Once
+	store, _ := regressionStore(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost || r.URL.Path != "/upload/storage/v1/b/notes-bucket/o" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		markOnce.Do(func() { close(started) })
+		<-release
+	}))
+	store.token = "cached-token"
+	store.expires = time.Now().Add(time.Hour)
+	done := startWitnessWorker(t, "object request", callCtx, release, func(ctx context.Context) error {
+		return store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"})
+	})
+	return started, done
+}
+
+func startBodyReadWitness(t *testing.T, callCtx context.Context) (<-chan struct{}, <-chan error) {
+	t.Helper()
+	store := newBucket(t).open(t)
+	store.token = "test"
+	store.expires = time.Now().Add(time.Hour)
+	started, release := make(chan struct{}), make(chan struct{})
+	wantPath := "/storage/v1/b/notes-bucket/o/" + store.name("ana", "n1")
+	store.client.Transport = regressionTransport(func(r *http.Request) (*http.Response, error) {
+		if r.Method != http.MethodGet || r.URL.Path != wantPath {
+			return &http.Response{
+				StatusCode: http.StatusNotFound,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Header:     make(http.Header),
+			}, nil
+		}
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       &canceledBody{ctx: r.Context(), started: started, release: release},
+			Header:     make(http.Header),
+		}, nil
+	})
+	done := startWitnessWorker(t, "body read", callCtx, release, func(ctx context.Context) error {
+		_, err := store.Get(ctx, "ana", "n1")
+		return err
+	})
+	return started, done
 }
 
 func TestCancellationDuringTokenFetch(t *testing.T) {
 	// Arrange
-	started, release := make(chan struct{}), make(chan struct{})
-	store, _ := regressionStore(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		close(started)
-		<-release
-	}))
-	t.Cleanup(func() { close(release) })
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	// Act
-	done := make(chan error, 1)
-	go func() { done <- store.Put(ctx, ports.Note{}) }()
-	err := awaitPhaseAndCancel(t, "token fetch", started, done, cancel)
+	started, done := startTokenFetchWitness(t, ctx)
+	err, witnessErr := awaitPhaseAndCancel("token fetch", time.Second, time.Second, started, done, cancel)
+	if witnessErr != nil {
+		t.Fatal(witnessErr)
+	}
 
 	// Assert
 	if !errors.Is(err, context.Canceled) {
@@ -62,21 +152,15 @@ func TestCancellationDuringTokenFetch(t *testing.T) {
 
 func TestCancellationDuringObjectRequest(t *testing.T) {
 	// Arrange
-	started, release := make(chan struct{}), make(chan struct{})
-	store, _ := regressionStore(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		close(started)
-		<-release
-	}))
-	store.token = "cached-token"
-	store.expires = time.Now().Add(time.Hour)
-	t.Cleanup(func() { close(release) })
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	// Act
-	done := make(chan error, 1)
-	go func() { done <- store.Put(ctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"}) }()
-	err := awaitPhaseAndCancel(t, "object request", started, done, cancel)
+	started, done := startObjectRequestWitness(t, ctx)
+	err, witnessErr := awaitPhaseAndCancel("object request", time.Second, time.Second, started, done, cancel)
+	if witnessErr != nil {
+		t.Fatal(witnessErr)
+	}
 
 	// Assert
 	if !errors.Is(err, context.Canceled) {
@@ -84,31 +168,84 @@ func TestCancellationDuringObjectRequest(t *testing.T) {
 	}
 }
 
+func TestDetachedContextCancellationWitnessFailsPromptly(t *testing.T) {
+	cases := []struct {
+		phase string
+		start func(t *testing.T, callCtx context.Context) (<-chan struct{}, <-chan error)
+	}{
+		{"token fetch", startTokenFetchWitness},
+		{"object request", startObjectRequestWitness},
+		{"body read", startBodyReadWitness},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.phase, func(t *testing.T) {
+			// Arrange
+			_, unrelatedCancel := context.WithCancel(context.Background())
+			t.Cleanup(unrelatedCancel)
+			want := "timed out waiting for " + tc.phase + " to stop after cancel"
+
+			// Act
+			started, done := tc.start(t, context.Background())
+			_, witnessErr := awaitPhaseAndCancel(tc.phase, time.Second, 50*time.Millisecond, started, done, unrelatedCancel)
+			got := ""
+			if witnessErr != nil {
+				got = witnessErr.Error()
+			}
+
+			// Assert
+			if !strings.Contains(got, want) {
+				t.Fatalf("detached %s witness: got %q; want substring %q", tc.phase, got, want)
+			}
+		})
+	}
+}
+
+func TestStartupTimeoutCancelsAndDrainsBlockedWorker(t *testing.T) {
+	// Arrange
+	store := newBucket(t).open(t)
+	store.gate <- struct{}{}
+	started, release := make(chan struct{}), make(chan struct{})
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	want := "timed out waiting for blocked gate to start"
+
+	// Act
+	done := startWitnessWorker(t, "blocked gate", ctx, release, func(wctx context.Context) error {
+		return store.Put(wctx, ports.Note{Owner: "ana", ID: "n1", Title: "t"})
+	})
+	_, witnessErr := awaitPhaseAndCancel("blocked gate", 20*time.Millisecond, 50*time.Millisecond, started, done, cancel)
+	got := ""
+	if witnessErr != nil {
+		got = witnessErr.Error()
+	}
+
+	// Assert
+	if !strings.Contains(got, want) {
+		t.Fatalf("blocked-before-phase witness: got %q; want substring %q", got, want)
+	}
+}
+
 func TestCanceledCallerDoesNotWaitForAnotherTokenFetch(t *testing.T) {
 	// Arrange
 	started, release := make(chan struct{}), make(chan struct{})
+	var markOnce sync.Once
 	store, _ := regressionStore(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path == "/token" {
-			select {
-			case <-started:
-			default:
-				close(started)
-			}
+		if r.Method == http.MethodGet && r.URL.Path == "/token" {
+			markOnce.Do(func() { close(started) })
 			<-release
 			_, _ = io.WriteString(w, `{"access_token":"test","expires_in":3600}`)
 		}
 	}))
-	first := make(chan error, 1)
-	go func() { first <- store.Put(context.Background(), ports.Note{}) }()
+	first := startWitnessWorker(t, "first token fetch", context.Background(), release, func(ctx context.Context) error {
+		return store.Put(ctx, ports.Note{})
+	})
 	select {
 	case <-started:
-		t.Cleanup(func() {
-			close(release)
-			<-first
-		})
 	case err := <-first:
-		close(release)
 		t.Fatalf("first caller returned before token fetch started: %v", err)
+	case <-time.After(time.Second):
+		t.Fatal("timed out waiting for first caller token fetch to start")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Millisecond)
 	t.Cleanup(cancel)
@@ -224,39 +361,33 @@ func (f regressionTransport) RoundTrip(r *http.Request) (*http.Response, error) 
 type canceledBody struct {
 	ctx     context.Context
 	started chan struct{}
+	release <-chan struct{}
+	once    sync.Once
 }
 
 func (b *canceledBody) Read([]byte) (int, error) {
-	close(b.started)
-	<-b.ctx.Done()
-	return 0, b.ctx.Err()
+	b.once.Do(func() { close(b.started) })
+	select {
+	case <-b.ctx.Done():
+		return 0, b.ctx.Err()
+	case <-b.release:
+		return 0, io.EOF
+	}
 }
 
 func (*canceledBody) Close() error { return nil }
 
 func TestCancellationWhileReadingObjectBody(t *testing.T) {
 	// Arrange
-	s := newBucket(t).open(t)
-	s.token = "test"
-	s.expires = time.Now().Add(time.Hour)
-	started := make(chan struct{})
-	s.client.Transport = regressionTransport(func(r *http.Request) (*http.Response, error) {
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       &canceledBody{ctx: r.Context(), started: started},
-			Header:     make(http.Header),
-		}, nil
-	})
 	ctx, cancel := context.WithCancel(context.Background())
 	t.Cleanup(cancel)
 
 	// Act
-	done := make(chan error, 1)
-	go func() {
-		_, err := s.Get(ctx, "ana", "n1")
-		done <- err
-	}()
-	err := awaitPhaseAndCancel(t, "body read", started, done, cancel)
+	started, done := startBodyReadWitness(t, ctx)
+	err, witnessErr := awaitPhaseAndCancel("body read", time.Second, time.Second, started, done, cancel)
+	if witnessErr != nil {
+		t.Fatal(witnessErr)
+	}
 
 	// Assert
 	if !errors.Is(err, context.Canceled) {
