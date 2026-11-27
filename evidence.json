@@ -1,0 +1,325 @@
+{
+  "scope": "The real Notes web application and local Go BFF use synthetic data. Evidence records the exact backend and which scenarios use the local OIDC issuer or fake gRPC Notes service.",
+  "features": [
+    {
+      "title": "Use the configured subpath and announcements",
+      "movie": "configured-subpath-and-announcements.mp4",
+      "gif": "configured-subpath-and-announcements.gif",
+      "metrics": {
+        "movieSha256": "682c6bd75474510d95f41623e94d9e56857772597336ad11ffaaea506973a35b",
+        "gifSha256": "ad01afe017741bbeda69a4c3cf47a13b2b7f205f5281ec249d7af09e26fa2bf2",
+        "frames": 141,
+        "gifFrames": 141,
+        "duration": 9.4,
+        "gifDuration": 9.4,
+        "brightRatio": "0.9119",
+        "sampleDifferences": [
+          0.010781760620915033,
+          0.010740910947712418,
+          0.010758782679738562
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "basePath": "/bazel-protobuf-bff-template/",
+          "originDifferentFromBff": true,
+          "rootConfigStatus": 404,
+          "preflightStatus": 204,
+          "reloadPathname": "/bazel-protobuf-bff-template/",
+          "alertText": "title is required",
+          "liveStatusText": "Working\u2026",
+          "timeoutAlertText": "The request took too long. Try again.",
+          "ariaSnapshotExcerpt": "- main: |   - heading \"Notes\" [level=1] |   - form \"New note\": |     - text: Title |     - textbox \"Title\": slow request |     - text: Body |     - textbox \"Body\" |     - button \"Create note\""
+        },
+        "exactSource": "web/e2e/hosted.spec.mjs ('the page loads under the base path...', 'the preflight passes...', 'errors and status are announced', 'a reload under the base path keeps working'); deploy/gcp/inputs/example.inputs.json",
+        "scenario": "Serve web app under configured hosted basePath (/bazel-protobuf-bff-template/) on a distinct origin from bff-dev --store=grpc: prove subpath asset loading, 404 at root /config.json, CORS preflight, reload survival, and ARIA live announcements ([role=status] 'Working...' & [role=alert]) + ariaSnapshot tree.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Exercised fake-notes-grpc via cross-origin bff-dev --store=grpc under configured subpath /bazel-protobuf-bff-template/."
+      }
+    },
+    {
+      "title": "Prevent duplicate saves",
+      "movie": "double-save-suppression.mp4",
+      "gif": "double-save-suppression.gif",
+      "metrics": {
+        "movieSha256": "98ba91f3b5b04bc261d5746a83e4d9a619353d919336958c98558254b3be1df7",
+        "gifSha256": "ae1e63c02eb44d26d022327377ee74652e9865f4e99f175602b0f27181b04b50",
+        "frames": 61,
+        "gifFrames": 61,
+        "duration": 4.066667,
+        "gifDuration": 4.07,
+        "brightRatio": "0.9019",
+        "sampleDifferences": [
+          0.0105609170751634,
+          0.011524714052287582,
+          0.011534926470588236
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "createRequestCount": 1,
+          "renderedNoteCount": 1,
+          "noteName": "notes/9e42287b1be455964fb16dc7ddfd45d9"
+        },
+        "exactSource": "web/e2e/notes.spec.mjs ('a second submit does not create a second note'); web/app/App.tsx",
+        "scenario": "Submit Create note twice rapidly via dblclick before the first response resolves; app suppresses duplicate POST so only 1 HTTP CreateNote request and 1 saved receipt exist.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Exercised fake-notes-grpc via bff-dev --store=grpc (exactly 1 CreateNote RPC emitted on dblclick)."
+      }
+    },
+    {
+      "title": "Use only a keyboard",
+      "movie": "keyboard-small-and-invalid-focus.mp4",
+      "gif": "keyboard-small-and-invalid-focus.gif",
+      "metrics": {
+        "movieSha256": "3b452be4169942f8a34f1cbe80bfb441a0c4a7bcc7450ef32d5d11c4752cf359",
+        "gifSha256": "959f2e3823f75ca740dddca9792f6d78aef1477245597b028ca69149399730f6",
+        "frames": 61,
+        "gifFrames": 61,
+        "duration": 4.066667,
+        "gifDuration": 4.07,
+        "brightRatio": "0.8984",
+        "sampleDifferences": [
+          0.01026858660130719,
+          0.006581903594771242,
+          0.0066253063725490195
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "focusedInvalid": {
+            "name": "title",
+            "ariaDescribedBy": "title-error",
+            "ringVisible": true
+          },
+          "titleErrCleared": true,
+          "noteName": "notes/1bf8a48709b2ad32feda0ebc1c6174f1",
+          "innerWidth": 320,
+          "scrollWidth": 320
+        },
+        "exactSource": "web/e2e/notes.spec.mjs ('after a validation error, focus returns to the first invalid field...', 'the keyboard alone creates a note and opens it, with focus visible throughout') at 320x568",
+        "scenario": "At narrow 320x568 layout using keyboard alone: trigger required-title error, verify visible focus ring returns to Title with aria-describedby error message, type to clear error immediately, then Create and Open note with Tab/Enter and zero horizontal overflow.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Exercised fake-notes-grpc via bff-dev --store=grpc (CreateNote + GetNote over HTTP/2 application/grpc)."
+      }
+    },
+    {
+      "title": "Recover from refused or obsolete sessions",
+      "movie": "oidc-callback-and-session-variants.mp4",
+      "gif": "oidc-callback-and-session-variants.gif",
+      "metrics": {
+        "movieSha256": "6edfe179f95c3e3e440cfe3f831258356756b925ca7b0f73d3034e58ab96b791",
+        "gifSha256": "50215885b1d9db1b5ef2d37a964d687f7fbb513144431c02f328e35120f9a61c",
+        "frames": 146,
+        "gifFrames": 146,
+        "duration": 9.733333,
+        "gifDuration": 9.74,
+        "brightRatio": "0.9133",
+        "sampleDifferences": [
+          0.012554891748366014,
+          0.012566380718954249,
+          0.012628931781045752
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "declinedAlert": "Sign-in was declined.",
+          "replayAlert": "This sign-in did not start in this tab. Try again.",
+          "failedCallbackAlert": "Sign-in was declined.",
+          "authClearedAfterCallbackErr": true,
+          "changedClientStatus": "Not signed in.",
+          "authClearedOnClientChange": true,
+          "unconfiguredVisible": true,
+          "authClearedWhenUnconfigured": true,
+          "refusedAfterUnconfigured": "Authentication is required."
+        },
+        "exactSource": "web/e2e/signin.spec.mjs ('a declined sign-in is reported...', 'a deep link carrying another tab's answer is refused', 'a failed callback clears a session...', 'changing the client invalidates an earlier session', 'removing sign-in configuration prevents reuse...'); web/app/signin/oidc.ts",
+        "scenario": "Exercise all five production OIDC failure & obsolete-session recovery paths: declined authorization, replayed cross-tab callback, error=access_denied callback clearing an active session, client_id change invalidation, and removed sign-in config blocking stale credential reuse.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "IMPORTANT #60 BOUNDARY: Runs against production //bff/cmd/bff (--store=memory) + OIDC verifier + synthetic issuer.mjs; fake-notes-grpc (#60) is testonly and excluded from production binary."
+      }
+    },
+    {
+      "title": "Sign in, reload, and sign out",
+      "movie": "oidc-signin-reload-and-signout.mp4",
+      "gif": "oidc-signin-reload-and-signout.gif",
+      "metrics": {
+        "movieSha256": "4b4822570b343cfe0aee0b285c89a5c9da6b0db5790260cbad62692a321a3215",
+        "gifSha256": "eaa45c560629cf24af8e4cd37a8f5aaeb50519f0e5fe9222b60cbba982f59c64",
+        "frames": 94,
+        "gifFrames": 94,
+        "duration": 6.266667,
+        "gifDuration": 6.27,
+        "brightRatio": "0.9092",
+        "sampleDifferences": [
+          0.01064389297385621,
+          0.011657475490196079,
+          0.012202563316993464
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "basePath": "/bazel-protobuf-bff-template/",
+          "initialStatus": "Not signed in.",
+          "testIdentityCount": 0,
+          "beforeSignInAlert": "Authentication is required.",
+          "signedInText": "Signed in as ana",
+          "hadAuthHeader": true,
+          "createdNoteName": "notes/a2ca57b87809baaf65734c9b1a8dcab4",
+          "afterReloadText": "Signed in as ana",
+          "afterSignOutStatus": "Not signed in.",
+          "authClearedAfterSignOut": true,
+          "afterSignOutAlert": "Authentication is required.",
+          "statusAfterSecondReload": "Not signed in.",
+          "logCredentialLeak": false
+        },
+        "exactSource": "web/e2e/signin.spec.mjs ('the sign-in yields a verified identity, and the calls carry it', 'a reload keeps the session in this tab, and signing out forgets it'); web/app/signin/{SignIn.tsx,oidc.ts}; //bff/cmd/bff",
+        "scenario": "Drive production //web/app:dist against //bff/cmd/bff and synthetic OIDC issuer: verify pre-auth refusal, PKCE sign-in, private CreateNote, session persistence across tab reload, explicit Sign out, and post-sign-out refusal + reload cleanliness without exposing JWT credentials.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "IMPORTANT #60 BOUNDARY: Production //bff/cmd/bff excludes testonly //bff/testing/grpcstore (#60); OIDC sign-in/reload/sign-out ran against real //bff/cmd/bff (--store=memory) + real OIDC verifier + synthetic issuer.mjs."
+      }
+    },
+    {
+      "title": "Launch the complete stack, restart and explicitly reset it",
+      "movie": "single-command-startup-and-reset.mp4",
+      "gif": "single-command-startup-and-reset.gif",
+      "metrics": {
+        "movieSha256": "ce4ad42a027c23b586cbfd64e55a084be5d63312ae2e7444914e59f84cd0fa38",
+        "gifSha256": "61bca66ef715117a9f9d911b81425f82405378ee09554384d5f6214366c827e1",
+        "frames": 201,
+        "gifFrames": 201,
+        "duration": 13.4,
+        "gifDuration": 13.4,
+        "brightRatio": "0.6309",
+        "sampleDifferences": [
+          0.005298968545751634,
+          0.010904309640522875,
+          0.005292585784313726
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "startupMs": [
+            178,
+            165,
+            163
+          ],
+          "createdNoteName": "notes/552d7a9f3ad4407abb9e18ead4bf4ac0",
+          "bodyAfterRestart": "survives a restart",
+          "bobRefusal": "Not found.",
+          "afterResetError": "Not found.",
+          "resetBannerSeen": true
+        },
+        "exactSource": "web/e2e/local-stack.spec.mjs ('one command brings the whole stack up; a note survives a restart and not a reset'); tools/dev/dev.sh; tools/dev/profile.json",
+        "scenario": "Run tools/dev/dev.sh three times: initial one-command BFF_STORE=local launch creating 'Demo', full process restart verifying persistence for ana + refusal for bob, then '--reset' removing data dir so the old note ID yields 'Not found.'.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Runs real tools/dev/dev.sh with --store=local on-disk persistence (required to demonstrate local data-dir persistence and --reset wipe); fake-notes-grpc (#60) is separately tested under --store=grpc."
+      }
+    },
+    {
+      "title": "Handle a stopped server and a rendering failure",
+      "movie": "stopped-server-and-render-failure.mp4",
+      "gif": "stopped-server-and-render-failure.gif",
+      "metrics": {
+        "movieSha256": "19f68b89959a7f0098ee711c1937bdb2cc315e0bfd2cb719022f9ffa489f621d",
+        "gifSha256": "0c29d9ff0f79a4d92c3145f017aed2c30cbc71647a2c8a92aca2f2cbd9d327ed",
+        "frames": 86,
+        "gifFrames": 86,
+        "duration": 5.733333,
+        "gifDuration": 5.74,
+        "brightRatio": "0.9074",
+        "sampleDifferences": [
+          0.011436631944444444,
+          0.013237847222222222,
+          0.013274867238562091
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "stoppedError": "The service is unavailable. Try again.",
+          "renderError": "The page failed to render. Reload to continue.",
+          "testIdentityVisible": true,
+          "createBtnCount": 0,
+          "cliStoppedExit": 1,
+          "cliStoppedStderr": "notes-cli: rpc error [unavailable]: service unreachable: [Errno 61] Connection refused"
+        },
+        "exactSource": "web/e2e/notes.spec.mjs ('a stopped server is unavailable and a restart is not assumed', \"a render error shows the boundary's message, not a blank page\"); web/app/ErrorBoundary.tsx",
+        "scenario": "Stop the real Go BFF process mid-session and confirm clean unavailable message; independently trigger #planted-render-error to prove React ErrorBoundary shows reload instruction instead of a blank page.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Uses startStack('/') because stopServer() isolates Go BFF SIGTERM independently of fake-notes-grpc (#60); baseline unavailable fault against grpcstore already filmed in Round 1."
+      }
+    },
+    {
+      "title": "Open a genuinely missing reference",
+      "movie": "valid-missing-reference.mp4",
+      "gif": "valid-missing-reference.gif",
+      "metrics": {
+        "movieSha256": "945feeaf23a323819d9a5d600a6da512b9470d09893976dd808a88f9048a41bd",
+        "gifSha256": "2b4780812e67eabb72f4f53057b36633d75be914521040d6304e90842d662916",
+        "frames": 99,
+        "gifFrames": 99,
+        "duration": 6.6,
+        "gifDuration": 6.6,
+        "brightRatio": "0.9077",
+        "sampleDifferences": [
+          0.010425602532679738,
+          0.011634497549019608,
+          0.011644709967320262
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "missingRefError": "Not found.",
+          "ownedNoteName": "notes/3fe7c84f5501667282eed084c7de67dc",
+          "foreignRefError": "Not found.",
+          "cliMissingRefExit": 1,
+          "cliMissingRefStderr": "notes-cli: rpc error [not_found]: note not found"
+        },
+        "exactSource": "web/e2e/notes.spec.mjs ('not found', \"another principal's note reads as not found\"); bff/transport/handlers.go",
+        "scenario": "Contrast an unused valid reference (notes/does-not-exist) against another user's private note (bob opening ana's note): both yield identical 'Not found.' without existence leaks.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Exercised fake-notes-grpc via bff-dev --store=grpc (GetNote + CreateNote + cross-owner GetNote over HTTP/2 application/grpc)."
+      }
+    }
+  ]
+}
