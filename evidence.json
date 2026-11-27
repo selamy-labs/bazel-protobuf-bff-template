@@ -1,0 +1,61 @@
+{
+  "provenance": {
+    "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+    "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+    "dirtyDiffBytes": 79493,
+    "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+  },
+  "fakeGrpcWireStats": {
+    "totalCalls": 3,
+    "procedures": {
+      "/template.notes.v1.NoteService/CreateNote": 1,
+      "/template.notes.v1.NoteService/GetNote": 2
+    },
+    "contentTypes": [
+      "application/grpc"
+    ],
+    "httpProtos": [
+      "HTTP/2.0"
+    ]
+  },
+  "shots": [
+    {
+      "mp4_file": "features/oversized-body/oversized-body.mp4",
+      "mp4_sha256": "d1d223dab2105f9413acd26f13b9b418885a7d3e886808ebfee35a5c1b5905f6",
+      "gif_file": "features/oversized-body/oversized-body.gif",
+      "gif_sha256": "413663c6fe12c24951873ccb1a70f382169e65b8e1a2d21c4868043360d4bcd1",
+      "bright_ratio_fixed": "0.9051",
+      "assertions": {
+        "bodyError": "must be at most 4000 characters",
+        "titleErrCount": 0,
+        "focusedNameAfterReject": "body",
+        "recoveredNoteName": "notes/7d5643fe2da0b753e4ea372d3a753730"
+      },
+      "boundary": "Exercised fake-notes-grpc via bff-dev --store=grpc; protovalidate rejected 4001-char note.body at Go BFF before downstream gRPC write, and recovery persisted to fake-notes-grpc."
+    },
+    {
+      "mp4_file": "features/keyboard-focus/keyboard-focus.mp4",
+      "mp4_sha256": "06efe0042eb051ebc8b6d42fe7eab3c8f87dd3fb8d085880a9151dfccd5f320c",
+      "gif_file": "features/keyboard-focus/keyboard-focus.gif",
+      "gif_sha256": "48ad37654bee13089482b206f7577636f37b2efa5934e3014ae39c7d2e375349",
+      "bright_ratio_fixed": "0.9053",
+      "assertions": {
+        "ringsChecked": 5,
+        "createBtnFocus": {
+          "label": "Create note",
+          "visible": true
+        },
+        "keptBtnFocus": {
+          "label": "Create note",
+          "visible": true
+        },
+        "openBtnFocus": {
+          "label": "Open note",
+          "visible": true
+        },
+        "createdNoteName": "notes/f942f2a96921a8ce6fe742d6a85f1fc4"
+      },
+      "boundary": "Exercised fake-notes-grpc via bff-dev --store=grpc (CreateNote + GetNote over HTTP/2 application/grpc)."
+    }
+  ]
+}
