@@ -1,0 +1,7 @@
+{"version": 2, "width": 100, "height": 30, "title": "Synthetic Notes reference client", "env": {"TERM": "xterm-256color"}}
+[2.9e-05, "o", "$ notes-cli create --endpoint=http://127.0.0.1:19841 --subject=ana '--title=Sample observation' '--body=Saved through the BFF.'\r\n"]
+[0.356642, "o", "name: notes/f392288027d39ea21c8bf785092eb06e\r\ntitle: Sample observation\r\nbody: Saved through the BFF.\r\ncreate_time: 2026-11-27T02:10:49.173677Z\r\n"]
+[1.062147, "o", "$ notes-cli get --endpoint=http://127.0.0.1:19841 --subject=ana --name=notes/f392288027d39ea21c8bf785092eb06e\r\n"]
+[1.466852, "o", "name: notes/f392288027d39ea21c8bf785092eb06e\r\ntitle: Sample observation\r\nbody: Saved through the BFF.\r\ncreate_time: 2026-11-27T02:10:49.173677Z\r\n"]
+[2.168221, "o", "$ notes-cli get --endpoint=http://127.0.0.1:19841 --subject=bob --name=notes/f392288027d39ea21c8bf785092eb06e\r\n"]
+[2.422094, "o", "notes-cli: rpc error [not_found]: note not found\r\n"]

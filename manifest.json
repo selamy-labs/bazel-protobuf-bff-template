@@ -1,0 +1,30 @@
+{
+  "duration": 19.271333,
+  "brightRatio": "0.0364",
+  "decodedFrames": 231,
+  "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+  "boundary": "Actual Notes CLI and PTY TUI against the real local Go BFF and file store. Original terminal output zoomed, wrapped and held for reading.",
+  "sourceCasts": {
+    "notes-cli.cast": "720961fe0906e8f20c0bb178eadc1d921177fecbf9ee66f4328092dd6b557a72",
+    "notes-tui.cast": "70366fd9d62303d7e6cd0c2ac3f3d3aabb8838c9956009f10bce5198fba2abc8"
+  },
+  "mp4Sha256": "257bc80ee4490fe9ed9dc5e2826d80485dbbb1f4f6bbc1f79137714c9705b8ee",
+  "gifSha256": "ddfa142d7639119e53736f89d4d77ce8a33a9066f4b1b82a0824ffd1cf5ba0d0",
+  "scenes": [
+    {
+      "title": "Read a saved note",
+      "start": 0,
+      "end": 6.75
+    },
+    {
+      "title": "Open the same reference",
+      "start": 6.75,
+      "end": 12.75
+    },
+    {
+      "title": "Try as a different user",
+      "start": 12.75,
+      "end": 19.25
+    }
+  ]
+}
