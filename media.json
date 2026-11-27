@@ -1,0 +1,14 @@
+{
+  "movie": "walkthrough.mp4",
+  "gif": "walkthrough.gif",
+  "title": "One note, three ways in",
+  "duration": 49.521333,
+  "brightRatio": "0.5289",
+  "decodedFrames": 594,
+  "mp4Sha256": "4315e0784d2dac815dba794e3cac2c7c4d3441445d44149f210f0a7271379b55",
+  "gifSha256": "8479702ed8881e5f1ddca8a8dff7c4b44b5a33d8959ad7e15c19c1f98ca7aec5",
+  "chapters": 7,
+  "width": 1280,
+  "height": 904,
+  "local": true
+}

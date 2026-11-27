@@ -1,0 +1,363 @@
+{
+  "sourceRevision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+  "boundary": "Local Notes web, shipped Python CLI and real Textual PTY, generated Connect clients, real Go development BFF and current local store. The terminal segments replay captured terminal output with a high-contrast palette. No downstream gRPC or hosted run is asserted.",
+  "features": [
+    {
+      "requirement": "001 US1 / 004 US1 / 005 US1 \u2022 create and open",
+      "scenes": [
+        "compose",
+        "reopen"
+      ],
+      "remaining": "Notes are returned by the Go BFF after browser reload."
+    },
+    {
+      "requirement": "004 US2/4 / 005 US2 \u2022 typed validation and identity isolation",
+      "scenes": [
+        "validate",
+        "private",
+        "cli",
+        "tui"
+      ],
+      "remaining": "Blank-title field feedback and cross-subject not-found are filmed. Expired credentials, deadline, cancellation, oversized fields, unavailable and internal-error correlation IDs need their own scenarios."
+    },
+    {
+      "requirement": "005 US3/4 \u2022 browser boundary and local startup",
+      "scenes": [
+        "compose"
+      ],
+      "remaining": "The running local client is visible. Cross-origin enforcement, production bundle identity exclusion and the one-command startup are verifier work."
+    },
+    {
+      "requirement": "013 US1 \u2022 portable typed CLI and shared web round trip",
+      "scenes": [
+        "cli",
+        "shared"
+      ],
+      "remaining": "The exact CLI-created reference opens in the browser. Reverse browser\u2192CLI, CLI help, malformed invocation, non-loopback refusal, typed JSON errors and process-restart persistence still need visible terminal evidence."
+    },
+    {
+      "requirement": "013 US2 \u2022 interactive typed read",
+      "scenes": [
+        "tui"
+      ],
+      "remaining": "The shipped read-only TUI loads the CLI reference as the owner and denies the other subject."
+    },
+    {
+      "requirement": "013 US3 \u2022 optional Android, iOS and desktop clients",
+      "scenes": [],
+      "remaining": "Obtain an actual emulator, simulator, and supported-OS launch when the corresponding client ships. See #30, #31 and #32."
+    },
+    {
+      "requirement": "Required CI and downstream fake",
+      "scenes": [],
+      "remaining": "Land and run #60 and #59. The existing main CI desktop/mobile browser artifact uses its separate Connect fake."
+    },
+    {
+      "requirement": "Developer adoption, build, governance and deployment",
+      "scenes": [],
+      "remaining": "The per-story appendix identifies the engineering checks. #20 owns the hosted release exercise and #21 the application-to-template lessons."
+    }
+  ],
+  "stories": [
+    {
+      "source": "specs/001-bff-template-foundation/spec.md",
+      "story": "User Story 1 - Fresh clone shows a working browser-to-BFF slice (Priority: P1)",
+      "evidence": "Partial scene evidence at 0:07"
+    },
+    {
+      "source": "specs/001-bff-template-foundation/spec.md",
+      "story": "User Story 2 - Contract changes are safe and generated code cannot drift (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/001-bff-template-foundation/spec.md",
+      "story": "User Story 3 - Lifecycle hooks give fast, safe, actionable feedback (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/001-bff-template-foundation/spec.md",
+      "story": "User Story 4 - Reviewers trust exact-revision evidence and cannot be fooled by weakening (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/001-bff-template-foundation/spec.md",
+      "story": "User Story 5 - A second project consumes the shared checks and upgrades (Priority: P3)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/001-bff-template-foundation/spec.md",
+      "story": "User Story 6 - Optional cloud deployment profile with operator gates (Priority: P3)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/001-bff-template-foundation/spec.md",
+      "story": "User Story 7 - Public-release review before publication (Priority: P3)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/002-hermetic-skeleton/spec.md",
+      "story": "User Story 1 - One command produces a verified, pinned toolchain (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/002-hermetic-skeleton/spec.md",
+      "story": "User Story 2 - The minimal verifier catches real defects with actionable output (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/002-hermetic-skeleton/spec.md",
+      "story": "User Story 3 - Missing isolation is detected, never silently weakened (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/002-hermetic-skeleton/spec.md",
+      "story": "User Story 4 - CI runs the same verifier at the exact revision (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/002-hermetic-skeleton/spec.md",
+      "story": "User Story 5 - Feedback cost is measured, not asserted (Priority: P3)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/003-notes-contract/spec.md",
+      "story": "User Story 1 - One schema produces both typed clients (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/003-notes-contract/spec.md",
+      "story": "User Story 2 - A breaking change cannot pass silently (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/003-notes-contract/spec.md",
+      "story": "User Story 3 - Style and validation are declared once (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/004-go-bff/spec.md",
+      "story": "User Story 1 - A caller stores and reads its own notes (Priority: P1)",
+      "evidence": "Partial scene evidence at 0:07, 0:14"
+    },
+    {
+      "source": "specs/004-go-bff/spec.md",
+      "story": "User Story 2 - Every failure is typed and leaks nothing (Priority: P1)",
+      "evidence": "Partial scene evidence at 0:20, 0:00"
+    },
+    {
+      "source": "specs/004-go-bff/spec.md",
+      "story": "User Story 3 - Time limits reach storage (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/004-go-bff/spec.md",
+      "story": "User Story 4 - Identity fails closed (Priority: P1)",
+      "evidence": "Partial scene evidence at 0:20"
+    },
+    {
+      "source": "specs/004-go-bff/spec.md",
+      "story": "User Story 5 - Browser access is limited to one origin (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/005-browser-client/spec.md",
+      "story": "User Story 1 - A person creates and opens a note in a browser (Priority: P1)",
+      "evidence": "Partial scene evidence at 0:07, 0:14"
+    },
+    {
+      "source": "specs/005-browser-client/spec.md",
+      "story": "User Story 2 - Each failure reads as what happened (Priority: P1)",
+      "evidence": "Partial scene evidence at 0:00, 0:20"
+    },
+    {
+      "source": "specs/005-browser-client/spec.md",
+      "story": "User Story 3 - The browser boundary holds (Priority: P1)",
+      "evidence": "Partial scene evidence at 0:07"
+    },
+    {
+      "source": "specs/005-browser-client/spec.md",
+      "story": "User Story 4 - One command runs the app (Priority: P2)",
+      "evidence": "Partial scene evidence at 0:07"
+    },
+    {
+      "source": "specs/006-quality-hooks/spec.md",
+      "story": "User Story 1 - One rule, one definition (P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/006-quality-hooks/spec.md",
+      "story": "User Story 2 - Fast, faithful commit feedback (P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/006-quality-hooks/spec.md",
+      "story": "User Story 3 - Push checks the commit being pushed (P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/006-quality-hooks/spec.md",
+      "story": "User Story 4 - Bounded, owned execution (P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/006-quality-hooks/spec.md",
+      "story": "User Story 5 - Installation is safe and repeatable (P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/006-quality-hooks/spec.md",
+      "story": "User Story 6 - Go analyzers run (P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/007-ci-parity-evidence/spec.md",
+      "story": "US1 (P1): One registry governs local and CI.",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/007-ci-parity-evidence/spec.md",
+      "story": "US2 (P1): A proposal cannot authorize its own weakening.",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/007-ci-parity-evidence/spec.md",
+      "story": "US3 (P1): The aggregate cannot go green on missing work.",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/007-ci-parity-evidence/spec.md",
+      "story": "US4 (P2): Coverage is real and owned.",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/007-ci-parity-evidence/spec.md",
+      "story": "US5 (P2): Claims stay separate.",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/008-second-consumer/spec.md",
+      "story": "US1 (P1): A separate project adopts the checks by pin.",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/008-second-consumer/spec.md",
+      "story": "US2 (P1): An upgrade is one pin and a reviewable diff.",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/008-second-consumer/spec.md",
+      "story": "US3 (P2): The base contract holds for a consumer.",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/009-bff-image/spec.md",
+      "story": "User Story 1 - An adopter gets the production server as one image from the build graph (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/009-bff-image/spec.md",
+      "story": "User Story 2 - The image behaves as the server does today (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/009-bff-image/spec.md",
+      "story": "User Story 3 - One builder, stated everywhere (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/009-bff-image/spec.md",
+      "story": "User Story 4 - Build once, serve the browser and Connect together (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/010-release-readiness/spec.md",
+      "story": "User Story 1 - A reviewer can see where everything came from (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/010-release-readiness/spec.md",
+      "story": "User Story 2 - Nothing private ships (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/010-release-readiness/spec.md",
+      "story": "User Story 3 - A new repository can be provisioned from a reviewed plan (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/010-release-readiness/spec.md",
+      "story": "User Story 4 - The first hosted run is planned (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/010-release-readiness/spec.md",
+      "story": "User Story 5 - Public development begins on the reviewed core (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/010-release-readiness/spec.md",
+      "story": "User Story 6 - The image and the artifacts are distributed from the public repository (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/011-quality-baseline/spec.md",
+      "story": "User Story 1 - A reviewer sees every baseline control with its real state (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/011-quality-baseline/spec.md",
+      "story": "User Story 2 - A measured budget cannot be met by weakening (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/011-quality-baseline/spec.md",
+      "story": "User Story 3 - A second implementer can take one slice without touching another's files (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/011-quality-baseline/spec.md",
+      "story": "User Story 4 - Behavior is driven by typed configuration, with defaults in one place (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/012-hosted-example/spec.md",
+      "story": "User Story 1 - An operator can stand up the example from a reviewed plan (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/012-hosted-example/spec.md",
+      "story": "User Story 2 - A release can be rolled back and a deployment cancelled (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/012-hosted-example/spec.md",
+      "story": "User Story 3 - Costs and authority are bounded (Priority: P2)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/012-hosted-example/spec.md",
+      "story": "User Story 4 - A real identity, a real store, a real port (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/012-hosted-example/spec.md",
+      "story": "User Story 5 - Anyone can bring the whole stack up locally and demo it (Priority: P1)",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    },
+    {
+      "source": "specs/013-reference-clients/spec.md",
+      "story": "US1 (P1 \u2014 `#29`): CLI and Web Share Notes Round-Trip, Persistence, and Refusal",
+      "evidence": "Partial scene evidence at 0:26, 0:32"
+    },
+    {
+      "source": "specs/013-reference-clients/spec.md",
+      "story": "US2 (P2 \u2014 `#34`): Shared Textual TUI Reference",
+      "evidence": "Partial scene evidence at 0:39"
+    },
+    {
+      "source": "specs/013-reference-clients/spec.md",
+      "story": "US3 (P2 \u2014 `#30`, `#31`, `#32`): Native Mobile and Desktop Reference Clients",
+      "evidence": "Outside this user walkthrough; use the spec acceptance matrix or open platform issue."
+    }
+  ]
+}

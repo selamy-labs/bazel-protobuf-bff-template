@@ -1,0 +1,58 @@
+[
+  {
+    "id": "validate",
+    "title": "Start a shift handoff",
+    "caption": "Ana needs to pass along a location. When she leaves the title empty, the web app tells her which field to fix.",
+    "start": 0,
+    "end": 7.75,
+    "capturedFrames": 9
+  },
+  {
+    "id": "compose",
+    "title": "Leave a handoff",
+    "caption": "Ana leaves a handoff for the next shift. The web app saves her note and returns a reference.",
+    "start": 7.75,
+    "end": 14.0,
+    "capturedFrames": 19
+  },
+  {
+    "id": "reopen",
+    "title": "Find it again",
+    "caption": "After a reload, Ana enters the reference and gets back the original handoff.",
+    "start": 14.0,
+    "end": 20.0,
+    "capturedFrames": 16
+  },
+  {
+    "id": "private",
+    "title": "Keep the handoff private",
+    "caption": "Bob tries the same reference. The service hides the note and tells him it was not found.",
+    "start": 20.0,
+    "end": 26.0,
+    "capturedFrames": 9
+  },
+  {
+    "id": "cli",
+    "title": "Work from a shell",
+    "caption": "The command-line client creates a second note. Ana reads it back. Bob gets the same refusal.",
+    "start": 26.0,
+    "end": 32.917,
+    "capturedFrames": 23
+  },
+  {
+    "id": "shared",
+    "title": "Pick it up in the browser",
+    "caption": "Ana opens the reference printed by the command-line client. The browser shows the same title and body.",
+    "start": 32.917,
+    "end": 39.75,
+    "capturedFrames": 16
+  },
+  {
+    "id": "tui",
+    "title": "Read in a terminal",
+    "caption": "The interactive terminal opens that second note for Ana. Switching to Bob keeps its contents private.",
+    "start": 39.75,
+    "end": 49.5,
+    "capturedFrames": 69
+  }
+]
