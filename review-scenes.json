@@ -1,0 +1,58 @@
+[
+  {
+    "id": "fields",
+    "title": "Fix an invalid field",
+    "caption": "A too-long title and a malformed note reference each produce a message on the field that needs attention.",
+    "start": 0,
+    "end": 6.583,
+    "capturedFrames": 13
+  },
+  {
+    "id": "auth",
+    "title": "Require an identity",
+    "caption": "Creating a note without an identity is refused. The page asks for authentication.",
+    "start": 6.583,
+    "end": 12.917,
+    "capturedFrames": 8
+  },
+  {
+    "id": "outage",
+    "title": "Handle storage unavailability",
+    "caption": "When the store is unavailable, the app reports the outage and invites the user to retry.",
+    "start": 12.917,
+    "end": 19.083,
+    "capturedFrames": 8
+  },
+  {
+    "id": "deadline",
+    "title": "Bound a stuck request",
+    "caption": "A request that does not finish in time returns a timeout message. The form remains available for another attempt.",
+    "start": 19.083,
+    "end": 26.75,
+    "capturedFrames": 15
+  },
+  {
+    "id": "unexpected",
+    "title": "Keep internal failures private",
+    "caption": "An unexpected failure gives the reviewer a correlation reference without displaying the server\u2019s internal details.",
+    "start": 26.75,
+    "end": 34.0,
+    "capturedFrames": 9
+  },
+  {
+    "id": "shell-restart",
+    "title": "Read a web note after restart",
+    "caption": "After the local service restarts, the real command-line client opens the note created in the browser. A different user is still denied.",
+    "start": 34.0,
+    "end": 42.917,
+    "capturedFrames": 37
+  },
+  {
+    "id": "shell-contract",
+    "title": "Use the command-line contract",
+    "caption": "The CLI explains its purpose, reports a typed JSON validation error, and refuses a test identity on a remote endpoint.",
+    "start": 42.917,
+    "end": 51.75,
+    "capturedFrames": 46
+  }
+]

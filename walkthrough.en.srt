@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:07,730
+Ana needs to pass along a location. When she leaves the title empty, the web app tells her which field to fix.
+
+2
+00:00:07,750 --> 00:00:13,980
+Ana leaves a handoff for the next shift. The web app saves her note and returns a reference.
+
+3
+00:00:14,000 --> 00:00:19,980
+After a reload, Ana enters the reference and gets back the original handoff.
+
+4
+00:00:20,000 --> 00:00:25,980
+Bob tries the same reference. The service hides the note and tells him it was not found.
+
+5
+00:00:26,000 --> 00:00:32,897
+The command-line client creates a second note. Ana reads it back. Bob gets the same refusal.
+
+6
+00:00:32,917 --> 00:00:39,730
+Ana opens the reference printed by the command-line client. The browser shows the same title and body.
+
+7
+00:00:39,750 --> 00:00:49,480
+The interactive terminal opens that second note for Ana. Switching to Bob keeps its contents private.

@@ -1,0 +1,22 @@
+{
+  "movie": "walkthrough.mp4",
+  "gif": "walkthrough.gif",
+  "title": "One note, three ways in",
+  "duration": 49.521333,
+  "brightRatio": "0.5254",
+  "decodedFrames": 594,
+  "mp4Sha256": "93b1c7cc2cf70bca79cbf5d03a6f7a5896eaecfe57595c664970f7e0af1168ae",
+  "gifSha256": "2e7b02774a0b66a26f39af8144300e5aedaecf0ea70a8380f84330d060c48594",
+  "chapters": 7,
+  "width": 1280,
+  "height": 904,
+  "local": true,
+  "webSourceRevision": "ae172d5aa59a507e9331a745f7224a201d0c873d",
+  "goBffAndTerminalRevision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+  "webBundleSha256": {
+    "index.html": "498667b29158d9956345d09b88850d261560862e1db643935a15192d597c1303",
+    "main.js": "9a1965e05ace1c0390c920fb73a109b0c3de56a5aaa3274553c062b120239f9a"
+  },
+  "backend": "test identity and real Go BFF with restart-durable local store",
+  "coverage": "local"
+}

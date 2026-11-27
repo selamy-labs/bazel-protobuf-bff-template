@@ -1,0 +1,14 @@
+{
+  "movie": "walkthrough.mp4",
+  "gif": "walkthrough.gif",
+  "title": "Failures a Notes user can act on",
+  "duration": 51.771333,
+  "brightRatio": "0.5210",
+  "decodedFrames": 621,
+  "mp4Sha256": "20eaa0cba8b587a046e41257810a6a3666eba599bfde1331a6dde5cac24e1061",
+  "gifSha256": "09a807f19e4fa65279765b83f595121a11b923e853476256664766eacdcbb5ef",
+  "chapters": 7,
+  "width": 1280,
+  "height": 904,
+  "local": true
+}

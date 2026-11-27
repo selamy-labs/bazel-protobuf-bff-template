@@ -1,0 +1,27 @@
+1
+00:00:00,000 --> 00:00:06,563
+A too-long title and a malformed note reference each produce a message on the field that needs attention.
+
+2
+00:00:06,583 --> 00:00:12,897
+Creating a note without an identity is refused. The page asks for authentication.
+
+3
+00:00:12,917 --> 00:00:19,063
+When the store is unavailable, the app reports the outage and invites the user to retry.
+
+4
+00:00:19,083 --> 00:00:26,730
+A request that does not finish in time returns a timeout message. The form remains available for another attempt.
+
+5
+00:00:26,750 --> 00:00:33,980
+An unexpected failure gives the reviewer a correlation reference without displaying the server’s internal details.
+
+6
+00:00:34,000 --> 00:00:42,897
+After the local service restarts, the real command-line client opens the note created in the browser. A different user is still denied.
+
+7
+00:00:42,917 --> 00:00:51,730
+The CLI explains its purpose, reports a typed JSON validation error, and refuses a test identity on a remote endpoint.
