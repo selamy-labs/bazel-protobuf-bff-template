@@ -1,0 +1,160 @@
+{
+  "scope": "The real Notes web application and local Go BFF use synthetic data. Evidence records the exact backend and which scenarios use the local OIDC issuer or fake gRPC Notes service.",
+  "features": [
+    {
+      "title": "Prevent duplicate saves",
+      "movie": "double-save-suppression.mp4",
+      "gif": "double-save-suppression.gif",
+      "metrics": {
+        "movieSha256": "22d1abb7101f88714fd62fa808d966b1b155430b4c9d8794ce3ae4b7f41d651c",
+        "gifSha256": "689854a3e9c85bef63f8508530b90b2b72027c5dc916a2bd7ac39b933bf32653",
+        "frames": 61,
+        "gifFrames": 61,
+        "duration": 4.066667,
+        "gifDuration": 4.07,
+        "brightRatio": "0.9018",
+        "sampleDifferences": [
+          0.011158343545751634,
+          0.01243361928104575,
+          0.012431066176470587
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "createRequestCount": 1,
+          "renderedNoteCount": 1,
+          "noteName": "notes/0106e9a82f18897f964c52cfaf163fab"
+        },
+        "exactSource": "web/e2e/notes.spec.mjs ('a second submit does not create a second note'); web/app/App.tsx",
+        "scenario": "Submit Create note twice rapidly via dblclick before the first response resolves; app suppresses duplicate POST so only 1 HTTP CreateNote request and 1 saved receipt exist.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Exercised fake-notes-grpc via bff-dev --store=grpc (exactly 1 CreateNote RPC emitted on dblclick)."
+      }
+    },
+    {
+      "title": "Sign in, reload, and sign out",
+      "movie": "oidc-signin-reload-and-signout.mp4",
+      "gif": "oidc-signin-reload-and-signout.gif",
+      "metrics": {
+        "movieSha256": "0e380e91178468cfd916277c727208d5ef66ab5f02848437015186d4263cc39c",
+        "gifSha256": "df74a4367e20e0fda4366348ee3063314481dc766d5552feaf24f7777aff2f9b",
+        "frames": 93,
+        "gifFrames": 93,
+        "duration": 6.2,
+        "gifDuration": 6.2,
+        "brightRatio": "0.9091",
+        "sampleDifferences": [
+          0.01034390318627451,
+          0.010845588235294117,
+          0.010863459967320261
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "basePath": "/bazel-protobuf-bff-template/",
+          "initialStatus": "Not signed in.",
+          "testIdentityCount": 0,
+          "beforeSignInAlert": "Authentication is required.",
+          "signedInText": "Signed in as ana",
+          "hadAuthHeader": true,
+          "createdNoteName": "notes/f133a9fc3708e21cd631f2ef155a260c",
+          "afterReloadText": "Signed in as ana",
+          "afterSignOutStatus": "Not signed in.",
+          "authClearedAfterSignOut": true,
+          "afterSignOutAlert": "Authentication is required.",
+          "statusAfterSecondReload": "Not signed in.",
+          "logCredentialLeak": false
+        },
+        "exactSource": "web/e2e/signin.spec.mjs ('the sign-in yields a verified identity, and the calls carry it', 'a reload keeps the session in this tab, and signing out forgets it'); web/app/signin/{SignIn.tsx,oidc.ts}; //bff/cmd/bff",
+        "scenario": "Drive production //web/app:dist against //bff/cmd/bff and synthetic OIDC issuer: verify pre-auth refusal, PKCE sign-in, private CreateNote, session persistence across tab reload, explicit Sign out, and post-sign-out refusal + reload cleanliness without exposing JWT credentials.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "IMPORTANT #60 BOUNDARY: Production //bff/cmd/bff excludes testonly //bff/testing/grpcstore (#60); OIDC sign-in/reload/sign-out ran against real //bff/cmd/bff (--store=memory) + real OIDC verifier + synthetic issuer.mjs."
+      }
+    },
+    {
+      "title": "Handle a stopped server and a rendering failure",
+      "movie": "stopped-server-and-render-failure.mp4",
+      "gif": "stopped-server-and-render-failure.gif",
+      "metrics": {
+        "movieSha256": "32b8fbf6aca0d8b0f29f88f6ee631c56f0bc2d1d13e0e0787ccda95ee1b26109",
+        "gifSha256": "f01e23dd94e160306b1bde663091186e8a8a230d8c3427ed6b5d18223cf9799d",
+        "frames": 84,
+        "gifFrames": 84,
+        "duration": 5.6,
+        "gifDuration": 5.6,
+        "brightRatio": "0.9070",
+        "sampleDifferences": [
+          0.01140344158496732,
+          0.012909773284313725,
+          0.012955729166666667
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "stoppedError": "The service is unavailable. Try again.",
+          "renderError": "The page failed to render. Reload to continue.",
+          "testIdentityVisible": true,
+          "createBtnCount": 0,
+          "cliStoppedExit": 1,
+          "cliStoppedStderr": "notes-cli: rpc error [unavailable]: service unreachable: [Errno 61] Connection refused"
+        },
+        "exactSource": "web/e2e/notes.spec.mjs ('a stopped server is unavailable and a restart is not assumed', \"a render error shows the boundary's message, not a blank page\"); web/app/ErrorBoundary.tsx",
+        "scenario": "Stop the real Go BFF process mid-session and confirm clean unavailable message; independently trigger #planted-render-error to prove React ErrorBoundary shows reload instruction instead of a blank page.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Uses startStack('/') because stopServer() isolates Go BFF SIGTERM independently of fake-notes-grpc (#60); baseline unavailable fault against grpcstore already filmed in Round 1."
+      }
+    },
+    {
+      "title": "Open a genuinely missing reference",
+      "movie": "valid-missing-reference.mp4",
+      "gif": "valid-missing-reference.gif",
+      "metrics": {
+        "movieSha256": "8f8f8d5e27b9b95c88475d0ef6cfe5e2316abef10803b68c9003adeb6e70e4ae",
+        "gifSha256": "cb2f75a4614f249e2fe6a92280aa40be2013f9b2397a67f14fd72c7dd04999b9",
+        "frames": 100,
+        "gifFrames": 100,
+        "duration": 6.666667,
+        "gifDuration": 6.67,
+        "brightRatio": "0.9078",
+        "sampleDifferences": [
+          0.011088133169934641,
+          0.01238766339869281,
+          0.012399152369281045
+        ]
+      },
+      "evidence": {
+        "assertions": {
+          "missingRefError": "Not found.",
+          "ownedNoteName": "notes/07ca8513872244847555b13ae031d14a",
+          "foreignRefError": "Not found.",
+          "cliMissingRefExit": 1,
+          "cliMissingRefStderr": "notes-cli: rpc error [not_found]: note not found"
+        },
+        "exactSource": "web/e2e/notes.spec.mjs ('not found', \"another principal's note reads as not found\"); bff/transport/handlers.go",
+        "scenario": "Contrast an unused valid reference (notes/does-not-exist) against another user's private note (bob opening ana's note): both yield identical 'Not found.' without existence leaks.",
+        "provenance": {
+          "revision": "cf5f070c1fc364d12a759812a5ff702ec506fadc",
+          "dirtyDiffSha256": "e0db7f68f37afe74dc11a9533dcfc2a66cb837dec9285ed516fcbe265a17b8a9",
+          "dirtyDiffBytes": 79493,
+          "gitStatusSha256": "d7420370e86f195aaa0f57b46e4336f0b7c90c4b8a7310d050c45ede23f8f521"
+        },
+        "grpc60Boundary": "Exercised fake-notes-grpc via bff-dev --store=grpc (GetNote + CreateNote + cross-owner GetNote over HTTP/2 application/grpc)."
+      }
+    }
+  ]
+}
